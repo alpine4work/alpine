@@ -10,17 +10,17 @@ import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
-import {SearchResultView} from "~/client/search/internal/search_result_view.js";
+import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
+import {SearchEntityView} from "~/client/search/search_entity_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    minSearchMobileInputHeight,
-    minSearchResultViewHeightPx,
+    searchEntityViewMinHeightPx,
     searchMobileInputBorderRadius,
     searchMobileInputFontSize,
     searchMobileInputMarginBottom,
     searchMobileInputMarginTop,
+    searchMobileInputMinHeight,
     searchMobileInputPaddingX,
     searchMobileInputPaddingY,
 } from "~/client/styles/search_shared_styles.js";
@@ -38,16 +38,20 @@ import {
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchResult} from "~/shared/search/search_result.js";
+import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
+import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 
 export function SearchMobileView({
-    affinityResults,
+    initialAffinitySearch,
 }: {
-    affinityResults: ReadonlyArray<SearchResult>;
+    initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
+    const navigate = useNavigate();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
@@ -56,10 +60,18 @@ export function SearchMobileView({
     const {output, queryText, onQueryTextChange} = useSearchState({
         isSearchParamControlled: false,
         debugOptions: null,
-        affinityResults,
+        initialAffinitySearch,
     });
 
     const results = output.results ?? emptyArray;
+
+    const hasFavorites =
+        output.type === "EmptyQuery" &&
+        output.favoriteResults !== null &&
+        (output.hasMoreFavoriteResults || output.favoriteResults.length > 0);
+    const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
+    const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
+
     const shouldShowLoadingIndicator = useDelayLoadingIndicator(output.isPending);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
@@ -80,7 +92,7 @@ export function SearchMobileView({
                     minHeight: addRemLengths(
                         navigationBarHeight,
                         searchMobileInputMarginTop,
-                        minSearchMobileInputHeight,
+                        searchMobileInputMinHeight,
                         searchMobileInputMarginBottom,
                     ),
                     node: (
@@ -152,7 +164,7 @@ export function SearchMobileView({
                                 </Box>
                             </Box>
                             <Box height={searchMobileInputMarginBottom} />
-                            {results.length === 0 && (
+                            {!hasFavorites && results.length === 0 && (
                                 <Box
                                     color="grey-50"
                                     paddingX={screenPaddingX}
@@ -187,14 +199,111 @@ export function SearchMobileView({
 
             index -= 1;
 
+            if (hasFavorites) {
+                if (index === 0) {
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
+
+                    return {
+                        key: "FavoritesHeader",
+                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        node: (
+                            <Box
+                                width="full"
+                                maxWidth={maxWidth}
+                                marginX="center"
+                                paddingTop={paddingTop}
+                                paddingX={screenPaddingX}
+                                color="grey-50"
+                                fontSize={fontSize}
+                                style={{lineHeight: spacing[lineHeight]}}
+                            >
+                                Favorites
+                                {hasMoreFavoriteResults && (
+                                    // Intentionally using [U+2219 (bullet operator)][1] instead of
+                                    // [U+2022 (bullet)][2] since the former is thinner.
+                                    //
+                                    // A bullet separator here is nicer than parentheses like "(see all)"
+                                    // since the parentheses draw a lot of attention.
+                                    //
+                                    // [1]: https://graphemica.com/%E2%88%99
+                                    // [2]: https://graphemica.com/%E2%80%A2
+                                    <>
+                                        {"\u2009\u2219\u2009"}
+                                        <SearchMobileViewFavoritesHeaderSeeMoreButton
+                                            onPress={() => {
+                                                navigate(`/s/${space.id}/favorites`);
+                                            }}
+                                        />
+                                    </>
+                                )}
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+
+                if (index < favoriteResults.length) {
+                    const result = favoriteResults[index]!;
+
+                    return {
+                        key: result.id,
+                        minHeight: searchEntityViewMinHeightPx[spacingScale],
+                        node: (
+                            <Box width="full" maxWidth={maxWidth} marginX="center">
+                                <SearchMobileViewResult
+                                    spaceId={space.id}
+                                    searchKey={output.key}
+                                    searchTime={output.queryTime}
+                                    result={result}
+                                    isFirstItem={false}
+                                    isLastItem={false}
+                                />
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= favoriteResults.length;
+
+                if (index === 0) {
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
+
+                    return {
+                        key: "SuggestedHeader",
+                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        node: (
+                            <Box
+                                width="full"
+                                maxWidth={maxWidth}
+                                marginX="center"
+                                paddingX={screenPaddingX}
+                                paddingTop={paddingTop}
+                                color="grey-50"
+                                fontSize={fontSize}
+                                style={{lineHeight: spacing[lineHeight]}}
+                            >
+                                Suggested
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+            }
+
             const result = results[index]!;
 
-            const isFirstItem = index === 0;
+            const isFirstItem = !hasFavorites && index === 0;
             const isLastItem = index === results.length - 1;
 
             return {
-                key: `Loaded:${result.id}`,
-                minHeight: minSearchResultViewHeightPx[spacingScale],
+                key: result.id,
+                minHeight: searchEntityViewMinHeightPx[spacingScale],
                 node: (
                     <Box width="full" maxWidth={maxWidth} marginX="center">
                         <SearchMobileViewResult
@@ -211,7 +320,11 @@ export function SearchMobileView({
             };
         },
         [
+            favoriteResults,
+            hasFavorites,
+            hasMoreFavoriteResults,
             maxWidth,
+            navigate,
             onQueryTextChange,
             output.key,
             output.queryTime,
@@ -230,8 +343,8 @@ export function SearchMobileView({
             elementRef={scrollViewRef}
             scrollbarInsetTop={scrollbarInsetTop}
             extraChildren={navigationBar}
-            itemCount={1 + results.length}
-            bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
+            itemCount={1 + (hasFavorites ? 2 + favoriteResults.length : 0) + results.length}
+            bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content
@@ -279,7 +392,7 @@ function SearchMobileViewResult({
     spaceId: SpaceId;
     searchKey: string;
     searchTime: Date;
-    result: SearchResult;
+    result: SearchEntityResult | SearchAffinityEntityResult;
     isFirstItem: boolean;
     isLastItem: boolean;
 }) {
@@ -288,12 +401,12 @@ function SearchMobileViewResult({
     const {isPressed, pressProps} = usePress({
         onPress: () => {
             navigate(
-                getSearchResultDestinationPath({
+                getSearchEntityPath({
                     spaceId: spaceId,
-                    resultId: result.id,
-                    searchKey,
-                    searchTime,
-                    withDesktopLayout: false,
+                    entityId: result.id,
+                    randomSeed: searchKey,
+                    currentTime: searchTime,
+                    routeLayout: "narrow",
                 }),
             );
         },
@@ -301,7 +414,7 @@ function SearchMobileViewResult({
 
     return (
         <Box {...pressProps}>
-            <SearchResultView
+            <SearchEntityView
                 paddingX={screenPaddingX}
                 marginX="0"
                 isPressed={isPressed}
@@ -309,6 +422,35 @@ function SearchMobileViewResult({
                 withMarginTop={isFirstItem}
                 withMarginBottom={isLastItem}
             />
+        </Box>
+    );
+}
+
+function SearchMobileViewFavoritesHeaderSeeMoreButton({onPress}: {onPress: () => void}) {
+    const {isPressed, pressProps} = usePress({onPress});
+
+    return (
+        <Box
+            {...pressProps}
+            display="inline"
+            // We don't usually use a pointer cursor for pressable things but in this case
+            // it's not obvious this text is interactive without it.
+            cursor="pointer"
+            // Additional padding Y to get to 44px in height of touch slop.
+            paddingY="3"
+            position="relative"
+            left="-1"
+        >
+            <Box
+                display="inline"
+                color={isPressed ? "grey-100" : undefined}
+                backgroundColor={isPressed ? "grey-10" : undefined}
+                paddingX="1"
+                paddingY="1"
+                borderRadius="1"
+            >
+                see all
+            </Box>
         </Box>
     );
 }

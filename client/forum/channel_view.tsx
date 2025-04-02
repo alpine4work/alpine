@@ -1,3 +1,4 @@
+import {Link as LinkIcon} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -22,6 +23,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileCount,
@@ -53,9 +55,11 @@ import {
 export function ChannelView({
     initialChannelResult,
     initialPostsResult,
+    initialIsFavorite,
 }: {
     initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
     initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
+    initialIsFavorite: boolean;
 }) {
     const context = useAppContext();
     const platform = usePlatform();
@@ -186,6 +190,11 @@ export function ChannelView({
     if (editNameAndDescriptionMobileModalState && platform !== "mobile")
         setEditNameAndDescriptionMobileModalState(null);
 
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
+        `Channel:${channelId}`,
+        initialIsFavorite,
+    );
+
     const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
@@ -234,6 +243,8 @@ export function ChannelView({
             [
                 {
                     label: "Copy link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
                     pressErrorTitle: "Couldn’t copy channel link",
                     onPress: async () => {
                         const url = new URL(
@@ -243,6 +254,7 @@ export function ChannelView({
                         await writeTextToClipboard(url.toString());
                     },
                 },
+                ...(favoriteMenuAction ? [favoriteMenuAction] : []),
             ],
             [
                 {

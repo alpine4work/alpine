@@ -11,10 +11,10 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
 import {
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
-    dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
     getAccount,
     getAccountIfExists,

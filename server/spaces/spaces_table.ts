@@ -20,7 +20,6 @@ import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistenc
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
@@ -37,7 +36,6 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {
     DataLossError,
-    DeadlineExceededError,
     ErrorBase,
     FailedPreconditionError,
     NotFoundError,
@@ -47,6 +45,7 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
@@ -62,6 +61,10 @@ import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {
+    SpaceAccountSettings,
+    SpaceAccountSettingsSchema,
+} from "~/shared/spaces/space_account_settings.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -154,6 +157,39 @@ const SpacesTable = DynamoTableSchema.new({
                             .default(null),
                     }),
                 },
+
+                /**
+                 * Represents secondary information for an account that's a member of this
+                 * space.
+                 *
+                 * The `Account` item is the primary, canonical, item which we use for
+                 * determining whether an account is a member of the space (critical for
+                 * authorization!). Information in the primary `Account` item goes into
+                 * `AccountModel` which is shared to the client whenever an `AccountId` is
+                 * referenced. It's important for performance that the primary `Account` item
+                 * stays small and only contains critical data.
+                 *
+                 * This item contains secondary information associated with the space account
+                 * we don't need to load in hot code paths (thus reducing the number of RCUs we
+                 * spend loading the space account list). As a rule of thumb, put information
+                 * in the primary `Account` item if it's needed for:
+                 *
+                 * - Authorization
+                 * - `AccountModel`, which is used for:
+                 *     - Rendering account mentions
+                 *     - Rendering `<AccountAvatar>`
+                 *     - Rendering an account tooltip preview
+                 *
+                 * Anything else goes into this secondary item. A secondary item may not exist
+                 * when a primary item exists. We only create this secondary item if needed.
+                 */
+                {
+                    name: "AccountSettings",
+                    sortKeyAttributes: {
+                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
+                    },
+                    attributes: SpaceAccountSettingsSchema,
+                },
             ],
         },
 
@@ -226,18 +262,36 @@ export async function createSpaceForTest(
  */
 export async function addSpaceAccountForTest(
     context: ServerProcessContext,
-    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+    {
+        spaceId,
+        accountId,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+    },
 ) {
     assert(process.env.NODE_ENV === "test");
 
-    await dangerouslyAddSpaceAccountWithoutAuthorization(context, {
+    await internalDangerouslyAddSpaceAccountWithoutAuthorization(context, {
         spaceId,
         accountId,
+        // Don't add `TaskPersonal` favorite search entity in our test environment.
+        // That would require all server tests taking a dependency on
+        // `//server/search/data`.
+        favoriteSearchEntity: asyncNoop,
     });
 }
 
 export async function seedTestSpaces(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    {
+        favoriteSearchEntity,
+    }: {
+        favoriteSearchEntity: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
+        ) => Promise<unknown>;
+    },
 ) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId, adminAccountId} = getDynamoSeedConstants();
@@ -250,61 +304,30 @@ export async function seedTestSpaces(
         createdTime: new Date(),
     });
 
-    try {
-        await context.dynamo.retryTransaction(async context => {
-            const adminAccountSpacesItem = await SpacesTable.getItemIfExists(context, {
-                partitionType: "Account",
-                sortRangeType: "Spaces",
-                accountId: adminAccountId,
-            });
+    const spaceAccountItem = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Space",
+        sortRangeType: "Account",
+        spaceId: defaultSpaceId,
+        accountId: adminAccountId,
+    });
 
-            const adminAccountSpaceIds: Set<SpaceId> = adminAccountSpacesItem
-                ? new Set(adminAccountSpacesItem.spaceIds)
-                : new Set();
-            const doesAdminAccountAlreadyHaveDefaultSpaceId =
-                adminAccountSpaceIds.has(defaultSpaceId);
-            adminAccountSpaceIds.add(defaultSpaceId);
-
-            if (doesAdminAccountAlreadyHaveDefaultSpaceId) return;
-
-            await DynamoTableSchema.executeTransaction(context, [
-                SpacesTable.transactionCreateItem({
-                    partitionType: "Space",
-                    sortRangeType: "Account",
-                    spaceId: defaultSpaceId,
-                    accountId: adminAccountId,
-                    joinedTime: new Date(),
-                    removal: null,
-                }),
-                SpacesTable.transactionDirectlyUpdateItem({
-                    ...adminAccountSpaceIds,
-                    partitionType: "Account",
-                    sortRangeType: "Spaces",
-                    accountId: adminAccountId,
-                    spaceIds: adminAccountSpaceIds,
-                }),
-            ]);
-
-            // If we add the admin account to our default space we should also index the
-            // admin account in our default space.
-            context.jobs.send({
-                type: "IndexSearchEntity",
+    if (!spaceAccountItem || spaceAccountItem.removal) {
+        try {
+            await internalDangerouslyAddSpaceAccountWithoutAuthorization(context, {
                 spaceId: defaultSpaceId,
-                update: {
-                    type: "Account",
-                    accountId: adminAccountId,
-                    updatedTraits: {type: "Some", traits: []},
-                },
+                accountId: adminAccountId,
+                favoriteSearchEntity,
             });
-        });
-    } catch (error) {
-        if (isDynamoConditionCheckError(error) && !(error instanceof DeadlineExceededError)) {
-            // We can ignore DynamoDB condition check errors since it means the created
-            // item already exists.
-            //
-            // Though don't ignore `DeadlineExceededError` (thrown by `retryTransaction()`
-            // if we retry too many times). That's a real bug in seeding.
-        } else {
+        } catch (error) {
+            // Ignore account is already a member of space error. Since this means due to a
+            // race condition we tried to add the account to the space twice.
+            if (
+                error instanceof FailedPreconditionError &&
+                error.message.includes("Account is already a member of space")
+            ) {
+                return;
+            }
+
             throw error;
         }
     }
@@ -314,7 +337,7 @@ export async function seedTestSpaces(
  * To implement `createAlphaSpaceAsAdmin()` we need to update `SpacesTable`
  * and `ForumRealtimeTable`. However, `server/spaces` doesn't have access to
  * `ForumRealtimeTable`. So we implement `createAlphaSpaceAsAdmin()` in
- * `server/forum` and export this function which implements the `SpacesTable`
+ * `server/alpha` and export this function which implements the `SpacesTable`
  * updates we need.
  */
 export async function internalCreateAlphaSpaceAsAdmin(
@@ -326,6 +349,7 @@ export async function internalCreateAlphaSpaceAsAdmin(
         ownerAccountId,
         welcomeChannelId,
         createWelcomeChannelTransactionEntries,
+        favoriteSearchEntity,
     }: {
         spaceId: SpaceId;
         createdTime: Date;
@@ -333,6 +357,10 @@ export async function internalCreateAlphaSpaceAsAdmin(
         ownerAccountId: AccountId;
         welcomeChannelId: ChannelId;
         createWelcomeChannelTransactionEntries: Array<DynamoTransactionEntry>;
+        favoriteSearchEntity: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
+        ) => Promise<unknown>;
     },
 ): Promise<void> {
     await authorizeInternalAccess(context);
@@ -352,9 +380,10 @@ export async function internalCreateAlphaSpaceAsAdmin(
         ...createWelcomeChannelTransactionEntries,
     ]);
 
-    await dangerouslyAddSpaceAccountAsAdmin(context, {
+    await internalDangerouslyAddSpaceAccountAsAdmin(context, {
         spaceId,
         accountId: ownerAccountId,
+        favoriteSearchEntity,
     });
 }
 
@@ -363,13 +392,28 @@ export async function internalCreateAlphaSpaceAsAdmin(
  * administrators beware! Adding an account to a space gives the account access
  * to data within the space. Make sure you've been given permission by the
  * space owner before adding anyone new to their space.
+ *
+ * Labeled as internal since you need to provide `favoriteSearchEntity()` (or
+ * more specifically `dangerouslyFavoriteSearchEntityWithoutAuthorization()`)
+ * from `//server/search/data` to call this function.
+ *
+ * Instead you should call `dangerouslyAddSpaceAccountAsAdmin()` in
+ * `//server/spaces/add_account` that integrates this function with
+ * `//server/search/data`.
  */
-export async function dangerouslyAddSpaceAccountAsAdmin(
+export async function internalDangerouslyAddSpaceAccountAsAdmin(
     context: ServerActionContext,
-    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+    options: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        favoriteSearchEntity: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
+        ) => Promise<unknown>;
+    },
 ) {
     await authorizeInternalAccess(context);
-    await dangerouslyAddSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
+    await internalDangerouslyAddSpaceAccountWithoutAuthorization(context, options);
 }
 
 /**
@@ -397,10 +441,25 @@ export async function removeSpaceAccountAsAdmin(
  * to add any user to any space they could easily compromise the data privacy
  * of spaces. You must authorize the actor is allowed to add accounts when
  * calling this function from an exported function.
+ *
+ * Labeled as internal since you need to provide `favoriteSearchEntity()` (or
+ * more specifically `dangerouslyFavoriteSearchEntityWithoutAuthorization()`)
+ * from `//server/search/data` to call this function.
  */
-async function dangerouslyAddSpaceAccountWithoutAuthorization(
-    context: ServerProcessContext,
-    {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
+async function internalDangerouslyAddSpaceAccountWithoutAuthorization(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    {
+        spaceId,
+        accountId,
+        favoriteSearchEntity,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        favoriteSearchEntity: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
+        ) => Promise<unknown>;
+    },
 ) {
     await context.dynamo.retryTransaction(async () => {
         const currentTime = new Date();
@@ -486,6 +545,16 @@ async function dangerouslyAddSpaceAccountWithoutAuthorization(
             accountId,
             updatedTraits: {type: "Some", traits: []},
         },
+    });
+
+    // After we've successfully created the account, run some additional
+    // non-critical initialization logic. If any initialization here fails, the
+    // account will still be successfully created, but there may be some small
+    // issues.
+    await favoriteSearchEntity(context, {
+        spaceId,
+        accountId,
+        entityId: "TaskPersonal",
     });
 }
 
@@ -1084,10 +1153,10 @@ export async function authorizeSpaceAccess(
                     context.actor.getAccountId(),
                 ))
             ) {
-                throw new PermissionDeniedError("Account doesn't have access to space", {
-                    aggregateDedupeKey: `${spaceId}:${context.actor.getAccountId()}`,
-                    displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                });
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getAccountId(),
+                );
             }
             break;
         }
@@ -1105,6 +1174,16 @@ export async function authorizeSpaceAccess(
         default:
             throw exhaustive(context.actor);
     }
+}
+
+export function createAuthorizeSpaceAccessPermissionDeniedError(
+    spaceId: SpaceId,
+    accountId: AccountId,
+) {
+    return new PermissionDeniedError("Account doesn't have access to space", {
+        aggregateDedupeKey: `${spaceId}:${accountId}`,
+        displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
+    });
 }
 
 /**
@@ -1137,12 +1216,9 @@ export async function authorizeSpaceAccessIfPossible(
                     get error() {
                         // When this function is called, frequently we only check `ok`. So lazily
                         // create an error only when needed.
-                        error ??= new PermissionDeniedError(
-                            "Account doesn't have access to space",
-                            {
-                                aggregateDedupeKey: `${spaceId}:${accountId}`,
-                                displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
-                            },
+                        error ??= createAuthorizeSpaceAccessPermissionDeniedError(
+                            spaceId,
+                            accountId,
                         );
                         return error;
                     },
@@ -1509,6 +1585,57 @@ export async function getAccount(
     const account = await getAccountIfExists(context, spaceId, accountId, options);
     if (!account) throw new NotFoundError("Can't find account in space");
     return account;
+}
+
+/**
+ * Get the space account settings for the actor in the provided space.
+ */
+export async function getSpaceAccountSettings(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+): Promise<SpaceAccountSettings> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const item = await SpacesTable.getItemIfExists(context, {
+        partitionType: "Space",
+        sortRangeType: "AccountSettings",
+        spaceId,
+        accountId: context.actor.getAccountId(),
+    });
+
+    return item ?? SpaceAccountSettingsSchema.deserialize({});
+}
+
+/**
+ * Update some space account settings for the actor in the provided space.
+ */
+export async function updateSpaceAccountSettings(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    update: Partial<SpaceAccountSettings>,
+) {
+    await authorizeSpaceAccess(context, spaceId);
+
+    await SpacesTable.updateItem(
+        context,
+        {
+            partitionType: "Space",
+            sortRangeType: "AccountSettings",
+            spaceId,
+            accountId: context.actor.getAccountId(),
+        },
+        item => {
+            item ??= {
+                partitionType: "Space",
+                sortRangeType: "AccountSettings",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                ...SpaceAccountSettingsSchema.deserialize({}),
+            };
+
+            return {...item, ...update};
+        },
+    );
 }
 
 /**

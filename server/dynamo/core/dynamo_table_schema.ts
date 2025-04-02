@@ -427,6 +427,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                                       DynamoTableItemSharedExpirationTimeAttributeSchema,
                                               }),
                                           )
+                                        : sortRangeConfig.withExpirationTime === "RequiredNullable"
+                                        ? attributesSchema.merge(
+                                              Schema.object({
+                                                  expirationTime:
+                                                      DynamoTableItemSharedExpirationTimeAttributeSchema.nullable(),
+                                              }),
+                                          )
                                         : attributesSchema;
 
                                 return {
@@ -5303,7 +5310,7 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
                             ?.sortRangeByType[nextIndexOverloadItemType.sortRangeType]
                     ) {
                         throw new InvalidArgumentError(
-                            quote`Index overload ${nextIndexOverloadName} can\'t be added to existing items with partition type ${nextIndexOverloadItemType.partitionType} and sort range type ${nextIndexOverloadItemType.sortRangeType}`,
+                            quote`Index overload ${nextIndexOverloadName} can't be added to existing items with partition type ${nextIndexOverloadItemType.partitionType} and sort range type ${nextIndexOverloadItemType.sortRangeType}`,
                         );
                     }
                 }

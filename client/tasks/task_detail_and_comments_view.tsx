@@ -53,6 +53,7 @@ export function TaskDetailAndCommentsView({
     childrenQuery,
     initialChildrenGridViewExpansionState,
     initialFields,
+    initialIsFavorite,
     initialNotesVersion,
     initialNotesContent,
     commitActionTransactionAndCreateIfNeeded,
@@ -69,6 +70,7 @@ export function TaskDetailAndCommentsView({
     childrenQuery: TaskClientQuery | null;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     initialFields: TaskQueryNormalizedFiltersInitialFieldsModel;
+    initialIsFavorite: boolean;
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
     commitActionTransactionAndCreateIfNeeded: Memo<
@@ -373,6 +375,7 @@ export function TaskDetailAndCommentsView({
                             initialChildrenGridViewExpansionState
                         }
                         initialFields={initialFields}
+                        initialIsFavorite={initialIsFavorite}
                         notesEditorStateStore={notesEditorStateStore}
                         onNotesEditorStateChange={onNotesEditorStateChange}
                         reconnectNotesClient={reconnectNotesClient}

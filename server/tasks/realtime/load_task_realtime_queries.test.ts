@@ -1423,7 +1423,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -1443,7 +1443,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -1463,7 +1463,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -1483,7 +1483,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -1869,7 +1869,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -1889,7 +1889,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -1909,7 +1909,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -2357,7 +2357,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -2377,7 +2377,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -2687,7 +2687,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -2711,7 +2711,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -2912,7 +2912,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -2967,7 +2967,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {
@@ -2987,7 +2987,7 @@ test("loads a query as an anonymous actor", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await expect(
         testLoadTaskRealtimeQueries(otherSession.action(), {

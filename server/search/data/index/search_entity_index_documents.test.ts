@@ -14,7 +14,7 @@ import {
     searchByAffinity,
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -24,7 +24,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 
 // Needs to be before `afterEach()` hook where we err if there are remaining
 // timers since the constructor adds an `afterEach()` hook to clear timers
@@ -82,7 +82,7 @@ function getIndexedSearchEntity(entity: TestDocument) {
 async function actuallyGetIndexedSearchEntity(
     context: TestContext,
     spaceId: SpaceId,
-    entityId: SearchEntityId,
+    entityId: SearchDynamicEntityId,
 ): Promise<{
     title: string | null;
     body: string | null;
@@ -984,9 +984,9 @@ test("newly created documents will be visible in search even before indexing", a
     });
     await document.access.grantDefault(session1);
 
-    await markSearchAffinityInteraction(session2.action(), {
+    await markSearchAffinityEntityInteraction(session2.action(), {
         spaceId: space.id,
-        affinityId: `Document:${document.id}`,
+        entityId: `Document:${document.id}`,
         interaction: {type: "MediumIntentUpdate"},
     });
 
@@ -998,36 +998,30 @@ test("newly created documents will be visible in search even before indexing", a
         body: null,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(60),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(1),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
@@ -1041,65 +1035,53 @@ test("newly created documents will be visible in search even before indexing", a
         body: null,
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(60),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(1),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
     await document.access.revokeDefault(session1);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(60),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [],
     });
 
@@ -1114,72 +1096,60 @@ test("newly created documents will be visible in search even before indexing", a
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(60),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(1),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
     await document.access.revokeDefault(session1);
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(60),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(1),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
@@ -1187,29 +1157,23 @@ test("newly created documents will be visible in search even before indexing", a
     import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(
-        await searchByAffinity(session1.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [
             {
                 id: `Document:${document.id}`,
                 score: expect.closeTo(60),
                 title: "Hollywoo Stars and Celebrities",
-                bodyTextSnippet: [],
                 media: null,
+                favoriteOrderKey: null,
             },
         ],
     });
 
-    expect(
-        await searchByAffinity(session2.action(), {
-            spaceId: space.id,
-            limit: 100,
-        }),
-    ).toEqual({
+    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+        hasMoreFavoriteResults: false,
+        favoriteResults: [],
         results: [],
     });
 

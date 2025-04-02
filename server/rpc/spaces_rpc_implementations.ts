@@ -1,13 +1,14 @@
-import {createAlphaSpaceAsAdmin} from "~/server/forum/data/forum_table.js";
+import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/notifications_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {getPossiblyStaleAccountSearchAffinityIds} from "~/server/search/data/table/search_entity_table.js";
+import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_table.js";
+import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
 import {
-    dangerouslyAddSpaceAccountAsAdmin,
     expensivelyGetAllSpaceAccounts,
     getOurAccountSpaceIds,
     getSpaceIfPossible,
     removeSpaceAccountAsAdmin,
+    updateSpaceAccountSettings,
 } from "~/server/spaces/spaces_table.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -22,7 +23,7 @@ export default implementRpcs(definitions, {
                 expensivelyGetAllSpaceAccounts(context, input.spaceId),
 
                 // We return all accounts sorted in affinity order.
-                getPossiblyStaleAccountSearchAffinityIds(
+                getPossiblyStaleAccountSearchAffinityEntityIds(
                     context.actor.authorizeSession(),
                     input.spaceId,
                 ),
@@ -106,6 +107,18 @@ export default implementRpcs(definitions, {
                     return {space, inbox};
                 }),
             };
+        },
+    },
+
+    updateSpaceAccountSettings: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await updateSpaceAccountSettings(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                input.update,
+            );
+            return {};
         },
     },
 });

@@ -82,7 +82,9 @@ export type MenuStandardAction = {
     /**
      * An optional icon element rendered next to the action label.
      */
-    readonly icon?: ReactNode | ((props: {size: "4"; isDisabled: boolean}) => ReactNode);
+    readonly icon?:
+        | ReactNode
+        | ((props: {size: "4"; isPressed: boolean; isDisabled: boolean}) => ReactNode);
 
     /**
      * Is the icon at the front or back of the menu item? Defaults to `start`.
@@ -944,11 +946,10 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         | {isPending: false; shouldShowPendingSpinner: false}
         | {isPending: true; shouldShowPendingSpinner: boolean}
     >({isPending: false, shouldShowPendingSpinner: false});
-    const isVisuallyDisabled = action.isDisabled || action.disabledReason !== undefined;
-    const isDisabled = isVisuallyDisabled || pendingState.isPending;
+    const isDisabled = action.isDisabled || action.disabledReason !== undefined;
 
     const {isHovered, hoverProps} = useHover({
-        isDisabled: isVisuallyDisabled,
+        isDisabled,
         // When the mouse hovers over a menu item, we focus it so if the user
         // then uses the keyboard (presses enter or an arrow key) we navigate
         // using the hovered menu item.
@@ -962,16 +963,16 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
     const {isPressed, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
-        // We want visually disabled buttons to be pressable so they can show their
-        // tooltip with the reason for why they are disabled.
-        isDisabled: isDisabled && !isVisuallyDisabled,
+        // We want buttons with a disabled reason to be pressable so they can show
+        // their tooltip with the reason for why they are disabled.
+        isDisabled: isDisabled && action.disabledReason === undefined,
         onPress: event => {
-            if (isVisuallyDisabled) {
+            if (action.disabledReason !== undefined) {
                 skipTooltipHoverDelay?.();
                 return;
             }
 
-            if (isDisabled) return;
+            if (isDisabled || pendingState.isPending) return;
 
             const {pressErrorTitle} = action;
 
@@ -1010,7 +1011,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
 
                 result.then(
                     result => {
-                        if (!result?.withoutClose && !shouldNotCloseAfterPress) {
+                        if (result?.withoutClose || shouldNotCloseAfterPress) {
+                            setPendingState({isPending: false, shouldShowPendingSpinner: false});
+                        } else {
                             // Our animation principle is to respond to user input immediately
                             // without animation.
                             //
@@ -1053,7 +1056,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         <Box flexShrink="0" minWidth="4" minHeight="4">
             <IconContext.Provider
                 value={{
-                    color: isVisuallyDisabled
+                    color: isDisabled
                         ? colorSchemeVars["grey-40"]
                         : isPressed
                         ? colorSchemeVars["grey-100"]
@@ -1063,7 +1066,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 }}
             >
                 {typeof action.icon === "function"
-                    ? action.icon({size: "4", isDisabled})
+                    ? action.icon({size: "4", isPressed, isDisabled})
                     : action.icon}
             </IconContext.Provider>
         </Box>
@@ -1092,9 +1095,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 borderRadius="1"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
                 // seems silly to call attention to the destructive action with color.
-                color={isVisuallyDisabled ? "grey-40" : "grey-100"}
+                color={isDisabled ? "grey-40" : "grey-100"}
                 backgroundColor={
-                    isPressed && !isVisuallyDisabled ? "grey-10" : isHovered ? "grey-5" : undefined
+                    isPressed && !isDisabled ? "grey-10" : isHovered ? "grey-5" : undefined
                 }
                 // When a menu item is disabled, `aria-disabled` is set to true.
                 //
@@ -1127,7 +1130,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 )}
                 {platform !== "mobile" && action.keyboardShortcutHint && (
                     <Box flexShrink="0">
-                        <Box color={isVisuallyDisabled ? "grey-30" : "grey-50"} fontSize="50">
+                        <Box color={isDisabled ? "grey-30" : "grey-50"} fontSize="50">
                             <IconContext.Provider
                                 value={{
                                     color: "currentColor",
@@ -1184,7 +1187,6 @@ function MenuCustomItem({
 
     const {isPressed, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
-        isDisabled: pendingState.isPending,
         onPress: event => {
             const {pressErrorTitle} = action;
 

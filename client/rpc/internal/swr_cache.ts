@@ -5,10 +5,13 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {SafeFloatingPromiseLike} from "~/shared/helpers/types/safe_floating_promise.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {createPromiseStore} from "~/shared/store/promise_store.js";
 import {Store} from "~/shared/store/store.js";
 import {StoreMap} from "~/shared/store/store_map.js";
+
+export const swrDefaultDedupingIntervalMs = 2 * 1000;
 
 /**
  * Amount of time we wait before expiring an entry from the SWR cache. This may
@@ -160,8 +163,8 @@ export class SwrCache {
     public revalidateEntry(
         key: string,
         fetcher: (key: string) => PromiseLike<object>,
-        options: {dedupingInterval: number},
-    ) {
+        options?: {dedupingInterval?: number},
+    ): void {
         const referenceState = this._referenceStateByKey.get(key);
         if (!((referenceState?.referenceCount ?? 0) > 0)) {
             throw new FailedPreconditionError("Must retain entry before it can be referenced");
@@ -174,7 +177,7 @@ export class SwrCache {
             entryStack === undefined ||
             entryStack.lastDedupingIntervalExpirationTime <= currentTime
         ) {
-            void this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
+            this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
         }
     }
 
@@ -189,8 +192,8 @@ export class SwrCache {
     public revalidateEntryIfNotAvailable(
         key: string,
         fetcher: (key: string) => PromiseLike<object>,
-        options: {dedupingInterval: number},
-    ) {
+        options?: {dedupingInterval?: number},
+    ): void {
         const referenceState = this._referenceStateByKey.get(key);
         if (!((referenceState?.referenceCount ?? 0) > 0)) {
             throw new FailedPreconditionError("Must retain entry before it can be referenced");
@@ -200,17 +203,37 @@ export class SwrCache {
         const entryStack = this._entryStackByKey.getSnapshot(key);
 
         if (entryStack === undefined) {
-            void this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
+            this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
         }
+    }
+
+    /**
+     * Revalidate an entry with the provided fetcher function. Ignores the previous
+     * entry's `dedupingInterval` and forces the entry to be re-fetched.
+     */
+    public forceRevalidateEntry(
+        key: string,
+        fetcher: (key: string) => PromiseLike<object>,
+        options?: {dedupingInterval?: number},
+    ): SafeFloatingPromiseLike<object> {
+        const referenceState = this._referenceStateByKey.get(key);
+        if (!((referenceState?.referenceCount ?? 0) > 0)) {
+            throw new FailedPreconditionError("Must retain entry before it can be referenced");
+        }
+
+        const currentTime = Date.now();
+        const entryStack = this._entryStackByKey.getSnapshot(key);
+
+        return this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
     }
 
     private _forceRevalidateEntry(
         key: string,
         fetcher: (key: string) => PromiseLike<object>,
-        {dedupingInterval}: {dedupingInterval: number},
+        {dedupingInterval = swrDefaultDedupingIntervalMs}: {dedupingInterval?: number} = {},
         currentTime: number,
         entryStack: SwrCacheEntryStack | undefined,
-    ): PromiseLike<object> {
+    ): SafeFloatingPromiseLike<object> {
         const dedupingIntervalExpirationTime = currentTime + dedupingInterval;
         const dataPromise = fetcher(key);
         const dataStore = createPromiseStore(dataPromise);
@@ -221,7 +244,7 @@ export class SwrCache {
 
         this._entryStackByKey.set(key, entryStack);
 
-        return dataPromise;
+        return dataPromise as SafeFloatingPromiseLike<object>;
     }
 }
 

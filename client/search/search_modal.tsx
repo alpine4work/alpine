@@ -17,6 +17,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {usePress} from "react-aria";
 import {To, createPath} from "react-router";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -28,6 +29,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {useGlobalContext} from "~/client/helpers/global_context.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -40,16 +42,21 @@ import {
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {getSearchResultDestinationPath} from "~/client/search/internal/get_search_result_destination_path.js";
+import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
+import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
+import {updateSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
+import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
-import {SearchResultView} from "~/client/search/internal/search_result_view.js";
-import {useSearchState} from "~/client/search/use_search_state.js";
-import {SearchResultShimmer} from "~/client/shimmer/search_result_shimmer.js";
+import {SearchEntityView, searchEntitySideBarWidth} from "~/client/search/search_entity_view.js";
+import {SearchStateExecutionOutput, useSearchState} from "~/client/search/use_search_state.js";
+import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
-    minSearchResultViewHeightPx,
-    searchResultViewPaddingY,
+    searchEntityViewDefaultMarginX,
+    searchEntityViewDefaultPaddingX,
+    searchEntityViewMinHeightPx,
+    searchEntityViewPaddingY,
 } from "~/client/styles/search_shared_styles.js";
 import {
     contentStyles,
@@ -64,13 +71,17 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
-import {markSearchAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
-import {isSearchAffinityId} from "~/shared/search/search_affinity_id.js";
+import {
+    clearSearchEntityAffinity,
+    markSearchAffinityEntityInteraction,
+    unfavoriteSearchEntity,
+} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
-import {SearchResult, SearchResultId} from "~/shared/search/search_result.js";
 
 const searchModalInputHeight = "16";
 const searchModalPeekContentMaxHeight = "160";
@@ -106,8 +117,8 @@ export function SearchModal({
 
         const inputElement = assertExists(inputRef.current);
 
-        inputElement.select();
         inputElement.focus();
+        inputElement.select();
     }, []);
 
     const {output, queryText, onQueryTextChange} = useSearchState({
@@ -116,12 +127,51 @@ export function SearchModal({
     });
 
     const {selectedPeek, activePeek, switchPeek, holdPeekTransition} = usePeekSwitcherState<{
-        resultId: SearchResultId;
+        entityId: SearchEntityId;
     }>({
-        // Reset our peek state if the search response changes.
-        key: output.key,
         initialPeekData: null,
     });
+
+    // If the `output` changes such that our selected peek is no longer in the
+    // output then:
+    //
+    // - If the item after the selected peek in the previous output exists move our
+    //   selection to that item (e.g. when removing a suggested item)
+    // - Otherwise clear the selected peek.
+    const previousOutputRef = useRef(output);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const previousOutput = previousOutputRef.current;
+        previousOutputRef.current = output;
+
+        if (selectedPeek) {
+            if (output.type === "EmptyQuery" && selectedPeek.extra.entityId === "SearchFavorites") {
+                // Don't navigate away from favorites when we're viewing the affinity query.
+                // That way if an update to favorites causes the "see all" button to disappear
+                // we won't abruptly navigate the user away.
+            } else if (!hasSearchEntityId(output, selectedPeek.extra.entityId)) {
+                const nextEntityId = getNextSearchEntityId(
+                    previousOutput,
+                    selectedPeek.extra.entityId,
+                );
+                if (!nextEntityId || !hasSearchEntityId(output, nextEntityId)) {
+                    void switchPeek(null);
+                } else {
+                    const path = getSearchEntityPath({
+                        spaceId: space.id,
+                        entityId: nextEntityId,
+                        randomSeed: output.key,
+                        currentTime: output.queryTime,
+                        routeLayout: "narrow",
+                    });
+
+                    void switchPeek({
+                        spacePath: path,
+                        extra: {entityId: nextEntityId},
+                    });
+                }
+            }
+        }
+    }, [output, selectedPeek, space.id, switchPeek]);
 
     const shouldShowInputLoadingIndicator =
         useDelayLoadingIndicator(output.isPending) &&
@@ -136,12 +186,12 @@ export function SearchModal({
     // self reinforcing system. The more a user selects an entity, the higher the
     // entity will appear in the user's next search.
     const markResultSelectAffinityInteraction = useCallback(
-        (resultId: SearchResultId) => {
-            if (!isSearchAffinityId(resultId)) return;
+        (entityId: SearchEntityId) => {
+            if (!isSearchAffinityEntityId(entityId)) return;
 
-            markSearchAffinityInteraction(context, {
+            markSearchAffinityEntityInteraction(context, {
                 spaceId: space.id,
-                affinityId: resultId,
+                entityId,
                 interaction: {type: "HighIntentUpdate"},
             }).catch(error => {
                 // Silently fail. This doesn't affect anything the user sees so we don't need
@@ -155,10 +205,56 @@ export function SearchModal({
         [context, reporter, space.id],
     );
 
+    const handleArrowKeyDownNavigation = (key: "ArrowUp" | "ArrowDown") => {
+        // Data hasn't loaded yet, we can't select anything.
+        if (!output.results) return;
+
+        let entityId: SearchEntityId | null = null;
+
+        if (!selectedPeek) {
+            // NOTE(calebmer): Notably, pressing down when `output.hasMoreFavoriteResults`
+            // is true and there's no selected result does not select the "see all" button.
+            // But pressing down will select the first favorite item then pressing up will
+            // select the "see all" button. This is because we believe keyboard navigation
+            // to the "see all" button is significantly less likely then navigating to the
+            // first favorite item.
+            if (
+                output.type === "EmptyQuery" &&
+                output.favoriteResults &&
+                output.favoriteResults.length > 0
+            ) {
+                entityId = output.favoriteResults[0]!.id;
+            } else if (output.results.length > 0) {
+                entityId = output.results[0]!.id;
+            }
+        } else if (key === "ArrowUp") {
+            entityId = getPreviousSearchEntityId(output, selectedPeek.extra.entityId);
+        } else {
+            entityId = getNextSearchEntityId(output, selectedPeek.extra.entityId);
+        }
+
+        // There is no next item. Do nothing. Don't loop around since we may have many
+        // items so looping would be disorienting.
+        if (entityId === null) return;
+
+        const path = getSearchEntityPath({
+            spaceId: space.id,
+            entityId,
+            randomSeed: output.key,
+            currentTime: output.queryTime,
+            routeLayout: "narrow",
+        });
+
+        void switchPeek({
+            spacePath: path,
+            extra: {entityId},
+        });
+    };
+
     return (
         <Modal
             aria-label="Search"
-            maxWidth={addRemLengths("96", peekMobileLayoutWidth)}
+            maxWidth={addRemLengths(searchEntitySideBarWidth, peekNarrowLayoutWidth)}
             height="full"
             maxHeight={searchModalMaxHeight}
             borderRadius="2.5"
@@ -228,38 +324,7 @@ export function SearchModal({
                             event.stopPropagation();
                             event.preventDefault();
 
-                            // Data hasn't loaded yet, we can't select anything.
-                            if (!output.results) break;
-
-                            const index = selectedPeek
-                                ? output.results.findIndex(
-                                      result => result.id === selectedPeek.extra.resultId,
-                                  )
-                                : -1;
-
-                            const result =
-                                index !== -1
-                                    ? output.results[
-                                          event.key === "ArrowUp" ? index - 1 : index + 1
-                                      ]
-                                    : output.results[0];
-
-                            // There is no next item. Do nothing. Don't loop around since we may have many
-                            // items so looping would be disorienting.
-                            if (!result) break;
-
-                            const destinationPath = getSearchResultDestinationPath({
-                                spaceId: space.id,
-                                resultId: result.id,
-                                searchKey: output.key,
-                                searchTime: output.queryTime,
-                                withDesktopLayout: false,
-                            });
-
-                            void switchPeek({
-                                spacePath: destinationPath,
-                                extra: {resultId: result.id},
-                            });
+                            handleArrowKeyDownNavigation(event.key);
                             break;
                         }
 
@@ -302,13 +367,13 @@ export function SearchModal({
                             if (event.shiftKey) {
                                 void pushPeekStack(spacePath).finally(() => {
                                     markResultSelectAffinityInteraction(
-                                        selectedPeek.extra.resultId,
+                                        selectedPeek.extra.entityId,
                                     );
                                 });
                             } else {
                                 navigate(spacePath).finally(() => {
                                     markResultSelectAffinityInteraction(
-                                        selectedPeek.extra.resultId,
+                                        selectedPeek.extra.entityId,
                                     );
                                 });
                             }
@@ -348,7 +413,7 @@ export function SearchModal({
                                 >
                                     {output.isError ? (
                                         <Box
-                                            maxWidth={peekMobileLayoutWidth}
+                                            maxWidth={peekNarrowLayoutWidth}
                                             marginX="auto"
                                             padding="8"
                                             paddingTop="16"
@@ -365,18 +430,18 @@ export function SearchModal({
                                                 width="full"
                                                 style={{height: `calc(${spacing["1"]} + 1px)`}}
                                             />
-                                            <SearchResultShimmer titleWidth="64" />
-                                            <SearchResultShimmer titleWidth="32" />
-                                            <SearchResultShimmer titleWidth="48" />
-                                            <SearchResultShimmer titleWidth="96" />
-                                            <SearchResultShimmer titleWidth="64" />
-                                            <SearchResultShimmer titleWidth="48" />
-                                            <SearchResultShimmer titleWidth="96" />
+                                            <SearchEntityShimmer titleWidth="64" />
+                                            <SearchEntityShimmer titleWidth="32" />
+                                            <SearchEntityShimmer titleWidth="48" />
+                                            <SearchEntityShimmer titleWidth="96" />
+                                            <SearchEntityShimmer titleWidth="64" />
+                                            <SearchEntityShimmer titleWidth="48" />
+                                            <SearchEntityShimmer titleWidth="96" />
                                         </Box>
                                     ) : output.results.length === 0 ? (
                                         <Box
                                             color="grey-50"
-                                            padding={searchResultViewPaddingY}
+                                            padding={searchEntityViewPaddingY}
                                             style={contentStyles.paragraphFontSize}
                                         >
                                             {queryText.trim().length === 0 ? (
@@ -401,9 +466,7 @@ export function SearchModal({
                                         </Box>
                                     ) : (
                                         <SearchModalResultList
-                                            searchKey={output.key}
-                                            searchTime={output.queryTime}
-                                            results={output.results}
+                                            output={output}
                                             selectedPeek={selectedPeek}
                                             switchPeek={switchPeek}
                                             holdPeekTransition={holdPeekTransition}
@@ -427,7 +490,7 @@ export function SearchModal({
                             () => (
                                 <Box
                                     flexShrink="0"
-                                    width={peekMobileLayoutWidth}
+                                    width={peekNarrowLayoutWidth}
                                     height="full"
                                     overflow="hidden"
                                     style={{
@@ -571,57 +634,55 @@ const SearchModalInput = forwardRef(function SearchModalInput(
 });
 
 function SearchModalResultList({
-    searchKey,
-    searchTime,
-    results,
+    output,
     selectedPeek,
     switchPeek,
     holdPeekTransition,
     markResultSelectAffinityInteraction,
 }: {
-    searchKey: string;
-    searchTime: Date;
-    results: ReadonlyArray<SearchResult>;
-    selectedPeek: PeekSwitcherStatePeekBase<{resultId: SearchResultId}> | null;
+    output: SearchStateExecutionOutput & {readonly results: object};
+    selectedPeek: PeekSwitcherStatePeekBase<{entityId: SearchEntityId}> | null;
     switchPeek: Memo<
         (
             peekData: {
                 spacePath: string;
-                extra: {resultId: SearchResultId};
+                extra: {entityId: SearchEntityId};
             } | null,
         ) => Promise<void>
     >;
     holdPeekTransition: Memo<(promise: Promise<void>) => void>;
-    markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
+    markResultSelectAffinityInteraction: (entityId: SearchEntityId) => void;
 }) {
     const spacingScale = useSpacingScale();
     const navigate = useNavigate();
+    const context = useAppContext();
     const {space} = useSpaceContext();
+    const rpcCache = useGlobalContext(RpcCacheContext);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const lastSelectedResultIdRef = useRef(selectedPeek?.extra.resultId);
+    const lastSelectedResultIdRef = useRef(selectedPeek?.extra.entityId);
     useLayoutEffectWithoutServerSideWarning(() => {
         const view = assertExists(viewRef.current);
 
-        if (lastSelectedResultIdRef.current === selectedPeek?.extra.resultId) return;
-        lastSelectedResultIdRef.current = selectedPeek?.extra.resultId;
+        if (lastSelectedResultIdRef.current === selectedPeek?.extra.entityId) return;
+        lastSelectedResultIdRef.current = selectedPeek?.extra.entityId;
 
         // When a new result is selected, make sure it is visible in our scroll window. Scroll to
         // it if it is not visible.
-        if (selectedPeek?.extra.resultId) {
-            view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.resultId}`, {withAnchor: true});
+        if (selectedPeek?.extra.entityId) {
+            view.scrollToKeyIfExists(selectedPeek.extra.entityId, {withAnchor: true});
         }
-    }, [selectedPeek?.extra.resultId]);
+    }, [selectedPeek?.extra.entityId]);
 
-    const handleDoubleClick = useEvent((result: SearchResult) => {
-        if (result.id !== selectedPeek?.extra.resultId) {
-            const destinationPath = getSearchResultDestinationPath({
+    const handleDoubleClick = useEvent((result: {readonly id: SearchEntityId}) => {
+        if (result.id !== selectedPeek?.extra.entityId) {
+            const path = getSearchEntityPath({
                 spaceId: space.id,
-                resultId: result.id,
-                searchKey,
-                searchTime,
-                withDesktopLayout: true,
+                entityId: result.id,
+                randomSeed: output.key,
+                currentTime: output.queryTime,
+                routeLayout: "wide",
             });
 
             // If the user double clicked there may be an ongoing pending transition
@@ -629,7 +690,7 @@ function SearchModalResultList({
             // waiting on a navigation. That'll look janky since the search modal will
             // flash the new content right before the full page navigation.
             holdPeekTransition(
-                navigate(destinationPath).then(() => {
+                navigate(path).then(() => {
                     markResultSelectAffinityInteraction(result.id);
                 }),
             );
@@ -651,20 +712,194 @@ function SearchModalResultList({
         }
     });
 
+    const hasFavorites =
+        output.type === "EmptyQuery" &&
+        (output.hasMoreFavoriteResults || output.favoriteResults.length > 0);
+    const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
+    const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
+
     const renderItem = useCallback(
         (index: number): VirtualizedScrollViewItem => {
-            const result = results[index]!;
+            if (hasFavorites) {
+                if (index === 0) {
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
 
-            const isFirstItem = index === 0;
-            const isLastItem = index === results.length - 1;
+                    return {
+                        key: "FavoritesHeader",
+                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        node: (
+                            <Box paddingTop={paddingTop} paddingX={searchEntityViewDefaultMarginX}>
+                                <Box
+                                    paddingX={searchEntityViewDefaultPaddingX}
+                                    color="grey-50"
+                                    fontSize={fontSize}
+                                    style={{lineHeight: spacing[lineHeight]}}
+                                >
+                                    Favorites
+                                    {hasMoreFavoriteResults && (
+                                        // Intentionally using [U+2219 (bullet operator)][1] instead of
+                                        // [U+2022 (bullet)][2] since the former is thinner.
+                                        //
+                                        // A bullet separator here is nicer than parentheses like "(see all)"
+                                        // since the parentheses draw a lot of attention.
+                                        //
+                                        // [1]: https://graphemica.com/%E2%88%99
+                                        // [2]: https://graphemica.com/%E2%80%A2
+                                        <>
+                                            {"\u2009\u2219\u2009"}
+                                            <SearchModalFavoritesHeaderSeeMoreButton
+                                                isSelected={
+                                                    selectedPeek?.extra.entityId ===
+                                                    "SearchFavorites"
+                                                }
+                                                onPressStart={() => {
+                                                    if (
+                                                        selectedPeek?.extra.entityId ===
+                                                        "SearchFavorites"
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    const path = getSearchEntityPath({
+                                                        spaceId: space.id,
+                                                        entityId: "SearchFavorites",
+                                                        randomSeed: output.key,
+                                                        currentTime: output.queryTime,
+                                                        routeLayout: "narrow",
+                                                    });
+
+                                                    void switchPeek({
+                                                        spacePath: path,
+                                                        extra: {entityId: "SearchFavorites"},
+                                                    });
+                                                }}
+                                            />
+                                        </>
+                                    )}
+                                </Box>
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+
+                if (index < favoriteResults.length) {
+                    const result = favoriteResults[index]!;
+
+                    return {
+                        key: result.id,
+                        minHeight: searchEntityViewMinHeightPx[spacingScale],
+                        node: (
+                            <SearchEntityView
+                                result={result}
+                                isSelected={result.id === selectedPeek?.extra.entityId}
+                                // We use `onPressStart` to select so the selected style is applied immediately.
+                                // We use the selected style to indicate interaction to the user instead of an
+                                // `isPressed` style. The benefit of using selection is the previous item loses
+                                // its style.
+                                onPressStart={() => {
+                                    if (result.id !== selectedPeek?.extra.entityId) {
+                                        const path = getSearchEntityPath({
+                                            spaceId: space.id,
+                                            entityId: result.id,
+                                            randomSeed: output.key,
+                                            currentTime: output.queryTime,
+                                            routeLayout: "narrow",
+                                        });
+
+                                        void switchPeek({
+                                            spacePath: path,
+                                            extra: {entityId: result.id},
+                                        });
+                                    }
+                                }}
+                                onDoubleClick={() => {
+                                    handleDoubleClick(result);
+                                }}
+                                getCopyPath={() => {
+                                    return getSearchEntityPath({
+                                        spaceId: space.id,
+                                        entityId: result.id,
+                                        randomSeed: output.key,
+                                        currentTime: output.queryTime,
+                                        routeLayout: "wide",
+                                    });
+                                }}
+                                onRemoveFromFavorites={async () => {
+                                    await unfavoriteSearchEntity(context, {
+                                        spaceId: space.id,
+                                        entityId: result.id,
+                                    });
+
+                                    // This is very race condition prone. But it's good enough for this
+                                    // non-collaborative use case. *Shrug*
+                                    updateSearchFavoriteEntityMenuAction(
+                                        space.id,
+                                        result.id,
+                                        false,
+                                    );
+
+                                    forceRevalidateSearchByAffinity(
+                                        context,
+                                        rpcCache,
+                                        space.id,
+                                        "removing favorite in search modal",
+                                        output => {
+                                            // Test that the item was removed from `favoriteResults`.
+                                            return !output.favoriteResults.some(
+                                                otherResult => otherResult.id === result.id,
+                                            );
+                                        },
+                                    );
+                                }}
+                            />
+                        ),
+                    };
+                }
+
+                index -= favoriteResults.length;
+
+                if (index === 0) {
+                    const fontSize = "50";
+                    const lineHeight = "4";
+                    const paddingTop = "3";
+
+                    return {
+                        key: "SuggestedHeader",
+                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        node: (
+                            <Box paddingX={searchEntityViewDefaultMarginX} paddingTop={paddingTop}>
+                                <Box
+                                    paddingX={searchEntityViewDefaultPaddingX}
+                                    color="grey-50"
+                                    fontSize={fontSize}
+                                    style={{lineHeight: spacing[lineHeight]}}
+                                >
+                                    Suggested
+                                </Box>
+                            </Box>
+                        ),
+                    };
+                }
+
+                index -= 1;
+            }
+
+            const result = output.results[index]!;
+
+            const isFirstItem = !hasFavorites && index === 0;
+            const isLastItem = index === output.results.length - 1;
 
             return {
-                key: `Loaded:${result.id}`,
-                minHeight: minSearchResultViewHeightPx[spacingScale],
+                key: result.id,
+                minHeight: searchEntityViewMinHeightPx[spacingScale],
                 node: (
-                    <SearchResultView
+                    <SearchEntityView
                         result={result}
-                        isSelected={result.id === selectedPeek?.extra.resultId}
+                        isSelected={result.id === selectedPeek?.extra.entityId}
                         withMarginTop={isFirstItem}
                         withMarginBottom={isLastItem}
                         // We use `onPressStart` to select so the selected style is applied immediately.
@@ -672,32 +907,76 @@ function SearchModalResultList({
                         // `isPressed` style. The benefit of using selection is the previous item loses
                         // its style.
                         onPressStart={() => {
-                            if (result.id !== selectedPeek?.extra.resultId) {
-                                const destinationPath = getSearchResultDestinationPath({
+                            if (result.id !== selectedPeek?.extra.entityId) {
+                                const path = getSearchEntityPath({
                                     spaceId: space.id,
-                                    resultId: result.id,
-                                    searchKey,
-                                    searchTime,
-                                    withDesktopLayout: false,
+                                    entityId: result.id,
+                                    randomSeed: output.key,
+                                    currentTime: output.queryTime,
+                                    routeLayout: "narrow",
                                 });
 
                                 void switchPeek({
-                                    spacePath: destinationPath,
-                                    extra: {resultId: result.id},
+                                    spacePath: path,
+                                    extra: {entityId: result.id},
                                 });
                             }
                         }}
-                        onDoubleClick={() => handleDoubleClick(result)}
+                        onDoubleClick={() => {
+                            handleDoubleClick(result);
+                        }}
+                        getCopyPath={() => {
+                            return getSearchEntityPath({
+                                spaceId: space.id,
+                                entityId: result.id,
+                                randomSeed: output.key,
+                                currentTime: output.queryTime,
+                                routeLayout: "wide",
+                            });
+                        }}
+                        onRemoveFromSuggested={
+                            output.type === "EmptyQuery"
+                                ? async () => {
+                                      // Since `output.type === "EmptyQuery"` here, `output` will return
+                                      // search affinity entities.
+                                      const result = output.results[index]!;
+
+                                      await clearSearchEntityAffinity(context, {
+                                          spaceId: space.id,
+                                          entityId: result.id,
+                                      });
+
+                                      forceRevalidateSearchByAffinity(
+                                          context,
+                                          rpcCache,
+                                          space.id,
+                                          "removing suggestion in search modal",
+                                          output => {
+                                              // Test that the item was removed from `results`.
+                                              return !output.results.some(
+                                                  otherResult => otherResult.id === result.id,
+                                              );
+                                          },
+                                      );
+                                  }
+                                : undefined
+                        }
                     />
                 ),
             };
         },
         [
+            context,
+            favoriteResults,
             handleDoubleClick,
-            results,
-            searchKey,
-            searchTime,
-            selectedPeek?.extra.resultId,
+            hasFavorites,
+            hasMoreFavoriteResults,
+            output.key,
+            output.queryTime,
+            output.results,
+            output.type,
+            rpcCache,
+            selectedPeek?.extra.entityId,
             space.id,
             spacingScale,
             switchPeek,
@@ -707,8 +986,10 @@ function SearchModalResultList({
     return (
         <VirtualizedScrollView
             ref={viewRef}
-            itemCount={results.length}
-            bufferedItemHeight={minSearchResultViewHeightPx[spacingScale]}
+            itemCount={
+                (hasFavorites ? 2 + output.favoriteResults.length : 0) + output.results.length
+            }
+            bufferedItemHeight={searchEntityViewMinHeightPx[spacingScale]}
             renderItem={renderItem}
             extraChildrenOutsideContentElement={({contentHeight}) => (
                 // Our items all have a bottom border. This is good when there's less content
@@ -752,18 +1033,18 @@ function SearchModalPeekContent({
     switchPeek,
     markResultSelectAffinityInteraction,
 }: {
-    peek: PeekSwitcherStatePeek<{resultId: SearchResultId}>;
+    peek: PeekSwitcherStatePeek<{entityId: SearchEntityId}>;
     onClose: () => void;
     pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
     switchPeek: Memo<
         (
             peekData: {
                 spacePath: string;
-                extra: {resultId: SearchResultId};
+                extra: {entityId: SearchEntityId};
             } | null,
         ) => Promise<void>
     >;
-    markResultSelectAffinityInteraction: (resultId: SearchResultId) => void;
+    markResultSelectAffinityInteraction: (entityId: SearchEntityId) => void;
 }) {
     if (!peek.routerResult.ok) throw peek.routerResult.error;
     const router = peek.routerResult.value;
@@ -887,10 +1168,10 @@ function SearchModalPeekContent({
                                 );
                             } else if (event.shiftKey) {
                                 await pushPeekStack(spacePath).finally(onClose);
-                                markResultSelectAffinityInteraction(peek.extra.resultId);
+                                markResultSelectAffinityInteraction(peek.extra.entityId);
                             } else {
                                 await navigate(spacePath);
-                                markResultSelectAffinityInteraction(peek.extra.resultId);
+                                markResultSelectAffinityInteraction(peek.extra.entityId);
                             }
                         }}
                     >
@@ -916,10 +1197,152 @@ function SearchModalPeekContent({
                 //
                 // This also means the "last opened" time we show for affinitive search entities
                 // won't change.
-                withoutSearchAffinityViewInteraction={true}
+                withoutSearchAffinityViewEntityInteraction={true}
                 router={router}
                 onGoBackOverflow={onClose}
             />
         </Box>
     );
+}
+
+function SearchModalFavoritesHeaderSeeMoreButton({
+    isSelected,
+    onPressStart,
+}: {
+    isSelected: boolean;
+    onPressStart: () => void;
+}) {
+    const {pressProps} = usePress({onPressStart});
+
+    return (
+        <Box
+            {...pressProps}
+            display="inline"
+            // We don't usually use a pointer cursor for pressable things but in this case
+            // it's not obvious this text is interactive without it.
+            cursor="pointer"
+            color={isSelected ? "grey-100" : undefined}
+            backgroundColor={isSelected ? "grey-5" : undefined}
+            paddingX="1"
+            paddingY="1"
+            borderRadius="1"
+            position="relative"
+            left="-1"
+        >
+            see all
+        </Box>
+    );
+}
+
+function hasSearchEntityId(
+    output: SearchStateExecutionOutput,
+    selectedEntityId: SearchEntityId,
+): boolean {
+    if (!output.results) return false;
+
+    // Handle the case when you've selected "See all" in the favorites header then
+    // hit `ArrowUp`.
+    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+        if (selectedEntityId === "SearchFavorites") {
+            return true;
+        }
+    }
+
+    if (output.type === "EmptyQuery" && output.favoriteResults) {
+        for (let i = 0; i < output.favoriteResults.length; i++) {
+            const result = output.favoriteResults[i]!;
+            if (result.id === selectedEntityId) {
+                return true;
+            }
+        }
+    }
+
+    for (let i = 0; i < output.results.length; i++) {
+        const result = output.results[i]!;
+        if (result.id === selectedEntityId) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function getPreviousSearchEntityId(
+    output: SearchStateExecutionOutput,
+    selectedEntityId: SearchEntityId,
+): SearchEntityId | null {
+    // Data hasn't loaded yet, we can't select anything.
+    if (!output.results) return null;
+
+    let previousEntityId: SearchEntityId | null = null;
+
+    // Handle the case when you've selected "See all" in the favorites header then
+    // hit `ArrowUp`.
+    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+        if (selectedEntityId === "SearchFavorites") {
+            return previousEntityId;
+        } else {
+            previousEntityId = "SearchFavorites";
+        }
+    }
+
+    if (output.type === "EmptyQuery" && output.favoriteResults) {
+        for (let i = 0; i < output.favoriteResults.length; i++) {
+            const result = output.favoriteResults[i]!;
+            if (result.id === selectedEntityId) {
+                return previousEntityId;
+            }
+            previousEntityId = result.id;
+        }
+    }
+
+    for (let i = 0; i < output.results.length; i++) {
+        const result = output.results[i]!;
+        if (result.id === selectedEntityId) {
+            return previousEntityId;
+        }
+        previousEntityId = result.id;
+    }
+
+    return null;
+}
+
+function getNextSearchEntityId(
+    output: SearchStateExecutionOutput,
+    selectedEntityId: SearchEntityId,
+): SearchEntityId | null {
+    // Data hasn't loaded yet, we can't select anything.
+    if (!output.results) return null;
+
+    let nextEntityId: SearchEntityId | null = null;
+
+    for (let i = output.results.length - 1; i >= 0; i--) {
+        const previousResult = output.results[i]!;
+        if (previousResult.id === selectedEntityId) {
+            return nextEntityId;
+        }
+        nextEntityId = previousResult.id;
+    }
+
+    if (output.type === "EmptyQuery" && output.favoriteResults) {
+        for (let i = output.favoriteResults.length - 1; i >= 0; i--) {
+            const previousResult = output.favoriteResults[i]!;
+            if (previousResult.id === selectedEntityId) {
+                return nextEntityId;
+            }
+            nextEntityId = previousResult.id;
+        }
+    }
+
+    // Handle the case when you've selected "See all" in the favorites header then
+    // hit `ArrowDown`.
+    if (output.type === "EmptyQuery" && output.hasMoreFavoriteResults) {
+        if (selectedEntityId === "SearchFavorites") {
+            return nextEntityId;
+        } else {
+            nextEntityId = "SearchFavorites";
+        }
+    }
+
+    return null;
 }

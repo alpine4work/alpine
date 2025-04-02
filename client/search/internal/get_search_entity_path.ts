@@ -1,29 +1,33 @@
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchResultId} from "~/shared/search/search_result.js";
+import {
+    SearchDynamicEntityIdObject,
+    SearchEntityId,
+    parseSearchDynamicEntityId,
+} from "~/shared/search/search_entity_id.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
-export function getSearchResultDestinationPath({
+export function getSearchEntityPath({
     spaceId,
-    resultId,
-    searchKey,
-    searchTime,
-    withDesktopLayout,
+    entityId,
+    randomSeed,
+    currentTime,
+    routeLayout,
 }: {
     spaceId: SpaceId;
-    resultId: SearchResultId;
-    searchKey: string;
-    searchTime: Date;
-    withDesktopLayout: boolean;
+    entityId: SearchEntityId;
+    randomSeed: string;
+    currentTime: Date;
+    routeLayout: RouteLayout;
 }): string {
-    const getStableRandom = () => new StableRandom(`getSearchResultDestinationPath:${searchKey}`);
+    const getStableRandom = () => new StableRandom(`getSearchEntityPath:${randomSeed}`);
 
-    switch (resultId) {
+    switch (entityId) {
         case "CreateChatMessage": {
             return `/s/${spaceId}/chat/new`;
         }
@@ -32,8 +36,8 @@ export function getSearchResultDestinationPath({
             // result list.
             const draftId = unsafelyGenerateStableChronologicalId(
                 getStableRandom(),
-                resultId,
-                searchTime.getTime(),
+                entityId,
+                currentTime.getTime(),
             );
 
             return `/s/${spaceId}/posts/new/${draftId}`;
@@ -41,14 +45,14 @@ export function getSearchResultDestinationPath({
         case "CreateChannel": {
             // Make sure we use the same `channelId` consistently for the current search
             // result list.
-            const channelId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const channelId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             return `/s/${spaceId}/channels/${channelId}?create&focus=none`;
         }
         case "CreateDocument": {
             // Make sure we use the same `documentId` consistently for the current search
             // result list.
-            const documentId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const documentId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             // Documents are only created once the user starts typing in them. The user
             // doesn't create a document every time they navigate to this search route.
@@ -57,7 +61,7 @@ export function getSearchResultDestinationPath({
         case "CreateTaskCollection": {
             // Make sure we use the same `collectionId` consistently for the current search
             // result list.
-            const collectionId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const collectionId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             return `/s/${spaceId}/tasks/collections/${collectionId}?create&focus=none`;
         }
@@ -67,7 +71,7 @@ export function getSearchResultDestinationPath({
         case "CreateTask": {
             // Make sure we use the same `taskId` consistently for the current search
             // result list.
-            const taskId = unsafelyGenerateStableId(getStableRandom(), resultId);
+            const taskId = unsafelyGenerateStableId(getStableRandom(), entityId);
 
             return `/s/${spaceId}/tasks/${taskId}?create`;
         }
@@ -183,17 +187,20 @@ export function getSearchResultDestinationPath({
 
             return `/s/${spaceId}/tasks/view?name=${nameSearchParam}&filter=${filtersSearchParam}&sort=${sortsSearchParam}`;
         }
+        case "SearchFavorites": {
+            return `/s/${spaceId}/favorites`;
+        }
         default: {
-            const entityIdObject = parseSearchEntityId(resultId);
-            return getSearchEntityPath(spaceId, entityIdObject, withDesktopLayout);
+            const entityIdObject = parseSearchDynamicEntityId(entityId);
+            return getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout);
         }
     }
 }
 
-function getSearchEntityPath(
+function getSearchDynamicEntityPath(
     spaceId: SpaceId,
-    entityId: SearchEntityIdObject,
-    withDesktopLayout: boolean,
+    entityId: SearchDynamicEntityIdObject,
+    routeLayout: RouteLayout,
 ): string {
     switch (entityId.type) {
         case "Account": {
@@ -232,9 +239,11 @@ function getSearchEntityPath(
             return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
         }
         case "TaskComment": {
-            return withDesktopLayout
-                ? `/s/${spaceId}/tasks/${entityId.taskId}`
-                : `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
+            if (routeLayout !== "narrow") {
+                return `/s/${spaceId}/tasks/${entityId.taskId}?comments=show&comment=${entityId.commentIndex}`;
+            } else {
+                return `/s/${spaceId}/tasks/${entityId.taskId}/comments?comment=${entityId.commentIndex}`;
+            }
         }
         default:
             throw exhaustive(entityId);

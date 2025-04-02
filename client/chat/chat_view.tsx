@@ -1,4 +1,4 @@
-import {ArrowLeft} from "phosphor-react";
+import {ArrowLeft, DotsThreeVertical, Link as LinkIcon} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
@@ -7,12 +7,18 @@ import {chatMessagingViewHeaderItem} from "~/client/chat/internal/chat_messaging
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
+import {MenuActions} from "~/client/design/menu.js";
+import {MenuButton} from "~/client/design/menu_button.js";
+import {
+    navigationBarHeight,
+    navigationBarMobileGap,
+} from "~/client/design/navigation_bar_helpers.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
-import {Spacer} from "~/client/design/spacer.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {chatViewTopBarWithInboxBannerAdjustmentY} from "~/client/styles/chat_shared_styles.js";
 import {
@@ -38,16 +44,22 @@ export function ChatView({
     initialMessages,
     initialOtherReferencedMessages,
     initialScrollToMessageIndex,
+    initialIsFavorite,
 }: {
     withInboxBanner: boolean;
     chat: ChatModel;
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
     initialScrollToMessageIndex: number | null;
+    initialIsFavorite: boolean;
 }) {
     return (
         <Box width="full" height="full" display="flex" flexDirection="column">
-            <ChatViewTopBar withInboxBanner={withInboxBanner} chat={chat} />
+            <ChatViewTopBar
+                withInboxBanner={withInboxBanner}
+                chat={chat}
+                initialIsFavorite={initialIsFavorite}
+            />
             <ChatMessagingView
                 chat={chat}
                 initialMessages={initialMessages}
@@ -58,11 +70,19 @@ export function ChatView({
     );
 }
 
-function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat: ChatModel}) {
+function ChatViewTopBar({
+    withInboxBanner,
+    chat,
+    initialIsFavorite,
+}: {
+    withInboxBanner: boolean;
+    chat: ChatModel;
+    initialIsFavorite: boolean;
+}) {
     assert(chat.accounts.length > 0);
 
     const platform = usePlatform();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const navigate = useNavigate();
 
     // Exclude the current user from the list of accounts we display on top of the
@@ -71,6 +91,13 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
         chat.accounts.length === 1 && chat.accounts[0]!.id === currentAccount?.id
             ? [currentAccount]
             : chat.accounts.filter(account => account.id !== currentAccount?.id);
+
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
+        currentAccount && chat.accounts.length === 2
+            ? `Account:${chat.accounts.filter(account => account.id !== currentAccount.id)[0]!.id}`
+            : `Chat:${chat.id}`,
+        initialIsFavorite,
+    );
 
     return (
         <Box
@@ -118,7 +145,7 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                 }
             >
                 {platform === "mobile" && (
-                    <Box flexShrink="0" paddingLeft="3">
+                    <Box flexShrink="0" paddingLeft={navigationBarMobileGap}>
                         <IconButton
                             size="base"
                             description="Go back"
@@ -166,7 +193,41 @@ function ChatViewTopBar({withInboxBanner, chat}: {withInboxBanner: boolean; chat
                         )}
                     </h1>
                 </Box>
-                {platform === "mobile" && <Spacer space="10" />}
+                <Box
+                    flexShrink="0"
+                    paddingRight={platform === "mobile" ? navigationBarMobileGap : "5"}
+                >
+                    <MenuButton
+                        placement="bottom-end"
+                        actions={useMemo(
+                            (): MenuActions => [
+                                {
+                                    label: "Copy link",
+                                    icon: <LinkIcon />,
+                                    iconPlacement: "end",
+                                    pressErrorTitle: "Couldn’t copy link",
+                                    onPress: async () => {
+                                        const url = new URL(
+                                            `/s/${space.id}/chat/${chat.id}`,
+                                            window.location.href,
+                                        );
+                                        await writeTextToClipboard(url.toString());
+                                    },
+                                },
+                                ...(favoriteMenuAction ? [favoriteMenuAction] : []),
+                            ],
+                            [chat.id, favoriteMenuAction, space.id],
+                        )}
+                    >
+                        <IconButton
+                            size={platform === "mobile" ? "base" : "md"}
+                            description="More"
+                            withoutTooltip={true}
+                        >
+                            <DotsThreeVertical />
+                        </IconButton>
+                    </MenuButton>
+                </Box>
             </Box>
         </Box>
     );

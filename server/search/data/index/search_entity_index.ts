@@ -51,16 +51,18 @@ import {
     SearchSystemActionContextModules,
 } from "~/server/search/data/index/search_action_context.js";
 import {
-    getPossiblyStaleChannelSearchAffinityIds,
-    getPossiblyStaleTaskCollectionSearchAffinityIds,
-    internalDangerouslyGetSpaceChannelSearchAffinities,
-    internalDangerouslyGetSpaceTaskCollectionSearchAffinities,
-    internalGetSearchAffinities,
+    getPossiblyStaleChannelSearchAffinityEntityIds,
+    getPossiblyStaleTaskCollectionSearchAffinityEntityIds,
+    internalDangerouslyGetSpaceChannelSearchAffinityEntities,
+    internalDangerouslyGetSpaceTaskCollectionSearchAffinityEntities,
+    internalGetSearchAffinityEntities,
+    internalGetSearchFavoriteEntities,
 } from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,
     getSpaceAccountNameSearchIndex,
+    getSpaceAccountSettings,
 } from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
@@ -78,6 +80,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -100,12 +103,20 @@ import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
-    SearchEntityId,
-    parseSearchEntityId,
-    printSearchEntityId,
+    SearchAffinityEntityResult,
+    SearchFavoriteEntityResult,
+} from "~/shared/search/search_affinity_entity_result.js";
+import {
+    SearchAffinityEntityId,
+    SearchDynamicEntityId,
+    parseSearchDynamicEntityId,
+    printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
+import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
-import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
+import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
+import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -161,7 +172,7 @@ const searchEntityIndexRefreshIntervalSeconds = 3;
 // sprawling out around the codebase.
 const SearchEntityKeywordIndex = new OpensearchIndex<
     SpaceId,
-    SearchEntityId,
+    SearchDynamicEntityId,
     OpensearchIndexTypeType<typeof SearchEntityKeywordIndexDocType>,
     OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityKeywordIndexDocType>,
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>
@@ -217,7 +228,7 @@ const SearchEntityKeywordIndex = new OpensearchIndex<
 // sprawling out around the codebase.
 const SearchEntitySemanticIndex = new OpensearchIndex<
     SpaceId,
-    SearchEntityId,
+    SearchDynamicEntityId,
     OpensearchIndexTypeType<typeof SearchEntitySemanticIndexDocType>,
     OpensearchIndexTypeFlattenedKeysType<typeof SearchEntitySemanticIndexDocType>,
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>
@@ -316,7 +327,8 @@ export async function deploySearchEntityIndexes(tracer: TracerBase, client: Open
  */
 const minEmbeddingChunkTokenCount = 35;
 
-export const processSearchEntityJobFinishedTestCheckpoint = new TestCheckpoint<SearchEntityId>();
+export const processSearchEntityJobFinishedTestCheckpoint =
+    new TestCheckpoint<SearchDynamicEntityId>();
 
 export const processSearchEntityJobUpdateDependentEntitiesTestCounter =
     new TestCounter<SearchEntityDependencyId>();
@@ -376,7 +388,7 @@ export async function processIndexSearchEntityJob(
     job: IndexSearchEntityJobDescription,
     jobStartTime: Date,
 ) {
-    const entityId = printSearchEntityId(job.update);
+    const entityId = printSearchDynamicEntityId(job.update);
 
     await runAllPromises([updateOurEntity(), updateDependentEntities()]);
 
@@ -644,7 +656,7 @@ export async function processIndexSearchEntityJob(
             }
 
             const newDocForKeywordIndex: OpensearchClientDocWithIdAndVersion<
-                SearchEntityId,
+                SearchDynamicEntityId,
                 SearchEntityKeywordIndexDoc
             > = {
                 id: entityId,
@@ -665,7 +677,7 @@ export async function processIndexSearchEntityJob(
             };
 
             const newDocForSemanticIndex: OpensearchClientDocWithIdAndVersion<
-                SearchEntityId,
+                SearchDynamicEntityId,
                 SearchEntitySemanticIndexDoc
             > = {
                 id: entityId,
@@ -788,7 +800,7 @@ export async function processIndexSearchEntityJob(
                         type: "IndexSearchEntity",
                         spaceId: job.spaceId,
                         update: {
-                            ...parseSearchEntityId(hit.id),
+                            ...parseSearchDynamicEntityId(hit.id),
                             // Dependencies didn't update so we can skip reindexing transitive
                             // dependencies.
                             updatedTraits: {type: "None"},
@@ -845,7 +857,7 @@ export async function searchByKeywords(
         debugOptions?: SearchOptions;
     },
 ): Promise<{
-    results: Array<SearchResult>;
+    results: Array<SearchEntityResult>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -1166,7 +1178,7 @@ export async function searchByKeywords(
     });
 
     const results = await runAllPromises(
-        hits.map(async (hit): Promise<SearchResult> => {
+        hits.map(async (hit): Promise<SearchEntityResult> => {
             // The highlighted body text we get from OpenSearch is markdown formatted with
             // `<em>` tags inserted where we need to highlight. To get this in a format we
             // can render:
@@ -1209,7 +1221,7 @@ export async function searchByKeywords(
             // collection was last updated. This is helpful for a user comparing multiple
             // task collections with the same name.
             //
-            // We don't have this logic in `searchByAffinity()` since task collections
+            // We don't have this logic in `searchBySemantics()` since task collections
             // shouldn't appear in affinity search.
             if (hit.id.startsWith("TaskCollection:") && bodyTextSnippet.length === 0) {
                 const taskCollectionBodyTextSnippet =
@@ -1325,7 +1337,7 @@ export async function searchBySemantics(
         debugOptions?: SearchOptions;
     },
 ): Promise<{
-    results: Array<SearchResult>;
+    results: Array<SearchEntityResult>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -1447,7 +1459,7 @@ export async function searchBySemantics(
     );
 
     const results = await runAllPromises(
-        hits.map(async (hit): Promise<SearchResult | null> => {
+        hits.map(async (hit): Promise<SearchEntityResult | null> => {
             const score = hit.score * options.semanticScoreScaleFromOpensearch;
 
             // TODO(calebmer): Instead of filtering out hits that don't meet the minimum
@@ -1546,16 +1558,16 @@ export async function searchBySemantics(
 async function prepareSearchEntityMediaForResult(
     context: ServerSessionActionContext,
     spaceId: SpaceId,
-    entityId: SearchEntityId,
+    entityId: SearchDynamicEntityId,
     media: SearchEntityMedia,
-): Promise<SearchResultMedia> {
+): Promise<SearchEntityMediaModel> {
     switch (media.type) {
         case "Account": {
             const account = await getAccount(context, spaceId, media.accountId);
             return {type: "Account", account};
         }
         case "AccountPile": {
-            const stableRandom = new StableRandom("SearchResultAccountPileMedia");
+            const stableRandom = new StableRandom("SearchEntityAccountPileMedia");
 
             // Show two accounts that aren't our actor's account. We randomly show two
             // different accounts for every chat to try and help make different chats
@@ -1587,61 +1599,98 @@ async function prepareSearchEntityMediaForResult(
 }
 
 /**
- * Get the titles of the provided search entities if the search entity exists
- * and the account has access to the search entity.
+ * Get the titles and media of the provided search entities if the search
+ * entity exists and the account has access to the search entity. The media
+ * will be returned as `SearchEntityMediaModel` to be `SearchEntityModel`
+ * ready.
  */
 export async function getSearchEntitiesTitleAndMediaIfExist(
     context: SearchSessionActionContext,
-    {spaceId, entityIds}: {spaceId: SpaceId; entityIds: ReadonlyArray<SearchEntityId>},
+    {spaceId, entityIds}: {spaceId: SpaceId; entityIds: Iterable<SearchDynamicEntityId>},
 ): Promise<
-    ReadonlyArray<
-        | {
-              id: SearchEntityId;
-              title: string | null;
-              media: SearchEntityMedia | null;
-          }
-        | "NotFound"
-        | "PermissionDenied"
-    >
+    ReadonlyArray<{
+        id: SearchDynamicEntityId;
+        title: string | null;
+        media: SearchEntityMediaModel | null;
+    } | null>
 > {
     await authorizeSpaceAccess(context, spaceId);
 
-    const docs = await context.opensearch.multiGetDocsIfExist(
-        entityIds.map(
-            entityId =>
-                new OpensearchGetDocWithoutSourceCommand(
-                    SearchEntityKeywordIndex,
-                    spaceId,
-                    entityId,
-                    {
-                        storedFields: [
-                            "title",
-                            "media",
-                            "accessPolicy.accountGrantAccountIds",
-                            "accessPolicy.defaultGrantType",
-                        ],
-                    },
-                ),
-        ),
+    const commands = Array.from(
+        entityIds,
+        entityId =>
+            new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
+                storedFields: [
+                    "title",
+                    "media",
+                    "accessPolicy.accountGrantAccountIds",
+                    "accessPolicy.defaultGrantType",
+                ],
+            }),
     );
 
-    return docs.map(doc => {
-        if (!doc) return "NotFound";
-        if (doc.routing !== spaceId) return "NotFound";
+    const docsByIdByIndex = await context.opensearch.multiGetDocByIdByIndexIfExist(commands);
+    const docsById = docsByIdByIndex.get(SearchEntityKeywordIndex) ?? emptyMap;
 
-        const isAccessAuthorized =
-            doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
-            doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(
-                context.actor.getAccountId(),
-            );
+    return runAllPromises(
+        commands.map(async (command, index) => {
+            const doc = docsById.get(command.id);
 
-        if (!isAccessAuthorized) return "PermissionDenied";
+            if (!doc || doc.routing !== spaceId) {
+                const entityId = commands[index]!.id;
+                const entityIdObject = parseSearchDynamicEntityId(entityId);
 
-        const title = doc.fields.title?.[0] ?? null;
-        const media = doc.fields.media?.[0] ?? null;
+                // If we couldn't find a document search entity that might be because the
+                // document hasn't been indexed in OpenSearch yet. Document indexing is
+                // throttled since updates to a document happen many times per minute (even once
+                // per keystroke). That means right after a document is created it won't show up
+                // in the OpenSearch index until the throttled indexing job runs (10s throttle +
+                // indexing time).
+                //
+                // Instead of not showing the document to the user in their search affinity list
+                // (which would be a very bad UX since how else will the user find documents
+                // they just created but accidentally navigated away from?) we read the document
+                // from DynamoDB (where the document will definitely exist) if the document is
+                // not found in the OpenSearch index.
+                //
+                // If the document was found in the OpenSearch index but its access policy
+                // doesn't allow us to read it then we don't check DynamoDB since we expect the
+                // same result.
+                if (entityIdObject.type === "Document") {
+                    const documentResult = await getDocumentPreviewIfPossible(
+                        context,
+                        entityIdObject.documentId,
+                    );
+                    if (documentResult?.ok) {
+                        return {
+                            id: entityId,
+                            title: documentResult.value.getTitle(),
+                            media: null,
+                        };
+                    }
+                }
 
-        return {id: doc.id, title, media};
-    });
+                return null;
+            }
+
+            const isAccessAuthorized =
+                doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
+                doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(
+                    context.actor.getAccountId(),
+                );
+
+            if (!isAccessAuthorized) return null;
+
+            const title = doc.fields.title?.[0] ?? null;
+            const media = doc.fields.media?.[0] ?? null;
+
+            const mediaForResult = media
+                ? await prepareSearchEntityMediaForResult(context, spaceId, doc.id, media)
+                : null;
+
+            return {id: doc.id, title, media: mediaForResult};
+        }),
+    );
 }
 
 /**
@@ -1654,112 +1703,177 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
  * Unlike other search functions this one doesn't provide a `queryText`
  * filter. The actor has the same set of affinitive entities regardless of what
  * they're currently searching for.
+ *
+ * Will return unique `SearchAffinityEntityResult`s. No two
+ * `SearchAffinityEntityResult`s will have the same ID. Even across `results`
+ * and `favoriteResults`. If an ID exists in `favoriteResults` then it won't
+ * exist in `results` and vice versa.
  */
 export async function searchByAffinity(
     context: SearchSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
-): Promise<{results: Array<SearchResult>}> {
+    spaceId: SpaceId,
+): Promise<{
+    hasMoreFavoriteResults: boolean;
+    favoriteResults: Array<SearchFavoriteEntityResult>;
+    results: Array<SearchAffinityEntityResult>;
+}> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const affinities = await internalGetSearchAffinities(context, {spaceId, limit});
+    // The number of affinity results to load. We don't let the client configure
+    // this number since we cache this in the client's RPC cache which is keyed on
+    // the entire input to the RPC.
+    const limit = 30;
 
-    let taskPersonalAffinityIndex: number | null = null;
-    const entityIds: Array<SearchEntityId> = [];
-    const entities: Array<Replace<(typeof affinities)[number], {affinityId: SearchEntityId}>> = [];
+    // Get double the max number of favorites we need in case some aren't visible
+    // due to not being accessible anymore (e.g. they were deleted or their access
+    // policy changed).
+    const favoritesLimit = searchShortcutFavoriteEntityMaxCount * 2;
 
-    for (let i = 0; i < affinities.length; i++) {
-        const affinity = affinities[i]!;
+    const [entities, favoriteEntities, settings] = await runAllPromises([
+        internalGetSearchAffinityEntities(context, {spaceId, limit}),
+        internalGetSearchFavoriteEntities(context, {
+            spaceId,
+            // Get one more than `favoritesLimit` for determining if
+            // `hasMoreFavoriteResults` should be true.
+            limit: favoritesLimit + 1,
+        }),
+        getSpaceAccountSettings(context, spaceId),
+    ]);
 
-        if (affinity.affinityId === "TaskPersonal") {
-            taskPersonalAffinityIndex = i;
-        } else {
-            entityIds.push(affinity.affinityId);
-            entities.push(
-                affinity as Replace<(typeof affinities)[number], {affinityId: SearchEntityId}>,
-            );
+    const dynamicEntityIds = new Set<SearchDynamicEntityId>();
+
+    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
+        const favoriteEntity = favoriteEntities[i]!;
+        if (favoriteEntity.entityId !== "TaskPersonal") {
+            dynamicEntityIds.add(favoriteEntity.entityId);
         }
     }
 
-    const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
-        spaceId,
-        entityIds,
-    });
-
-    const results = await runAllPromises(
-        entities.map(async ({affinityId, points}, i): Promise<SearchResult | null> => {
-            const entityTitleAndMedia = entitiesTitleAndMedia[i]!;
-            if (typeof entityTitleAndMedia === "string") {
-                const affinityIdObject = parseSearchEntityId(affinityId);
-
-                // If we couldn't find a document search entity that might be because the
-                // document hasn't been indexed in OpenSearch yet. Document indexing is
-                // throttled since updates to a document happen many times per minute (even once
-                // per keystroke). That means right after a document is created it won't show up
-                // in the OpenSearch index until the throttled indexing job runs (10s throttle +
-                // indexing time).
-                //
-                // Instead of not showing the document to the user in their search affinity list
-                // (which would be a very bad UX since how else will the user find documents
-                // they just created but accidentally closed?) we read the document from
-                // DynamoDB (where the document will definitely exist) if the document is not
-                // found in the OpenSearch index.
-                //
-                // If the document was found in the OpenSearch index but its access policy
-                // doesn't allow us to read it then `entityTitleAndMedia` will be
-                // `PermissionDenied` instead of `NotFound`.
-                if (entityTitleAndMedia === "NotFound" && affinityIdObject.type === "Document") {
-                    const documentResult = await getDocumentPreviewIfPossible(
-                        context,
-                        affinityIdObject.documentId,
-                    );
-                    if (documentResult?.ok) {
-                        return {
-                            id: affinityId,
-                            score: points,
-                            title: documentResult.value.getTitle(),
-                            bodyTextSnippet: [],
-                            media: null,
-                        };
-                    }
-                }
-
-                return null;
-            }
-
-            const media = entityTitleAndMedia.media
-                ? await prepareSearchEntityMediaForResult(
-                      context,
-                      spaceId,
-                      affinityId,
-                      entityTitleAndMedia.media,
-                  )
-                : null;
-
-            return {
-                id: affinityId,
-                score: points,
-                title: entityTitleAndMedia.title,
-                bodyTextSnippet: [],
-                media,
-            };
-        }),
-    );
-
-    // Add back the personal tasks item. We don't have to load it from
-    // OpenSearch since it doesn't exist in OpenSearch.
-    if (taskPersonalAffinityIndex !== null) {
-        const affinity = affinities[taskPersonalAffinityIndex]!;
-
-        results.splice(taskPersonalAffinityIndex, 0, {
-            id: "TaskPersonal",
-            score: affinity.points,
-            title: "My tasks",
-            bodyTextSnippet: [],
-            media: null,
-        });
+    for (const entity of entities) {
+        if (entity.entityId !== "TaskPersonal") {
+            dynamicEntityIds.add(entity.entityId);
+        }
     }
 
-    return {results: results.filter(isNonNullable)};
+    const dynamicEntitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
+        spaceId,
+        entityIds: dynamicEntityIds,
+    });
+
+    const dynamicEntityTitleAndMediaById = new Map<
+        SearchDynamicEntityId,
+        {id: SearchDynamicEntityId; title: string | null; media: SearchEntityMediaModel | null}
+    >();
+
+    for (const entityTitleAndMedia of dynamicEntitiesTitleAndMedia) {
+        if (entityTitleAndMedia !== null) {
+            dynamicEntityTitleAndMediaById.set(entityTitleAndMedia.id, entityTitleAndMedia);
+        }
+    }
+
+    let hasMoreFavoriteResults = favoriteEntities.length > favoritesLimit;
+    const favoriteResultById = new Map<
+        SearchAffinityEntityId,
+        Replace<SearchFavoriteEntityResult, {score: number}>
+    >();
+    const results: Array<SearchAffinityEntityResult> = [];
+
+    for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
+        const favoriteEntity = favoriteEntities[i]!;
+
+        if (favoriteResultById.size >= settings.searchShortcutFavoriteEntityCount) {
+            if (favoriteEntity.entityId === "TaskPersonal") {
+                hasMoreFavoriteResults = true;
+                break;
+            } else {
+                const entityTitleAndMedia = dynamicEntityTitleAndMediaById.get(
+                    favoriteEntity.entityId,
+                );
+
+                if (entityTitleAndMedia) {
+                    hasMoreFavoriteResults = true;
+                    break;
+                }
+            }
+        } else {
+            let result: SearchFavoriteEntityResult;
+            if (favoriteEntity.entityId === "TaskPersonal") {
+                result = {
+                    id: favoriteEntity.entityId,
+                    score: 0,
+                    title: searchStaticEntityById[favoriteEntity.entityId].title,
+                    media: null,
+                    favoriteOrderKey: favoriteEntity.orderKey,
+                };
+            } else {
+                const entityTitleAndMedia = dynamicEntityTitleAndMediaById.get(
+                    favoriteEntity.entityId,
+                );
+                if (!entityTitleAndMedia) continue;
+
+                result = {
+                    id: favoriteEntity.entityId,
+                    score: 0,
+                    title: entityTitleAndMedia.title ?? "",
+                    media: entityTitleAndMedia.media,
+                    favoriteOrderKey: favoriteEntity.orderKey,
+                };
+            }
+
+            if (favoriteResultById.has(result.id)) {
+                throw new InternalError("Expected favorite search entities to be unique");
+            }
+
+            favoriteResultById.set(result.id, result);
+        }
+    }
+
+    const resultIds = new Set<SearchAffinityEntityId>();
+
+    for (const entity of entities) {
+        // If this entity was a favorite then set the correct affinity points value
+        // instead of 0.
+        const favoriteResult = favoriteResultById.get(entity.entityId);
+        if (favoriteResult) {
+            favoriteResult.score = entity.points;
+            continue;
+        }
+
+        if (resultIds.has(entity.entityId) || favoriteResultById.has(entity.entityId)) {
+            throw new InternalError("Expected search entities to be unique");
+        }
+        resultIds.add(entity.entityId);
+
+        let result: SearchAffinityEntityResult;
+        if (entity.entityId === "TaskPersonal") {
+            result = {
+                id: entity.entityId,
+                score: entity.points,
+                title: searchStaticEntityById[entity.entityId].title,
+                media: null,
+                favoriteOrderKey: entity.favoriteOrderKey,
+            };
+        } else {
+            const entityTitleAndMedia = dynamicEntityTitleAndMediaById.get(entity.entityId);
+            if (!entityTitleAndMedia) continue;
+
+            result = {
+                id: entity.entityId,
+                score: entity.points,
+                title: entityTitleAndMedia.title ?? "",
+                media: entityTitleAndMedia.media,
+                favoriteOrderKey: entity.favoriteOrderKey,
+            };
+        }
+
+        results.push(result);
+    }
+
+    return {
+        hasMoreFavoriteResults,
+        favoriteResults: Array.from(favoriteResultById.values()),
+        results,
+    };
 }
 
 function getChannelStandaloneSearchResult(channel: ChannelModel): {
@@ -1921,7 +2035,7 @@ export async function searchChannelsByAffinity(
         origin: "Account" | "Space";
     }>
 > {
-    const channelIdsFromAccountAffinities = await getPossiblyStaleChannelSearchAffinityIds(
+    const channelIdsFromAccountAffinities = await getPossiblyStaleChannelSearchAffinityEntityIds(
         context,
         spaceId,
     );
@@ -1943,16 +2057,14 @@ export async function searchChannelsByAffinity(
 
     const channelIdsFromAccountAffinitiesSet = new Set(channelIdsFromAccountAffinities);
 
-    const channelIdsFromSpaceAffinities = await internalDangerouslyGetSpaceChannelSearchAffinities(
-        context,
-        {
+    const channelIdsFromSpaceAffinities =
+        await internalDangerouslyGetSpaceChannelSearchAffinityEntities(context, {
             spaceId,
             // Load 10 extra channels since some space-level channels might be private. We
             // load a full `limit` worth of items since there may be duplicates with
             // channel IDs from account affinities.
             limit: limit + 10,
-        },
-    );
+        });
 
     const channels = await runAllPromises(
         [
@@ -1998,7 +2110,7 @@ export async function searchTaskCollectionsByAffinity(
     >
 > {
     const collectionIdsFromAccountAffinities =
-        await getPossiblyStaleTaskCollectionSearchAffinityIds(context, spaceId);
+        await getPossiblyStaleTaskCollectionSearchAffinityEntityIds(context, spaceId);
 
     if (collectionIdsFromAccountAffinities.length >= limit) {
         const collections = await runAllPromises(
@@ -2021,7 +2133,7 @@ export async function searchTaskCollectionsByAffinity(
     const collectionIdsFromAccountAffinitiesSet = new Set(collectionIdsFromAccountAffinities);
 
     const collectionIdsFromSpaceAffinities =
-        await internalDangerouslyGetSpaceTaskCollectionSearchAffinities(context, {
+        await internalDangerouslyGetSpaceTaskCollectionSearchAffinityEntities(context, {
             spaceId,
             // Load 10 extra collections since some space-level collections might be
             // private. We load a full `limit` worth of items since there may be duplicates
@@ -2052,4 +2164,61 @@ export async function searchTaskCollectionsByAffinity(
     );
 
     return collections.filter(isNonNullable).slice(0, limit);
+}
+
+/**
+ * Get all of the session actor's favorite search entities ordered by
+ * `OrderKey`.
+ */
+export async function getAllSearchFavoriteEntities(
+    context: SearchSessionActionContext,
+    spaceId: SpaceId,
+): Promise<ReadonlyArray<SearchFavoriteEntityResult>> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const favoriteEntities = await internalGetSearchFavoriteEntities(context, {
+        spaceId,
+        limit: "All",
+    });
+
+    const entityIds: Array<SearchDynamicEntityId> = [];
+    for (const favoriteEntity of favoriteEntities) {
+        if (favoriteEntity.entityId === "TaskPersonal") continue;
+        entityIds.push(favoriteEntity.entityId);
+    }
+
+    const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
+        spaceId,
+        entityIds,
+    });
+
+    const results: Array<SearchFavoriteEntityResult> = [];
+
+    let entitiesTitleAndMediaIndex = 0;
+    for (const favoriteEntity of favoriteEntities) {
+        if (favoriteEntity.entityId === "TaskPersonal") {
+            results.push({
+                id: favoriteEntity.entityId,
+                score: 0,
+                title: searchStaticEntityById[favoriteEntity.entityId].title,
+                media: null,
+                favoriteOrderKey: assertExists(favoriteEntity.orderKey),
+            });
+        } else {
+            const entityTitleAndMedia = entitiesTitleAndMedia[entitiesTitleAndMediaIndex++];
+            if (!entityTitleAndMedia) continue;
+
+            assert(entityTitleAndMedia.id === favoriteEntity.entityId);
+
+            results.push({
+                id: favoriteEntity.entityId,
+                score: 0,
+                title: entityTitleAndMedia.title ?? "",
+                media: entityTitleAndMedia.media,
+                favoriteOrderKey: assertExists(favoriteEntity.orderKey),
+            });
+        }
+    }
+
+    return results;
 }

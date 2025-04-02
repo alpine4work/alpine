@@ -16,7 +16,10 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
-import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/forum_table.js";
+import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
+import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
+import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_table.js";
 import {
     AlphaAccessRequestDecisionSchema,
     AlphaAccessRequestModel,
@@ -33,7 +36,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -377,4 +380,60 @@ export async function saveAlphaConfiguration(
         sortRangeType: "Configuration",
         ...configuration,
     });
+}
+
+/**
+ * Create an alpha space owned by the provided `ownerAccountId`. Only
+ * administrators may call this function. We don't yet have self-serve space
+ * creation.
+ */
+export async function createAlphaSpaceAsAdmin(
+    context: ServerActionContext,
+    {name, ownerAccountId}: {name: string; ownerAccountId: AccountId},
+): Promise<{
+    spaceId: SpaceId;
+    welcomeChannelId: ChannelId;
+    createdTime: Date;
+}> {
+    await authorizeInternalAccess(context);
+
+    const spaceId = generateId<SpaceId>();
+    const welcomeChannelId = generateId<ChannelId>();
+    const createdTime = new Date();
+
+    await internalCreateAlphaSpaceAsAdmin(context, {
+        name,
+        spaceId,
+        createdTime,
+        ownerAccountId,
+        welcomeChannelId,
+        createWelcomeChannelTransactionEntries:
+            internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries(context, {
+                ownerAccountId,
+                spaceId,
+                welcomeChannelId,
+                createdTime,
+            }),
+        favoriteSearchEntity: (
+            context,
+            {spaceId: otherSpaceId, accountId: otherAccountId, entityId},
+        ) => {
+            // Double check to make sure the function is only favoriting entities for the
+            // account we're adding.
+            assert(otherSpaceId === spaceId);
+            assert(otherAccountId === ownerAccountId);
+
+            return dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
+                spaceId: otherSpaceId,
+                accountId: otherAccountId,
+                entityId,
+            });
+        },
+    });
+
+    return {
+        spaceId,
+        welcomeChannelId,
+        createdTime,
+    };
 }

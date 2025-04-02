@@ -3,6 +3,7 @@ import {seedTestAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/forum_table.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
+import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
 import {seedTestSpaces} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -18,6 +19,7 @@ export function seedDynamo(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
 ): Promise<void> {
     assert(process.env.NODE_ENV !== "production");
+
     return context.tracer.withSpan("Seed DynamoDB test data", async context => {
         // Make sure accounts exist since everything that follows depends
         // on accounts:
@@ -25,7 +27,9 @@ export function seedDynamo(
 
         // Make sure spaces exist since everything that follows depends on
         // the spaces:
-        await seedTestSpaces(context);
+        await seedTestSpaces(context, {
+            favoriteSearchEntity: dangerouslyFavoriteSearchEntityWithoutAuthorization,
+        });
 
         await runAllPromises([seedTestAlphaConfiguration(context), seedTestChannels(context)]);
     });

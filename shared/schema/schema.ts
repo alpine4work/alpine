@@ -12,6 +12,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -1221,6 +1222,21 @@ export class ObjectSchema<Value> extends Schema<Value> {
         }
 
         return new ObjectSchema(propertySchemaByKey);
+    }
+
+    /**
+     * Makes all properties of the object schema optional. Like the `Partial<T>`
+     * TypeScript utility.
+     */
+    public partial(): ObjectSchema<Partial<Value>> {
+        return new ObjectSchema(
+            new Map(
+                mapIterable(this.propertySchemaByKey, ([key, propertySchema]) => [
+                    key,
+                    propertySchema.optional(),
+                ]),
+            ),
+        );
     }
 }
 

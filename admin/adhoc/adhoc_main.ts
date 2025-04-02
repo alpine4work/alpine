@@ -7,6 +7,14 @@ import {InternalError} from "~/shared/error/error.js";
 // those strings.
 process.title = "adhoc (cyberworlds, node)";
 
+// Globals expected by the `react-refresh` transform applied by SWC.
+// `react-refresh` functions noop in tests.
+//
+// If you want to render some React components to HTML in `adhoc_local.ts`
+// you'll need these.
+(globalThis as any).$RefreshReg$ = () => {};
+(globalThis as any).$RefreshSig$ = () => (value: any) => value;
+
 async function main() {
     // eslint-disable-next-line @typescript-eslint/prefer-ts-expect-error
     // @ts-ignore: If there's no `adhoc_local.js` file (e.g. in CI) don't error.

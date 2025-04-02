@@ -8,6 +8,16 @@ import {Schema} from "~/shared/schema/schema.js";
  * This route allows you to specify the `AccountId` you want to chat with in
  * the URL in case you don't know the `ChatId`.
  */
+// NOTE(calebmer): Should this redirect to the `/s/$spaceId/chat/$chatId`
+// route? All the "copy link" actions in this route currently take you to
+// `/s/$spaceId/chat/$chatId`. Or should `/s/$spaceId/chat/$chatId` for a
+// 1:1 chat redirect you to `/s/$spaceId/chat/with/$accountId`? Ideally we
+// pick one canonical URL for the chat and route users there.
+//
+// Redirecting 1:1 chat URLs like `/s/$spaceId/chat/$chatId` to
+// `/s/$spaceId/chat/with/$accountId` is a good solution since that
+// `with/$accountId` URL is shareable with other users but the `$chatId` URL is
+// not.
 export async function loader({context, params, ...loaderArgs}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const otherAccountId = Schema.id<AccountId>().deserialize(params.accountId ?? null);

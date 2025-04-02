@@ -1,11 +1,10 @@
 import {Globe, Lock} from "phosphor-react";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -26,7 +25,6 @@ export function ShareSwitch({
     onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => void;
     isReadOnly: boolean;
 }) {
-    const isInitialAppRender = useIsInitialAppRender();
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const {space} = useSpaceContext();
@@ -75,6 +73,12 @@ export function ShareSwitch({
         ? ("Buildings" as const)
         : ("Lock" as const);
 
+    // Disable CSS transitions when `spacingScale` changes so we don't animate a
+    // width change after the browser size changes.
+    const [previousSpacingScale, setPreviousSpacingScale] = useState(spacingScale);
+    useEffect(() => setPreviousSpacingScale(spacingScale), [spacingScale]);
+    const disableTransitions = spacingScale !== previousSpacingScale;
+
     return (
         <FocusRing>
             <Box
@@ -107,7 +111,7 @@ export function ShareSwitch({
                     // so in total the knob is 4px smaller than the well giving us our border.
                     height: `calc(${spacing["6"]} + 2px)`,
                     margin: -1,
-                    transition: !isInitialAppRender ? "background-color 150ms linear" : undefined,
+                    transition: !disableTransitions ? "background-color 150ms linear" : undefined,
                 }}
             >
                 <Box
@@ -118,13 +122,10 @@ export function ShareSwitch({
                         padding: 2,
                         transform:
                             icon !== "Lock" ? `translateX(calc(${spacing["6"]} - 2px))` : undefined,
-                        transition: !isInitialAppRender ? "transform 150ms linear" : undefined,
+                        transition: !disableTransitions ? "transform 150ms linear" : undefined,
                     }}
                 >
                     <Box
-                        // Fully remount on `spacingScale` changes so we don't animate the `width`
-                        // change.
-                        key={spacingScale}
                         position="relative"
                         zIndex="0"
                         overflow="hidden"
@@ -141,7 +142,7 @@ export function ShareSwitch({
                                 isPressed && icon !== "Lock"
                                     ? `translateX(-${spacing["1"]})`
                                     : undefined,
-                            transition: !isInitialAppRender
+                            transition: !disableTransitions
                                 ? "width 50ms linear, transform 50ms linear"
                                 : undefined,
                         }}
@@ -172,7 +173,7 @@ export function ShareSwitch({
                             backgroundColor="grey-0-const"
                             opacity={icon !== "Lock" ? "100" : "0"}
                             style={{
-                                transition: !isInitialAppRender
+                                transition: !disableTransitions
                                     ? "opacity 100ms linear"
                                     : undefined,
                             }}
@@ -194,7 +195,7 @@ export function ShareSwitch({
                             backgroundColor="grey-0-const"
                             opacity={icon !== "Lock" && icon !== "Buildings" ? "100" : "0"}
                             style={{
-                                transition: !isInitialAppRender
+                                transition: !disableTransitions
                                     ? "opacity 100ms linear"
                                     : undefined,
                             }}

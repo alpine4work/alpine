@@ -1,1 +1,1 @@
-export const peekMobileLayoutWidth = "128";
+export const peekNarrowLayoutWidth = "128";

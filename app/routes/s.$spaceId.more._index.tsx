@@ -5,11 +5,11 @@ import {useAccountModel} from "~/client/accounts/account_client_store_context.js
 import {Box} from "~/client/design/box.js";
 import {MobileSettingsRow} from "~/client/design/mobile_settings_row.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {SpaceRouteScrollView} from "~/client/navigation/space_route_scroll_view.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
-import {SpaceRouteScrollView} from "~/client/spaces/layout/space_route_scroll_view.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";

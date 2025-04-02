@@ -20,14 +20,14 @@ export function PeekRemixEmbed({
     peekId,
     layout,
     withinStack = false,
-    withoutSearchAffinityViewInteraction = false,
+    withoutSearchAffinityViewEntityInteraction = false,
     router: originalRouter,
     onGoBackOverflow,
 }: {
     peekId: PeekId;
     layout: RouteLayout;
     withinStack?: boolean;
-    withoutSearchAffinityViewInteraction?: boolean;
+    withoutSearchAffinityViewEntityInteraction?: boolean;
     router: PeekRemixEmbedRouter;
     onGoBackOverflow?: () => void;
 }) {
@@ -87,9 +87,9 @@ export function PeekRemixEmbed({
                     id: peekId,
                     layout,
                     withinStack,
-                    withoutSearchAffinityViewInteraction,
+                    withoutSearchAffinityViewEntityInteraction,
                 }),
-                [layout, peekId, withinStack, withoutSearchAffinityViewInteraction],
+                [layout, peekId, withinStack, withoutSearchAffinityViewEntityInteraction],
             )}
         >
             <UpdateMetaTitleContextProvider

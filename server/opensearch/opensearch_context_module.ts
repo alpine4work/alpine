@@ -222,6 +222,27 @@ export class OpensearchContextModule
     }
 
     /**
+     * Gets multiple documents in one network request using the [multi-get
+     * documents API][1].
+     *
+     * This method is slightly more efficient than `multiGetDocsIfExist()` since
+     * `multiGetDocsIfExist()` calls this method and turns the map into an array.
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
+     */
+    public async multiGetDocByIdByIndexIfExist<
+        Index extends OpensearchIndex<any, any, any, any, any>,
+        Output,
+    >(
+        commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
+    ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>> {
+        return this._client.multiGetDocByIdByIndexIfExist(
+            this._context.tracer.getTracer(),
+            commands,
+        );
+    }
+
+    /**
      * Indexes a single document using the [index document API][1].
      *
      * You must provide the document's version. This call will fail if the version

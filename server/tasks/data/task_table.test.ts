@@ -13162,7 +13162,7 @@ test("can't authorize a query with a collection in a different space", async () 
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await space.addAccount(session2);
 
@@ -13678,7 +13678,7 @@ test("can't authorize a query with a parent filter in a different space", async 
                 },
             },
         }),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await space.addAccount(session2);
 
@@ -13938,7 +13938,7 @@ test("collection must be in the right space to sort by collection position", asy
                 },
             ],
         }),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
 
     await space.addAccount(session2);
 
@@ -20577,7 +20577,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "View"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -20599,7 +20599,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -20621,7 +20621,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -20643,7 +20643,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "View"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -20679,7 +20679,7 @@ test("can authorize task collections in various states as various actors", async
     );
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -20711,7 +20711,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -20741,7 +20741,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "View"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -20763,7 +20763,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -20785,7 +20785,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -20807,7 +20807,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "View"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -20845,7 +20845,7 @@ test("can authorize task collections in various states as various actors", async
             privateDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -20877,7 +20877,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -20929,7 +20929,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -20951,7 +20951,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21009,7 +21009,7 @@ test("can authorize task collections in various states as various actors", async
             urlPublicDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -21045,7 +21045,7 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
         authorizeTaskCollectionAccess(otherSession.action(), urlPublicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskCollectionAccess(
             context.anonymousAction(),
@@ -21130,7 +21130,7 @@ test("can authorize tasks in various states as various actors", async () => {
         authorizeTaskAccess(session3.action(), publicTask.id, "View"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "View")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicTask.id, "View"),
@@ -21153,7 +21153,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSession.action(), publicTask.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21174,7 +21174,7 @@ test("can authorize tasks in various states as various actors", async () => {
         authorizeTaskAccess(session3.action(), publicTask.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "Edit")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Edit"),
@@ -21197,7 +21197,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "View"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21219,7 +21219,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
     await expect(
         authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21241,7 +21241,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
     await expect(
         authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21263,7 +21263,7 @@ test("can authorize tasks in various states as various actors", async () => {
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), privateTask.id, "View"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateTask.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21285,7 +21285,7 @@ test("can authorize tasks in various states as various actors", async () => {
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), privateTask.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21307,7 +21307,7 @@ test("can authorize tasks in various states as various actors", async () => {
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), privateTask.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21329,7 +21329,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Actor doesn\'t have "View" access level to task');
     await expect(
         authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "View"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21351,7 +21351,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
     await expect(
         authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21373,7 +21373,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
     await expect(
         authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21417,7 +21417,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21439,7 +21439,7 @@ test("can authorize tasks in various states as various actors", async () => {
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21483,7 +21483,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Comment"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21505,7 +21505,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Edit"),
-    ).rejects.toThrow("Actor doesn't have access to task's space");
+    ).rejects.toThrow("Account doesn't have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21549,27 +21549,27 @@ test("account has access to tasks they create and tasks they're assigned until t
     });
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Comment")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Comment")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).rejects.toThrow(
-        "Actor doesn't have access to task's space",
+        "Account doesn't have access to space",
     );
 });
 

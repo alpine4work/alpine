@@ -42,7 +42,7 @@ function SpaceRouteScrollView(
             position="relative"
             zIndex="0"
         >
-            <Box position="relative">
+            <Box position="relative" paddingBottom="safe-area-inset">
                 <OverlayScopeContextProvider>
                     {navigationBar}
                     <Box height="safe-area-inset-top" />

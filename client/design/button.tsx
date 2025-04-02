@@ -311,9 +311,11 @@ function Button(
         {
             ...props,
             elementType: isFocusable ? "button" : "div",
-            // Disable the button while we are pending to avoid multiple clicks firing the
-            // action multiple times.
-            isDisabled: isDisabled || isPending,
+            // NOTE(calebmer): Don't disable the button while it's pending. We don't want
+            // to run the press event handler again while the button is pending but we do
+            // still want the button to be interactive (`isPressed` should be true and we
+            // shouldn't set the `disabled` HTML property).
+            isDisabled,
             type: shouldSubmitForm ? "submit" : undefined,
             onPress: handlePress,
             // We don't focus on press on mobile since if you press down a button the user
@@ -635,14 +637,6 @@ function Button(
                         cursor: "default",
                     }),
                     tabIndex: isFocusable ? (!isTabbable ? -1 : buttonProps.tabIndex) : undefined,
-                    // Allow the button to maintain focus when pending. This way if a button is
-                    // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
-                    // `<DocumentContentEditor>`) and it enters a pending state we don't think the
-                    // parent element has lost focus.
-                    disabled:
-                        isPending && !isDisabled
-                            ? undefined
-                            : (buttonProps as {disabled?: boolean}).disabled,
                 },
                 <span
                     className={sprinkles({

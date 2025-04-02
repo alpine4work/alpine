@@ -7,6 +7,7 @@ import {
     CaretLeft,
     CaretRight,
     CaretUp,
+    Link as LinkIcon,
     Play,
     Plus,
     SpinnerGap,
@@ -88,6 +89,7 @@ import {
     useSpacingScale,
 } from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {documentContentEditorSidebarWidth} from "~/client/styles/document_shared_styles.js";
 import {
@@ -207,6 +209,7 @@ export function DocumentContentEditor({
     documentId,
     initialDocument,
     initialCommentThreadResult,
+    initialIsFavorite,
     initialScroll,
     shouldInitiallyFocus,
     onCreate,
@@ -221,6 +224,7 @@ export function DocumentContentEditor({
         initialComments: ReadonlyArray<DocumentCommentModel>;
         initialOtherReferencedComments: ReadonlyArray<DocumentCommentModel>;
     } | null;
+    initialIsFavorite: boolean;
     initialScroll: DocumentContentEditorInitialScroll | null;
     shouldInitiallyFocus: boolean;
     onCreate: () => void;
@@ -1512,6 +1516,11 @@ export function DocumentContentEditor({
         [accessLevel],
     );
 
+    const favoriteMenuAction = useSearchFavoriteEntityMenuAction(
+        `Document:${documentId}`,
+        initialIsFavorite,
+    );
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title: getDocumentContentTitle(content.doc),
@@ -1534,9 +1543,12 @@ export function DocumentContentEditor({
                 [
                     {
                         label: "Copy link",
+                        icon: <LinkIcon />,
+                        iconPlacement: "end",
                         pressErrorTitle: "Couldn’t copy link",
                         onPress: onCopyLink,
                     },
+                    ...(favoriteMenuAction ? [favoriteMenuAction] : []),
                 ],
                 ...(hasAccessLevel(accessLevel, "Edit")
                     ? [
@@ -1574,7 +1586,15 @@ export function DocumentContentEditor({
                       ]
                     : []),
             ],
-            [accessLevel, isAppleDevice, isRedoDisabled, isUndoDisabled, onCopyLink, platform],
+            [
+                accessLevel,
+                favoriteMenuAction,
+                isAppleDevice,
+                isRedoDisabled,
+                isUndoDisabled,
+                onCopyLink,
+                platform,
+            ],
         ),
         // Don't render the share button if the account doesn't have space access. They
         // won't be allowed to see the names of accounts in the share dialog.

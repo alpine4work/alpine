@@ -152,7 +152,7 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -1165,7 +1165,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             // If this is a mobile layout on desktop then we'll use the max width of a peek
             // as our screen width for computing layouts.
             routeLayoutRef.current === "narrow" && getPlatformWithoutListening() !== "mobile"
-                ? convertRemLengthToPx(peekMobileLayoutWidth, getSpacingScaleWithoutListening())
+                ? convertRemLengthToPx(peekNarrowLayoutWidth, getSpacingScaleWithoutListening())
                 : getClientInfo().screenWidth;
 
         // IMPORTANT: If you have a custom view in `nodeViews` here you should also
@@ -1999,6 +1999,23 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         viewProps.handlePaste = (view, event, slice) => {
             let selection = view.state.selection;
+
+            // If the slice is empty, check if there's `text/uri-list` and parse that. On
+            // mobile Safari if you open the share menu then click "Copy" the clipboard
+            // content will only contain the URL in `text/uri-list`. So we must support
+            // this content type to support pasting links from Safari's share menu.
+            if (slice.size === 0 && event.clipboardData?.types.includes("text/uri-list")) {
+                const uriListString = event.clipboardData.getData("text/uri-list");
+
+                const uriListNodes = uriListString
+                    .trim()
+                    .split(/[\r\n]+/)
+                    .map(uri =>
+                        view.state.schema.text(uri, [view.state.schema.mark("link", {url: uri})]),
+                    );
+
+                slice = new Slice(Fragment.from(uriListNodes), 0, 0);
+            }
 
             // If the selection starts in our title, then shift the selection out of the
             // title. That way if we paste a paragraph in the title the paragraph doesn't

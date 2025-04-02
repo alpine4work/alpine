@@ -75,7 +75,7 @@ import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_na
 import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {peekMobileLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     greyElevated1ClassName,
     spaceLayoutStyles,
@@ -861,7 +861,7 @@ function PeekStackDraggable({
                 zIndex="20"
                 style={{
                     right: `calc(${peekRightOffset} + ${-deltaXPercentage * 100}%)`,
-                    width: spacing[peekMobileLayoutWidth],
+                    width: spacing[peekNarrowLayoutWidth],
                     height: peekHeight,
                     transform: dragTransform
                         ? `translate(${dragTransform.x}px, ${dragTransform.y}px)`
@@ -1287,7 +1287,7 @@ function PeekStackOverlay({
                     backgroundColor="grey-0"
                     className={greyElevated1ClassName}
                     style={{
-                        width: spacing[peekMobileLayoutWidth],
+                        width: spacing[peekNarrowLayoutWidth],
                         height: peekHeightWithUnderlayOffset,
                         paddingBottom: peekBottomBuffer,
                     }}

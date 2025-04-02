@@ -7,7 +7,13 @@ import {
     searchChannelsByKeywords,
     searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
-import {markSearchAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
+import {
+    clearSearchEntityAffinity,
+    favoriteSearchEntity,
+    markSearchAffinityEntityInteraction,
+    moveSearchFavoriteEntity,
+    unfavoriteSearchEntity,
+} from "~/server/search/data/table/search_entity_table.js";
 import * as definitions from "~/shared/rpc/search_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -28,14 +34,22 @@ export default implementRpcs(definitions, {
     searchByAffinity: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return searchByAffinity(context.actor.authorizeSession(), input);
+            return searchByAffinity(context.actor.authorizeSession(), input.spaceId);
         },
     },
 
-    markSearchAffinityInteraction: {
+    markSearchAffinityEntityInteraction: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await markSearchAffinityInteraction(context.actor.authorizeSession(), input);
+            await markSearchAffinityEntityInteraction(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    clearSearchEntityAffinity: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await clearSearchEntityAffinity(context.actor.authorizeSession(), input);
             return {};
         },
     },
@@ -64,6 +78,30 @@ export default implementRpcs(definitions, {
                 input,
             );
             return {results};
+        },
+    },
+
+    favoriteSearchEntity: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await favoriteSearchEntity(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    unfavoriteSearchEntity: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await unfavoriteSearchEntity(context.actor.authorizeSession(), input);
+            return {};
+        },
+    },
+
+    moveSearchFavoriteEntity: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await moveSearchFavoriteEntity(context.actor.authorizeSession(), input);
+            return {};
         },
     },
 });

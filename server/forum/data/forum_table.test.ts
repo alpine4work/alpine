@@ -12,7 +12,6 @@ import {
     authorizePostAccess,
     authorizePostDraftAccess,
     backfillChannelPosts,
-    createAlphaSpaceAsAdmin,
     createChannel,
     createOrReplacePostDraft,
     createPost,
@@ -38,10 +37,8 @@ import {
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {
-    dangerouslyAddSpaceAccountAsAdmin,
-    getOurAccountSpaceIds,
-} from "~/server/spaces/spaces_table.js";
+import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
+import {getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -3071,79 +3068,6 @@ test("broadcasts post realtime events to channel and post", async () => {
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
         `/api/durable-objects/channels/${channel2.id}/broadcast-realtime-event-transaction`,
     ]);
-});
-
-test("can create alpha spaces as admin", async () => {
-    const adminAccount = await TestAccount.create(context, {hasInternalAccess: true});
-    const otherAccount = await TestAccount.create(context);
-
-    const adminSession = await TestSession.create(adminAccount);
-    const otherSession = await TestSession.create(otherAccount);
-
-    await expect(
-        createAlphaSpaceAsAdmin(otherSession.action(), {
-            name: "Hello",
-            ownerAccountId: otherSession.account.id,
-        }),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(
-        createAlphaSpaceAsAdmin(otherSession.action(), {
-            name: "Hello",
-            ownerAccountId: adminSession.account.id,
-        }),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    const result1 = await createAlphaSpaceAsAdmin(adminSession.action(), {
-        name: "Hello 1",
-        ownerAccountId: otherSession.account.id,
-    });
-
-    const result2 = await createAlphaSpaceAsAdmin(adminSession.action(), {
-        name: "Hello 2",
-        ownerAccountId: adminSession.account.id,
-    });
-
-    await expect(
-        createAlphaSpaceAsAdmin(adminSession.action(), {
-            name: "Hello 3",
-            ownerAccountId: generateId(),
-        }),
-    ).rejects.toThrow(NotFoundError);
-
-    await expect(
-        createChannel(adminSession.action(), {
-            spaceId: result1.spaceId,
-            name: "Channel 1",
-        }),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    const channel1 = await createChannel(adminSession.action(), {
-        spaceId: result2.spaceId,
-        name: "Channel 2",
-    });
-
-    const channel2 = await createChannel(otherSession.action(), {
-        spaceId: result1.spaceId,
-        name: "Channel 3",
-    });
-
-    await expect(
-        createChannel(otherSession.action(), {
-            spaceId: result2.spaceId,
-            name: "Channel 4",
-        }),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await getChannel(adminSession.action(), channel1.id);
-    await expect(getChannel(otherSession.action(), channel1.id)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(getChannel(adminSession.action(), channel2.id)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await getChannel(otherSession.action(), channel2.id);
 });
 
 test("can add accounts to spaces as admin", async () => {

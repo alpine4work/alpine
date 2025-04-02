@@ -9,8 +9,8 @@ import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_me
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {markSearchAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_affinity_low_intent_update_interaction.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/search/mark_search_affinity_low_intent_update_entity_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     getDocumentCommentThreadAndInitialComments,
@@ -18,6 +18,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {
     DocumentCommentModel,
@@ -28,7 +29,7 @@ import {
 import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -39,18 +40,20 @@ const LoaderSchema = Schema.object({
         initialComments: Schema.array(DocumentCommentModel.schema()),
         initialOtherReferencedComments: Schema.array(DocumentCommentModel.schema()),
     }).nullable(),
+    isFavorite: Schema.boolean,
 });
 
 export async function loader({params, context: unauthenticatedContext, request}: LoaderArgs) {
     const context = await unauthenticatedContext.actor.authenticate();
 
     const url = new URL(request.url);
+    const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
     const documentId = Schema.id<DocumentId>().deserialize(params.documentId ?? null);
     const commentThreadId = Schema.id<DocumentCommentThreadId>()
         .nullable()
         .deserialize(url.searchParams.get("comments"));
 
-    const [document, commentThreadResult] = await runAllPromises([
+    const [document, commentThreadResult, isFavorite] = await runAllPromises([
         getDocumentWithOptionalCommentsIfExists(context, documentId),
         commentThreadId
             ? getDocumentCommentThreadAndInitialComments(context, {
@@ -59,6 +62,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
                   limit: getInitialLoadMessageCount(context.loader.getClientInfo()),
               })
             : null,
+        isSearchFavoriteEntity(context, {
+            spaceId,
+            entityId: `Document:${documentId}`,
+        }),
     ]);
 
     // Must have the `create` search param to load a document that doesn't exist.
@@ -70,7 +77,11 @@ export async function loader({params, context: unauthenticatedContext, request}:
         context: {documentId},
     };
 
-    return jsonWithSchema(LoaderSchema, {document, commentThreadResult}, {propagateEventData});
+    return jsonWithSchema(
+        LoaderSchema,
+        {document, commentThreadResult, isFavorite},
+        {propagateEventData},
+    );
 }
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {document}}) => [
@@ -116,7 +127,11 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 // Ideally we'd have a special code path that uses `<body>` scrolling just for
 // documents shared via URL.
 export default function DocumentRoute() {
-    const {document: initialDocument, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        document: initialDocument,
+        commentThreadResult: initialCommentThreadResult,
+        isFavorite: initialIsFavorite,
+    } = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const updateMetaTitle = useUpdateMetaTitle();
@@ -170,7 +185,7 @@ export default function DocumentRoute() {
     }, [isCreating, searchParams, setSearchParams]);
 
     // Don't update affinity score while creating.
-    useSearchAffinityViewInteraction(!isCreating ? `Document:${documentId}` : null);
+    useSearchAffinityViewEntityInteraction(!isCreating ? `Document:${documentId}` : null);
 
     return (
         <DocumentContentEditor
@@ -178,7 +193,8 @@ export default function DocumentRoute() {
             key={documentId}
             documentId={documentId}
             initialDocument={initialDocument}
-            initialCommentThreadResult={commentThreadResult}
+            initialCommentThreadResult={initialCommentThreadResult}
+            initialIsFavorite={initialIsFavorite}
             initialScroll={initialScroll}
             shouldInitiallyFocus={shouldInitiallyFocus}
             onCreate={() => setIsCreating(false)}
@@ -189,7 +205,7 @@ export default function DocumentRoute() {
                 // Don't update affinity score while creating.
                 if (isCreating) return;
 
-                markSearchAffinityLowIntentUpdateInteraction(
+                markSearchAffinityLowIntentUpdateEntityInteraction(
                     context,
                     space.id,
                     `Document:${documentId}`,

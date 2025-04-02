@@ -36,6 +36,7 @@ export const tracerEventDataDynamoConsumedCapacityKeys = new Set([
     "SearchEntities_Index1",
     "SearchEntities_Index2",
     "SearchEntities_Index3",
+    "SearchEntities_Index4",
     "TaskActions_Index1",
 ]);
 

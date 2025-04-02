@@ -39,6 +39,7 @@ ts_project(
         "//client/messaging",
         "//client/navigation",
         "//client/peek",
+        "//client/search/core",
         "//client/shimmer",
         "//client/spaces",
         "//client/tasks/core",

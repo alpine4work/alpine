@@ -24,7 +24,7 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {useSearchAffinityViewInteraction} from "~/client/search/use_search_affinity_view_interaction.js";
+import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {
     documentCommentThreadCountAgainstLimit,
     documentCommentThreadListViewMaxWidth,
@@ -176,7 +176,7 @@ function DocumentNewCommentThreadsRouteInner() {
     // Spending time with document comment threads contributes affinity points
     // to the document. Since the comment thread is discussing the document,
     // the document is likely an artifact you care about.
-    useSearchAffinityViewInteraction(`Document:${initialDocument.id}`);
+    useSearchAffinityViewEntityInteraction(`Document:${initialDocument.id}`);
 
     const listViewRef = useRef<DocumentCommentThreadListViewRef>(null);
 

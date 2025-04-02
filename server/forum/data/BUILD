@@ -17,10 +17,12 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
+        "//server/spaces/add_account",
     ],
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
+        "//server/alpha:__pkg__",
         "//server/migration:__pkg__",
         "//server/notifications/data:__pkg__",
         "//server/rpc:__pkg__",

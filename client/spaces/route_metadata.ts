@@ -36,6 +36,9 @@ const metadataByRouteId: {
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
         errorTitle: "Couldn’t open comment thread",
     },
+    "routes/s.$spaceId.favorites": {
+        errorTitle: "Couldn’t open favorites",
+    },
     "routes/s.$spaceId.inbox": {
         errorTitle: "Couldn’t open inbox",
         isFullWidth: true,

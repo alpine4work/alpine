@@ -9,12 +9,12 @@ import {
     createSwrCacheEntryHistoryStack,
     disabledSwrCacheEntryResult,
     pendingSwrCacheEntryResult,
+    swrDefaultDedupingIntervalMs,
 } from "~/client/rpc/internal/swr_cache.js";
-import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
-
-export const swrDefaultDedupingIntervalMs = 2 * 1000;
 
 /**
  * A complete re-implementation of the [SWR library][1]. The SWR library has a
@@ -52,7 +52,7 @@ export function useSwr(
     {
         keepPreviousData = false,
         dedupingInterval = swrDefaultDedupingIntervalMs,
-        initialData: initialDataFromProps = null,
+        initialData = null,
     }: {
         /**
          * By default, when the key changes we throw away old data from the last key.
@@ -85,12 +85,6 @@ export function useSwr(
     const entryStackStore = key !== null ? cache.getEntryStack(key) : undefinedStore;
     const entryStack = useStore(entryStackStore) ?? null;
 
-    const [initial, setInitial] = useState(
-        key !== null && initialDataFromProps !== null
-            ? {key, data: initialDataFromProps, hasMountedRef: {current: false}}
-            : null,
-    );
-
     useEffect(() => {
         if (key === null) return;
 
@@ -103,37 +97,35 @@ export function useSwr(
     // When `key` changes, revalidate it once.
     const hasRevalidatedKeyRef = useRef<string | null>(null);
     useEffect(() => {
-        const isInitialMount = initial !== null && !initial.hasMountedRef.current;
-        // eslint-disable-next-line react-compiler/react-compiler
-        if (initial !== null) initial.hasMountedRef.current = true;
-
         if (hasRevalidatedKeyRef.current === key) return;
         hasRevalidatedKeyRef.current = key;
 
         if (key === null) return;
 
-        if (!isInitialMount || key !== initial.key) {
+        if (initialData === null) {
             cache.revalidateEntry(key, fetcher, {dedupingInterval});
         } else {
             let isCancelled = false;
 
-            // Wait a macrotask before putting our initial data in the cache. So if there
+            // Wait a microtask before putting our initial data in the cache. So if there
             // are two `useSwr()` hooks looking at the same key no matter what order the
             // hooks are mounted in we'll send a network request if one of the hooks
             // doesn't have `initialData`.
             //
             // If another network request is sent then this `revalidateEntry()` call will
             // be a noop because of `dedupingInterval`.
-            scheduleMacrotask(() => {
+            scheduleMicrotask(() => {
                 if (isCancelled) return;
-                cache.revalidateEntry(key, () => Promise.resolve(initial.data), {dedupingInterval});
+                cache.revalidateEntry(key, () => PromiseImmediate.resolve(initialData), {
+                    dedupingInterval,
+                });
             });
 
             return () => {
                 isCancelled = true;
             };
         }
-    }, [cache, dedupingInterval, fetcher, initial, key]);
+    }, [cache, dedupingInterval, fetcher, initialData, key]);
 
     // Revalidate whenever the browser activates (e.g. the window was hidden then
     // made visible again).
@@ -178,30 +170,16 @@ export function useSwr(
         useStore(historyStack ?? entryStack) ??
         (key === null ? disabledSwrCacheEntryResult : pendingSwrCacheEntryResult);
 
-    if (
-        initial !== null &&
-        initial.key !== key &&
-        // Don't reset initial state when `keepPreviousData` is true until we've
-        // finished loading the data for the next key.
-        (!keepPreviousData || !entryResult.isValidating || !entryResult.isLoading)
-    ) {
-        setInitial(null);
-    }
-
     return useMemo(() => {
-        if (
-            entryResult.data === null &&
-            initial !== null &&
-            (key === initial.key || keepPreviousData)
-        ) {
-            return {...entryResult, data: initial.data};
+        if (entryResult.data === null && initialData !== null) {
+            return {...entryResult, data: initialData};
         }
 
         return entryResult;
-    }, [entryResult, initial, keepPreviousData, key]);
+    }, [entryResult, initialData]);
 }
 
-let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
+let scheduledIdlePreloadRpcCallbacks: readonly [Array<() => void>, Array<() => void>] | null = null;
 
 /**
  * Preload data into our SWR cache with idle priority. Useful if you have some
@@ -213,8 +191,21 @@ export function useIdlyPreloadSwr(
     fetcher: (key: string) => PromiseLike<object>,
     {
         dedupingInterval = swrDefaultDedupingIntervalMs,
+        initialData = null,
     }: {
+        /**
+         * When we make a request for a given `key`, how long should we consider the
+         * request "fresh". Any other component that wants data for the key will reuse
+         * the existing pending request instead of sending a new one.
+         */
         dedupingInterval?: number;
+
+        /**
+         * Initial data to populate in the store. If provided then we won't call
+         * `fetcher` and will instead put the data from this object in the store.
+         * Future `useSwr()` hook calls may observe this initial data.
+         */
+        initialData?: object | null;
     } = {},
 ) {
     const cache = useGlobalContext(SwrCacheContext);
@@ -240,7 +231,7 @@ export function useIdlyPreloadSwr(
         if (key === null) return;
 
         if (scheduledIdlePreloadRpcCallbacks === null) {
-            scheduledIdlePreloadRpcCallbacks = [];
+            scheduledIdlePreloadRpcCallbacks = [[], []];
 
             // Use the React scheduler to schedule an idle callback.
             // `requestIdleCallback()` is not implemented in Safari. Generally we recommend
@@ -249,10 +240,14 @@ export function useIdlyPreloadSwr(
             unstable_scheduleCallback(unstable_IdlePriority, () => {
                 assert(scheduledIdlePreloadRpcCallbacks !== null);
 
-                const callbacks = scheduledIdlePreloadRpcCallbacks;
+                const [callbacks1, callbacks2] = scheduledIdlePreloadRpcCallbacks;
                 scheduledIdlePreloadRpcCallbacks = null;
 
-                for (const callback of callbacks) {
+                for (const callback of callbacks1) {
+                    callback();
+                }
+
+                for (const callback of callbacks2) {
                     callback();
                 }
             });
@@ -260,13 +255,32 @@ export function useIdlyPreloadSwr(
 
         assert(retainedKeyRef.current === key);
 
-        scheduledIdlePreloadRpcCallbacks.push(() => {
-            // Make sure `key` is still retained. If `key` changes or the component
-            // unmounts after we scheduled the idle callback then we need to not run our
-            // idle callback.
-            if (retainedKeyRef.current === key) {
-                cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
-            }
-        });
-    }, [cache, dedupingInterval, fetcher, key]);
+        if (initialData === null) {
+            scheduledIdlePreloadRpcCallbacks[0].push(() => {
+                // Make sure `key` is still retained. If `key` changes or the component
+                // unmounts after we scheduled the idle callback then we need to not run our
+                // idle callback.
+                if (retainedKeyRef.current === key) {
+                    cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
+                }
+            });
+        } else {
+            // If we have `initialData` then add it to the store in an idle callback that
+            // runs after all other idle callbacks. That way if there's another
+            // `useIdlyPreloadSwr()` call with the same key then it will trigger a fetch
+            // instead of using `initialData`.
+            scheduledIdlePreloadRpcCallbacks[1].push(() => {
+                // Make sure `key` is still retained. If `key` changes or the component
+                // unmounts after we scheduled the idle callback then we need to not run our
+                // idle callback.
+                if (retainedKeyRef.current === key) {
+                    cache.revalidateEntryIfNotAvailable(
+                        key,
+                        () => PromiseImmediate.resolve(initialData),
+                        {dedupingInterval},
+                    );
+                }
+            });
+        }
+    }, [cache, dedupingInterval, fetcher, initialData, key]);
 }
