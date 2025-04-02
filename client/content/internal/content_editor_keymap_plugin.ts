@@ -43,7 +43,6 @@ import {
 } from "~/shared/content/content_schema.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 type Command = (
     state: EditorState,
