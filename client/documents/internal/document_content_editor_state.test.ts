@@ -5,6 +5,7 @@ import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {
     DocumentContentEditorAction,
     DocumentContentEditorState,
+    getDocumentContentEditorStatePersistedContent,
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
     reduceDocumentContentReferences,
@@ -1364,4 +1365,95 @@ test("can reset to persisted version", () => {
             schema.node("paragraph", {}, [schema.text("abcdefgh")]),
         ]),
     });
+});
+
+test("setting presence state to a version we don't have remembered steps for doesn't break remembered steps", () => {
+    const client1Id = generateId<ContentEditorClientId>();
+
+    let state = getInitialDocumentContentEditorState({
+        currentAccountId,
+        initialVersion: 10,
+        initialContent: {
+            doc: assertDocumentContent(
+                schema.node("doc", {}, [
+                    schema.node("title", {}, []),
+                    schema.node("paragraph", {}, [schema.text("initial")]),
+                ]),
+            ),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    expect(state.editorState.getVersion()).toEqual(10);
+    expect(state.persistedVersion).toEqual(10);
+    expect(state.extra.rememberedSteps.length).toEqual(0);
+    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+        'doc(title, paragraph("initial"))',
+    );
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 15,
+            steps: [
+                {step: new ReplaceStep(10, 10, textSlice(" content")), clientId: client1Id},
+                {step: new ReplaceStep(18, 18, textSlice(" more")), clientId: client1Id},
+                {step: new ReplaceStep(23, 23, textSlice(" text")), clientId: client1Id},
+                {step: new ReplaceStep(28, 28, textSlice(" here")), clientId: client1Id},
+                {step: new ReplaceStep(33, 33, textSlice("!")), clientId: client1Id},
+            ],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.editorState.getVersion()).toEqual(15);
+    expect(state.persistedVersion).toEqual(10);
+    expect(state.extra.rememberedSteps.length).toEqual(5);
+    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+        'doc(title, paragraph("initial"))',
+    );
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "Persisted",
+            newVersion: 13,
+        },
+    ]);
+
+    expect(state.editorState.getVersion()).toEqual(15);
+    expect(state.persistedVersion).toEqual(13);
+    expect(state.extra.rememberedSteps.length).toEqual(2);
+    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+        'doc(title, paragraph("initial content more text"))',
+    );
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "Extra",
+            extra: {
+                type: "SetAllOtherPresenceStates",
+                stateByConnectionId: ImmutableMap.from([
+                    [
+                        generateId(),
+                        {
+                            version: 12,
+                            selection: ContentSelectionWrapper.new(
+                                new TextSelection(
+                                    state.editorState.getDoc().resolve(5),
+                                    state.editorState.getDoc().resolve(5),
+                                ),
+                            ),
+                        },
+                    ],
+                ]),
+            },
+        },
+    ]);
+
+    expect(state.editorState.getVersion()).toEqual(15);
+    expect(state.persistedVersion).toEqual(13);
+    expect(state.extra.rememberedSteps.length).toEqual(2);
+    expect(getDocumentContentEditorStatePersistedContent(state).toString()).toEqual(
+        'doc(title, paragraph("initial content more text"))',
+    );
 });
