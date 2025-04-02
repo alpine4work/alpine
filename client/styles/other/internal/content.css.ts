@@ -795,8 +795,6 @@ globalStyle(`${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlo
 
 globalStyle(codeBlockLineContentClassName, {
     position: "relative",
-    // Render under line number. Line number needs to be at `z-index: 0` so native
-    // scrollbar renders on top of it.
     zIndex: "0",
     paddingLeft: codeBlockLineOverscrollSlopX,
     flexGrow: "1",
