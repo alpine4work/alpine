@@ -718,7 +718,7 @@ globalStyle(`${codeBlockLineClassName}::before`, {
     content: "counter(code-block-line-number)",
     flexShrink: "0",
     pointerEvents: "none",
-    zIndex: "0",
+    zIndex: "10",
     position: "sticky",
     left: "0",
     marginLeft: `-${codeBlockLineOverscrollSlopX}`,
@@ -795,9 +795,7 @@ globalStyle(`${codeBlockWrapperClassName}${fileViewCodeBlockClassName} ${codeBlo
 
 globalStyle(codeBlockLineContentClassName, {
     position: "relative",
-    // Render under line number. Line number needs to be at `z-index: 0` so native
-    // scrollbar renders on top of it.
-    zIndex: "-10",
+    zIndex: "0",
     paddingLeft: codeBlockLineOverscrollSlopX,
     flexGrow: "1",
     // `min-width` and `min-height` for when the code block line is empty. We still

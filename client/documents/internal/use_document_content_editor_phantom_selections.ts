@@ -97,7 +97,7 @@ export function useDocumentContentEditorPhantomSelections({
                 // The remaining cases here are:
                 //
                 // 1. Presence states at a future version. (Should not happen.)
-                // 2. Presence states that we couldn't catch because we don't have enough
+                // 2. Presence states that we couldn't catch up because we don't have enough
                 //    `rememberedSteps`. Our backfill should have given us all the steps we
                 //    need though.
                 //

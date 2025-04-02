@@ -561,6 +561,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
     // eslint-disable-next-line testing-library/no-node-access
     fireEvent.paste((container as any).firstElementChild.firstElementChild, {
         clipboardData: {
+            types: ["text/html"],
             getData: (type: string) => {
                 return type === "text/html" ? copiedHtml : null;
             },

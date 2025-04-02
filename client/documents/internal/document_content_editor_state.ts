@@ -337,12 +337,25 @@ export function reduceDocumentContentEditorState(
                 discardRememberedStepsBeforeVersion = presenceState.version;
         }
 
-        const newRememberedSteps = state.extra.rememberedSteps.slice(
+        const discardRememberedStepsBeforeIndex =
             state.extra.rememberedSteps.length -
-                (state.editorState.getVersion() - discardRememberedStepsBeforeVersion),
-        );
+            (state.editorState.getVersion() - discardRememberedStepsBeforeVersion);
 
-        state = {...state, extra: {...state.extra, rememberedSteps: newRememberedSteps}};
+        // Noop if 0 or negative. If negative that means
+        // `discardRememberedStepsBeforeVersion` was less than the last remembered
+        // version (`state.editorState.getVersion() - state.extra.rememberedSteps.length`).
+        // In that case we shouldn't discard any steps.
+        if (discardRememberedStepsBeforeIndex > 0) {
+            state = {
+                ...state,
+                extra: {
+                    ...state.extra,
+                    rememberedSteps: state.extra.rememberedSteps.slice(
+                        discardRememberedStepsBeforeIndex,
+                    ),
+                },
+            };
+        }
     }
 
     // We don't allow `state.extra.ourPresenceState.selection` to be empty if the

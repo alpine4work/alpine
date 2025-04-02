@@ -10,7 +10,11 @@ import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
  */
 export function ErrorIcon({size}: {size?: string}) {
     return (
-        <span role="img" aria-label="Error icon">
+        <span
+            className={sprinkles({position: "relative", zIndex: "0"})}
+            role="img"
+            aria-label="Error icon"
+        >
             <Warning weight="fill" size={size} color={colorSchemeVars["red-50-const"]} />
             <Triangle
                 weight="fill"
