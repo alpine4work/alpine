@@ -59,6 +59,7 @@ import {
     messageViewAccountNameFontSize,
     messageViewAccountNameHeight,
     messageViewAvatarOffsetYPx,
+    messageViewMarginLeft,
     messageViewMarginY,
     messageViewNotMergedOutlineMinHeightPx,
     messageViewOutlineBorderRadius,
@@ -92,8 +93,10 @@ import {
     addRemLengths,
     parseRemLength,
     screenPaddingX,
+    screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -164,7 +167,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage,
     getMessageUrl,
     roomDisplayedCreatedTime,
-    fileLayoutScreenWidth,
+    availableWidth: availableWidthProp,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -183,7 +186,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     onDeleteMessage: () => Promise<void>;
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
-    fileLayoutScreenWidth?: number;
+    availableWidth?: number;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -192,6 +195,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const {currentAccount, space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const openContextMenuActions = useContextMenuActions();
+
+    const availableWidth =
+        availableWidthProp !== undefined
+            ? availableWidthProp -
+              (parseRemLength(messageViewMarginLeft) + screenPaddingXRem[platform] * 2) *
+                  remPxBySpacingScale[spacingScale]
+            : undefined;
 
     const messageAuthor = useAccountModel(message.author);
 
@@ -893,9 +903,11 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 contentUpdatedTime={message.payload.contentUpdatedTime}
                 withUserSelectNone={!canPrimaryInputHover}
                 getClipboardSerializerPrefix={events.getClipboardSerializerPrefix}
+                availableWidth={availableWidth}
             />
         );
     }, [
+        availableWidth,
         canPrimaryInputHover,
         events.getClipboardSerializerPrefix,
         message.payload,
@@ -1218,7 +1230,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                                 ? contentStyles.standaloneBlockMargin
                                                 : undefined
                                         }
-                                        screenWidth={fileLayoutScreenWidth}
+                                        availableWidth={availableWidth}
                                     />
                                 )}
                         </div>

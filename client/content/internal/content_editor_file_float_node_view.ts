@@ -67,7 +67,6 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 platform,
                 routeLayout: getRouteLayout(),
                 clientInfo: getClientInfo(),
-                withoutBlockMaxWidth: false,
             });
 
             const {references} = getContentEditorReferences(view.state);

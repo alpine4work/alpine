@@ -418,7 +418,7 @@ export function TaskDetailAndCommentsView({
                         procedures={notesProcedures}
                         subscribeToEvents={subscribeToCommentsEvents}
                         // Provide the sidebar width for better layout results when previewing files.
-                        fileLayoutScreenWidth={spacing[taskDetailViewCommentSidebarWidth]}
+                        availableWidth={taskDetailViewCommentSidebarWidth}
                     />
                 </Box>
             )}

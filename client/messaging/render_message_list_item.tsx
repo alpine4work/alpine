@@ -47,7 +47,7 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
-    fileLayoutScreenWidth,
+    availableWidth,
     render: customRender,
 }: {
     spacingScale: SpacingScale;
@@ -68,7 +68,7 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
     shouldAddMarginBottom?: boolean | string;
-    fileLayoutScreenWidth?: number;
+    availableWidth?: number;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
     switch (item.type) {
@@ -119,7 +119,7 @@ export function renderMessageListItem<
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         getMessageUrl={getMessageUrl}
                         roomDisplayedCreatedTime={roomDisplayedCreatedTime}
-                        fileLayoutScreenWidth={fileLayoutScreenWidth}
+                        availableWidth={availableWidth}
                     />
                 ) : (
                     <MessageListMessageShimmer

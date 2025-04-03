@@ -4,12 +4,12 @@ import {createContentMentionTextStore} from "~/client/accounts/create_content_me
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
-import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -169,11 +169,13 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const fileStore = getFileClientStore(this._getSpaceId());
             const contentReferences = this._getContentReferences();
 
+            const platform: Platform = "desktop";
+            const spacingScale: SpacingScale = "small";
+
             const layouts = layoutContentFileParent(node, {
-                screenWidth: getClientInfo().screenWidth,
-                platform: "desktop",
-                spacingScale: "small",
-                withoutBlockMaxWidth: false,
+                blockWidth:
+                    contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
+                spacingScale,
                 getFile: fileId => {
                     const fileReference = contentReferences.fileById.get(fileId);
                     if (!fileReference) return null;

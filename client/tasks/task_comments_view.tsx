@@ -12,7 +12,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {TaskCommentsViewShimmer} from "~/client/shimmer/route_shimmer.js";
 import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shared_styles.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
-import {RemLength, spacing} from "~/shared/design/core/spacing.js";
+import {ParsableRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {FileId, TaskId} from "~/shared/id/types/id_types.js";
@@ -43,7 +43,7 @@ export function TaskCommentsView({
     isConnected,
     procedures,
     subscribeToEvents,
-    fileLayoutScreenWidth,
+    availableWidth,
 }: {
     taskId: TaskId;
     initialScrollToCommentIndex: number | null;
@@ -58,7 +58,7 @@ export function TaskCommentsView({
     subscribeToEvents: Memo<
         (subscriber: (event: MessagingRealtimeEvent<TaskCommentModel>) => void) => () => void
     >;
-    fileLayoutScreenWidth?: RemLength;
+    availableWidth?: ParsableRemLength;
 }) {
     const context = useAppContext();
     const routeLayout = useRouteLayout();
@@ -297,7 +297,7 @@ export function TaskCommentsView({
                 isConnected={isConnected}
                 subscribeToEvents={subscribeToEvents}
                 getMessageUrl={getCommentUrl}
-                fileLayoutScreenWidth={fileLayoutScreenWidth}
+                availableWidth={availableWidth}
             />
         );
     }

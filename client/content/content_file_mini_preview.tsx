@@ -17,8 +17,6 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -63,19 +61,13 @@ export function ContentFileMiniPreview({
             node: ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: file.id}),
             file,
             layout: {width: size, widthFr: 1, height: size},
-            // `screenWidth` is used to scale down code file previews. Code previews at
-            // 100% of this width (minus `screenPaddingX * 2`) are rendered with a font
-            // size of 75. Set a `screenWidth` that'll scale the code preview down to a
-            // font size of 25.
-            //
-            // TODO(calebmer): This feels hacky. Is there a more targeted way to accomplish
-            // this by only targeting code previews?
-            screenWidth:
+            // Code previews use `blockWidth` to scale down text. Set a `blockWidth`
+            // that'll scale the code preview down to a font size of 25.
+            blockWidth:
                 size *
-                    (fontSizesBySpacingScale["75"].small.fontSize /
-                        fontSizesBySpacingScale["25"].small.fontSize) +
-                screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
-            screenScale: 1,
+                (fontSizesBySpacingScale["75"].small.fontSize /
+                    fontSizesBySpacingScale["25"].small.fontSize),
+            transformScale: 1,
             platform,
             spacingScale,
             isInitialAppRender,

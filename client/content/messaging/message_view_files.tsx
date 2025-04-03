@@ -18,6 +18,7 @@ import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
+import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
@@ -25,10 +26,10 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {messageViewMarginLeft} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
@@ -47,12 +48,12 @@ export function MessageViewFiles({
     attachmentTarget,
     files,
     paddingTop,
-    screenWidth,
+    availableWidth,
 }: {
     attachmentTarget: Memo<FileAttachmentTarget>;
     files: ReadonlyArray<{signedUrlSearch: string; file: FileModel}>;
     paddingTop?: Spacing;
-    screenWidth?: number;
+    availableWidth?: number;
 }) {
     assert(files.length > 0);
 
@@ -63,6 +64,7 @@ export function MessageViewFiles({
     const clientInfo = useClientInfo();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
     const {space} = useSpaceContext();
     const fileStore = useFileClientStore();
 
@@ -70,6 +72,14 @@ export function MessageViewFiles({
 
     const {fileRows, html: htmlGenerator} = useStore(
         useMemo(() => {
+            const blockWidth = getContentBlockWidth({
+                spacingScale,
+                platform,
+                routeLayout,
+                clientInfo,
+                availableWidth,
+            });
+
             return computeStore(get => {
                 const html = new HtmlFragmentGenerator();
                 const fileRows: Array<{
@@ -97,13 +107,11 @@ export function MessageViewFiles({
                     const fileDatas = files.map(file => get(fileStore.getFileStore(file)));
 
                     const fileLayouts = computeContentFileRowLikeLayout(fileDatas, {
-                        screenWidth: screenWidth ?? clientInfo.screenWidth,
-                        platform,
+                        blockWidth,
                         spacingScale,
                         // Smaller max height than we have for content file row nodes so tall images
                         // don't take up too much of the screen.
                         maxHeight: "20rem",
-                        marginLeft: messageViewMarginLeft,
                     });
 
                     fileRows.push({files, fileDatas, fileLayouts});
@@ -147,8 +155,8 @@ export function MessageViewFiles({
                             }),
                             file,
                             layout,
-                            screenWidth: screenWidth ?? clientInfo.screenWidth,
-                            screenScale: 1,
+                            blockWidth,
+                            transformScale: 1,
                             platform,
                             spacingScale,
                             isInitialAppRender,
@@ -170,12 +178,13 @@ export function MessageViewFiles({
                 }
             });
         }, [
-            clientInfo.screenWidth,
+            availableWidth,
+            clientInfo,
             fileStore,
             files,
             isInitialAppRender,
             platform,
-            screenWidth,
+            routeLayout,
             space.id,
             spacingScale,
         ]),

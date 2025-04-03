@@ -60,7 +60,6 @@ export function renderContentToHtmlStore(
         platform,
         routeLayout,
         clientInfo,
-        withoutBlockMaxWidth,
         isInitialAppRender,
         withPosAttribute,
         placeholder,
@@ -75,7 +74,6 @@ export function renderContentToHtmlStore(
         platform: Platform;
         routeLayout: RouteLayout;
         clientInfo: ClientInfo;
-        withoutBlockMaxWidth: boolean;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
@@ -91,7 +89,6 @@ export function renderContentToHtmlStore(
             platform,
             routeLayout,
             clientInfo,
-            withoutBlockMaxWidth,
         }),
         transformScale,
         platform,
@@ -100,10 +97,9 @@ export function renderContentToHtmlStore(
         withPosAttribute,
         placeholder,
     }).map(fragmentHtmlGenerator => {
-        return `<div class="${classNames(
-            contentStyles.docClassName,
-            withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
-        )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
+        return `<div class="${
+            contentStyles.docClassName
+        }">${fragmentHtmlGenerator.generateHtml()}</div>`;
     });
 }
 

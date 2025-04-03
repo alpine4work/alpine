@@ -59,6 +59,7 @@ import {
 } from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -193,6 +194,13 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     onSeeLessContent?: (targetElement: HTMLDivElement) => void;
 
     /**
+     * The width available for our `<ContentView>`. If we're in an element that's
+     * smaller than the block max width you should set this prop to make sure
+     * tables and files have the right layout and aren't squished.
+     */
+    availableWidth?: ParsableRemLength | number | null;
+
+    /**
      * Disable the block maximum width. Letting content flow all the way to the
      * edges of the container. Used in document presentation mode for rendering
      * slides. Defaults to false.
@@ -232,6 +240,7 @@ export function ContentView<Content extends ContentWithReferences>({
     withUserSelectNone = false,
     onSeeMoreContent,
     onSeeLessContent,
+    availableWidth = null,
     withoutBlockMaxWidth = false,
     transformScale = 1,
     getClipboardSerializerPrefix,
@@ -266,9 +275,19 @@ export function ContentView<Content extends ContentWithReferences>({
                 platform,
                 routeLayout,
                 clientInfo,
+                availableWidth,
                 withoutBlockMaxWidth,
+                transformScale,
             }),
-        [clientInfo, platform, routeLayout, spacingScale, withoutBlockMaxWidth],
+        [
+            availableWidth,
+            clientInfo,
+            platform,
+            routeLayout,
+            spacingScale,
+            transformScale,
+            withoutBlockMaxWidth,
+        ],
     );
 
     const id = useId();

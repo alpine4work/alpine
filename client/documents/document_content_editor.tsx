@@ -2552,9 +2552,9 @@ function DocumentContentEditorSidebar({
                                         : undefined
                                 }
                                 // Provide the sidebar width for better layout results when previewing files.
-                                fileLayoutScreenWidth={
+                                availableWidth={
                                     routeLayout !== "narrow"
-                                        ? spacing[documentContentEditorSidebarWidth]
+                                        ? documentContentEditorSidebarWidth
                                         : undefined
                                 }
                                 // If we're focusing the pinned comment input because the user swiped to reply

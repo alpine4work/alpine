@@ -246,7 +246,6 @@ export function createContentEditorTableNodeView({
                 platform,
                 routeLayout: getRouteLayout(),
                 clientInfo: getClientInfo(),
-                withoutBlockMaxWidth: false,
             });
 
             const tableWrapper3Element = tableElement.parentElement!;

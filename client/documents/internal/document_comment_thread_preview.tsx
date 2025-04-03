@@ -6,7 +6,6 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
@@ -14,12 +13,7 @@ import {
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {
-    addRemLengths,
-    convertRemLengthToPx,
-    screenPaddingX,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
@@ -38,7 +32,7 @@ export function DocumentCommentThreadPreview({
     contentReferences,
     onCommentThreadSnippetPress,
     isResolveButtonPending,
-    fileLayoutScreenWidth,
+    availableWidth,
 }: {
     commentThread: DocumentCommentThreadModel;
     unpersistedIsResolved: boolean | null;
@@ -46,9 +40,8 @@ export function DocumentCommentThreadPreview({
     contentReferences: DocumentContentReferences;
     onCommentThreadSnippetPress: (commentThreadId: DocumentCommentThreadId) => void;
     isResolveButtonPending: boolean;
-    fileLayoutScreenWidth: number;
+    availableWidth: number | undefined;
 }) {
-    const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const previewRef = useRef<HTMLDivElement>(null);
     const previewContentRef = useRef<HTMLDivElement>(null);
@@ -163,13 +156,6 @@ export function DocumentCommentThreadPreview({
         [commentThread.documentId],
     );
 
-    const previewFileLayoutScreenWidth = useMemo(
-        () =>
-            fileLayoutScreenWidth -
-            convertRemLengthToPx(screenPaddingX[platform], spacingScale) * 2,
-        [fileLayoutScreenWidth, platform, spacingScale],
-    );
-
     return (
         <FocusRing offset="border">
             <Box
@@ -237,10 +223,9 @@ export function DocumentCommentThreadPreview({
                                 // Clicking on the preview opens it in the document.
                                 isInert={true}
                                 shouldHighlightComment={shouldHighlightComment}
-                                fileLayoutScreenWidth={
-                                    previewFileLayoutScreenWidth / documentCommentThreadPreviewScale
-                                }
                                 fileAttachmentTarget={fileAttachmentTarget}
+                                availableWidth={availableWidth}
+                                transformScale={documentCommentThreadPreviewScale}
                             />
                         )}
                     </Box>

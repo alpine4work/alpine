@@ -92,7 +92,6 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         platform,
         routeLayout,
         clientInfo: getClientInfo(),
-        withoutBlockMaxWidth: false,
     });
 
     const minTotalColumnWidthPx = Math.max(

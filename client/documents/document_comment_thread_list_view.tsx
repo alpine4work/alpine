@@ -33,7 +33,6 @@ import {bufferedMessageViewHeight} from "~/client/messaging/message_view.js";
 import {renderMessageListItem} from "~/client/messaging/render_message_list_item.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {NavigationBarResult} from "~/client/navigation/navigation_bar_types.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -60,13 +59,16 @@ import {
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {
+    ParsableRemLength,
     RemLength,
     Spacing,
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
+    screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -245,7 +247,7 @@ function DocumentCommentThreadListView(
         onBeforePinnedCommentInputFocusFromReplyOrEditingChange,
         isNativeMobileTabBarHidden = false,
         backgroundSlopBottomIfPinnedCommentInput,
-        fileLayoutScreenWidth: fileLayoutScreenWidthProp,
+        availableWidth: availableWidthProp,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -343,23 +345,31 @@ function DocumentCommentThreadListView(
         backgroundSlopBottomIfPinnedCommentInput?: RemLength;
 
         /**
-         * Optionally override the screen width provided to `layoutContentFileRow()` in
-         * the `<ContentView>` for comment thread previews. Overriding this can lead to
-         * more scale appropriate file layouts in the preview window. Defaults to
-         * `clientInfo.screenWidth`.
+         * By default, `<MessageView>` assumes it's rendering at 100% screen width (or
+         * peek width if `routeLayout` is narrow). If `<MessageView>` is rendered in a
+         * container (e.g. a sidebar) then you should provide this prop.
+         *
+         * This is used by `<ContentView>` for rendering components whose layout is
+         * based on the `<ContentView>`'s block width. For example files and tables. If
+         * you don't set this when in a narrow sidebar then `<ContentView>` will assume
+         * it's rendering at the max block width which will be incorrect.
          */
-        fileLayoutScreenWidth?: RemLength;
+        availableWidth?: ParsableRemLength;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const clientInfo = useClientInfo();
 
-    const fileLayoutScreenWidth =
-        fileLayoutScreenWidthProp !== undefined
-            ? convertRemLengthToPx(fileLayoutScreenWidthProp, spacingScale)
-            : clientInfo.screenWidth;
+    const availableWidth =
+        availableWidthProp !== undefined
+            ? convertRemLengthToPx(availableWidthProp, spacingScale)
+            : undefined;
+
+    const availableWidthWithoutScreenPaddingX =
+        availableWidth !== undefined
+            ? availableWidth - screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2
+            : undefined;
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -955,7 +965,7 @@ function DocumentCommentThreadListView(
                                         }
                                         contentReferences={content.references}
                                         onCommentThreadSnippetPress={onCommentThreadSnippetPress}
-                                        fileLayoutScreenWidth={fileLayoutScreenWidth}
+                                        availableWidth={availableWidthWithoutScreenPaddingX}
                                     />
                                 </div>
                             </div>
@@ -1029,7 +1039,7 @@ function DocumentCommentThreadListView(
                                     ? `calc(${messagingViewMarginBottomCalcExpression} + ${backgroundSlopBottomIfPinnedCommentInput})`
                                     : messagingViewMarginBottom
                                 : undefined,
-                        fileLayoutScreenWidth,
+                        availableWidth,
                         render: node => (
                             <div
                                 className={sprinkles({
@@ -1235,7 +1245,7 @@ function DocumentCommentThreadListView(
             contentSnippetByCommentThreadId,
             content.references,
             onCommentThreadSnippetPress,
-            fileLayoutScreenWidth,
+            availableWidthWithoutScreenPaddingX,
             procedures,
             spacingScale,
             fileAttachmentTarget,
@@ -1244,6 +1254,7 @@ function DocumentCommentThreadListView(
             handleJumpToComment,
             isNativeMobileTabBarHidden,
             backgroundSlopBottomIfPinnedCommentInput,
+            availableWidth,
             space.id,
             replyingToCommentIndexByCommentThreadId,
             inputRefByCommentThreadId,

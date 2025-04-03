@@ -90,7 +90,6 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 platform,
                 routeLayout: getRouteLayout(),
                 clientInfo: getClientInfo(),
-                withoutBlockMaxWidth: false,
             });
 
             const pos = getPos();
