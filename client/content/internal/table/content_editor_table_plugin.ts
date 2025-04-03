@@ -1304,7 +1304,7 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
                         parseFloat(viewComputedStyle.paddingRight)),
                 oldTotalColumnWidthPx: tableElement.offsetWidth,
                 oldScrollLeftPx: tableElement.parentElement!.parentElement!.scrollLeft,
-                isSnapping: true,
+                isSnapping: !event.altKey,
                 state: draggingState,
             },
         })(view.state, view.dispatch);
