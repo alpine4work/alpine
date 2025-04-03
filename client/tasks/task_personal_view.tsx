@@ -645,8 +645,8 @@ export function TaskPersonalView({
         ],
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
-        withoutBottomGhostTaskIfEmpty: true,
-        withoutDecorativeGhostRowsIfEmpty: true,
+        withoutBottomGhostTask: true,
+        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -822,8 +822,8 @@ export function TaskPersonalView({
         ],
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
-        withoutBottomGhostTaskIfEmpty: true,
-        withoutDecorativeGhostRowsIfEmpty: true,
+        withoutBottomGhostTask: true,
+        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1007,8 +1007,8 @@ export function TaskPersonalView({
         ],
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
-        withoutBottomGhostTaskIfEmpty: true,
-        withoutDecorativeGhostRowsIfEmpty: true,
+        withoutBottomGhostTask: true,
+        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
@@ -1195,8 +1195,8 @@ export function TaskPersonalView({
         ],
         withoutColumnHeader: true,
         withoutBorderTopIfFirstRow: routeLayout !== "narrow" && !hasFirstHeader,
-        withoutBottomGhostTaskIfEmpty: true,
-        withoutDecorativeGhostRowsIfEmpty: true,
+        withoutBottomGhostTask: true,
+        withoutDecorativeGhostRows: true,
         isDragging,
         draggingData,
         pushUndoStackEntry: entry => {
