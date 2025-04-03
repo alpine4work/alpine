@@ -968,8 +968,6 @@ function round6(n: number) {
     return Math.round(n * 10 ** 6) / 10 ** 6;
 }
 
-let wasEditorInitialAppRender = false;
-
 let reuseFileImagePreviewContentElementsByKeyForEditorInitialAppRender: Map<
     string,
     Set<HTMLElement>
@@ -1729,14 +1727,25 @@ export function addContentFilePreviewBehavior(
     // Wait until after `isEditorInitialAppRender` to cross fade in our images.
     // That way our cross fade animation won't ever be interrupted by unmounting
     // `<ContentView>` and replacing it with ProseMirror's `EditorView`.
-    if (
-        !isEditorInitialAppRender &&
-        imagePreviewContentElement &&
-        // If we have the file's image content already loaded then we don't need to
-        // wait for the file to load from the network.
-        file?.imagePreviewContentIfSmall === undefined
-    ) {
+    if (isEditorInitialAppRender || !imagePreviewContentElement) {
+        if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
+            element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
+    }
+    // If we have the file's image content already loaded then we don't need to
+    // wait for the file to load from the network.
+    else if (file?.imagePreviewContentIfSmall === undefined) {
         const loadedPromise = isHtmlImageElementLoadedAndDecoded(imagePreviewContentElement);
+
+        // Remove the loaded class if the image isn't available synchronously. If the
+        // image is available synchronously then this whole branch will noop. Which is
+        // good, if we removed the loaded class then added it back the fade in
+        // animation would rerun.
+        if (
+            loadedPromise.isPending() &&
+            element.classList.contains(contentStyles.loadedFileImagePreviewClassName)
+        ) {
+            element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
+        }
 
         const handleLoad = () => {
             if (!element.classList.contains(contentStyles.loadedFileImagePreviewClassName)) {
@@ -1744,19 +1753,27 @@ export function addContentFilePreviewBehavior(
             }
         };
 
+        let isSync = true;
+
         loadedPromise.then(
             () => {
                 if (hasCleanedUp) return;
 
-                if (!wasEditorInitialAppRender) {
-                    handleLoad();
-                }
-                // If we're a microtask after `isEditorInitialAppRender` then only add the
-                // loaded image class name after a macrotask (difference between microtask and
-                // macrotask is important here). Since the CSS transition animation won't apply
-                // if we immediately add the loaded class name.
-                else {
+                // If the image was loaded synchronously and the element doesn't currently have
+                // the loaded class name then wait a microtask before adding the loaded class
+                // name. That way we guarantee the fade in animation runs.
+                //
+                // This is needed when rendering after `isEditorInitialAppRender`. Since the
+                // file may have loaded while we were waiting for React to mount. Even if the
+                // file is already loaded we still want to make sure the fade in animation
+                // plays.
+                if (
+                    isSync &&
+                    !element.classList.contains(contentStyles.loadedFileImagePreviewClassName)
+                ) {
                     scheduleMacrotask(handleLoad);
+                } else {
+                    handleLoad();
                 }
             },
             error => {
@@ -1765,6 +1782,8 @@ export function addContentFilePreviewBehavior(
                 scheduleUncaughtError(error);
             },
         );
+
+        isSync = false;
     }
 
     let videoPlayerBehavior: {
@@ -1837,16 +1856,6 @@ export function addContentFilePreviewBehavior(
 
         unsubscribeFromRefreshTimer?.();
         unsubscribeFromRefreshTimer = null;
-
-        if (element.classList.contains(contentStyles.loadedFileImagePreviewClassName))
-            element.classList.remove(contentStyles.loadedFileImagePreviewClassName);
-
-        if (isEditorInitialAppRender && !wasEditorInitialAppRender) {
-            wasEditorInitialAppRender = true;
-            scheduleMicrotask(() => {
-                wasEditorInitialAppRender = false;
-            });
-        }
 
         // On `<ContentEditor>`'s initial app render when we switch from
         // `<ContentView>` to ProseMirror's `EditorView` we want to reuse the `<img>`
