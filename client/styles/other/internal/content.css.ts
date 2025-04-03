@@ -912,10 +912,62 @@ globalStyle(`${narrowRouteLayoutDocClassName} ${dividerClassName}`, {
     marginBottom: spacing[heading1TopMargin.narrow],
 });
 
-const fileMinSizeSpacing = "20";
-export {fileMinSizeSpacing as fileMinSize};
-const fileMinSize = spacing["20"];
-export const fileMinSizeRem = parseRemLength(fileMinSize);
+/**
+ * The minimum width of a column in absolute units. The table data structure
+ * may think the column is smaller but this is as small as we'll let the column
+ * actually render in practice.
+ *
+ * The minimum column width is one sixth of the block width on desktop. Even as
+ * we scale down this is still our minimum column width so we make sure content
+ * in columns are legible even at small sizes.
+ */
+export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * (1 / 6);
+
+/**
+ * The maximum width of a column in absolute units. The table data structure
+ * may think the column is larger but this is as large as we'll let the column
+ * actually render in practice.
+ *
+ * The maximum column width is the width of the larger column in a two column
+ * table on desktop where one of the columns is the minimum width and the
+ * `tableWidth` is 1 (so about three fourths of the block width on desktop).
+ */
+export const tableColumnMaxWidthRem = blockMaxWidthRem.desktop - tableColumnMinWidthRem;
+
+/**
+ * The number of table columns up under which we'll try to maintain the table's
+ * width. After this many columns, adding a new column or resizing a column
+ * will change the table's width.
+ *
+ * When we add a new column (past this column count) we want the width of the
+ * new column to be the block width divided by this count.
+ */
+export const tableMaxColumnCountForMaintainingBlockWidth = 4;
+
+/**
+ * Snap factor for column resizing. By default, when resizing a column we
+ * snap the column width to `blockWidth / factor`. The column min width, column
+ * max width, and new column desired width should all be multiples of this
+ * increment when we have the max block width. So the user can easily create
+ * columns of those sizes and there will be harmony between the user's column
+ * sizes.
+ */
+export const tableColumnWidthBlockWidthSnapFactor = 12;
+
+const tableCellPaddingYSpacing = "2";
+const tableCellPaddingY = spacing[tableCellPaddingYSpacing];
+export {tableCellPaddingYSpacing as tableCellPaddingY};
+
+// Align table cell content with quote block content.
+const tableCellPaddingXSpacing = quoteBlockIndentationSpacing;
+const tableCellPaddingX = spacing[tableCellPaddingXSpacing];
+export {tableCellPaddingXSpacing as tableCellPaddingX};
+export const tableCellPaddingXRem = parseRemLength(tableCellPaddingX);
+
+// File min size is derived from the smallest context a file may render in, a
+// table column at minimum width.
+export const fileMinSizeRem = tableColumnMinWidthRem - tableCellPaddingXRem * 2;
+export const fileMinSize: RemLength = `${fileMinSizeRem}rem`;
 
 const fileRowMaxHeightSpacing = "128";
 export {fileRowMaxHeightSpacing as fileRowMaxHeight};
@@ -1988,15 +2040,6 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     zIndex: -10,
 });
 
-const tableCellPaddingYSpacing = "2";
-const tableCellPaddingY = spacing[tableCellPaddingYSpacing];
-export {tableCellPaddingYSpacing as tableCellPaddingY};
-
-// Align table cell content with quote block content.
-const tableCellPaddingXSpacing = quoteBlockIndentationSpacing;
-const tableCellPaddingX = spacing[tableCellPaddingXSpacing];
-export {tableCellPaddingXSpacing as tableCellPaddingX};
-
 const tableOverflowGradientWidthSpacing = "5";
 export {tableOverflowGradientWidthSpacing as tableOverflowGradientWidth};
 const tableOverflowGradientWidth = spacing[tableOverflowGradientWidthSpacing];
@@ -2110,48 +2153,6 @@ globalStyle(`${tableWrapperClassName} tbody`, {
 globalStyle(`${tableWrapperClassName} tr`, {
     display: "contents",
 });
-
-/**
- * The minimum width of a column in absolute units. The table data structure
- * may think the column is smaller but this is as small as we'll let the column
- * actually render in practice.
- *
- * The minimum column width is one sixth of the block width on desktop. Even as
- * we scale down this is still our minimum column width so we make sure content
- * in columns are legible even at small sizes.
- */
-export const tableColumnMinWidthRem = blockMaxWidthRem.desktop * (1 / 6);
-
-/**
- * The maximum width of a column in absolute units. The table data structure
- * may think the column is larger but this is as large as we'll let the column
- * actually render in practice.
- *
- * The maximum column width is the width of the larger column in a two column
- * table on desktop where one of the columns is the minimum width and the
- * `tableWidth` is 1 (so about three fourths of the block width on desktop).
- */
-export const tableColumnMaxWidthRem = blockMaxWidthRem.desktop - tableColumnMinWidthRem;
-
-/**
- * The number of table columns up under which we'll try to maintain the table's
- * width. After this many columns, adding a new column or resizing a column
- * will change the table's width.
- *
- * When we add a new column (past this column count) we want the width of the
- * new column to be the block width divided by this count.
- */
-export const tableMaxColumnCountForMaintainingBlockWidth = 4;
-
-/**
- * Snap factor for column resizing. By default, when resizing a column we
- * snap the column width to `blockWidth / factor`. The column min width, column
- * max width, and new column desired width should all be multiples of this
- * increment when we have the max block width. So the user can easily create
- * columns of those sizes and there will be harmony between the user's column
- * sizes.
- */
-export const tableColumnWidthBlockWidthSnapFactor = 12;
 
 globalStyle(`${tableWrapperClassName} td`, {
     display: "block",

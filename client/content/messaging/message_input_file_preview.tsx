@@ -4,7 +4,6 @@ import {ContentFileMiniPreview} from "~/client/content/content_file_mini_preview
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -23,12 +22,7 @@ export function MessageInputFilePreview({
     const spacingScale = useSpacingScale();
 
     return (
-        <Box
-            position="relative"
-            zIndex="0"
-            width={contentStyles.fileMinSize}
-            height={contentStyles.fileMinSize}
-        >
+        <Box position="relative" zIndex="0" width="20" height="20">
             <Box position="absolute" zIndex="20" top="-1" right="-1">
                 <IconButton
                     size="xs"
@@ -43,7 +37,7 @@ export function MessageInputFilePreview({
                 </IconButton>
             </Box>
             <ContentFileMiniPreview
-                size={convertRemLengthToPx(contentStyles.fileMinSize, spacingScale)}
+                size={convertRemLengthToPx("20", spacingScale)}
                 signedUrlSearch={signedUrlSearch}
                 file={file}
                 attachmentTarget={attachmentTarget}
