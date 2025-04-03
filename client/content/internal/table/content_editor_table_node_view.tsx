@@ -30,6 +30,7 @@
 import {Trash} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
+import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {
     isInContentTable,
     selectedContentTableRect,
@@ -43,13 +44,20 @@ import {
     deleteContentTableColumn,
     deleteContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {
+    resolveContentTableColumnWidthPx,
+    resolveContentTableColumnWidthPxWithoutCache,
+} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {ColumnsPlusLeftIcon} from "~/client/icons/columns_plus_left_icon.js";
 import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
 import {RowsPlusBottomIcon} from "~/client/icons/rows_plus_bottom_icon.js";
 import {RowsPlusTopIcon} from "~/client/icons/rows_plus_top_icon.js";
-import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {
+    getPlatformWithoutListening,
+    subscribeToPlatformChange,
+} from "~/client/remix/platform_context.js";
 import {
     getSpacingScaleWithoutListening,
     subscribeToSpacingScaleChange,
@@ -62,12 +70,16 @@ import {
 } from "~/shared/content/content_styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 
-export function createContentEditorTableNodeView(): NodeViewConstructor {
+export function createContentEditorTableNodeView({
+    getRouteLayout,
+}: {
+    getRouteLayout: () => RouteLayout;
+}): NodeViewConstructor {
     return (node, view, getPos) => {
         const tableWrapperElement = document.createElement("div");
         tableWrapperElement.className = tableWrapperClassName;
@@ -84,12 +96,55 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
         const tableElement = document.createElement("table");
         tableWrapper3Element.appendChild(tableElement);
 
-        updateContentTableColumnsOnResize(node, tableElement);
-
         const tableBodyElement = document.createElement("tbody");
         tableElement.appendChild(tableBodyElement);
 
-        tableElement.addEventListener("contextmenu", event => {
+        tableElement.addEventListener("contextmenu", handleContextMenu);
+
+        const update = () => {
+            updateContentTableColumnsOnResize(
+                tableElement,
+                node,
+                getContentBlockWidth({
+                    spacingScale: getSpacingScaleWithoutListening(),
+                    platform: getPlatformWithoutListening(),
+                    routeLayout: getRouteLayout(),
+                    clientInfo: getClientInfo(),
+                    withoutBlockMaxWidth: false,
+                }),
+            );
+        };
+
+        update();
+
+        const unsubscribeFromPlatformChange = subscribeToPlatformChange(update);
+        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(update);
+
+        return {
+            dom: tableWrapperElement,
+            contentDOM: tableBodyElement,
+
+            update: newNode => {
+                if (newNode.type != node.type) return false;
+
+                node = newNode;
+                update();
+
+                return true;
+            },
+            ignoreMutation: record => {
+                return (
+                    record.type == "attributes" &&
+                    (record.target === tableElement || record.target === tableWrapper3Element)
+                );
+            },
+            destroy: () => {
+                unsubscribeFromPlatformChange();
+                unsubscribeFromSpacingScaleChange();
+            },
+        };
+
+        function handleContextMenu(event: MouseEvent) {
             let selectedTableRect = isInContentTable(view.state)
                 ? selectedContentTableRect(view.state)
                 : null;
@@ -216,7 +271,10 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                 if (
                     tableCellSelectionElement &&
                     Rectangle.from(tableCellSelectionElement.getBoundingClientRect()).containsPoint(
-                        {x: event.clientX, y: event.clientY},
+                        {
+                            x: event.clientX,
+                            y: event.clientY,
+                        },
                     )
                 ) {
                     const oldDoc = view.state.doc;
@@ -238,36 +296,7 @@ export function createContentEditorTableNodeView(): NodeViewConstructor {
                     });
                 }
             }
-        });
-
-        // Subscribe to spacing scale changes. This also covers all platform changes so
-        // we don't need to also subscribe to platform changes.
-        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(() => {
-            updateContentTableColumnsOnResize(node, tableElement);
-        });
-
-        return {
-            dom: tableWrapperElement,
-            contentDOM: tableBodyElement,
-
-            update: newNode => {
-                if (newNode.type != node.type) return false;
-
-                node = newNode;
-                updateContentTableColumnsOnResize(node, tableElement);
-
-                return true;
-            },
-            ignoreMutation: record => {
-                return (
-                    record.type == "attributes" &&
-                    (record.target === tableElement || record.target === tableWrapper3Element)
-                );
-            },
-            destroy: () => {
-                unsubscribeFromSpacingScaleChange();
-            },
-        };
+        }
     };
 }
 
@@ -276,126 +305,57 @@ function roundToDevicePx(devicePixelRatio: number, px: number): number {
 }
 
 export function updateContentTableColumnsOnResize(
-    node: Node,
     tableElement: HTMLTableElement,
+    node: Node,
+    blockWidthPx: number,
     overrideTableAndColumnWidths?: {
         tableWidth?: number;
         columnWidths: ReadonlyArray<number>;
         scrollLeftPx?: number;
     },
 ): void {
-    const platform = getPlatformWithoutListening();
     const spacingScale = getSpacingScaleWithoutListening();
 
     const tableWrapper3Element = tableElement.parentElement!;
-
-    const tableWidth: number = Math.max(
-        1,
-        overrideTableAndColumnWidths?.tableWidth ?? node.attrs.tableWidth ?? 1,
-    );
-    const columnWidths =
-        overrideTableAndColumnWidths?.columnWidths ?? ContentTableMap.get(node).columnWidths;
-
-    let totalColumnWidth = 0;
-    for (const columnWidth of columnWidths) totalColumnWidth += columnWidth;
 
     const columnMinWidthPx =
         contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
     const columnMaxWidthPx =
         contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale];
 
-    const totalColumnMinWidthPx = columnMinWidthPx * columnWidths.length;
+    const tableMap = ContentTableMap.get(node);
+
+    let tableWidth: number;
+    let columnWidthPxs: Array<number>;
+
+    if (overrideTableAndColumnWidths === undefined) {
+        tableWidth = tableMap.tableWidth;
+        columnWidthPxs = resolveContentTableColumnWidthPx(spacingScale, blockWidthPx, tableMap);
+    } else {
+        let totalColumnWidth = 0;
+        for (const columnWidth of overrideTableAndColumnWidths.columnWidths)
+            totalColumnWidth += columnWidth;
+
+        tableWidth = overrideTableAndColumnWidths.tableWidth ?? tableMap.tableWidth;
+
+        columnWidthPxs = resolveContentTableColumnWidthPxWithoutCache(
+            totalColumnWidth,
+            overrideTableAndColumnWidths.columnWidths,
+            tableWidth,
+            blockWidthPx,
+            columnMinWidthPx,
+            columnMaxWidthPx,
+        );
+    }
+
+    let totalColumnWidthPx = 0;
 
     const {devicePixelRatio} = window;
-    const columnMaxWidthPxRoundedToDevicePx = roundToDevicePx(devicePixelRatio, columnMaxWidthPx);
 
-    // If you delete a column and `tableWidth` doesn't update then we may be left
-    // in a situation where `tableWidth` exceeds the max possible width for the
-    // table (max possible width being `columnMaxWidthPx * columnWidths.length`).
-    //
-    // The code below computes the max table width while not allowing any
-    // individual column to have a greater width than `columnMaxWidthPx`. It uses
-    // an iterative solution where it tries resolving column widths at the max
-    // width declared by `tableWidth` (`blockMaxWidth * tableWidth`). If any
-    // individual column width is larger than `columnMaxWidthPx` we retry with a
-    // smaller max table width.
-    //
-    // Is there a non-iterative solution where we can figure out
-    // `tableMaxWidthPx` in one attempt? Maybe. I haven't thought too deeply.
-    // The iterative solution works in 1-2 iterations when `tableWidth` is well
-    // formed and ~5 iterations in the edge case we're trying to fix where
-    // `tableWidth` is too large.
-    //
-    // Again, this is a safety measure to get us back in a good state if
-    // `tableWidth` is too large. Ideally, all our editing commands update
-    // `tableWidth` when necessary. For example, when deleting a column
-    // `tableWidth` should shrink. Since ProseMirror can at any time execute
-    // arbitrary commands we'll never be able to perfectly control every table
-    // update path so we need to be resilient in the face of non-ideal states
-    // in our data structure.
-    let totalColumnMaxWidthPx: number;
-    let resolvedColumnMaxWidthPxsRoundedToDevicePx: Array<number>;
-    {
-        totalColumnMaxWidthPx = roundToDevicePx(
-            devicePixelRatio,
-            contentStyles.blockMaxWidthRem[platform] *
-                remPxBySpacingScale[spacingScale] *
-                tableWidth,
-        );
-
-        let hasNextPass = true;
-        while (hasNextPass) {
-            hasNextPass = false;
-
-            resolvedColumnMaxWidthPxsRoundedToDevicePx = resolveContentTableColumnWidthPx(
-                totalColumnWidth,
-                columnWidths,
-                totalColumnMaxWidthPx,
-                columnMinWidthPx,
-            );
-
-            const previousTotalColumnMaxWidthPx = totalColumnMaxWidthPx;
-            totalColumnMaxWidthPx = 0;
-            for (let i = 0; i < resolvedColumnMaxWidthPxsRoundedToDevicePx.length; i++) {
-                const resolvedColumnMaxWidthPxRoundedToDevicePx = roundToDevicePx(
-                    devicePixelRatio,
-                    resolvedColumnMaxWidthPxsRoundedToDevicePx[i]!,
-                );
-                resolvedColumnMaxWidthPxsRoundedToDevicePx[i] =
-                    resolvedColumnMaxWidthPxRoundedToDevicePx;
-
-                // `resolvedColumnMaxWidthPxRoundedToDevicePx` may never exactly reach
-                // `columnMaxWidthPx` due to floating point math. If it never reaches
-                // `columnMaxWidthPx` then we'll end up looping forever. So instead wait until
-                // `resolvedColumnMaxWidthPxRoundedToDevicePx` will round down to
-                // `columnMaxWidthPx` in device pixels.
-                if (resolvedColumnMaxWidthPxRoundedToDevicePx > columnMaxWidthPxRoundedToDevicePx) {
-                    hasNextPass = true;
-                    totalColumnMaxWidthPx += columnMaxWidthPx;
-                } else {
-                    totalColumnMaxWidthPx += resolvedColumnMaxWidthPxRoundedToDevicePx;
-                }
-            }
-
-            totalColumnMaxWidthPx = roundToDevicePx(devicePixelRatio, totalColumnMaxWidthPx);
-
-            if (hasNextPass) {
-                // If we need another pass, `totalColumnMaxWidthPx` should be less than
-                // `previousTotalColumnMaxWidthPx`. We keep shrinking `totalColumnMaxWidthPx`
-                // until no column violates our maximum width.
-                assert(totalColumnMaxWidthPx <= previousTotalColumnMaxWidthPx);
-
-                // Protect against infinite looping: If `totalColumnMaxWidthPx` doesn't change
-                // it means we're going to get stuck in an infinite loop as each iteration will
-                // produce the same `totalColumnMaxWidthPx` which fails our `columnMaxWidthPx`
-                // check.
-                //
-                // If we hit this branch it's likely a symptom of something else being broken.
-                if (previousTotalColumnMaxWidthPx === totalColumnMaxWidthPx) {
-                    hasNextPass = false;
-                }
-            }
-        }
+    for (let i = 0; i < columnWidthPxs.length; i++) {
+        const columnWidthPx = roundToDevicePx(devicePixelRatio, columnWidthPxs[i]!);
+        columnWidthPxs[i] = columnWidthPx;
+        totalColumnWidthPx += columnWidthPx;
     }
 
     const tableOverflowGradientWidthPx = convertRemLengthToPx(
@@ -415,18 +375,8 @@ export function updateContentTableColumnsOnResize(
         (1 - tableWidth)
     )}px, 1px)`;
 
-    tableWrapper3Element.style.minWidth = `${
-        totalColumnMinWidthPx + tableOverflowGradientWidthPx * 2
-    }px`;
-
     tableWrapper3Element.style.maxWidth = `${
-        Math.min(
-            contentStyles.blockMaxWidthRem[platform] *
-                tableWidth *
-                remPxBySpacingScale[spacingScale],
-            totalColumnMaxWidthPx,
-        ) +
-        tableOverflowGradientWidthPx * 2
+        totalColumnWidthPx + tableOverflowGradientWidthPx * 2
     }px`;
 
     // Instead of setting the column fr units to `columnWidths`, we set the column
@@ -441,11 +391,8 @@ export function updateContentTableColumnsOnResize(
     // values instead of floats requiring 17 places of precision.
     //
     // [1]: https://stackoverflow.com/questions/79397471/css-grid-incorrectly-constrains-column-width-when-min-width-css-is-present
-    tableElement.style.gridTemplateColumns = resolvedColumnMaxWidthPxsRoundedToDevicePx!
-        .map(
-            resolvedColumnMaxWidthPxRoundedToDevicePx =>
-                `minmax(${columnMinWidthPx}px, ${resolvedColumnMaxWidthPxRoundedToDevicePx}fr)`,
-        )
+    tableElement.style.gridTemplateColumns = columnWidthPxs!
+        .map(columnWidthPx => `minmax(${columnMinWidthPx}px, ${columnWidthPx}fr)`)
         .join(" ");
 
     // While resizing we may need to make sure scroll is locked to the left/right

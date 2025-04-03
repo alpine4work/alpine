@@ -13,6 +13,7 @@ import {
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
@@ -28,11 +29,14 @@ import {
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -87,13 +91,41 @@ export function createContentEditorFileNodeViewConstructor({
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
 
-            const blockWidth = getContentBlockWidth({
+            let blockWidth = getContentBlockWidth({
                 spacingScale,
                 platform,
                 routeLayout: getRouteLayout(),
                 clientInfo: getClientInfo(),
                 withoutBlockMaxWidth: false,
             });
+
+            const pos = getPos();
+            const $pos = view.state.doc.resolve(pos);
+
+            if ($pos.depth > 0) {
+                const parentBlockNode = $pos.node(1);
+
+                // If our file is inside a table then `blockWidth` should be equal to the
+                // column width.
+                if (parentBlockNode.type.name === "table") {
+                    const tableMap = ContentTableMap.get(parentBlockNode);
+
+                    // Should be the `tableCell` node index in `tableRow`.
+                    const columnIndex = $pos.index(2);
+
+                    const columnWidths = resolveContentTableColumnWidthPx(
+                        spacingScale,
+                        blockWidth,
+                        tableMap,
+                    );
+
+                    const columnWidth = assertExists(columnWidths[columnIndex]);
+
+                    blockWidth =
+                        columnWidth -
+                        convertRemLengthToPx(contentStyles.tableCellPaddingX, spacingScale) * 2;
+                }
+            }
 
             const {references} = getContentEditorReferences(view.state);
             const spaceId = getSpaceId();

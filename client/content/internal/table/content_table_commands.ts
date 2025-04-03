@@ -41,7 +41,8 @@ import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -63,7 +64,9 @@ function addContentTableColumn(
         newColumnWidth = 1;
         newTableWidth = tableMap.tableWidth;
     } else {
-        const remPx = remPxBySpacingScale.small;
+        const platform: Platform = "desktop";
+        const spacingScale: SpacingScale = "small";
+        const remPx = remPxBySpacingScale[spacingScale];
 
         // The expected new column width in pixels. We run our calculations assuming
         // desktop mode with small rem pixel value. It shouldn't matter if our spacing
@@ -79,10 +82,9 @@ function addContentTableColumn(
             contentStyles.tableMaxColumnCountForMaintainingBlockWidth;
 
         const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
-            tableMap.totalColumnWidth,
-            tableMap.columnWidths,
-            contentStyles.blockMaxWidthRem.desktop * tableMap.tableWidth * remPx,
-            contentStyles.tableColumnMinWidthRem * remPx,
+            spacingScale,
+            contentStyles.blockMaxWidthRem[platform] * remPx,
+            tableMap,
         );
 
         let oldTotalColumnWidthPx = 0;
@@ -195,13 +197,14 @@ function removeContentTableColumn(
     if (tableMap.tableWidth <= 1) {
         newTableWidth = 1;
     } else {
-        const remPx = remPxBySpacingScale.small;
+        const platform: Platform = "desktop";
+        const spacingScale: SpacingScale = "small";
+        const remPx = remPxBySpacingScale[spacingScale];
 
         const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
-            tableMap.totalColumnWidth,
-            tableMap.columnWidths,
-            contentStyles.blockMaxWidthRem.desktop * tableMap.tableWidth * remPx,
-            contentStyles.tableColumnMinWidthRem * remPx,
+            spacingScale,
+            contentStyles.blockMaxWidthRem[platform] * remPx,
+            tableMap,
         );
 
         const oldColumnWidthPx = oldColumnWidthPxs[columnIndex]!;

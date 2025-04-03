@@ -1,4 +1,4 @@
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {resolveContentTableColumnWidthPxWithoutCache} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -67,6 +67,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         };
     },
 ): {
+    blockWidthPx: number;
     tableWidth?: number;
     columnWidths: ReadonlyArray<number>;
     scrollLeftPx?: number;
@@ -186,14 +187,20 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         const newColumnWidths: Array<number | null> = [];
         let newOtherTotalColumnWidth = 0;
 
+        // Compute the old table width on the fly since the `tableWidth` attr in
+        // ProseMirror may not accurately reflect what's in the DOM.
+        const oldTableWidth = Math.max(1, oldTotalColumnWidthPx / blockWidthPx);
+
         // Our `oldColumnWidths` array may not accurately represent what's in the DOM
         // if some of our columns are running up against their min width. So run the
         // same calculation used by CSS grid to determine the actual column widths.
-        const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
+        const oldColumnWidthPxs = resolveContentTableColumnWidthPxWithoutCache(
             oldTotalColumnWidth,
             oldColumnWidths,
-            oldTotalColumnWidthPx,
+            oldTableWidth,
+            blockWidthPx,
             columnMinWidthPx,
+            columnMaxWidthPx,
         );
 
         for (
@@ -233,16 +240,13 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
 
         newColumnWidths[columnIndex] = newColumnWidth;
 
-        // Compute the old table width on the fly since the `tableWidth` attr in
-        // ProseMirror may not accurately reflect what's in the DOM.
-        const oldTableWidth = Math.max(1, oldTotalColumnWidthPx / blockWidthPx);
-
         const newTableWidth = Math.max(
             1,
             oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
         );
 
         return {
+            blockWidthPx,
             tableWidth: newTableWidth,
             columnWidths: newColumnWidths as Array<number>,
             scrollLeftPx: isLeftResize
@@ -293,16 +297,19 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             else newColumnWidths.push(oldColumnWidths[columnIndex]!);
         }
 
-        return {
-            columnWidths: newColumnWidths,
-            scrollLeftPx: oldScrollLeftPx,
-        };
+        return {blockWidthPx, columnWidths: newColumnWidths, scrollLeftPx: oldScrollLeftPx};
     } else {
-        const oldColumnWidthPxs = resolveContentTableColumnWidthPx(
+        // Compute the old table width on the fly since the `tableWidth` attr in
+        // ProseMirror may not accurately reflect what's in the DOM.
+        const oldTableWidth = Math.max(1, oldTotalColumnWidthPx / blockWidthPx);
+
+        const oldColumnWidthPxs = resolveContentTableColumnWidthPxWithoutCache(
             oldTotalColumnWidth,
             oldColumnWidths,
-            oldTotalColumnWidthPx,
+            oldTableWidth,
+            blockWidthPx,
             columnMinWidthPx,
+            columnMaxWidthPx,
         );
 
         const oldColumnWidth = oldColumnWidths[column1Index]!;
@@ -372,7 +379,6 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
         newColumnWidths[column1Index] = newColumnWidth;
 
         // Update table width
-        const oldTableWidth = Math.max(1, oldTotalColumnWidthPx / blockWidthPx);
         const newTableWidth = Math.max(
             1,
             oldTableWidth * (newTotalColumnWidthPx / oldTotalColumnWidthPx),
@@ -386,6 +392,7 @@ export function getContentTableColumnResizeDraggingStateNewColumnWidths(
             oldTotalColumnWidthPxBeforeColumn + newColumnWidthPx - oldScrollLeftPx;
 
         return {
+            blockWidthPx,
             tableWidth: newTableWidth,
             columnWidths: newColumnWidths,
             scrollLeftPx:

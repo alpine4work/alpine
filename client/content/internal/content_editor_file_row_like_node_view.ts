@@ -6,6 +6,7 @@ import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/inte
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getPlatformWithoutListening,
@@ -15,11 +16,15 @@ import {
     getSpacingScaleWithoutListening,
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -33,7 +38,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
     getSpaceId: () => SpaceId;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
 }): NodeViewConstructor {
-    return (node, view): NodeView => {
+    return (node, view, getPos): NodeView => {
         const {dom, contentDOM: contentDom} = DOMSerializer.renderSpec(
             document,
             node.type.spec.toDOM!(node),
@@ -60,13 +65,41 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
 
-            const blockWidth = getContentBlockWidth({
+            let blockWidth = getContentBlockWidth({
                 spacingScale,
                 platform,
                 routeLayout: getRouteLayout(),
                 clientInfo: getClientInfo(),
                 withoutBlockMaxWidth: false,
             });
+
+            const pos = getPos();
+            const $pos = view.state.doc.resolve(pos);
+
+            if ($pos.depth > 0) {
+                const parentBlockNode = $pos.node(1);
+
+                // If our file is inside a table then `blockWidth` should be equal to the
+                // column width.
+                if (parentBlockNode.type.name === "table") {
+                    const tableMap = ContentTableMap.get(parentBlockNode);
+
+                    // Should be the `tableCell` node index in `tableRow`.
+                    const columnIndex = $pos.index(2);
+
+                    const columnWidths = resolveContentTableColumnWidthPx(
+                        spacingScale,
+                        blockWidth,
+                        tableMap,
+                    );
+
+                    const columnWidth = assertExists(columnWidths[columnIndex]);
+
+                    blockWidth =
+                        columnWidth -
+                        convertRemLengthToPx(contentStyles.tableCellPaddingX, spacingScale) * 2;
+                }
+            }
 
             const {references} = getContentEditorReferences(view.state);
 

@@ -1,62 +1,163 @@
+import * as kiwi from "@lume/kiwi";
+import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
+import {contentStyles} from "~/client/styles/styles.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+
 /**
  * Computes the absolute pixel width of each column in a table. Implements the
  * same algorithm CSS grid will use to layout our table in the DOM.
  *
  * `totalColumnWidth` must be the sum of all `columnWidths`. Most of the time
- * you'll have precomputed this value so pass it in so we don't have to compute
- * it again.
+ * you'll have precomputed this value so we required you to pass it in so we
+ * don't have to compute it again.
  */
-// NOTE(calebmer): Normally, since this has 4 arguments, I'd write this with a
+export const resolveContentTableColumnWidthPx = createCachedFunction(
+    (
+        spacingScale: SpacingScale,
+        blockWidth: number,
+        tableMap: {
+            readonly totalColumnWidth: number;
+            readonly columnWidths: ReadonlyArray<number>;
+            readonly tableWidth: number;
+        },
+    ) => {
+        return resolveContentTableColumnWidthPxWithoutCache(
+            tableMap.totalColumnWidth,
+            tableMap.columnWidths,
+            tableMap.tableWidth,
+            blockWidth,
+            contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale],
+            contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale],
+        );
+    },
+);
+
+/**
+ * Computes the absolute pixel width of each column in a table. Implements the
+ * same algorithm CSS grid will use to layout our table in the DOM.
+ *
+ * `totalColumnWidth` must be the sum of all `columnWidths`. Most of the time
+ * you'll have precomputed this value so we required you to pass it in so we
+ * don't have to compute it again.
+ *
+ * This function is not cached. Only call this function if you're confident the
+ * inputs will change frequently so caching would add more overhead than it's
+ * worth.
+ */
+// NOTE(calebmer): Normally, since this has 6 arguments, I'd write this with a
 // named argument object. But since this code will be called in a hot path
-// (every frame) using positional arguments to avoid an extra object
+// (every frame) so I'm using positional arguments to avoid an extra object
 // allocation.
-export function resolveContentTableColumnWidthPx(
+export function resolveContentTableColumnWidthPxWithoutCache(
     totalColumnWidth: number,
     columnWidths: ReadonlyArray<number>,
-    totalColumnWidthPx: number,
+    tableWidth: number,
+    blockWidthPx: number,
     columnMinWidthPx: number,
+    columnMaxWidthPx: number,
 ): Array<number> {
-    let hasNextPass = true;
-    let currentPassTotalColumnWidth = totalColumnWidth;
-    let currentPassTotalColumnWidthPx = totalColumnWidthPx;
-    let nextPassTotalColumnWidth: number;
-    let nextPassTotalColumnWidthPx: number;
+    const solver = new kiwi.Solver();
 
-    const columnCount = columnWidths.length;
-    const columnWidthPxs: Array<number | undefined> = Array(columnCount);
+    const totalColumnWidthPx = blockWidthPx * tableWidth;
+    let totalColumnWidthPxVariable: kiwi.Variable | kiwi.Expression | null = null;
 
-    while (hasNextPass) {
-        hasNextPass = false;
-        nextPassTotalColumnWidth = 0;
-        nextPassTotalColumnWidthPx = currentPassTotalColumnWidthPx;
+    const columnWidthPxVariableEntries = columnWidths.map(columnWidth => {
+        const columnWidthPxVariable = new kiwi.Variable();
 
-        for (let i = 0; i < columnCount; i++) {
-            if (columnWidthPxs[i] !== undefined) continue;
+        // Make sure we maintain our column min width constraint.
+        solver.addConstraint(
+            new kiwi.Constraint(
+                columnWidthPxVariable,
+                kiwi.Operator.Ge,
+                columnMinWidthPx,
+                kiwi.Strength.required,
+            ),
+        );
 
-            const columnWidth = columnWidths[i]!;
+        // Make sure we maintain our column max width constraint.
+        solver.addConstraint(
+            new kiwi.Constraint(
+                columnWidthPxVariable,
+                kiwi.Operator.Le,
+                columnMaxWidthPx,
+                kiwi.Strength.required,
+            ),
+        );
 
-            const columnWidthPx =
-                (columnWidth / currentPassTotalColumnWidth) * currentPassTotalColumnWidthPx;
+        // Our column pixel width should be as close as possible to the expected pixel
+        // width before applying constraints.
+        solver.addConstraint(
+            new kiwi.Constraint(
+                columnWidthPxVariable,
+                kiwi.Operator.Eq,
+                (columnWidth / totalColumnWidth) * totalColumnWidthPx,
+                kiwi.Strength.medium,
+            ),
+        );
 
-            if (columnWidthPx < columnMinWidthPx) {
-                hasNextPass = true;
-                nextPassTotalColumnWidthPx -= columnMinWidthPx;
-                columnWidthPxs[i] = columnMinWidthPx;
-            } else {
-                nextPassTotalColumnWidth += columnWidth;
-            }
+        if (totalColumnWidthPxVariable === null) {
+            totalColumnWidthPxVariable = columnWidthPxVariable;
+        } else {
+            totalColumnWidthPxVariable = totalColumnWidthPxVariable.plus(columnWidthPxVariable);
         }
 
-        currentPassTotalColumnWidth = nextPassTotalColumnWidth;
-        currentPassTotalColumnWidthPx = nextPassTotalColumnWidthPx;
+        return [columnWidth, columnWidthPxVariable] as const;
+    });
+
+    if (totalColumnWidthPxVariable === null) return [];
+
+    // Column pixel width must not exceed total table width.
+    solver.addConstraint(
+        new kiwi.Constraint(
+            totalColumnWidthPxVariable,
+            kiwi.Operator.Le,
+            totalColumnWidthPx,
+            kiwi.Strength.required,
+        ),
+    );
+
+    // Our total column pixel width should be as close as possible to the expected
+    // pixel width before applying constraints.
+    solver.addConstraint(
+        new kiwi.Constraint(
+            totalColumnWidthPxVariable,
+            kiwi.Operator.Eq,
+            totalColumnWidthPx,
+            kiwi.Strength.strong,
+        ),
+    );
+
+    // Make sure the column widths maintain the same order. If two column widths
+    // are equal, they should still be equal after solving. If one column width is
+    // less than another it should continue to be less than the other after
+    // solving.
+    //
+    // We leverage the transitive property here. By establishing the first variable
+    // is less than the second and the second variable is less than the third
+    // variable, therefore the first variable must be less than the third variable.
+    let previousColumnWidthPxVariableEntry: readonly [number, kiwi.Variable] | null = null;
+    for (const columnWidthPxVariableEntry of columnWidthPxVariableEntries
+        .slice()
+        .sort(([columnIndex1], [columnIndex2]) => columnIndex1 - columnIndex2)) {
+        if (previousColumnWidthPxVariableEntry !== null) {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    previousColumnWidthPxVariableEntry[1],
+                    previousColumnWidthPxVariableEntry[0] === columnWidthPxVariableEntry[0]
+                        ? kiwi.Operator.Eq
+                        : kiwi.Operator.Le,
+                    columnWidthPxVariableEntry[1],
+                    kiwi.Strength.required,
+                ),
+            );
+        }
+
+        previousColumnWidthPxVariableEntry = columnWidthPxVariableEntry;
     }
 
-    for (let i = 0; i < columnCount; i++) {
-        if (columnWidthPxs[i] !== undefined) continue;
+    solver.updateVariables();
 
-        columnWidthPxs[i] =
-            (columnWidths[i]! / currentPassTotalColumnWidth) * currentPassTotalColumnWidthPx;
-    }
-
-    return columnWidthPxs as Array<number>;
+    return columnWidthPxVariableEntries.map(([, columnWidthPxVariable]) =>
+        columnWidthPxVariable.value(),
+    );
 }

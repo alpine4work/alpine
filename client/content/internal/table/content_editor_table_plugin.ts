@@ -1339,8 +1339,9 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
         );
 
         updateContentTableColumnsOnResize(
-            pluginState.hovering.dragging.state.oldTable,
             tableElement,
+            pluginState.hovering.dragging.state.oldTable,
+            newTableAndColumnWidths.blockWidthPx,
             newTableAndColumnWidths,
         );
     }
@@ -1408,8 +1409,9 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
             );
 
             updateContentTableColumnsOnResize(
-                pluginState.hovering.dragging.state.oldTable,
                 tableElement,
+                pluginState.hovering.dragging.state.oldTable,
+                newTableAndColumnWidths.blockWidthPx,
                 newTableAndColumnWidths,
             );
         }
@@ -1440,8 +1442,9 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
             );
 
             updateContentTableColumnsOnResize(
-                pluginState.hovering.dragging.state.oldTable,
                 tableElement,
+                pluginState.hovering.dragging.state.oldTable,
+                newTableAndColumnWidths.blockWidthPx,
                 newTableAndColumnWidths,
             );
         }

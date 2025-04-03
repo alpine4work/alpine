@@ -94,25 +94,30 @@ export class ContentTableMap {
          * The number of columns
          */
         public readonly width: number,
+
         /**
          * The number of rows
          */
         public readonly height: number,
+
         /**
          * A width * height array with the start position of
          * the cell covering that part of the table in each slot
          */
         public readonly map: ReadonlyArray<number>,
+
         /**
          * An optional array of problems (cell overlap or non-rectangular
          * shape) for the table, used by the table normalizer.
          */
         public readonly problems: ReadonlyArray<ContentTableMapProblem> | null,
+
         /**
          * The width of the table as a percent of the block width. Will never be less
          * than 1.
          */
         public readonly tableWidth: number,
+
         /**
          * The width of columns in the table in fractional units. Usually the same as
          * `node.attrs.columnWidths` but we make sure to always have the same number of
@@ -126,6 +131,7 @@ export class ContentTableMap {
          *   until we reach the actual table column count.
          */
         public readonly columnWidths: ReadonlyArray<number>,
+
         /**
          * The sum of all `columnWidths`.
          */
