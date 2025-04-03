@@ -610,33 +610,8 @@ function addContentEditorTableFileDropTargets({
             const cellFragment = cellNode.content;
             let cellContentOffset = absoluteCellPos;
 
-            if (cellFragment.content.length === 0) {
-                // Add a drop target for the entire cell (as fallback and for empty cells)
-                dropTargets.push({
-                    offsetParent: tableElement.offsetParent,
-                    rect: {
-                        left:
-                            tableElement.offsetLeft +
-                            (cellRect.left - tableRect.left) +
-                            cellPaddingX,
-                        right:
-                            tableElement.offsetLeft +
-                            (cellRect.right - tableRect.left) -
-                            cellPaddingX,
-                        top: tableElement.offsetTop + (cellRect.top - tableRect.top) + cellPaddingY,
-                        bottom:
-                            tableElement.offsetTop +
-                            (cellRect.bottom - tableRect.top) -
-                            cellPaddingY,
-                    },
-                    action: {
-                        type: "InsertFileIntoTableCell",
-                        indicator: "Top",
-                        pos: absoluteCellPos,
-                    },
-                });
-            } else {
-                // Modified: Create drop targets at the top of each node rather than between nodes
+            {
+                // Create drop targets at the top of each node rather than between nodes
                 for (let i = 0; i < cellFragment.content.length; i++) {
                     const currentNode = cellFragment.content[i]!;
 
