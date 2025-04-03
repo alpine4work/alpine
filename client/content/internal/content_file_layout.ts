@@ -2,11 +2,9 @@ import {Node} from "prosemirror-model";
 import {
     ContentFileLayout,
     computeContentFileFloatLayout,
-    computeContentFileRowLayout,
-    computeContentFileRowTableLayout,
+    computeContentFileRowLikeLayout,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
-import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileModelData} from "~/shared/files/file_model.js";
@@ -17,51 +15,26 @@ import {FileId} from "~/shared/id/types/id_types.js";
 const actuallyLayoutContentFileParent = createCachedFunction(
     (
         node: Node,
-        screenWidth: number,
-        platform: Platform,
+        blockWidth: number,
         spacingScale: SpacingScale,
-        withoutBlockMaxWidth: boolean,
         ...files: Array<FileModelData | null>
     ) => {
         switch (node.type.name) {
-            case "fileRow": {
-                return computeContentFileRowLayout(files, {
-                    screenWidth,
-                    platform,
+            case "fileRow":
+            case "fileRowTable": {
+                return computeContentFileRowLikeLayout(files, {
+                    blockWidth,
                     spacingScale,
-                    withoutBlockMaxWidth,
                 });
             }
             case "fileFloat": {
                 assert(files.length === 1);
                 assert(files[0] !== undefined);
+
                 return [
                     computeContentFileFloatLayout(node.attrs.direction, files[0], {
-                        screenWidth,
-                        platform,
+                        blockWidth,
                         spacingScale,
-                        withoutBlockMaxWidth,
-                    }),
-                ];
-            }
-            case "fileRowTable": {
-                // NOTE(rohit): In `content_schema_extra.tsx` where `fileRowTable` node
-                // is defined, we already made sure that  `content: "file{1,1}"` .
-                // But for the sake of clarity we'll assert that the fileRowTable node
-                // contains exactly one file node.
-                assert(node.content.childCount === 1, "fileRowTable must contain exactly one file");
-                const fileNode = node.content.firstChild!;
-                assert(fileNode.type.name === "file", "fileRowTable child must be a file node");
-
-                const file = files[0];
-                assert(file !== undefined);
-
-                return [
-                    computeContentFileRowTableLayout(file, {
-                        screenWidth,
-                        platform,
-                        spacingScale,
-                        withoutBlockMaxWidth,
                     }),
                 ];
             }
@@ -84,16 +57,12 @@ const actuallyLayoutContentFileParent = createCachedFunction(
 export function layoutContentFileParent(
     node: Node,
     {
-        screenWidth,
-        platform,
+        blockWidth,
         spacingScale,
-        withoutBlockMaxWidth,
         getFile,
     }: {
-        screenWidth: number;
-        platform: Platform;
+        blockWidth: number;
         spacingScale: SpacingScale;
-        withoutBlockMaxWidth: boolean;
         getFile: (fileId: FileId) => FileModelData | null;
     },
 ): ReadonlyArray<ContentFileLayout> {
@@ -109,14 +78,7 @@ export function layoutContentFileParent(
         return getFile(fileId);
     });
 
-    return actuallyLayoutContentFileParent(
-        node,
-        screenWidth,
-        platform,
-        spacingScale,
-        withoutBlockMaxWidth,
-        ...files,
-    );
+    return actuallyLayoutContentFileParent(node, blockWidth, spacingScale, ...files);
 }
 
 /**
@@ -135,10 +97,8 @@ export function layoutContentFile(
     pos: number,
     node: Node,
     options: {
-        screenWidth: number;
-        platform: Platform;
+        blockWidth: number;
         spacingScale: SpacingScale;
-        withoutBlockMaxWidth: boolean;
         getFile: (fileId: FileId) => FileModelData | null;
     },
 ): ContentFileLayout {

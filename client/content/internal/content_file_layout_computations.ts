@@ -1,12 +1,6 @@
 import * as kiwi from "@lume/kiwi";
 import {contentStyles} from "~/client/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {
-    RemLength,
-    convertRemLengthToPx,
-    screenPaddingXRem,
-    spacing,
-} from "~/shared/design/core/spacing.js";
+import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {
@@ -72,22 +66,16 @@ export type ContentFileLayout = {
  * [2]: https://github.com/lume/kiwi
  * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
-export function computeContentFileRowLayout<Files extends Array<FileModelData | null>>(
+export function computeContentFileRowLikeLayout<Files extends Array<FileModelData | null>>(
     files: Files,
     {
-        screenWidth,
-        platform,
+        blockWidth,
         spacingScale,
-        withoutBlockMaxWidth = false,
         maxHeight: rowMaxHeight = spacing[contentStyles.fileRowMaxHeight],
-        marginLeft = "0rem",
     }: {
-        screenWidth: number;
-        platform: Platform;
+        blockWidth: number;
         spacingScale: SpacingScale;
-        withoutBlockMaxWidth?: boolean;
         maxHeight?: RemLength;
-        marginLeft?: RemLength;
     },
 ): {[Key in keyof Files]: ContentFileLayout} {
     assert(files.length >= 1);
@@ -225,12 +213,6 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         );
     }
 
-    const fileRowWidth =
-        Math.min(
-            !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
-            screenWidth - screenPaddingXRem[platform] * remPx * 2,
-        ) - convertRemLengthToPx(marginLeft, spacingScale);
-
     // When we add up all our widths it must be less than the total `fileRowWidth`.
     // Ideally the width is exactly equal to `fileRowWidth` but that's not possible
     // if we have smaller files.
@@ -254,7 +236,7 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
             new kiwi.Constraint(
                 widthExpression,
                 kiwi.Operator.Le,
-                fileRowWidth,
+                blockWidth,
                 kiwi.Strength.required,
             ),
         );
@@ -266,7 +248,7 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
             new kiwi.Constraint(
                 widthExpression,
                 kiwi.Operator.Eq,
-                fileRowWidth,
+                blockWidth,
                 kiwi.Strength.medium,
             ),
         );
@@ -322,7 +304,7 @@ export function computeContentFileRowLayout<Files extends Array<FileModelData | 
         // entire file row's width? For more information about the `fr` unit see:
         // https://www.digitalocean.com/community/tutorials/css-css-grid-layout-fr-unit
         const widthFr =
-            width / (fileRowWidth - contentStyles.fileRowGapWidthRem * remPx * (files.length - 1));
+            width / (blockWidth - contentStyles.fileRowGapWidthRem * remPx * (files.length - 1));
 
         return {
             width: round3(width),
@@ -357,26 +339,17 @@ export function computeContentFileFloatLayout(
     direction: "left" | "right",
     file: FileModelData | null,
     {
-        screenWidth,
-        platform,
+        blockWidth,
         spacingScale,
-        withoutBlockMaxWidth = false,
     }: {
-        screenWidth: number;
-        platform: Platform;
+        blockWidth: number;
         spacingScale: SpacingScale;
-        withoutBlockMaxWidth?: boolean;
     },
 ): ContentFileLayout {
     const remPx = remPxBySpacingScale[spacingScale];
     const {width, height} = getFilePreviewSize(file);
 
-    const fileFloatMaxWidth = Math.round(
-        Math.min(
-            !withoutBlockMaxWidth ? contentStyles.blockMaxWidthRem[platform] * remPx : Infinity,
-            screenWidth - screenPaddingXRem[platform] * remPx * 2,
-        ) * contentStyles.fileFloatMaxWidthPercent,
-    );
+    const fileFloatMaxWidth = Math.round(blockWidth * contentStyles.fileFloatMaxWidthPercent);
 
     const solver = new kiwi.Solver();
 
@@ -631,36 +604,4 @@ export function getFilePreviewSize(file: FileModelData | null): {width: number; 
         default:
             throw exhaustive(file.preview);
     }
-}
-
-/**
- * Layout the file in a table cell. Uses the Cassowary algorithm to determine
- * the best aesthetic layout while respecting table cell constraints.
- *
- * Layout satisfies the following constraints:
- * - Must fit within table cell bounds
- * - Must be larger than minimum size and smaller than maximum size
- * - Should maintain the aspect ratio of the underlying file when possible
- * - Should optimize for table cell space utilization
- */
-export function computeContentFileRowTableLayout(
-    file: FileModelData | null,
-    {
-        screenWidth,
-        platform,
-        spacingScale,
-        withoutBlockMaxWidth = false,
-    }: {
-        screenWidth: number;
-        platform: Platform;
-        spacingScale: SpacingScale;
-        withoutBlockMaxWidth?: boolean;
-    },
-): ContentFileLayout {
-    return computeContentFileRowLayout([file], {
-        screenWidth,
-        platform,
-        spacingScale,
-        withoutBlockMaxWidth,
-    })[0]!;
 }

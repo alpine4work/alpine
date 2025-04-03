@@ -12,7 +12,7 @@ import {ContentEditorDomParser} from "~/client/content/internal/content_editor_d
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {
     ContentFileLayout,
-    computeContentFileRowLayout,
+    computeContentFileRowLikeLayout,
 } from "~/client/content/internal/content_file_layout_computations.js";
 import {
     addContentFilePreviewBehavior,
@@ -96,7 +96,7 @@ export function MessageViewFiles({
                 function pushNextFileRow(files: Array<{signedUrlSearch: string; file: FileModel}>) {
                     const fileDatas = files.map(file => get(fileStore.getFileStore(file)));
 
-                    const fileLayouts = computeContentFileRowLayout(fileDatas, {
+                    const fileLayouts = computeContentFileRowLikeLayout(fileDatas, {
                         screenWidth: screenWidth ?? clientInfo.screenWidth,
                         platform,
                         spacingScale,

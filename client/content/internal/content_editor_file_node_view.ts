@@ -12,8 +12,10 @@ import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
+import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
     getPlatformWithoutListening,
@@ -26,6 +28,8 @@ import {
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -48,20 +52,20 @@ export function dispatchUpdatedContentEditorFileParentEvent(element: Element) {
 
 export function createContentEditorFileNodeViewConstructor({
     rootNavigate,
-    getLayoutScreenWidth,
     getContext,
-    getSpaceId,
     getReporter,
+    getRouteLayout,
+    getSpaceId,
     getAttachmentTarget,
     getAccessLevel,
     subscribeToReferencesUpdate,
     draggingFileRef,
 }: {
     rootNavigate: NavigateFunction;
-    getLayoutScreenWidth: () => number;
     getContext: () => AppContext;
-    getSpaceId: () => SpaceId;
     getReporter: () => Reporter;
+    getRouteLayout: () => RouteLayout;
+    getSpaceId: () => SpaceId;
     getAttachmentTarget: () => FileAttachmentTarget;
     getAccessLevel: () => AccessLevel;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
@@ -71,6 +75,8 @@ export function createContentEditorFileNodeViewConstructor({
         let dom: HTMLElement;
 
         let isDestroyed = false;
+        let lastSpacingScale: SpacingScale | null = null;
+        let lastBlockWidth: number | null = null;
         let lastFileReference: {signedUrlSearch: string; file: FileModel} | undefined | null = null;
         let lastHtml: HtmlElementGenerator | null = null;
         let cleanup: (() => void) | null = null;
@@ -80,21 +86,27 @@ export function createContentEditorFileNodeViewConstructor({
 
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
-            const {references} = getContentEditorReferences(view.state);
 
+            const blockWidth = getContentBlockWidth({
+                spacingScale,
+                platform,
+                routeLayout: getRouteLayout(),
+                clientInfo: getClientInfo(),
+                withoutBlockMaxWidth: false,
+            });
+
+            const {references} = getContentEditorReferences(view.state);
             const spaceId = getSpaceId();
             const fileId: FileId | null = node.attrs.fileId;
             const fileReference = fileId ? references.fileById.get(fileId) : undefined;
 
-            const screenWidth = getLayoutScreenWidth();
-
-            // Layout will update when `node` and `fileReference.file` update. So we don't
-            // need to also check if `node` changed.
-            //
-            // We do need to check if `fileReference` changed since if
-            // `fileReference.signedUrlSearch` changes we need to re-render the file with
-            // the new URL.
-            if (lastFileReference !== fileReference) {
+            if (
+                lastSpacingScale !== spacingScale ||
+                lastBlockWidth !== blockWidth ||
+                lastFileReference !== fileReference
+            ) {
+                lastSpacingScale = spacingScale;
+                lastBlockWidth = blockWidth;
                 lastFileReference = fileReference;
 
                 cleanup?.();
@@ -110,10 +122,8 @@ export function createContentEditorFileNodeViewConstructor({
                     );
 
                     const layout = layoutContentFile(view.state.doc, getPos(), node, {
-                        screenWidth,
-                        platform,
                         spacingScale,
-                        withoutBlockMaxWidth: false,
+                        blockWidth,
                         getFile: otherFileId => {
                             if (otherFileId === fileId) return file ?? null;
 
@@ -140,8 +150,8 @@ export function createContentEditorFileNodeViewConstructor({
                         node,
                         file,
                         layout,
-                        screenWidth,
-                        screenScale: 1,
+                        blockWidth,
+                        transformScale: 1,
                         platform,
                         spacingScale,
                         isInitialAppRender: false,

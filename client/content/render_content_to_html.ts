@@ -8,6 +8,7 @@ import {
     layoutContentFileParent,
 } from "~/client/content/internal/content_file_layout.js";
 import {renderContentFilePreview} from "~/client/content/internal/content_file_preview.js";
+import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
@@ -19,6 +20,7 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -36,6 +38,7 @@ import {
     renderProsemirrorDomOutputSpec,
     serializeProsemirrorFragmentToHtmlGenerator,
 } from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -47,29 +50,61 @@ import {Store} from "~/shared/store/store.js";
  */
 export function renderContentToHtmlStore(
     content: ContentWithReferences,
-    options: {
+    {
+        spaceId,
+        accountStore,
+        fileStore,
+        currentAccount,
+        transformScale,
+        spacingScale,
+        platform,
+        routeLayout,
+        clientInfo,
+        withoutBlockMaxWidth,
+        isInitialAppRender,
+        withPosAttribute,
+        placeholder,
+    }: {
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
-        screenWidth: number;
-        screenScale: number;
-        platform: Platform;
+        blockWidth: number;
+        transformScale: number;
         spacingScale: SpacingScale;
+        platform: Platform;
+        routeLayout: RouteLayout;
+        clientInfo: ClientInfo;
         withoutBlockMaxWidth: boolean;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         placeholder?: string;
     },
 ): Store<string> {
-    return renderContentFragmentToHtmlGeneratorStore(content, options).map(
-        fragmentHtmlGenerator => {
-            return `<div class="${classNames(
-                contentStyles.docClassName,
-                options.withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
-            )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
-        },
-    );
+    return renderContentFragmentToHtmlGeneratorStore(content, {
+        spaceId,
+        accountStore,
+        fileStore,
+        currentAccount,
+        blockWidth: getContentBlockWidth({
+            spacingScale,
+            platform,
+            routeLayout,
+            clientInfo,
+            withoutBlockMaxWidth,
+        }),
+        transformScale,
+        platform,
+        spacingScale,
+        isInitialAppRender,
+        withPosAttribute,
+        placeholder,
+    }).map(fragmentHtmlGenerator => {
+        return `<div class="${classNames(
+            contentStyles.docClassName,
+            withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
+        )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
+    });
 }
 
 /**
@@ -91,11 +126,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
         accountStore,
         fileStore,
         currentAccount,
-        screenWidth,
-        screenScale,
+        blockWidth,
+        transformScale,
         platform,
         spacingScale,
-        withoutBlockMaxWidth,
         isInitialAppRender,
         withPosAttribute,
         isInert,
@@ -107,11 +141,10 @@ export function renderContentFragmentToHtmlGeneratorStore(
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
-        screenWidth: number;
-        screenScale: number;
+        blockWidth: number;
+        transformScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
-        withoutBlockMaxWidth: boolean;
         isInitialAppRender: boolean;
         withPosAttribute?: boolean;
         isInert?: boolean;
@@ -323,10 +356,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     assert(html instanceof HtmlElementGenerator);
 
                     const layouts = layoutContentFileParent(node, {
-                        screenWidth,
-                        platform,
+                        blockWidth,
                         spacingScale,
-                        withoutBlockMaxWidth,
                         getFile: fileId => {
                             const fileReference = content.references.fileById.get(fileId);
                             if (!fileReference) return null;
@@ -361,10 +392,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     assert(childNode.type.name === "file");
 
                     const layouts = layoutContentFileParent(node, {
-                        screenWidth,
-                        platform,
+                        blockWidth,
                         spacingScale,
-                        withoutBlockMaxWidth,
                         getFile: fileId => {
                             const fileReference = content.references.fileById.get(fileId);
                             if (!fileReference) return null;
@@ -396,10 +425,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         : undefined;
 
                     const layout = layoutContentFile(content.doc, pos, node, {
-                        screenWidth,
-                        platform,
+                        blockWidth,
                         spacingScale,
-                        withoutBlockMaxWidth,
                         getFile: otherFileId => {
                             if (otherFileId === fileId) return file ?? null;
 
@@ -415,8 +442,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         node,
                         file,
                         layout,
-                        screenWidth,
-                        screenScale,
+                        blockWidth,
+                        transformScale,
                         platform,
                         spacingScale,
                         isInitialAppRender,

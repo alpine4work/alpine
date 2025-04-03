@@ -13,6 +13,7 @@ import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/con
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {addContentFilePreviewBehavior} from "~/client/content/internal/content_file_preview.js";
+import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {
@@ -41,7 +42,6 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
-import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
@@ -59,7 +59,6 @@ import {
 } from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -201,18 +200,10 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
     withoutBlockMaxWidth?: boolean;
 
     /**
-     * Override the screen width provided to `layoutContentFileRow()`. By default
-     * we use the smaller of `clientInfo.screenWidth` and the max content width but
-     * if you're intentionally rendering a narrow `<ContentView>` then you should
-     * set this value for better layout results. Measured in pixels.
+     * CSS scale transform applied to this `<ContentView>`. Scales up images when
+     * provided so we load images of the appropriate pixel size.
      */
-    fileLayoutScreenWidth?: number;
-
-    /**
-     * Override the screen scale provided to `renderContentFilePreview()`. By
-     * default this is 1.
-     */
-    fileLayoutScreenScale?: number;
+    transformScale?: number;
 
     /**
      * Optionally add a prefix string to the beginning of the content we serialize
@@ -242,8 +233,7 @@ export function ContentView<Content extends ContentWithReferences>({
     onSeeMoreContent,
     onSeeLessContent,
     withoutBlockMaxWidth = false,
-    fileLayoutScreenWidth: fileLayoutScreenWidthFromProps,
-    fileLayoutScreenScale = 1,
+    transformScale = 1,
     getClipboardSerializerPrefix,
 }: ContentViewProps<Content>) {
     assert(
@@ -268,6 +258,18 @@ export function ContentView<Content extends ContentWithReferences>({
     const context = useAppContextIfExists();
     const spaceContext = useSpaceContextIfExists();
     const spaceId = spaceContext?.space.id ?? null;
+
+    const blockWidth = useMemo(
+        () =>
+            getContentBlockWidth({
+                spacingScale,
+                platform,
+                routeLayout,
+                clientInfo,
+                withoutBlockMaxWidth,
+            }),
+        [clientInfo, platform, routeLayout, spacingScale, withoutBlockMaxWidth],
+    );
 
     const id = useId();
     const ref = useRef<HTMLDivElement>(null);
@@ -430,14 +432,6 @@ export function ContentView<Content extends ContentWithReferences>({
             codeBlockDecorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
         }>;
 
-        const fileLayoutScreenWidth =
-            fileLayoutScreenWidthFromProps ??
-            // If this is a mobile layout on desktop then we'll use the max width of a peek
-            // as our screen width for computing layouts.
-            (routeLayout === "narrow" && platform !== "mobile"
-                ? convertRemLengthToPx(peekNarrowLayoutWidth, spacingScale)
-                : clientInfo.screenWidth);
-
         // If we have some initial code block decorations from server-side rendering
         // then use those instead of trying to compute new decorations. Since we
         // may not be able to compute new decorations given no language parsers will be
@@ -452,11 +446,10 @@ export function ContentView<Content extends ContentWithReferences>({
                     accountStore,
                     fileStore,
                     currentAccount: spaceContext?.currentAccount ?? null,
-                    screenWidth: fileLayoutScreenWidth,
-                    screenScale: fileLayoutScreenScale,
+                    blockWidth,
+                    transformScale,
                     platform,
                     spacingScale,
-                    withoutBlockMaxWidth,
                     isInitialAppRender,
                     isInert,
                     withPosAttribute: true,
@@ -486,11 +479,10 @@ export function ContentView<Content extends ContentWithReferences>({
                 accountStore,
                 fileStore,
                 currentAccount: spaceContext?.currentAccount ?? null,
-                screenWidth: fileLayoutScreenWidth,
-                screenScale: fileLayoutScreenScale,
+                blockWidth,
+                transformScale,
                 platform,
                 spacingScale,
-                withoutBlockMaxWidth,
                 isInitialAppRender,
                 isInert,
                 withPosAttribute: true,
@@ -513,19 +505,16 @@ export function ContentView<Content extends ContentWithReferences>({
         shouldShowSeeMoreContentButton,
         shouldShowSeeLessContentButton,
         content,
-        fileLayoutScreenWidthFromProps,
-        routeLayout,
-        platform,
-        spacingScale,
-        clientInfo.screenWidth,
         initialCodeBlockDecorations,
         id,
         spaceId,
         accountStore,
         fileStore,
         spaceContext?.currentAccount,
-        fileLayoutScreenScale,
-        withoutBlockMaxWidth,
+        blockWidth,
+        transformScale,
+        platform,
+        spacingScale,
         isInitialAppRender,
         isInert,
         placeholder,

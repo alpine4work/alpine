@@ -15,7 +15,6 @@ import {
     getSpacingScaleWithoutListening,
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
-import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -25,7 +24,7 @@ import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
-export function createContentEditorFileFloatNodeViewConstructor({
+export function createContentEditorFileRowLikeNodeViewConstructor({
     getRouteLayout,
     getSpaceId,
     subscribeToReferencesUpdate,
@@ -43,17 +42,16 @@ export function createContentEditorFileFloatNodeViewConstructor({
         assert(dom instanceof HTMLElement);
 
         // Make sure the browser doesn't think it's allowed to select or edit inside a
-        // file float.
+        // file row.
         dom.contentEditable = "false";
 
         let isDestroyed = false;
-        let lastDirection: "left" | "right" | null = null;
-        let lastLayouts: ReadonlyArray<ContentFileLayout> | null = null;
         let lastSpacingScale: SpacingScale | null = null;
         let lastBlockWidth: number | null = null;
         let lastFileReferences: Array<
             {signedUrlSearch: string; file: FileModel} | undefined
         > | null = null;
+        let lastLayouts: ReadonlyArray<ContentFileLayout> | null = null;
         let cleanup: (() => void) | null = null;
 
         const updateFromState = () => {
@@ -78,21 +76,6 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 return fileReference;
             });
 
-            const direction = node.attrs.direction;
-
-            // Swap CSS classes if direction changes.
-            if (lastDirection !== direction) {
-                lastDirection = direction;
-
-                if (direction === "left") {
-                    dom.classList.remove(fileFloatRightClassName);
-                    dom.classList.add(fileFloatLeftClassName);
-                } else if (direction === "right") {
-                    dom.classList.remove(fileFloatLeftClassName);
-                    dom.classList.add(fileFloatRightClassName);
-                }
-            }
-
             if (
                 lastSpacingScale !== spacingScale ||
                 lastBlockWidth !== blockWidth ||
@@ -108,8 +91,8 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
                 const layoutsStore = computeStore(get =>
                     layoutContentFileParent(node, {
-                        spacingScale,
                         blockWidth,
+                        spacingScale,
                         getFile: fileId => {
                             const fileReference = references.fileById.get(fileId);
                             if (!fileReference) return null;
@@ -126,8 +109,10 @@ export function createContentEditorFileFloatNodeViewConstructor({
                     if (lastLayouts !== layouts) {
                         lastLayouts = layouts;
 
-                        dom.style.width = `${layouts[0]!.width}px`;
-                        dom.style.height = `${layouts[0]!.height}px`;
+                        dom.style.height = `${Math.max(...layouts.map(({height}) => height))}px`;
+                        dom.style.gridTemplateColumns = layouts
+                            .map(({widthFr}) => `${widthFr}fr`)
+                            .join(" ");
                     }
                 };
 
@@ -155,7 +140,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 node = newNode;
                 updateFromState();
 
-                // Run update after a microtask since when deleting nodes ProseMirror deletes
+                // Run update after a microtask since when deleting nodes ProseMirror updates
                 // the parent node first then the children. We don't want to dispatch an update
                 // until ProseMirror gets the chance to destroy any removed child nodes.
                 scheduleMicrotask(() => {

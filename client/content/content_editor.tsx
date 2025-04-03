@@ -61,7 +61,7 @@ import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/con
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {createContentEditorFileFloatNodeViewConstructor} from "~/client/content/internal/content_editor_file_float_node_view.js";
 import {createContentEditorFileNodeViewConstructor} from "~/client/content/internal/content_editor_file_node_view.js";
-import {createContentEditorFileRowNodeViewConstructor} from "~/client/content/internal/content_editor_file_row_node_view.js";
+import {createContentEditorFileRowLikeNodeViewConstructor} from "~/client/content/internal/content_editor_file_row_like_node_view.js";
 import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {ContentEditorFloater} from "~/client/content/internal/content_editor_floater.js";
 import {
@@ -90,7 +90,6 @@ import {createContentEditorOrderedListItemNodeView} from "~/client/content/inter
 import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/content_editor_phantom_selection_cursor.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {handleCopyContentFile} from "~/client/content/internal/content_file_preview.js";
-import {createContentEditorFileRowTableNodeViewConstructor} from "~/client/content/internal/files/content_editor_file_row_table_node_view.js";
 import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
@@ -153,7 +152,6 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
-import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -840,6 +838,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const routeLayout = useRouteLayout();
     const clientInfo = useClientInfo();
     const canPrimaryInputHover = useCanPrimaryInputHover();
+    const spaceContext = useSpaceContextIfExists();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
@@ -893,9 +892,6 @@ function ContentEditor<Content extends ContentWithReferences>(
     const reporterRef = useRef(reporter);
     const contextRef = useRef(context);
     const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
-    // Don't get the current account when running in a unit test so we don't need
-    // to render a space context when testing this component.
-    const spaceContext = useSpaceContextIfExists();
     const spaceContextRef = useRef(spaceContext);
     useInsertionEffect(() => {
         propsRef.current = props;
@@ -1162,13 +1158,6 @@ function ContentEditor<Content extends ContentWithReferences>(
          *                            Node and mark views                             *
         \* ========================================================================== */
 
-        const getFileLayoutScreenWidth = () =>
-            // If this is a mobile layout on desktop then we'll use the max width of a peek
-            // as our screen width for computing layouts.
-            routeLayoutRef.current === "narrow" && getPlatformWithoutListening() !== "mobile"
-                ? convertRemLengthToPx(peekNarrowLayoutWidth, getSpacingScaleWithoutListening())
-                : getClientInfo().screenWidth;
-
         // IMPORTANT: If you have a custom view in `nodeViews` here you should also
         // have a matching custom renderer in `nodeRenderers` in
         // `renderContentToHtml()`.
@@ -1211,17 +1200,25 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getCurrentAccountIfExists: () => spaceContextRef.current?.currentAccount ?? null,
             }),
-            fileRow: createContentEditorFileRowNodeViewConstructor({
+            fileRow: createContentEditorFileRowLikeNodeViewConstructor({
+                getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
-                getLayoutScreenWidth: getFileLayoutScreenWidth,
+                subscribeToReferencesUpdate: listener => {
+                    referencesUpdateEmitterRef.current ??= new EventEmitter();
+                    return referencesUpdateEmitterRef.current.subscribe(listener);
+                },
+            }),
+            fileRowTable: createContentEditorFileRowLikeNodeViewConstructor({
+                getRouteLayout: () => routeLayoutRef.current,
+                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
                 },
             }),
             fileFloat: createContentEditorFileFloatNodeViewConstructor({
+                getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
-                getLayoutScreenWidth: getFileLayoutScreenWidth,
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
                     return referencesUpdateEmitterRef.current.subscribe(listener);
@@ -1229,10 +1226,10 @@ function ContentEditor<Content extends ContentWithReferences>(
             }),
             file: createContentEditorFileNodeViewConstructor({
                 rootNavigate: (...args) => (rootNavigateRef as any).current(...args),
-                getLayoutScreenWidth: getFileLayoutScreenWidth,
                 getContext: () => assertExists(contextRef.current),
-                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getReporter: () => reporterRef.current,
+                getRouteLayout: () => routeLayoutRef.current,
+                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
                 getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 subscribeToReferencesUpdate: listener => {
@@ -1241,14 +1238,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
                 draggingFileRef,
             }),
-            table: createContentEditorTableNodeView(),
-            fileRowTable: createContentEditorFileRowTableNodeViewConstructor({
-                getSpaceId: () => assertExists(spaceContextRef.current).space.id,
-                getLayoutScreenWidth: getFileLayoutScreenWidth,
-                subscribeToReferencesUpdate: listener => {
-                    referencesUpdateEmitterRef.current ??= new EventEmitter();
-                    return referencesUpdateEmitterRef.current.subscribe(listener);
-                },
+            table: createContentEditorTableNodeView({
+                getRouteLayout: () => routeLayoutRef.current,
             }),
         };
 
@@ -5518,8 +5509,6 @@ class ContentEditorFileDragState {
                     this._getDraggingPos(),
                 ),
             };
-
-            console.log(this._lastDropTargets.dropTargets);
         }
 
         // User experience win: Wait 100ms to update the drop target we display. That

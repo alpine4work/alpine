@@ -58,8 +58,7 @@ import {
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -128,10 +127,9 @@ export function renderContentFilePreview({
     node,
     file,
     layout,
-    screenWidth,
-    screenScale,
+    blockWidth,
+    transformScale,
     platform,
-    spacingScale,
     isInitialAppRender,
     withoutInteractivity = false,
 }: {
@@ -139,8 +137,8 @@ export function renderContentFilePreview({
     node: Node;
     file: FileClientStoreData | undefined;
     layout: ContentFileLayout;
-    screenWidth: number;
-    screenScale: number;
+    blockWidth: number;
+    transformScale: number;
     platform: Platform;
     spacingScale: SpacingScale;
     isInitialAppRender: boolean;
@@ -254,7 +252,7 @@ export function renderContentFilePreview({
                     file,
                     filePreview: file.preview,
                     layout,
-                    screenScale,
+                    transformScale,
                     platform,
                     isInitialAppRender,
                     withoutInteractivity,
@@ -302,9 +300,8 @@ export function renderContentFilePreview({
                     file,
                     filePreview: file.preview,
                     layout,
-                    screenWidth,
+                    blockWidth,
                     platform,
-                    spacingScale,
                 });
                 break;
             }
@@ -581,7 +578,7 @@ function renderContentFileImagePreview(
         file,
         filePreview,
         layout,
-        screenScale,
+        transformScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -590,7 +587,7 @@ function renderContentFileImagePreview(
         file: FileClientStoreData;
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
-        screenScale: number;
+        transformScale: number;
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
@@ -625,7 +622,7 @@ function renderContentFileImagePreview(
         filePreviewSize: filePreview.size,
         filePreviewPlaceholder: filePreview.placeholder,
         layout,
-        screenScale,
+        transformScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -642,7 +639,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize,
         filePreviewPlaceholder,
         layout,
-        screenScale,
+        transformScale,
         platform,
         isInitialAppRender,
         withoutInteractivity,
@@ -654,7 +651,7 @@ function renderContentFileImagePreviewInner(
         filePreviewSize: FileImagePreviewSize;
         filePreviewPlaceholder: FileImagePreviewPlaceholder;
         layout: ContentFileLayout;
-        screenScale: number;
+        transformScale: number;
         platform: Platform;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
@@ -730,9 +727,9 @@ function renderContentFileImagePreviewInner(
             image2xSource = imageSourceBase;
             image3xSource = imageSourceBase;
         } else {
-            const image1xWidth = getFilePreviewImageResizeWidth(layout.width * screenScale);
-            const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2 * screenScale);
-            const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3 * screenScale);
+            const image1xWidth = getFilePreviewImageResizeWidth(layout.width * transformScale);
+            const image2xWidth = getFilePreviewImageResizeWidth(layout.width * 2 * transformScale);
+            const image3xWidth = getFilePreviewImageResizeWidth(layout.width * 3 * transformScale);
 
             const aspectRatio = filePreviewSize.width / filePreviewSize.height;
             const isOutsideAspectRatioRange =
@@ -852,16 +849,14 @@ function renderContentFileCodePreview(
         file,
         filePreview,
         layout,
-        screenWidth,
+        blockWidth,
         platform,
-        spacingScale,
     }: {
         file: FileClientStoreData;
         filePreview: FileCodePreview;
         layout: ContentFileLayout;
-        screenWidth: number;
+        blockWidth: number;
         platform: Platform;
-        spacingScale: SpacingScale;
     },
 ) {
     html.setAttribute(
@@ -890,15 +885,10 @@ function renderContentFileCodePreview(
         return;
     }
 
-    const fullWidth = Math.min(
-        contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
-        screenWidth - screenPaddingXRem[platform] * remPxBySpacingScale[spacingScale] * 2,
-    );
-
     const initialScale =
         fontSizesBySpacingScale["75"].small.fontSize /
         fontSizesBySpacingScale["100"].small.fontSize;
-    const scale = Math.min(1, layout.width / fullWidth) * initialScale;
+    const scale = Math.min(1, layout.width / blockWidth) * initialScale;
 
     const containerHtml = new HtmlElementGenerator("div");
     html.appendChild(containerHtml);
@@ -914,7 +904,7 @@ function renderContentFileCodePreview(
 
     containerHtml.setAttribute(
         "style",
-        `width: ${fullWidth / initialScale}px; height: ${round6(
+        `width: ${blockWidth / initialScale}px; height: ${round6(
             layout.height / scale,
         )}px; transform-origin: top left; transform: scale(${round6(scale)})`,
     );
