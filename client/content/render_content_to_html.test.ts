@@ -9,6 +9,7 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {defaultClientInfo} from "~/shared/remix/client_info.js";
 
 const spaceId = generateId<SpaceId>();
 
@@ -92,10 +93,10 @@ test("will properly number list items", () => {
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
-                    screenWidth: 1920,
-                    screenScale: 1,
                     platform: "desktop",
                     spacingScale: "small",
+                    routeLayout: "wide",
+                    clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                 },
             ).getSnapshot(),
@@ -185,10 +186,10 @@ test("will properly number list items with indentation", () => {
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
-                    screenWidth: 1920,
-                    screenScale: 1,
                     platform: "desktop",
                     spacingScale: "small",
+                    routeLayout: "wide",
+                    clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                 },
             ).getSnapshot(),
@@ -236,10 +237,10 @@ test("will properly number list items in quote blocks", () => {
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
-                    screenWidth: 1920,
-                    screenScale: 1,
                     platform: "desktop",
                     spacingScale: "small",
+                    routeLayout: "wide",
+                    clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                 },
             ).getSnapshot(),
@@ -292,10 +293,10 @@ test("will render code block", () => {
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
                     currentAccount: null,
-                    screenWidth: 1920,
-                    screenScale: 1,
                     platform: "desktop",
                     spacingScale: "small",
+                    routeLayout: "wide",
+                    clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
                 },
             ).getSnapshot(),

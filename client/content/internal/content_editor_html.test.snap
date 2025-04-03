@@ -4401,7 +4401,7 @@ exports[`table (2x2) plain 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="min-width: 240px; max-width: 640px;"
+        style="max-width: 640px;"
       >
         <table
           style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
@@ -5343,7 +5343,7 @@ exports[`table (3x3 with custom widths) plain 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="min-width: 340px; max-width: 640px;"
+        style="max-width: 640px;"
       >
         <table
           style="grid-template-columns: minmax(100px, 200fr) minmax(100px, 200fr) minmax(100px, 200fr);"
@@ -5660,7 +5660,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="min-width: 240px; max-width: 640px;"
+        style="max-width: 640px;"
       >
         <table
           style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
@@ -5675,7 +5675,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                 </p>
                 <div
                   class="content_fileRowLike"
-                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                  style="height: 276px; grid-template-columns: 1fr;"
                 >
                   <div
                     class="content_file"
@@ -5707,7 +5707,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
                 </p>
                 <div
                   class="content_fileRowLike"
-                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                  style="height: 276px; grid-template-columns: 1fr;"
                 >
                   <div
                     class="content_file"
@@ -5731,7 +5731,7 @@ exports[`table with fileRowTable (mixed content) 1`] = `
               <td>
                 <div
                   class="content_fileRowLike"
-                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                  style="height: 276px; grid-template-columns: 1fr;"
                 >
                   <div
                     class="content_file"
@@ -5871,7 +5871,7 @@ exports[`table with fileRowTable (null reference) 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="min-width: 240px; max-width: 640px;"
+        style="max-width: 640px;"
       >
         <table
           style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
@@ -5881,7 +5881,7 @@ exports[`table with fileRowTable (null reference) 1`] = `
               <td>
                 <div
                   class="content_fileRowLike"
-                  style="height: 133.333px; grid-template-columns: 0.333333fr;"
+                  style="height: 133.333px; grid-template-columns: 0.724638fr;"
                 >
                   <div
                     class="content_file"
@@ -5973,7 +5973,7 @@ exports[`table with fileRowTable (one file) 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="min-width: 340px; max-width: 640px;"
+        style="max-width: 640px;"
       >
         <table
           style="grid-template-columns: minmax(100px, 200fr) minmax(100px, 200fr) minmax(100px, 200fr);"
@@ -5983,7 +5983,7 @@ exports[`table with fileRowTable (one file) 1`] = `
               <td>
                 <div
                   class="content_fileRowLike"
-                  style="height: 512px; grid-template-columns: 0.853333fr;"
+                  style="height: 176px; grid-template-columns: 1fr;"
                 >
                   <div
                     class="content_file"
@@ -6471,7 +6471,7 @@ exports[`table with multiple blocks in cells plain 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="min-width: 240px; max-width: 640px;"
+        style="max-width: 640px;"
       >
         <table
           style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"

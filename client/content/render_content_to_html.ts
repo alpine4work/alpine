@@ -55,7 +55,6 @@ export function renderContentToHtmlStore(
         accountStore,
         fileStore,
         currentAccount,
-        transformScale,
         spacingScale,
         platform,
         routeLayout,
@@ -68,8 +67,6 @@ export function renderContentToHtmlStore(
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
-        blockWidth: number;
-        transformScale: number;
         spacingScale: SpacingScale;
         platform: Platform;
         routeLayout: RouteLayout;
@@ -90,7 +87,7 @@ export function renderContentToHtmlStore(
             routeLayout,
             clientInfo,
         }),
-        transformScale,
+        transformScale: 1,
         platform,
         spacingScale,
         isInitialAppRender,
