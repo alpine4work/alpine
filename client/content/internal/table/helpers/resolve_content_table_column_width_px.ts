@@ -1,7 +1,18 @@
 import * as kiwi from "@lume/kiwi";
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+
+export type ContentEditorTableLayout = {
+    readonly totalColumnWidth: number;
+    readonly columnWidths: ReadonlyArray<number>;
+    readonly tableWidth: number;
+};
+
+assertAssignableTypes<ContentTableMap, ContentEditorTableLayout>();
 
 /**
  * Computes the absolute pixel width of each column in a table. Implements the
@@ -12,19 +23,11 @@ import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_sc
  * don't have to compute it again.
  */
 export const resolveContentTableColumnWidthPx = createCachedFunction(
-    (
-        spacingScale: SpacingScale,
-        blockWidth: number,
-        tableMap: {
-            readonly totalColumnWidth: number;
-            readonly columnWidths: ReadonlyArray<number>;
-            readonly tableWidth: number;
-        },
-    ) => {
+    (spacingScale: SpacingScale, blockWidth: number, tableLayout: ContentEditorTableLayout) => {
         return resolveContentTableColumnWidthPxWithoutCache(
-            tableMap.totalColumnWidth,
-            tableMap.columnWidths,
-            tableMap.tableWidth,
+            tableLayout.totalColumnWidth,
+            tableLayout.columnWidths,
+            tableLayout.tableWidth,
             blockWidth,
             contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale],
             contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale],
@@ -48,7 +51,7 @@ export const resolveContentTableColumnWidthPx = createCachedFunction(
 // named argument object. But since this code will be called in a hot path
 // (every frame) so I'm using positional arguments to avoid an extra object
 // allocation.
-export function resolveContentTableColumnWidthPxWithoutCache(
+function resolveContentTableColumnWidthPxWithoutCache(
     totalColumnWidth: number,
     columnWidths: ReadonlyArray<number>,
     tableWidth: number,
@@ -159,5 +162,25 @@ export function resolveContentTableColumnWidthPxWithoutCache(
 
     return columnWidthPxVariableEntries.map(([, columnWidthPxVariable]) =>
         columnWidthPxVariable.value(),
+    );
+}
+
+export function resolveContentTableColumnWidthPxWithoutCacheForTest(
+    totalColumnWidth: number,
+    columnWidths: ReadonlyArray<number>,
+    tableWidth: number,
+    blockWidthPx: number,
+    columnMinWidthPx: number,
+    columnMaxWidthPx: number,
+): Array<number> {
+    assert(import.meta.jest);
+
+    return resolveContentTableColumnWidthPxWithoutCache(
+        totalColumnWidth,
+        columnWidths,
+        tableWidth,
+        blockWidthPx,
+        columnMinWidthPx,
+        columnMaxWidthPx,
     );
 }

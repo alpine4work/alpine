@@ -4,29 +4,40 @@ test("making last column in 4-column table larger increases table width", () => 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(942, {
             startX: 860,
-            viewWithoutPaddingWidthPx: 968,
-            oldTotalColumnWidthPx: 600,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: true,
-            state: {columnIndex: 3, oldTableMap: {columnWidths: [1, 1, 1, 1], totalColumnWidth: 4}},
+            state: {
+                columnIndex: 3,
+                oldTableMap: {tableWidth: 1, columnWidths: [1, 1, 1, 1], totalColumnWidth: 4},
+            },
         }),
-    ).toEqual({blockWidthPx: 600, tableWidth: 1.25, columnWidths: [1, 1, 1, 2], scrollLeftPx: 150});
+    ).toEqual({
+        tableWidth: 1.25,
+        columnWidths: [1, 1, 1, 2],
+        totalColumnWidth: 5,
+        scrollLeftPx: 150,
+    });
 });
 
 test("making last column in 4-column table smaller decreases table width", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(891, {
             startX: 935,
-            viewWithoutPaddingWidthPx: 968,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: true,
-            state: {columnIndex: 3, oldTableMap: {columnWidths: [1, 1, 1, 2], totalColumnWidth: 5}},
+            state: {
+                columnIndex: 3,
+                oldTableMap: {tableWidth: 1.25, columnWidths: [1, 1, 1, 2], totalColumnWidth: 5},
+            },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.0833333333333335,
         columnWidths: [1, 1, 1, 1.3333333333333333],
+        totalColumnWidth: 4.333333333333333,
         scrollLeftPx: -100,
     });
 });
@@ -35,21 +46,19 @@ test("can make first column larger in a two column table when columns start at s
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(750, {
             startX: 706,
-            viewWithoutPaddingWidthPx: 1238,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 0,
-                oldTableMap: {
-                    columnWidths: [1, 1],
-                    totalColumnWidth: 2,
-                },
+                oldTableMap: {tableWidth: 1.125, columnWidths: [1, 1], totalColumnWidth: 2},
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1.1851851851851851, 0.8148148148148149],
+        totalColumnWidth: 2,
         scrollLeftPx: 0,
     });
 });
@@ -58,21 +67,23 @@ test("can make first column larger in a two column table when columns start at d
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1510, {
             startX: 795,
-            viewWithoutPaddingWidthPx: 1188,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 0,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1.3333333333333333, 0.6666666666666667],
                     totalColumnWidth: 2,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1.4814814814814814, 0.5185185185185186],
+        totalColumnWidth: 2,
         scrollLeftPx: 0,
     });
 });
@@ -81,18 +92,23 @@ test("can make first column smaller in a two column table when columns start at 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(650, {
             startX: 709,
-            viewWithoutPaddingWidthPx: 1238,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 0,
-                oldTableMap: {columnWidths: [1, 1], totalColumnWidth: 2},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1],
+                    totalColumnWidth: 2,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [0.8888888888888888, 1.1111111111111112],
+        totalColumnWidth: 2,
         scrollLeftPx: 0,
     });
 });
@@ -101,19 +117,23 @@ test("can make second column in a two column table smaller when table width is l
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(901, {
             startX: 1018,
-            viewWithoutPaddingWidthPx: 1188,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 1,
-                oldTableMap: {columnWidths: [1, 1], totalColumnWidth: 2},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1],
+                    totalColumnWidth: 2,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1,
         columnWidths: [1, 0.7777777777777778],
+        totalColumnWidth: 1.7777777777777777,
         scrollLeftPx: -75,
     });
 });
@@ -122,34 +142,44 @@ test("can't make second column in a two column table smaller when table width is
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(697, {
             startX: 1043,
-            viewWithoutPaddingWidthPx: 1238,
-            oldTotalColumnWidthPx: 600,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: true,
-            state: {columnIndex: 1, oldTableMap: {columnWidths: [1, 1], totalColumnWidth: 2}},
+            state: {
+                columnIndex: 1,
+                oldTableMap: {tableWidth: 1, columnWidths: [1, 1], totalColumnWidth: 2},
+            },
         }),
-    ).toEqual({blockWidthPx: 600, tableWidth: 1, columnWidths: [1, 1], scrollLeftPx: 0});
+    ).toEqual({
+        tableWidth: 1,
+        columnWidths: [1, 1],
+        totalColumnWidth: 2,
+        scrollLeftPx: 0,
+    });
 });
 
 test("can't make first column in a two column table smaller if it means the second column would be over the max width", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(431, {
             startX: 499,
-            viewWithoutPaddingWidthPx: 1090,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1090,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 0,
                 oldTableMap: {
+                    tableWidth: 1.25,
                     columnWidths: [0.8338270142180095, 1.6661729857819905],
                     totalColumnWidth: 2.5,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.25,
         columnWidths: [0.8333333333333335, 1.6666666666666665],
+        totalColumnWidth: 2.5,
         scrollLeftPx: 0,
     });
 });
@@ -159,18 +189,23 @@ test("can resize second interior column in 3-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(860, {
             startX: 817,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 1,
-                oldTableMap: {columnWidths: [1, 1, 1], totalColumnWidth: 3},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1, 1],
+                    totalColumnWidth: 3,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1.1111111111111112, 0.8888888888888888],
+        totalColumnWidth: 3,
         scrollLeftPx: 0,
     });
 });
@@ -179,18 +214,23 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(920, {
             startX: 873,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 2,
-                oldTableMap: {columnWidths: [1, 1, 1, 1], totalColumnWidth: 4},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1, 1, 1],
+                    totalColumnWidth: 4,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1, 1.1851851851851851, 0.8148148148148149],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -199,21 +239,23 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(949, {
             startX: 926,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 2,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1, 0.6666666666666666, 1.666666666666667, 0.6666666666666666],
                     totalColumnWidth: 4,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 0.6666666666666666, 1.740740740740741, 0.5925925925925926],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -223,13 +265,14 @@ test("can resize interior column in 5-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(610, {
             startX: 566,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 844,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 1,
                 oldTableMap: {
+                    tableWidth: 1.4066666666666667,
                     columnWidths: [
                         1, 0.6666666666666666, 1.6666666666666667, 1, 0.6666666666666667,
                     ],
@@ -238,9 +281,9 @@ test("can resize interior column in 5-column table", () => {
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.5524444444444445,
         columnWidths: [1, 1.1848341232227486, 1.6666666666666667, 1, 0.6666666666666667],
+        totalColumnWidth: 5.518167456556083,
         scrollLeftPx: 0,
     });
 });
@@ -249,13 +292,14 @@ test("can resize interior column in large table with many columns", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(810, {
             startX: 760,
-            viewWithoutPaddingWidthPx: 1248,
-            oldTotalColumnWidthPx: 2475,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 5,
                 oldTableMap: {
+                    tableWidth: 4.125,
                     columnWidths: [
                         1, 0.666452026121289, 1.6666666666666667, 1, 0.9996780391819333,
                         0.9996780391819334, 0.9996780391819334, 0.6666666666666667, 1, 1, 1, 1, 1,
@@ -266,12 +310,12 @@ test("can resize interior column in large table with many columns", () => {
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 4.187550309077414,
         columnWidths: [
             1, 0.666452026121289, 1.6666666666666667, 1, 0.9996780391819333, 1.3332617864848744,
             0.9996780391819334, 0.6666666666666667, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         ],
+        totalColumnWidth: 22.332403224303363,
         scrollLeftPx: 0,
     });
 });
@@ -281,21 +325,23 @@ test("cannot resize column below minimum width in a 4-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(400, {
             startX: 818,
-            viewWithoutPaddingWidthPx: 1248,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 2,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1, 1, 0.6666666666666666, 1.3333333333333335],
                     totalColumnWidth: 4,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1, 0.5925925925925926, 1.4074074074074074],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -305,21 +351,23 @@ test("cannot resize above maximum width in a 4-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1200, {
             startX: 818,
-            viewWithoutPaddingWidthPx: 1248,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 2,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1, 1, 0.6666666666666666, 1.3333333333333335],
                     totalColumnWidth: 4,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1, 1.4074074074074074, 0.5925925925925926],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -328,19 +376,23 @@ test("cannot resize column above maximum width in a 5-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1341, {
             startX: 804,
-            viewWithoutPaddingWidthPx: 1003,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 3,
-                oldTableMap: {columnWidths: [1, 1, 1, 1, 1], totalColumnWidth: 5},
+                oldTableMap: {
+                    tableWidth: 1.25,
+                    columnWidths: [1, 1, 1, 1, 1],
+                    totalColumnWidth: 5,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.8333333333333333,
         columnWidths: [1, 1, 1, 3.3333333333333335, 1],
+        totalColumnWidth: 7.333333333333334,
         scrollLeftPx: 0,
     });
 });
@@ -349,19 +401,23 @@ test("cannot resize column below minimum width in a 5-column table", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(-54, {
             startX: 808,
-            viewWithoutPaddingWidthPx: 1003,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 3,
-                oldTableMap: {columnWidths: [1, 1, 1, 1, 1], totalColumnWidth: 5},
+                oldTableMap: {
+                    tableWidth: 1.25,
+                    columnWidths: [1, 1, 1, 1, 1],
+                    totalColumnWidth: 5,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.1666666666666667,
         columnWidths: [1, 1, 1, 0.6666666666666666, 1],
+        totalColumnWidth: 4.666666666666666,
         scrollLeftPx: 0,
     });
 });
@@ -370,16 +426,23 @@ test("making last column in 4-column table larger increases table width (without
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(942, {
             startX: 860,
-            viewWithoutPaddingWidthPx: 968,
-            oldTotalColumnWidthPx: 600,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: false,
-            state: {columnIndex: 3, oldTableMap: {columnWidths: [1, 1, 1, 1], totalColumnWidth: 4}},
+            state: {
+                columnIndex: 3,
+                oldTableMap: {
+                    tableWidth: 1,
+                    columnWidths: [1, 1, 1, 1],
+                    totalColumnWidth: 4,
+                },
+            },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.2733333333333334,
         columnWidths: [1, 1, 1, 2.0933333333333333],
+        totalColumnWidth: 5.093333333333334,
         scrollLeftPx: 164,
     });
 });
@@ -388,16 +451,23 @@ test("making last column in 4-column table smaller decreases table width (withou
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(891, {
             startX: 935,
-            viewWithoutPaddingWidthPx: 968,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 968,
             oldScrollLeftPx: 0,
             isSnapping: false,
-            state: {columnIndex: 3, oldTableMap: {columnWidths: [1, 1, 1, 2], totalColumnWidth: 5}},
+            state: {
+                columnIndex: 3,
+                oldTableMap: {
+                    tableWidth: 1.25,
+                    columnWidths: [1, 1, 1, 2],
+                    totalColumnWidth: 5,
+                },
+            },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.1033333333333335,
         columnWidths: [1, 1, 1, 1.4133333333333333],
+        totalColumnWidth: 4.413333333333333,
         scrollLeftPx: -88,
     });
 });
@@ -406,21 +476,23 @@ test("can make first column larger in a two column table when columns start at s
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(750, {
             startX: 706,
-            viewWithoutPaddingWidthPx: 1238,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 0,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1, 1],
                     totalColumnWidth: 2,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1.1303703703703705, 0.8696296296296295],
+        totalColumnWidth: 2,
         scrollLeftPx: 0,
     });
 });
@@ -429,21 +501,23 @@ test("can make first column larger in a two column table when columns start at d
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1510, {
             startX: 795,
-            viewWithoutPaddingWidthPx: 1188,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 0,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1.3333333333333333, 0.6666666666666667],
                     totalColumnWidth: 2,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1.4814814814814814, 0.5185185185185186],
+        totalColumnWidth: 2,
         scrollLeftPx: 0,
     });
 });
@@ -452,18 +526,23 @@ test("can make first column smaller in a two column table when columns start at 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(650, {
             startX: 709,
-            viewWithoutPaddingWidthPx: 1238,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 0,
-                oldTableMap: {columnWidths: [1, 1], totalColumnWidth: 2},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1],
+                    totalColumnWidth: 2,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [0.8251851851851851, 1.1748148148148148],
+        totalColumnWidth: 2,
         scrollLeftPx: 0,
     });
 });
@@ -472,19 +551,23 @@ test("can make second column in a two column table smaller when table width is l
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(901, {
             startX: 1018,
-            viewWithoutPaddingWidthPx: 1188,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1188,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 1,
-                oldTableMap: {columnWidths: [1, 1], totalColumnWidth: 2},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1],
+                    totalColumnWidth: 2,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1,
         columnWidths: [1, 0.7777777777777778],
+        totalColumnWidth: 1.7777777777777777,
         scrollLeftPx: -75,
     });
 });
@@ -493,34 +576,48 @@ test("can't make second column in a two column table smaller when table width is
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(697, {
             startX: 1043,
-            viewWithoutPaddingWidthPx: 1238,
-            oldTotalColumnWidthPx: 600,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1238,
             oldScrollLeftPx: 0,
             isSnapping: false,
-            state: {columnIndex: 1, oldTableMap: {columnWidths: [1, 1], totalColumnWidth: 2}},
+            state: {
+                columnIndex: 1,
+                oldTableMap: {
+                    tableWidth: 1,
+                    columnWidths: [1, 1],
+                    totalColumnWidth: 2,
+                },
+            },
         }),
-    ).toEqual({blockWidthPx: 600, tableWidth: 1, columnWidths: [1, 1], scrollLeftPx: 0});
+    ).toEqual({
+        tableWidth: 1,
+        columnWidths: [1, 1],
+        totalColumnWidth: 2,
+        scrollLeftPx: 0,
+    });
 });
 
 test("can't make first column in a two column table smaller if it means the second column would be over the max width (without snapping)", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(431, {
             startX: 499,
-            viewWithoutPaddingWidthPx: 1090,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1090,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 0,
                 oldTableMap: {
+                    tableWidth: 1.25,
                     columnWidths: [0.8338270142180095, 1.6661729857819905],
                     totalColumnWidth: 2.5,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.25,
         columnWidths: [0.8333333333333335, 1.6666666666666665],
+        totalColumnWidth: 2.5,
         scrollLeftPx: 0,
     });
 });
@@ -530,18 +627,23 @@ test("can resize second interior column in 3-column table (without snapping)", (
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(860, {
             startX: 817,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 1,
-                oldTableMap: {columnWidths: [1, 1, 1], totalColumnWidth: 3},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1, 1],
+                    totalColumnWidth: 3,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1.191111111111111, 0.808888888888889],
+        totalColumnWidth: 3,
         scrollLeftPx: 0,
     });
 });
@@ -550,18 +652,23 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(920, {
             startX: 873,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 2,
-                oldTableMap: {columnWidths: [1, 1, 1, 1], totalColumnWidth: 4},
+                oldTableMap: {
+                    tableWidth: 1.125,
+                    columnWidths: [1, 1, 1, 1],
+                    totalColumnWidth: 4,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1, 1.2785185185185186, 0.7214814814814814],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -570,21 +677,23 @@ test("can resize third column in 4-column table when starting column widths are 
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(949, {
             startX: 926,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 2,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1, 0.6666666666666666, 1.666666666666667, 0.6666666666666666],
                     totalColumnWidth: 4,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 0.6666666666666666, 1.740740740740741, 0.5925925925925926],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -594,13 +703,14 @@ test("can resize interior column in 5-column table (without snapping)", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(610, {
             startX: 566,
-            viewWithoutPaddingWidthPx: 1243,
-            oldTotalColumnWidthPx: 844,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1243,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 1,
                 oldTableMap: {
+                    tableWidth: 1.4066666666666667,
                     columnWidths: [
                         1, 0.6666666666666666, 1.6666666666666667, 1, 0.6666666666666667,
                     ],
@@ -609,9 +719,9 @@ test("can resize interior column in 5-column table (without snapping)", () => {
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.5533333333333335,
         columnWidths: [1, 1.187993680884676, 1.6666666666666667, 1, 0.6666666666666667],
+        totalColumnWidth: 5.52132701421801,
         scrollLeftPx: 0,
     });
 });
@@ -620,13 +730,14 @@ test("can resize interior column in large table with many columns (without snapp
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(810, {
             startX: 760,
-            viewWithoutPaddingWidthPx: 1248,
-            oldTotalColumnWidthPx: 2475,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 5,
                 oldTableMap: {
+                    tableWidth: 4.125,
                     columnWidths: [
                         1, 0.666452026121289, 1.6666666666666667, 1, 0.9996780391819333,
                         0.9996780391819334, 0.9996780391819334, 0.6666666666666667, 1, 1, 1, 1, 1,
@@ -637,12 +748,12 @@ test("can resize interior column in large table with many columns (without snapp
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 4.208333333333333,
         columnWidths: [
             1, 0.666452026121289, 1.6666666666666667, 1, 0.9996780391819333, 1.4440986346768918,
             0.9996780391819334, 0.6666666666666667, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         ],
+        totalColumnWidth: 22.44324007249538,
         scrollLeftPx: 0,
     });
 });
@@ -652,21 +763,23 @@ test("cannot resize column below minimum width in a 4-column table (without snap
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(400, {
             startX: 818,
-            viewWithoutPaddingWidthPx: 1248,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 2,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1, 1, 0.6666666666666666, 1.3333333333333335],
                     totalColumnWidth: 4,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1, 0.5925925925925926, 1.4074074074074074],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -676,21 +789,23 @@ test("cannot resize above maximum width in a 4-column table (without snapping)",
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1200, {
             startX: 818,
-            viewWithoutPaddingWidthPx: 1248,
-            oldTotalColumnWidthPx: 675,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1248,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 2,
                 oldTableMap: {
+                    tableWidth: 1.125,
                     columnWidths: [1, 1, 0.6666666666666666, 1.3333333333333335],
                     totalColumnWidth: 4,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
+        tableWidth: 1.125,
         columnWidths: [1, 1, 1.4074074074074074, 0.5925925925925926],
+        totalColumnWidth: 4,
         scrollLeftPx: 0,
     });
 });
@@ -699,19 +814,23 @@ test("cannot resize column above maximum width in a 5-column table (without snap
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1341, {
             startX: 804,
-            viewWithoutPaddingWidthPx: 1003,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 3,
-                oldTableMap: {columnWidths: [1, 1, 1, 1, 1], totalColumnWidth: 5},
+                oldTableMap: {
+                    tableWidth: 1.25,
+                    columnWidths: [1, 1, 1, 1, 1],
+                    totalColumnWidth: 5,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.8333333333333333,
         columnWidths: [1, 1, 1, 3.3333333333333335, 1],
+        totalColumnWidth: 7.333333333333334,
         scrollLeftPx: 0,
     });
 });
@@ -720,19 +839,23 @@ test("cannot resize column below minimum width in a 5-column table (without snap
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(-54, {
             startX: 808,
-            viewWithoutPaddingWidthPx: 1003,
-            oldTotalColumnWidthPx: 750,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1003,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 3,
-                oldTableMap: {columnWidths: [1, 1, 1, 1, 1], totalColumnWidth: 5},
+                oldTableMap: {
+                    tableWidth: 1.25,
+                    columnWidths: [1, 1, 1, 1, 1],
+                    totalColumnWidth: 5,
+                },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1.1666666666666667,
         columnWidths: [1, 1, 1, 0.6666666666666666, 1],
+        totalColumnWidth: 4.666666666666666,
         scrollLeftPx: 0,
     });
 });
@@ -743,13 +866,14 @@ test("updates scroll left when resizing causes scrolling", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(1417, {
             startX: 977,
-            viewWithoutPaddingWidthPx: 1120,
-            oldTotalColumnWidthPx: 1250,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1120,
             oldScrollLeftPx: 0,
             isSnapping: true,
             state: {
                 columnIndex: 4,
                 oldTableMap: {
+                    tableWidth: 2.0833333333333335,
                     columnWidths: [
                         0.7782381629939827, 0.9416681772227187, 1.3930463117592282,
                         0.7711786222454865, 0.7711786222454866, 0.7711786222454865, 1,
@@ -759,12 +883,12 @@ test("updates scroll left when resizing causes scrolling", () => {
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 2.666666666666667,
         columnWidths: [
             0.7782381629939827, 0.9416681772227187, 1.3930463117592282, 0.7711786222454865,
             2.570595407484956, 0.7711786222454865, 1,
         ],
+        totalColumnWidth: 8.225905303951858,
         scrollLeftPx: 136,
     });
 });
@@ -776,22 +900,23 @@ test("maintains minimum table width of 1", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(568, {
             startX: 939,
-            viewWithoutPaddingWidthPx: 1120,
-            oldTotalColumnWidthPx: 600,
+            routeLayout: "wide",
+            tableWrapperWidthPx: 1120,
             oldScrollLeftPx: 0,
             isSnapping: false,
             state: {
                 columnIndex: 1,
                 oldTableMap: {
+                    tableWidth: 1,
                     columnWidths: [0.33333333333333326, 1.6666666666666663],
                     totalColumnWidth: 1.9999999999999996,
                 },
             },
         }),
     ).toEqual({
-        blockWidthPx: 600,
         tableWidth: 1,
         columnWidths: [0.33333333333333326, 1.6666666666666663],
+        totalColumnWidth: 1.9999999999999996,
         scrollLeftPx: 0,
     });
 });

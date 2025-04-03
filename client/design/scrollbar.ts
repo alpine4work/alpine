@@ -1,6 +1,7 @@
 import {Memo, RefCallback, useCallback} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {getElementSafeAreaInsetTopPx} from "~/client/design/safe_area_inset.js";
+import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
@@ -15,8 +16,6 @@ import {ParsableRemLength, parseRemLength} from "~/shared/design/core/spacing.js
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 const {
     nativeScrollbarClassName,
@@ -1035,11 +1034,10 @@ export function initializeScrollbar(
     // notifications.
     addSuppressResizeLoopErrorNotificationForElement(element);
     addResizeListenerForElement(element, handleResize);
-    getOrSetDefaultMapValue(
-        (scrollbarResizeFlushEmitterByElement ??= new WeakMap()),
+    const unsubscribeScrollbarResizeFlush = scrollbarResizeFlushEventEmitter.subscribe(
         element,
-        () => new EventEmitter(),
-    ).addListener(handleResize);
+        handleResize,
+    );
     element.addEventListener("scroll", handleScroll);
 
     const listeningToChildElementResizes = new Set<HTMLElement>();
@@ -1125,7 +1123,7 @@ export function initializeScrollbar(
 
         removeSuppressResizeLoopErrorNotificationForElement(element);
         removeResizeListenerForElement(element, handleResize);
-        scrollbarResizeFlushEmitterByElement?.get(element)?.removeListener(handleResize);
+        unsubscribeScrollbarResizeFlush();
         element.removeEventListener("scroll", handleScroll);
         elementsWithInitializedScrollbarForDev?.delete(element);
 
@@ -1133,7 +1131,7 @@ export function initializeScrollbar(
     };
 }
 
-let scrollbarResizeFlushEmitterByElement: WeakMap<Element, EventEmitter> | null = null;
+const scrollbarResizeFlushEventEmitter = new ElementEventEmitter("scrollbarresizeflush");
 
 /**
  * If we're about to synchronously observe `element.scrollHeight` on this or
@@ -1148,7 +1146,7 @@ export function flushScrollbarResizeSync(element: Element) {
     let currentElement: Element | null = element;
 
     while (currentElement) {
-        scrollbarResizeFlushEmitterByElement?.get(currentElement)?.emit();
+        scrollbarResizeFlushEventEmitter.emit(currentElement);
         currentElement = currentElement.parentElement;
     }
 }

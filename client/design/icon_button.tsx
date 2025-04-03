@@ -17,10 +17,8 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
-    addTriggeredOverlayCloseEventListener,
-    addTriggeredOverlayOpenEventListener,
-    removeTriggeredOverlayCloseEventListener,
-    removeTriggeredOverlayOpenEventListener,
+    subscribeToTriggeredOverlayCloseEvent,
+    subscribeToTriggeredOverlayOpenEvent,
 } from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
@@ -579,12 +577,12 @@ function IconButton(
         const handleOverlayOpen = () => setIsTriggeredOverlayOpen(true);
         const handleOverlayClose = () => setIsTriggeredOverlayOpen(false);
 
-        addTriggeredOverlayOpenEventListener(element, handleOverlayOpen);
-        addTriggeredOverlayCloseEventListener(element, handleOverlayClose);
+        const unsubscribe1 = subscribeToTriggeredOverlayOpenEvent(element, handleOverlayOpen);
+        const unsubscribe2 = subscribeToTriggeredOverlayCloseEvent(element, handleOverlayClose);
 
         return () => {
-            removeTriggeredOverlayOpenEventListener(element, handleOverlayOpen);
-            removeTriggeredOverlayCloseEventListener(element, handleOverlayClose);
+            unsubscribe1();
+            unsubscribe2();
         };
     }, [isFocusable]);
 

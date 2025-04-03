@@ -30,6 +30,7 @@
 import {Trash} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
+import {dispatchContentEditorFileRowTableParentUpdatedEvent} from "~/client/content/internal/content_editor_file_row_like_node_view.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {
     isInContentTable,
@@ -45,10 +46,11 @@ import {
     deleteContentTableRow,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {
+    ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
-    resolveContentTableColumnWidthPxWithoutCache,
 } from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
+import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {ColumnsPlusLeftIcon} from "~/client/icons/columns_plus_left_icon.js";
 import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
 import {RowsPlusBottomIcon} from "~/client/icons/rows_plus_bottom_icon.js";
@@ -64,6 +66,7 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
+    fileRowLikeClassName,
     tableWrapper2ClassName,
     tableWrapper3ClassName,
     tableWrapperClassName,
@@ -73,7 +76,23 @@ import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
+
+const optimisticContentEditorTableLayoutEventEmitter = new ElementEventEmitter<
+    ContentEditorTableLayout & {scrollLeftPx?: number}
+>("optimistictablelayout");
+
+/**
+ * Called to update the optimistic table layout used by the provided
+ * `<table>` element.
+ */
+export function dispatchOptimisticContentEditableTableLayoutEvent(
+    element: HTMLTableElement,
+    layout: ContentEditorTableLayout & {scrollLeftPx?: number},
+) {
+    optimisticContentEditorTableLayoutEventEmitter.emit(element, layout);
+}
 
 export function createContentEditorTableNodeView({
     getRouteLayout,
@@ -101,24 +120,53 @@ export function createContentEditorTableNodeView({
 
         tableElement.addEventListener("contextmenu", handleContextMenu);
 
-        const update = () => {
-            updateContentTableColumnsOnResize(
-                tableElement,
-                node,
-                getContentBlockWidth({
-                    spacingScale: getSpacingScaleWithoutListening(),
-                    platform: getPlatformWithoutListening(),
-                    routeLayout: getRouteLayout(),
-                    clientInfo: getClientInfo(),
-                    withoutBlockMaxWidth: false,
-                }),
-            );
-        };
+        let optimisticTableLayout: ContentEditorTableLayout | null = null;
+        let fileRowLikeElementsCache: {node: Node; elements: Array<HTMLElement>} | null = null;
 
         update();
 
         const unsubscribeFromPlatformChange = subscribeToPlatformChange(update);
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(update);
+
+        const unsubscribeFromOptimisticLayout =
+            optimisticContentEditorTableLayoutEventEmitter.subscribe(tableElement, layout => {
+                optimisticTableLayout = layout;
+
+                update();
+
+                // While resizing we may need to make sure scroll is locked to the left/right
+                // side. For example when dragging to grow the rightmost edge.
+                if (layout.scrollLeftPx !== undefined) {
+                    const tableWrapper2Element = tableWrapper3Element.parentElement!;
+                    tableWrapper2Element.scrollLeft = layout.scrollLeftPx;
+                }
+
+                // It's safe to `querySelectorAll()` here since ProseMirror should have
+                // rendered all children to the DOM by this point.
+                if (fileRowLikeElementsCache === null || fileRowLikeElementsCache.node !== node) {
+                    fileRowLikeElementsCache = {
+                        node,
+                        elements: Array.from(
+                            tableBodyElement.querySelectorAll(`.${fileRowLikeClassName}`),
+                        ),
+                    };
+                }
+
+                // NOTE(calebmer, 2025-04-03): Admittedly, the way we handle updating file
+                // layouts when the optimistic table layout changes is messy. Inside the table
+                // node view we have our `optimisticTableLayout` state. Then we dispatch events
+                // to all children `fileRow`s with the expectation that they'll update their
+                // own internal `optimisticTableLayout` states. Then the `fileRow` should
+                // dispatch an event to its `file` child which has its own internal
+                // `optimisticTableLayout` state. Ideally, there'd be some way for `fileRow`
+                // and `file` to reach into `table`'s internal node view state.
+                for (const fileRowLikeElement of fileRowLikeElementsCache.elements) {
+                    dispatchContentEditorFileRowTableParentUpdatedEvent(
+                        fileRowLikeElement,
+                        optimisticTableLayout,
+                    );
+                }
+            });
 
         return {
             dom: tableWrapperElement,
@@ -127,22 +175,137 @@ export function createContentEditorTableNodeView({
             update: newNode => {
                 if (newNode.type != node.type) return false;
 
+                const hasLayoutChanged =
+                    node.attrs.columnWidths !== newNode.attrs.columnWidths ||
+                    node.attrs.tableWidth !== newNode.attrs.tableWidth;
+
+                // Clear the optimistic table layout if the `columnWidths` or `tableWidth`
+                // attrs changed.
+                if (hasLayoutChanged) {
+                    optimisticTableLayout = null;
+                }
+
                 node = newNode;
                 update();
 
+                if (hasLayoutChanged) {
+                    // Dispatch child events after a microtask since ProseMirror updates parent
+                    // nodes before child nodes. We want to wait until ProseMirror has finished
+                    // updating before we notify our children they need to change.
+                    scheduleMicrotask(() => {
+                        // It's safe to `querySelectorAll()` here since ProseMirror should have
+                        // rendered all children to the DOM by this point.
+                        //
+                        // It's NOT safe to `querySelectorAll()` directly in the `update` function
+                        // since ProseMirror renders parents to the DOM before children. So if the
+                        // update is adding or removing file nodes we need to wait a microtask to see
+                        // them in the DOM.
+                        if (
+                            fileRowLikeElementsCache === null ||
+                            fileRowLikeElementsCache.node !== node
+                        ) {
+                            fileRowLikeElementsCache = {
+                                node,
+                                elements: Array.from(
+                                    tableBodyElement.querySelectorAll(`.${fileRowLikeClassName}`),
+                                ),
+                            };
+                        }
+
+                        for (const fileRowLikeElement of fileRowLikeElementsCache.elements) {
+                            dispatchContentEditorFileRowTableParentUpdatedEvent(
+                                fileRowLikeElement,
+                                optimisticTableLayout,
+                            );
+                        }
+                    });
+                }
+
                 return true;
-            },
-            ignoreMutation: record => {
-                return (
-                    record.type == "attributes" &&
-                    (record.target === tableElement || record.target === tableWrapper3Element)
-                );
             },
             destroy: () => {
                 unsubscribeFromPlatformChange();
                 unsubscribeFromSpacingScaleChange();
+                unsubscribeFromOptimisticLayout();
+            },
+            ignoreMutation: record => {
+                return (
+                    record.type === "attributes" &&
+                    (record.target === tableElement || record.target === tableWrapper3Element)
+                );
             },
         };
+
+        function update(): void {
+            const spacingScale = getSpacingScaleWithoutListening();
+            const platform = getPlatformWithoutListening();
+            const {devicePixelRatio} = window;
+
+            const blockWidthPx = getContentBlockWidth({
+                spacingScale,
+                platform,
+                routeLayout: getRouteLayout(),
+                clientInfo: getClientInfo(),
+                withoutBlockMaxWidth: false,
+            });
+
+            const tableWrapper3Element = tableElement.parentElement!;
+
+            const columnMinWidthPx =
+                contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
+
+            const tableMap = ContentTableMap.get(node);
+            const tableLayout = optimisticTableLayout ?? tableMap;
+
+            const columnWidthPxs = resolveContentTableColumnWidthPx(
+                spacingScale,
+                blockWidthPx,
+                tableLayout,
+            );
+
+            let totalColumnWidthPx = 0;
+
+            for (let i = 0; i < columnWidthPxs.length; i++) {
+                const columnWidthPx = roundToDevicePx(devicePixelRatio, columnWidthPxs[i]!);
+                columnWidthPxs[i] = columnWidthPx;
+                totalColumnWidthPx += columnWidthPx;
+            }
+
+            const tableOverflowGradientWidthPx = convertRemLengthToPx(
+                contentStyles.tableOverflowGradientWidth,
+                spacingScale,
+            );
+
+            // 100% width includes the overflow gradient width (because of our parent's
+            // negative margin). So the CSS `${100 * tableWidth}%` would give us the size
+            // `(blockWidthPx + tableOverflowGradientWidthPx * 2) * tableWidth`. What we
+            // actually want is width to be
+            // `blockWidthPx * tableWidth + tableOverflowGradientWidthPx * 2`. This
+            // calculation leaves us with the right width.
+            tableWrapper3Element.style.width = `round(nearest, ${
+                100 * tableLayout.tableWidth
+            }% - ${-(tableOverflowGradientWidthPx * 2 * (1 - tableLayout.tableWidth))}px, 1px)`;
+
+            tableWrapper3Element.style.maxWidth = `${
+                totalColumnWidthPx + tableOverflowGradientWidthPx * 2
+            }px`;
+
+            // Instead of setting the column fr units to `columnWidths`, we set the column
+            // fr units to the resolved column max width rounded to device pixels. When the
+            // table is at the block max width (e.g. on desktop but not mobile) the fr
+            // value should exactly equal the column px values. By using fr units the
+            // columns will still shrink on mobile.
+            //
+            // Using `columnWidths` would be more correct in theory, but we ran into
+            // strange browser behavior in practice. See [this StackOverflow issue][1]. We
+            // were able to workaround the issue by giving the browser clean, rounded,
+            // values instead of floats requiring 17 places of precision.
+            //
+            // [1]: https://stackoverflow.com/questions/79397471/css-grid-incorrectly-constrains-column-width-when-min-width-css-is-present
+            tableElement.style.gridTemplateColumns = columnWidthPxs
+                .map(columnWidthPx => `minmax(${columnMinWidthPx}px, ${columnWidthPx}fr)`)
+                .join(" ");
+        }
 
         function handleContextMenu(event: MouseEvent) {
             let selectedTableRect = isInContentTable(view.state)
@@ -302,103 +465,4 @@ export function createContentEditorTableNodeView({
 
 function roundToDevicePx(devicePixelRatio: number, px: number): number {
     return Math.round(px * devicePixelRatio) / devicePixelRatio;
-}
-
-export function updateContentTableColumnsOnResize(
-    tableElement: HTMLTableElement,
-    node: Node,
-    blockWidthPx: number,
-    overrideTableAndColumnWidths?: {
-        tableWidth?: number;
-        columnWidths: ReadonlyArray<number>;
-        scrollLeftPx?: number;
-    },
-): void {
-    const spacingScale = getSpacingScaleWithoutListening();
-
-    const tableWrapper3Element = tableElement.parentElement!;
-
-    const columnMinWidthPx =
-        contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
-    const columnMaxWidthPx =
-        contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale];
-
-    const tableMap = ContentTableMap.get(node);
-
-    let tableWidth: number;
-    let columnWidthPxs: Array<number>;
-
-    if (overrideTableAndColumnWidths === undefined) {
-        tableWidth = tableMap.tableWidth;
-        columnWidthPxs = resolveContentTableColumnWidthPx(spacingScale, blockWidthPx, tableMap);
-    } else {
-        let totalColumnWidth = 0;
-        for (const columnWidth of overrideTableAndColumnWidths.columnWidths)
-            totalColumnWidth += columnWidth;
-
-        tableWidth = overrideTableAndColumnWidths.tableWidth ?? tableMap.tableWidth;
-
-        columnWidthPxs = resolveContentTableColumnWidthPxWithoutCache(
-            totalColumnWidth,
-            overrideTableAndColumnWidths.columnWidths,
-            tableWidth,
-            blockWidthPx,
-            columnMinWidthPx,
-            columnMaxWidthPx,
-        );
-    }
-
-    let totalColumnWidthPx = 0;
-
-    const {devicePixelRatio} = window;
-
-    for (let i = 0; i < columnWidthPxs.length; i++) {
-        const columnWidthPx = roundToDevicePx(devicePixelRatio, columnWidthPxs[i]!);
-        columnWidthPxs[i] = columnWidthPx;
-        totalColumnWidthPx += columnWidthPx;
-    }
-
-    const tableOverflowGradientWidthPx = convertRemLengthToPx(
-        contentStyles.tableOverflowGradientWidth,
-        spacingScale,
-    );
-
-    // 100% width includes the overflow gradient width (because of our parent's
-    // negative margin). So the CSS `${100 * tableWidth}%` would give us the size
-    // `(blockWidthPx + tableOverflowGradientWidthPx * 2) * tableWidth`. What we
-    // actually want is width to be
-    // `blockWidthPx * tableWidth + tableOverflowGradientWidthPx * 2`. This
-    // calculation leaves us with the right width.
-    tableWrapper3Element.style.width = `round(nearest, ${100 * tableWidth}% - ${-(
-        tableOverflowGradientWidthPx *
-        2 *
-        (1 - tableWidth)
-    )}px, 1px)`;
-
-    tableWrapper3Element.style.maxWidth = `${
-        totalColumnWidthPx + tableOverflowGradientWidthPx * 2
-    }px`;
-
-    // Instead of setting the column fr units to `columnWidths`, we set the column
-    // fr units to the resolved column max width rounded to device pixels. When the
-    // table is at the block max width (e.g. on desktop but not mobile) the fr
-    // value should exactly equal the column px values. By using fr units the
-    // columns will still shrink on mobile.
-    //
-    // Using `columnWidths` would be more correct in theory, but we ran into
-    // strange browser behavior in practice. See [this StackOverflow issue][1]. We
-    // were able to workaround the issue by giving the browser clean, rounded,
-    // values instead of floats requiring 17 places of precision.
-    //
-    // [1]: https://stackoverflow.com/questions/79397471/css-grid-incorrectly-constrains-column-width-when-min-width-css-is-present
-    tableElement.style.gridTemplateColumns = columnWidthPxs!
-        .map(columnWidthPx => `minmax(${columnMinWidthPx}px, ${columnWidthPx}fr)`)
-        .join(" ");
-
-    // While resizing we may need to make sure scroll is locked to the left/right
-    // side. For example when dragging to grow the rightmost edge.
-    if (overrideTableAndColumnWidths?.scrollLeftPx !== undefined) {
-        const tableWrapper2Element = tableWrapper3Element.parentElement!;
-        tableWrapper2Element.scrollLeft = overrideTableAndColumnWidths.scrollLeftPx;
-    }
 }

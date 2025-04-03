@@ -1,4 +1,4 @@
-import {resolveContentTableColumnWidthPxWithoutCache} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {resolveContentTableColumnWidthPxWithoutCacheForTest} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -165,7 +165,7 @@ for (const testCase of testCases) {
         const spacingScale: SpacingScale = "small";
         const remPx = remPxBySpacingScale[spacingScale];
 
-        const columnWidthPxs = resolveContentTableColumnWidthPxWithoutCache(
+        const columnWidthPxs = resolveContentTableColumnWidthPxWithoutCacheForTest(
             totalColumnWidth,
             testCase.columnWidths,
             testCase.tableWidth ?? 1,

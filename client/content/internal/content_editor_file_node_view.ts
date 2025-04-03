@@ -13,9 +13,13 @@ import {
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {
+    ContentEditorTableLayout,
+    resolveContentTableColumnWidthPx,
+} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
+import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
@@ -37,21 +41,23 @@ import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 
-let updatedContentEditorFileParentEventEmitterByElement: WeakMap<Element, EventEmitter> | undefined;
+const contentEditorFileParentUpdateEventEmitter =
+    new ElementEventEmitter<ContentEditorTableLayout | null>("parentupdate");
 
 /**
  * When a file parent node view updates (`fileRow` or `fileFloat`) it calls
  * this function so its children may also update if necessary.
  */
-export function dispatchUpdatedContentEditorFileParentEvent(element: Element) {
-    updatedContentEditorFileParentEventEmitterByElement?.get(element)?.emit();
+export function dispatchContentEditorFileParentUpdatedEvent(
+    element: Element,
+    optimisticTableLayout: ContentEditorTableLayout | null,
+) {
+    contentEditorFileParentUpdateEventEmitter.emit(element, optimisticTableLayout);
 }
 
 export function createContentEditorFileNodeViewConstructor({
@@ -83,6 +89,7 @@ export function createContentEditorFileNodeViewConstructor({
         let lastBlockWidth: number | null = null;
         let lastFileReference: {signedUrlSearch: string; file: FileModel} | undefined | null = null;
         let lastHtml: HtmlElementGenerator | null = null;
+        let optimisticTableLayout: ContentEditorTableLayout | null = null;
         let cleanup: (() => void) | null = null;
 
         const updateFromState = () => {
@@ -116,7 +123,7 @@ export function createContentEditorFileNodeViewConstructor({
                     const columnWidths = resolveContentTableColumnWidthPx(
                         spacingScale,
                         blockWidth,
-                        tableMap,
+                        optimisticTableLayout ?? tableMap,
                     );
 
                     const columnWidth = assertExists(columnWidths[columnIndex]);
@@ -291,11 +298,13 @@ export function createContentEditorFileNodeViewConstructor({
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(updateFromState);
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(updateFromState);
 
-        const unsubscribeFromUpdatedContentEditorFileParent = getOrSetDefaultMapValue(
-            (updatedContentEditorFileParentEventEmitterByElement ??= new WeakMap()),
+        const unsubscribeFromParentUpdated = contentEditorFileParentUpdateEventEmitter.subscribe(
             dom,
-            () => new EventEmitter(),
-        ).subscribe(updateFromState);
+            newOptimisticTableLayout => {
+                optimisticTableLayout = newOptimisticTableLayout;
+                updateFromState();
+            },
+        );
 
         return {
             dom,
@@ -321,7 +330,13 @@ export function createContentEditorFileNodeViewConstructor({
                 unsubscribeFromPlatformChange();
                 unsubscribeFromSpacingScaleChange();
                 unsubscribeFromReferencesUpdate();
-                unsubscribeFromUpdatedContentEditorFileParent();
+                unsubscribeFromParentUpdated();
+            },
+            ignoreMutation: () => {
+                // Ignore ALL mutations. Let `patchNode()` do anything it needs to the DOM.
+                // This node isn't `contenteditable` so we don't need ProseMirror monitoring
+                // changes.
+                return true;
             },
         };
     };

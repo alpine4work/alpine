@@ -42,7 +42,7 @@ import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
-import {updateContentTableColumnsOnResize} from "~/client/content/internal/table/content_editor_table_node_view.js";
+import {dispatchOptimisticContentEditableTableLayoutEvent} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
 import {
     addContentTableRowAtIndex,
@@ -74,6 +74,7 @@ import {
     inSameContentTable,
     pointsAtContentTableCell,
 } from "~/shared/content/table/content_table_shared_util.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -251,8 +252,8 @@ type ContentEditorTablePluginAction =
           readonly type: "SetHoveringColumnResizeHandleDragging";
           readonly dragging: {
               readonly startX: number;
-              readonly viewWithoutPaddingWidthPx: number;
-              readonly oldTotalColumnWidthPx: number;
+              readonly routeLayout: RouteLayout;
+              readonly tableWrapperWidthPx: number;
               readonly oldScrollLeftPx: number;
               readonly isSnapping: boolean;
               readonly state: ContentEditorTablePluginColumnResizeHandleDraggingState;
@@ -320,8 +321,8 @@ type ContentEditorTablePluginHoveringState =
           readonly cellPos: number;
           readonly dragging: {
               readonly startX: number;
-              readonly viewWithoutPaddingWidthPx: number;
-              readonly oldTotalColumnWidthPx: number;
+              readonly routeLayout: RouteLayout;
+              readonly tableWrapperWidthPx: number;
               readonly oldScrollLeftPx: number;
               readonly isSnapping: boolean;
               readonly state: ContentEditorTablePluginColumnResizeHandleDraggingState;
@@ -1277,7 +1278,10 @@ function cellUnderMouse(view: EditorView, event: MouseEvent): ResolvedPos | null
     return mousePos ? contentTableCellAround(view.state.doc.resolve(mousePos.pos)) : null;
 }
 
-function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent): boolean {
+function handleColumnResizeHandleMouseDown(
+    view: EditorView & {getRouteLayout?: () => RouteLayout},
+    event: MouseEvent,
+): boolean {
     {
         const pluginState = contentEditorTablePluginKey.getState(view.state);
         assert(
@@ -1292,18 +1296,20 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
         const tableElement = draggingState.getTableElement(view);
         if (!tableElement) return false;
 
-        const viewComputedStyle = getComputedStyle(view.dom);
+        const tableWrapper2Element = tableElement.parentElement!.parentElement!;
+        const tableWrapperElement = tableWrapper2Element.parentElement!;
+
+        // Sanity check
+        assert(tableWrapperElement.classList.contains(tableWrapperClassName));
 
         dispatchContentEditorTablePluginAction({
             type: "SetHoveringColumnResizeHandleDragging",
             dragging: {
                 startX: event.clientX,
-                viewWithoutPaddingWidthPx:
-                    view.dom.clientWidth -
-                    (parseFloat(viewComputedStyle.paddingLeft) +
-                        parseFloat(viewComputedStyle.paddingRight)),
-                oldTotalColumnWidthPx: tableElement.offsetWidth,
-                oldScrollLeftPx: tableElement.parentElement!.parentElement!.scrollLeft,
+                // This property is added to `EditorView` in `<ContentEditor>`.
+                routeLayout: assertExists(view.getRouteLayout)(),
+                tableWrapperWidthPx: tableWrapperElement.clientWidth,
+                oldScrollLeftPx: tableWrapper2Element.scrollLeft,
                 isSnapping: !event.altKey,
                 state: draggingState,
             },
@@ -1333,17 +1339,12 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
             return;
         }
 
-        const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+        const newTableLayout = getContentTableColumnResizeDraggingStateNewColumnWidths(
             event.clientX,
             pluginState.hovering.dragging,
         );
 
-        updateContentTableColumnsOnResize(
-            tableElement,
-            pluginState.hovering.dragging.state.oldTable,
-            newTableAndColumnWidths.blockWidthPx,
-            newTableAndColumnWidths,
-        );
+        dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
     }
 
     // Finalizes the resizing process when the mouse is released
@@ -1403,17 +1404,12 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
                 return;
             }
 
-            const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+            const newTableLayout = getContentTableColumnResizeDraggingStateNewColumnWidths(
                 lastClientX,
                 pluginState.hovering.dragging,
             );
 
-            updateContentTableColumnsOnResize(
-                tableElement,
-                pluginState.hovering.dragging.state.oldTable,
-                newTableAndColumnWidths.blockWidthPx,
-                newTableAndColumnWidths,
-            );
+            dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
         }
     }
 
@@ -1436,17 +1432,12 @@ function handleColumnResizeHandleMouseDown(view: EditorView, event: MouseEvent):
                 return;
             }
 
-            const newTableAndColumnWidths = getContentTableColumnResizeDraggingStateNewColumnWidths(
+            const newTableLayout = getContentTableColumnResizeDraggingStateNewColumnWidths(
                 lastClientX,
                 pluginState.hovering.dragging,
             );
 
-            updateContentTableColumnsOnResize(
-                tableElement,
-                pluginState.hovering.dragging.state.oldTable,
-                newTableAndColumnWidths.blockWidthPx,
-                newTableAndColumnWidths,
-            );
+            dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
         }
     }
 
@@ -2254,17 +2245,21 @@ function drawContentEditorTablePluginHoveringStateDecorations(
 
             decorations.push(
                 Decoration.widget(tablePos, view => {
-                    const viewComputedStyle = getComputedStyle(view.dom);
+                    let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+                    while (
+                        element instanceof HTMLElement &&
+                        !element.classList.contains(tableWrapperClassName)
+                    ) {
+                        element = element.parentElement;
+                    }
 
-                    const viewWithoutPaddingWidthPx =
-                        view.dom.clientWidth -
-                        (parseFloat(viewComputedStyle.paddingLeft) +
-                            parseFloat(viewComputedStyle.paddingRight));
+                    assert(element instanceof HTMLElement);
+                    const tableWrapperElement = element;
 
                     const addRowBumperElement = elementCache.addRowBumperElement.get();
                     const addRowBumperStickyElement =
                         addRowBumperElement.firstElementChild as HTMLElement;
-                    addRowBumperStickyElement.style.maxWidth = `${viewWithoutPaddingWidthPx}px`;
+                    addRowBumperStickyElement.style.maxWidth = `${tableWrapperElement.clientWidth}px`;
                     return addRowBumperElement;
                 }),
             );

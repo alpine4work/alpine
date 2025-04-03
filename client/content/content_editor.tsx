@@ -3176,7 +3176,10 @@ function ContentEditor<Content extends ContentWithReferences>(
         // Stash the editor view instance on the DOM node for debugging and tests.
         (rootElement as any)[internalEditorViewKey] = view;
 
-        viewRef.current = Object.assign(view, {insertFiles});
+        viewRef.current = Object.assign(view, {
+            insertFiles,
+            getRouteLayout: () => routeLayoutRef.current,
+        });
 
         return () => {
             viewRef.current = null;

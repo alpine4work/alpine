@@ -3,10 +3,8 @@ import {
     removeParentScrollWhenPointerDownAndOverListener,
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {
-    addTriggeredOverlayCloseEventListener,
-    addTriggeredOverlayOpenEventListener,
-    removeTriggeredOverlayCloseEventListener,
-    removeTriggeredOverlayOpenEventListener,
+    subscribeToTriggeredOverlayCloseEvent,
+    subscribeToTriggeredOverlayOpenEvent,
 } from "~/client/design/overlay_trigger_button_event_listeners.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -180,8 +178,11 @@ export function addUnfocusableButtonBehaviorToElement(
         element,
         handleParentScrollWhenPointerDownAndOver,
     );
-    addTriggeredOverlayOpenEventListener(element, handleTriggeredOverlayOpen);
-    addTriggeredOverlayCloseEventListener(element, handleTriggeredOverlayClose);
+    const unsubscribe1 = subscribeToTriggeredOverlayOpenEvent(element, handleTriggeredOverlayOpen);
+    const unsubscribe2 = subscribeToTriggeredOverlayCloseEvent(
+        element,
+        handleTriggeredOverlayClose,
+    );
 
     return () => {
         element.classList.remove(...defaultClassList, ...hoverClassList, ...pressClassList);
@@ -196,7 +197,7 @@ export function addUnfocusableButtonBehaviorToElement(
             element,
             handleParentScrollWhenPointerDownAndOver,
         );
-        removeTriggeredOverlayOpenEventListener(element, handleTriggeredOverlayOpen);
-        removeTriggeredOverlayCloseEventListener(element, handleTriggeredOverlayClose);
+        unsubscribe1();
+        unsubscribe2();
     };
 }

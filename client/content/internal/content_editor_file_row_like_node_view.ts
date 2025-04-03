@@ -2,11 +2,15 @@ import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
-import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/internal/content_editor_file_node_view.js";
+import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/internal/content_editor_file_node_view.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {
+    ContentEditorTableLayout,
+    resolveContentTableColumnWidthPx,
+} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getPlatformWithoutListening,
@@ -28,6 +32,20 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
+
+const contentEditorFileRowTableParentUpdateEventEmitter =
+    new ElementEventEmitter<ContentEditorTableLayout | null>("tableparentupdate");
+
+/**
+ * When we have a `fileRowTable` who's parent `table` updates this function
+ * should be called so that we can layout our file row again.
+ */
+export function dispatchContentEditorFileRowTableParentUpdatedEvent(
+    element: Element,
+    optimisticTableLayout: ContentEditorTableLayout | null,
+) {
+    contentEditorFileRowTableParentUpdateEventEmitter.emit(element, optimisticTableLayout);
+}
 
 export function createContentEditorFileRowLikeNodeViewConstructor({
     getRouteLayout,
@@ -57,9 +75,11 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             {signedUrlSearch: string; file: FileModel} | undefined
         > | null = null;
         let lastLayouts: ReadonlyArray<ContentFileLayout> | null = null;
+        let optimisticTableLayout: ContentEditorTableLayout | null = null;
+        let lastOptimisticTableLayout: ContentEditorTableLayout | null = null;
         let cleanup: (() => void) | null = null;
 
-        const updateFromState = () => {
+        const updateFromState = (): boolean => {
             assert(!isDestroyed);
 
             const platform = getPlatformWithoutListening();
@@ -90,7 +110,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                     const columnWidths = resolveContentTableColumnWidthPx(
                         spacingScale,
                         blockWidth,
-                        tableMap,
+                        optimisticTableLayout ?? tableMap,
                     );
 
                     const columnWidth = assertExists(columnWidths[columnIndex]);
@@ -110,52 +130,59 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             });
 
             if (
-                lastSpacingScale !== spacingScale ||
-                lastBlockWidth !== blockWidth ||
-                lastFileReferences === null ||
-                !isShallowEqual(lastFileReferences, fileReferences)
+                lastSpacingScale === spacingScale &&
+                lastBlockWidth === blockWidth &&
+                lastFileReferences !== null &&
+                isShallowEqual(lastFileReferences, fileReferences) &&
+                // If the optimistic table layout changes we need to forward the new
+                // `optimisticTableLayout` to our child file node views. Which will only happen
+                // if `updateFromState()` returns true.
+                lastOptimisticTableLayout === optimisticTableLayout
             ) {
-                lastSpacingScale = spacingScale;
-                lastBlockWidth = blockWidth;
-                lastFileReferences = fileReferences;
-
-                cleanup?.();
-                cleanup = null;
-
-                const layoutsStore = computeStore(get =>
-                    layoutContentFileParent(node, {
-                        blockWidth,
-                        spacingScale,
-                        getFile: fileId => {
-                            const fileReference = references.fileById.get(fileId);
-                            if (!fileReference) return null;
-                            return get(
-                                getFileClientStore(getSpaceId()).getFileStore(fileReference),
-                            );
-                        },
-                    }),
-                );
-
-                const updateFromStore = () => {
-                    const layouts = layoutsStore.getSnapshot();
-
-                    if (lastLayouts !== layouts) {
-                        lastLayouts = layouts;
-
-                        dom.style.height = `${Math.max(...layouts.map(({height}) => height))}px`;
-                        dom.style.gridTemplateColumns = layouts
-                            .map(({widthFr}) => `${widthFr}fr`)
-                            .join(" ");
-                    }
-                };
-
-                const unsubscribeFromStore = layoutsStore.subscribe(updateFromStore);
-                updateFromStore();
-
-                cleanup = () => {
-                    unsubscribeFromStore();
-                };
+                return false;
             }
+
+            lastSpacingScale = spacingScale;
+            lastBlockWidth = blockWidth;
+            lastFileReferences = fileReferences;
+            lastOptimisticTableLayout = optimisticTableLayout;
+
+            cleanup?.();
+            cleanup = null;
+
+            const layoutsStore = computeStore(get =>
+                layoutContentFileParent(node, {
+                    blockWidth,
+                    spacingScale,
+                    getFile: fileId => {
+                        const fileReference = references.fileById.get(fileId);
+                        if (!fileReference) return null;
+                        return get(getFileClientStore(getSpaceId()).getFileStore(fileReference));
+                    },
+                }),
+            );
+
+            const updateFromStore = () => {
+                const layouts = layoutsStore.getSnapshot();
+
+                if (lastLayouts !== layouts) {
+                    lastLayouts = layouts;
+
+                    dom.style.height = `${Math.max(...layouts.map(({height}) => height))}px`;
+                    dom.style.gridTemplateColumns = layouts
+                        .map(({widthFr}) => `${widthFr}fr`)
+                        .join(" ");
+                }
+            };
+
+            const unsubscribeFromStore = layoutsStore.subscribe(updateFromStore);
+            updateFromStore();
+
+            cleanup = () => {
+                unsubscribeFromStore();
+            };
+
+            return true;
         };
 
         updateFromState();
@@ -164,6 +191,25 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(updateFromState);
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(updateFromState);
 
+        const unsubscribeFromTableParentUpdatedEvent =
+            contentEditorFileRowTableParentUpdateEventEmitter.subscribe(
+                dom,
+                newOptimisticTableLayout => {
+                    optimisticTableLayout = newOptimisticTableLayout;
+
+                    if (updateFromState()) {
+                        for (const childNode of dom.childNodes) {
+                            if (childNode instanceof Element) {
+                                dispatchContentEditorFileParentUpdatedEvent(
+                                    childNode,
+                                    optimisticTableLayout,
+                                );
+                            }
+                        }
+                    }
+                },
+            );
+
         return {
             dom,
             contentDOM: contentDom,
@@ -171,18 +217,26 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 if (node.type !== newNode.type) return false;
 
                 node = newNode;
-                updateFromState();
 
-                // Run update after a microtask since when deleting nodes ProseMirror updates
-                // the parent node first then the children. We don't want to dispatch an update
-                // until ProseMirror gets the chance to destroy any removed child nodes.
-                scheduleMicrotask(() => {
-                    for (const childNode of dom.childNodes) {
-                        if (childNode instanceof Element) {
-                            dispatchUpdatedContentEditorFileParentEvent(childNode);
+                if (updateFromState()) {
+                    // Dispatch child events after a microtask since ProseMirror updates parent
+                    // nodes before child nodes. We want to wait until ProseMirror has finished
+                    // updating before we notify our children they need to change.
+                    //
+                    // For example, when deleting a file child if we check `dom.childNodes` here
+                    // the deleted child will still be in the list. But if we wait a microtask the
+                    // deleted child won't be in the list.
+                    scheduleMicrotask(() => {
+                        for (const childNode of dom.childNodes) {
+                            if (childNode instanceof Element) {
+                                dispatchContentEditorFileParentUpdatedEvent(
+                                    childNode,
+                                    optimisticTableLayout,
+                                );
+                            }
                         }
-                    }
-                });
+                    });
+                }
 
                 return true;
             },
@@ -196,6 +250,11 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 unsubscribeFromPlatformChange();
                 unsubscribeFromSpacingScaleChange();
                 unsubscribeFromReferencesUpdate();
+                unsubscribeFromTableParentUpdatedEvent();
+            },
+            ignoreMutation: record => {
+                // Ignore changes to `style` attribute when file row layout changes.
+                return record.type === "attributes" && record.target === dom;
             },
         };
     };

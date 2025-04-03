@@ -2,7 +2,7 @@ import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
 import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
-import {dispatchUpdatedContentEditorFileParentEvent} from "~/client/content/internal/content_editor_file_node_view.js";
+import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/internal/content_editor_file_node_view.js";
 import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
@@ -56,7 +56,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
         > | null = null;
         let cleanup: (() => void) | null = null;
 
-        const updateFromState = () => {
+        const updateFromState = (): boolean => {
             assert(!isDestroyed);
 
             const platform = getPlatformWithoutListening();
@@ -94,50 +94,52 @@ export function createContentEditorFileFloatNodeViewConstructor({
             }
 
             if (
-                lastSpacingScale !== spacingScale ||
-                lastBlockWidth !== blockWidth ||
-                lastFileReferences === null ||
-                !isShallowEqual(lastFileReferences, fileReferences)
+                lastSpacingScale === spacingScale &&
+                lastBlockWidth === blockWidth &&
+                lastFileReferences !== null &&
+                isShallowEqual(lastFileReferences, fileReferences)
             ) {
-                lastSpacingScale = spacingScale;
-                lastBlockWidth = blockWidth;
-                lastFileReferences = fileReferences;
-
-                cleanup?.();
-                cleanup = null;
-
-                const layoutsStore = computeStore(get =>
-                    layoutContentFileParent(node, {
-                        spacingScale,
-                        blockWidth,
-                        getFile: fileId => {
-                            const fileReference = references.fileById.get(fileId);
-                            if (!fileReference) return null;
-                            return get(
-                                getFileClientStore(getSpaceId()).getFileStore(fileReference),
-                            );
-                        },
-                    }),
-                );
-
-                const updateFromStore = () => {
-                    const layouts = layoutsStore.getSnapshot();
-
-                    if (lastLayouts !== layouts) {
-                        lastLayouts = layouts;
-
-                        dom.style.width = `${layouts[0]!.width}px`;
-                        dom.style.height = `${layouts[0]!.height}px`;
-                    }
-                };
-
-                const unsubscribeFromStore = layoutsStore.subscribe(updateFromStore);
-                updateFromStore();
-
-                cleanup = () => {
-                    unsubscribeFromStore();
-                };
+                return false;
             }
+
+            lastSpacingScale = spacingScale;
+            lastBlockWidth = blockWidth;
+            lastFileReferences = fileReferences;
+
+            cleanup?.();
+            cleanup = null;
+
+            const layoutsStore = computeStore(get =>
+                layoutContentFileParent(node, {
+                    spacingScale,
+                    blockWidth,
+                    getFile: fileId => {
+                        const fileReference = references.fileById.get(fileId);
+                        if (!fileReference) return null;
+                        return get(getFileClientStore(getSpaceId()).getFileStore(fileReference));
+                    },
+                }),
+            );
+
+            const updateFromStore = () => {
+                const layouts = layoutsStore.getSnapshot();
+
+                if (lastLayouts !== layouts) {
+                    lastLayouts = layouts;
+
+                    dom.style.width = `${layouts[0]!.width}px`;
+                    dom.style.height = `${layouts[0]!.height}px`;
+                }
+            };
+
+            const unsubscribeFromStore = layoutsStore.subscribe(updateFromStore);
+            updateFromStore();
+
+            cleanup = () => {
+                unsubscribeFromStore();
+            };
+
+            return true;
         };
 
         updateFromState();
@@ -153,18 +155,19 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 if (node.type !== newNode.type) return false;
 
                 node = newNode;
-                updateFromState();
 
-                // Run update after a microtask since when deleting nodes ProseMirror deletes
-                // the parent node first then the children. We don't want to dispatch an update
-                // until ProseMirror gets the chance to destroy any removed child nodes.
-                scheduleMicrotask(() => {
-                    for (const childNode of dom.childNodes) {
-                        if (childNode instanceof Element) {
-                            dispatchUpdatedContentEditorFileParentEvent(childNode);
+                if (updateFromState()) {
+                    // Run update after a microtask since when deleting nodes ProseMirror deletes
+                    // the parent node first then the children. We don't want to dispatch an update
+                    // until ProseMirror gets the chance to destroy any removed child nodes.
+                    scheduleMicrotask(() => {
+                        for (const childNode of dom.childNodes) {
+                            if (childNode instanceof Element) {
+                                dispatchContentEditorFileParentUpdatedEvent(childNode, null);
+                            }
                         }
-                    }
-                });
+                    });
+                }
 
                 return true;
             },
@@ -178,6 +181,11 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 unsubscribeFromPlatformChange();
                 unsubscribeFromSpacingScaleChange();
                 unsubscribeFromReferencesUpdate();
+            },
+            ignoreMutation: record => {
+                // Ignore changes to `style` and `class` attribute when file row layout
+                // changes.
+                return record.type === "attributes" && record.target === dom;
             },
         };
     };

@@ -1,41 +1,20 @@
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 
-let overlayTriggeredOpenEventEmitterByElement: WeakMap<Element, EventEmitter<void>> | undefined;
-let overlayTriggeredCloseEventEmitterByElement: WeakMap<Element, EventEmitter<void>> | undefined;
+const overlayTriggeredOpenEventEmitter = new ElementEventEmitter("overlayopen");
+const overlayTriggeredCloseEventEmitter = new ElementEventEmitter("overlayclose");
 
 export function dispatchTriggeredOverlayOpenEvent(element: Element) {
-    overlayTriggeredOpenEventEmitterByElement?.get(element)?.emit();
+    overlayTriggeredOpenEventEmitter.emit(element);
 }
 
 export function dispatchTriggeredOverlayCloseEvent(element: Element) {
-    overlayTriggeredCloseEventEmitterByElement?.get(element)?.emit();
+    overlayTriggeredCloseEventEmitter.emit(element);
 }
 
-export function addTriggeredOverlayOpenEventListener(element: Element, listener: () => void) {
-    overlayTriggeredOpenEventEmitterByElement ??= new WeakMap();
-
-    getOrSetDefaultMapValue(
-        overlayTriggeredOpenEventEmitterByElement,
-        element,
-        () => new EventEmitter(),
-    ).addListener(listener);
+export function subscribeToTriggeredOverlayOpenEvent(element: Element, listener: () => void) {
+    return overlayTriggeredOpenEventEmitter.subscribe(element, listener);
 }
 
-export function removeTriggeredOverlayOpenEventListener(element: Element, listener: () => void) {
-    overlayTriggeredOpenEventEmitterByElement?.get(element)?.removeListener(listener);
-}
-
-export function addTriggeredOverlayCloseEventListener(element: Element, listener: () => void) {
-    overlayTriggeredCloseEventEmitterByElement ??= new WeakMap();
-
-    getOrSetDefaultMapValue(
-        overlayTriggeredCloseEventEmitterByElement,
-        element,
-        () => new EventEmitter(),
-    ).addListener(listener);
-}
-
-export function removeTriggeredOverlayCloseEventListener(element: Element, listener: () => void) {
-    overlayTriggeredCloseEventEmitterByElement?.get(element)?.removeListener(listener);
+export function subscribeToTriggeredOverlayCloseEvent(element: Element, listener: () => void) {
+    return overlayTriggeredCloseEventEmitter.subscribe(element, listener);
 }
