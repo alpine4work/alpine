@@ -2453,8 +2453,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // To ensure that we still are able to convert the fileRow/ fileFloat nodes into
                     // fileRowTable nodes we transform the slice here.
                     if (isPosInContentTable($mouse)) {
-                        slice = transformPastedForContentTable(schema, slice)[0];
-                        const remainingSlice = transformPastedForContentTable(schema, slice)[1];
+                        const [transformedSlice, remainingSlice] = transformPastedForContentTable(
+                            schema,
+                            slice,
+                        );
+                        slice = transformedSlice;
 
                         // Validate remainingSlice exists and has content before proceeding
                         if (
