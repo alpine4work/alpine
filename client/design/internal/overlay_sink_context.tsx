@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
+import {Instance} from "@popperjs/core";
 import {RefObject, createContext} from "react";
 import {Box} from "~/client/design/box.js";
 import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
@@ -104,3 +105,9 @@ export function renderOverlayPortal(
         />
     );
 }
+
+/**
+ * Popper instances that are currently mounted by `<Overlay>`. Useful for
+ * forcing all poppers to update their positions.
+ */
+export const overlayVisiblePoppers = new Set<Instance>();

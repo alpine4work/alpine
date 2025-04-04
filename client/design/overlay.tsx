@@ -18,6 +18,7 @@ import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {
     OverlaySinkContext,
+    overlayVisiblePoppers,
     overlaySinkContextForTest,
     renderOverlayPortal,
 } from "~/client/design/internal/overlay_sink_context.js";
@@ -694,6 +695,7 @@ function Overlay(
                 );
 
                 popperRef.current = popper;
+                overlayVisiblePoppers.add(popper);
 
                 // Make sure Popper is positioned correctly. We find that sometimes after
                 // parameter updates (e.g. `placement` changes), Popper won't have the
@@ -764,6 +766,7 @@ function Overlay(
 
                 return () => {
                     isDestroyed = true;
+                    overlayVisiblePoppers.delete(popper);
                     popperRef.current = null;
                     popper.destroy();
                     removeResizeListenerForElement(targetElement, handleResize);

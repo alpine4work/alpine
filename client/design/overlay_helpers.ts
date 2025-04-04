@@ -2,6 +2,7 @@ import {useContext, useEffect, useState} from "react";
 import {
     OverlaySinkContext,
     overlaySinkContextForTest,
+    overlayVisiblePoppers,
 } from "~/client/design/internal/overlay_sink_context.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -85,4 +86,19 @@ export function useIsWaitingForOverlayPortalElement(isVisible: boolean): boolean
     }, [isVisible, overlaySink]);
 
     return isWaiting;
+}
+
+/**
+ * Update the positions of all overlays that are direct descendants of the
+ * provided element.
+ */
+export function forceUpdateAllChildOverlayPositions(element: Element) {
+    for (const popper of overlayVisiblePoppers) {
+        if (
+            popper.state.elements.reference instanceof Element &&
+            element.contains(popper.state.elements.reference)
+        ) {
+            popper.forceUpdate();
+        }
+    }
 }

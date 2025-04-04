@@ -54,6 +54,7 @@ import {
 import {fixContentTables} from "~/client/content/internal/table/content_table_fix_tables.js";
 import {handleContentTableKeyDown} from "~/client/content/internal/table/content_table_input.js";
 import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/internal/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
+import {forceUpdateAllChildOverlayPositions} from "~/client/design/overlay_helpers.js";
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
 import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
@@ -1345,6 +1346,17 @@ function handleColumnResizeHandleMouseDown(
         );
 
         dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
+
+        // If you're dragging the edge of a table to make the table larger while you
+        // also have a selected file inside the table then we need to make sure the
+        // blue focus ring and toolbar floating above the image move with the image.
+        // The blue focus ring and toolbar are rendered with `<Overlay>`s that target
+        // the element. So manually force all overlays targeting elements inside the
+        // table to update their positions.
+        //
+        // Task with a video reproducing the bug:
+        // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0qhp54p6crnsfj63fhbfnmmrc0
+        forceUpdateAllChildOverlayPositions(tableElement);
     }
 
     // Finalizes the resizing process when the mouse is released
@@ -1410,6 +1422,17 @@ function handleColumnResizeHandleMouseDown(
             );
 
             dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
+
+            // If you're dragging the edge of a table to make the table larger while you
+            // also have a selected file inside the table then we need to make sure the
+            // blue focus ring and toolbar floating above the image move with the image.
+            // The blue focus ring and toolbar are rendered with `<Overlay>`s that target
+            // the element. So manually force all overlays targeting elements inside the
+            // table to update their positions.
+            //
+            // Task with a video reproducing the bug:
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0qhp54p6crnsfj63fhbfnmmrc0
+            forceUpdateAllChildOverlayPositions(tableElement);
         }
     }
 
@@ -1438,6 +1461,17 @@ function handleColumnResizeHandleMouseDown(
             );
 
             dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
+
+            // If you're dragging the edge of a table to make the table larger while you
+            // also have a selected file inside the table then we need to make sure the
+            // blue focus ring and toolbar floating above the image move with the image.
+            // The blue focus ring and toolbar are rendered with `<Overlay>`s that target
+            // the element. So manually force all overlays targeting elements inside the
+            // table to update their positions.
+            //
+            // Task with a video reproducing the bug:
+            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/0qhp54p6crnsfj63fhbfnmmrc0
+            forceUpdateAllChildOverlayPositions(tableElement);
         }
     }
 
