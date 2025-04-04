@@ -2251,7 +2251,15 @@ const TaskPersonalViewHeader = memo(function TaskPersonalViewHeader({name}: {nam
                 alignItems="center"
                 paddingLeft={routeLayout === "narrow" ? "5" : "10"}
             >
-                <h2 className={sprinkles({fontSize: "200", fontStyle: "bold"})}>{name}</h2>
+                <h2
+                    className={sprinkles({
+                        fontSize: "200",
+                        fontStyle: "bold",
+                        color: "grey-90",
+                    })}
+                >
+                    {name}
+                </h2>
             </Box>
             {routeLayout !== "narrow" && <TaskGridViewColumnHeader withoutAssigneeField />}
             <Box zIndex="-10" position="absolute" inset="0" backgroundColor="grey-0" />
@@ -2298,7 +2306,15 @@ const TaskPersonalViewFirstHeaderDesktop = memo(function TaskPersonalViewFirstHe
                     alignItems="center"
                     paddingLeft="10"
                 >
-                    <h2 className={sprinkles({fontSize: "200", fontStyle: "bold"})}>{name}</h2>
+                    <h2
+                        className={sprinkles({
+                            fontSize: "200",
+                            fontStyle: "bold",
+                            color: "grey-90",
+                        })}
+                    >
+                        {name}
+                    </h2>
                 </Box>
             </Box>
             <Box
