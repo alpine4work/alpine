@@ -30,6 +30,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -191,23 +192,27 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
         const unsubscribeFromReferencesUpdate = subscribeToReferencesUpdate(updateFromState);
 
         const unsubscribeFromTableParentUpdatedEvent =
-            contentEditorFileRowTableParentUpdateEventEmitter.subscribe(
-                dom,
-                newOptimisticTableLayout => {
-                    optimisticTableLayout = newOptimisticTableLayout;
+            // We only need to subscribe to table parent updates if we're a `fileRowTable`.
+            // `fileRow`s will not be rendered in tables.
+            node.type.name === "fileRowTable"
+                ? contentEditorFileRowTableParentUpdateEventEmitter.subscribe(
+                      dom,
+                      newOptimisticTableLayout => {
+                          optimisticTableLayout = newOptimisticTableLayout;
 
-                    if (updateFromState()) {
-                        for (const childNode of dom.childNodes) {
-                            if (childNode instanceof Element) {
-                                dispatchContentEditorFileParentUpdatedEvent(
-                                    childNode,
-                                    optimisticTableLayout,
-                                );
-                            }
-                        }
-                    }
-                },
-            );
+                          if (updateFromState()) {
+                              for (const childNode of dom.childNodes) {
+                                  if (childNode instanceof Element) {
+                                      dispatchContentEditorFileParentUpdatedEvent(
+                                          childNode,
+                                          optimisticTableLayout,
+                                      );
+                                  }
+                              }
+                          }
+                      },
+                  )
+                : noop;
 
         return {
             dom,
