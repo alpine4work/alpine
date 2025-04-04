@@ -26,7 +26,7 @@ export const taskDetailViewFieldLabelFontSize = "75";
 export const taskDetailViewCommentSidebarWidth = "96";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";
 export const taskDetailViewSubtasksFieldLabelPaddingBottom = "2";
-export const taskCommentsHeaderNavigationBarSpacing = "10";
+export const taskCommentsHeaderNavigationBarSpacing = "8";
 export const taskDetailViewStatusButtonSize = {
     desktopWide: "7",
     desktopNarrow: "6",
