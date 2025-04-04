@@ -271,8 +271,28 @@ export type TaskGridViewVirtualizedListProps = {
      */
     rowMaxWidth?: Spacing | null;
 
-    // NOCOMMIT
+    /**
+     * Don't render the bottom ghost task. Similar to `withoutDecorativeGhostRows`.
+     *
+     * Same as `withoutBottomGhostTaskIfEmpty` but doesn't have a secondary
+     * condition which needs to be met.
+     *
+     * If this is true and `withoutColumnHeader` is true and
+     * `withoutDecorativeGhostRows` is true then this list should render zero
+     * items.
+     */
     withoutBottomGhostTask?: boolean;
+
+    /**
+     * Don't render the up to three decorative ghost row items. Similar to
+     * `withoutBottomGhostTask`.
+     *
+     * Same as `withoutDecorativeGhostRowsIfEmpty` but doesn't have a secondary
+     * condition which needs to be met.
+     *
+     * If this is true and `withoutColumnHeader` is true and
+     * `withoutBottomGhostTask` is true then this list should render zero items.
+     */
     withoutDecorativeGhostRows?: boolean;
 
     /**
