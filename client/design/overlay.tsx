@@ -18,8 +18,8 @@ import {Box} from "~/client/design/box.js";
 import {setElementAttributesWithCleanup} from "~/client/design/helpers/set_element_attributes_with_cleanup.js";
 import {
     OverlaySinkContext,
-    overlayVisiblePoppers,
     overlaySinkContextForTest,
+    overlayVisiblePoppers,
     renderOverlayPortal,
 } from "~/client/design/internal/overlay_sink_context.js";
 import {
