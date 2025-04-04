@@ -2129,106 +2129,104 @@ const TaskPersonalNavigationBarTitleDesktop = memo(function TaskPersonalNavigati
         >
             <Box display="flex" alignItems="baseline" gap="3">
                 <h1 className={sprinkles({fontSize: "400", fontStyle: "bold"})}>My tasks</h1>
-                {
+                <Box
+                    position="relative"
+                    width="24"
+                    fontSize="100"
+                    fontStyle="semi-bold"
+                    color="grey-50"
+                    style={{
+                        fontSize:
+                            fontSizesBySpacingScale["400"][spacingScale].fontSize *
+                            (interFontXHeight / interFontCapHeight),
+                    }}
+                >
                     <Box
-                        position="relative"
-                        width="24"
-                        fontSize="100"
-                        fontStyle="semi-bold"
-                        color="grey-50"
-                        style={{
-                            fontSize:
-                                fontSizesBySpacingScale["400"][spacingScale].fontSize *
-                                (interFontXHeight / interFontCapHeight),
-                        }}
+                        aria-hidden={!isActiveVisibleSection}
+                        // We can only use fade in/out animation classes if the section has previously
+                        // been visible. Otherwise we animate on initial mount which is wrong.
+                        opacity={
+                            !hasActivePreviousVisibleSection && !isActiveVisibleSection
+                                ? "0"
+                                : undefined
+                        }
+                        className={
+                            isActiveVisibleSection
+                                ? navigationBarStyles.titleFadeInAnimationClassName
+                                : hasActivePreviousVisibleSection
+                                ? navigationBarStyles.titleFadeOutAnimationClassName
+                                : undefined
+                        }
                     >
-                        <Box
-                            aria-hidden={!isActiveVisibleSection}
-                            // We can only use fade in/out animation classes if the section has previously
-                            // been visible. Otherwise we animate on initial mount which is wrong.
-                            opacity={
-                                !hasActivePreviousVisibleSection && !isActiveVisibleSection
-                                    ? "0"
-                                    : undefined
-                            }
-                            className={
-                                isActiveVisibleSection
-                                    ? navigationBarStyles.titleFadeInAnimationClassName
-                                    : hasActivePreviousVisibleSection
-                                    ? navigationBarStyles.titleFadeOutAnimationClassName
-                                    : undefined
-                            }
-                        >
-                            Active
-                        </Box>
-                        <Box
-                            aria-hidden={!isOverdueVisibleSection}
-                            // We can only use fade in/out animation classes if the section has previously
-                            // been visible. Otherwise we animate on initial mount which is wrong.
-                            opacity={
-                                !hasOverduePreviousVisibleSection && !isOverdueVisibleSection
-                                    ? "0"
-                                    : undefined
-                            }
-                            className={
-                                isOverdueVisibleSection
-                                    ? navigationBarStyles.titleFadeInAnimationClassName
-                                    : hasOverduePreviousVisibleSection
-                                    ? navigationBarStyles.titleFadeOutAnimationClassName
-                                    : undefined
-                            }
-                            position="absolute"
-                            left="0"
-                            top="0"
-                        >
-                            Overdue
-                        </Box>
-                        <Box
-                            aria-hidden={!isDueTodayVisibleSection}
-                            // We can only use fade in/out animation classes if the section has previously
-                            // been visible. Otherwise we animate on initial mount which is wrong.
-                            opacity={
-                                !hasDueTodayPreviousVisibleSection && !isDueTodayVisibleSection
-                                    ? "0"
-                                    : undefined
-                            }
-                            className={
-                                isDueTodayVisibleSection
-                                    ? navigationBarStyles.titleFadeInAnimationClassName
-                                    : hasDueTodayPreviousVisibleSection
-                                    ? navigationBarStyles.titleFadeOutAnimationClassName
-                                    : undefined
-                            }
-                            position="absolute"
-                            left="0"
-                            top="0"
-                        >
-                            Due today
-                        </Box>
-                        <Box
-                            aria-hidden={!isDueSoonVisibleSection}
-                            // We can only use fade in/out animation classes if the section has previously
-                            // been visible. Otherwise we animate on initial mount which is wrong.
-                            opacity={
-                                !hasDueSoonPreviousVisibleSection && !isDueSoonVisibleSection
-                                    ? "0"
-                                    : undefined
-                            }
-                            className={
-                                isDueSoonVisibleSection
-                                    ? navigationBarStyles.titleFadeInAnimationClassName
-                                    : hasDueSoonPreviousVisibleSection
-                                    ? navigationBarStyles.titleFadeOutAnimationClassName
-                                    : undefined
-                            }
-                            position="absolute"
-                            left="0"
-                            top="0"
-                        >
-                            Due soon
-                        </Box>
+                        Active
                     </Box>
-                }
+                    <Box
+                        aria-hidden={!isOverdueVisibleSection}
+                        // We can only use fade in/out animation classes if the section has previously
+                        // been visible. Otherwise we animate on initial mount which is wrong.
+                        opacity={
+                            !hasOverduePreviousVisibleSection && !isOverdueVisibleSection
+                                ? "0"
+                                : undefined
+                        }
+                        className={
+                            isOverdueVisibleSection
+                                ? navigationBarStyles.titleFadeInAnimationClassName
+                                : hasOverduePreviousVisibleSection
+                                ? navigationBarStyles.titleFadeOutAnimationClassName
+                                : undefined
+                        }
+                        position="absolute"
+                        left="0"
+                        top="0"
+                    >
+                        Overdue
+                    </Box>
+                    <Box
+                        aria-hidden={!isDueTodayVisibleSection}
+                        // We can only use fade in/out animation classes if the section has previously
+                        // been visible. Otherwise we animate on initial mount which is wrong.
+                        opacity={
+                            !hasDueTodayPreviousVisibleSection && !isDueTodayVisibleSection
+                                ? "0"
+                                : undefined
+                        }
+                        className={
+                            isDueTodayVisibleSection
+                                ? navigationBarStyles.titleFadeInAnimationClassName
+                                : hasDueTodayPreviousVisibleSection
+                                ? navigationBarStyles.titleFadeOutAnimationClassName
+                                : undefined
+                        }
+                        position="absolute"
+                        left="0"
+                        top="0"
+                    >
+                        Due today
+                    </Box>
+                    <Box
+                        aria-hidden={!isDueSoonVisibleSection}
+                        // We can only use fade in/out animation classes if the section has previously
+                        // been visible. Otherwise we animate on initial mount which is wrong.
+                        opacity={
+                            !hasDueSoonPreviousVisibleSection && !isDueSoonVisibleSection
+                                ? "0"
+                                : undefined
+                        }
+                        className={
+                            isDueSoonVisibleSection
+                                ? navigationBarStyles.titleFadeInAnimationClassName
+                                : hasDueSoonPreviousVisibleSection
+                                ? navigationBarStyles.titleFadeOutAnimationClassName
+                                : undefined
+                        }
+                        position="absolute"
+                        left="0"
+                        top="0"
+                    >
+                        Due soon
+                    </Box>
+                </Box>
             </Box>
         </Box>
     );
