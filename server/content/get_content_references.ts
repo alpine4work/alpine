@@ -234,7 +234,7 @@ export async function getContentFileReference(
     // correct size changing the document's layout. We're ok with showing a
     // partially available preview since at least the layout will be stable even if
     // we don't have e.g. the image preview's placeholder.
-    if (!file || getFileModelDataAttachReadiness(file.initialData) !== "PreviewUnavailable") {
+    if (!file || getFileModelDataAttachReadiness(file.initialData) === "PreviewUnavailable") {
         file = await getFileIfExistsFromAttachment(context, spaceId, fileId, fileAuthorizer, {
             consistency: "Strong",
         });
