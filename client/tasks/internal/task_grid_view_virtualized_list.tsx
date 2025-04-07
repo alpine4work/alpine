@@ -272,6 +272,30 @@ export type TaskGridViewVirtualizedListProps = {
     rowMaxWidth?: Spacing | null;
 
     /**
+     * Don't render the bottom ghost task. Similar to `withoutDecorativeGhostRows`.
+     *
+     * Same as `withoutBottomGhostTaskIfEmpty` but doesn't have a secondary
+     * condition which needs to be met.
+     *
+     * If this is true and `withoutColumnHeader` is true and
+     * `withoutDecorativeGhostRows` is true then this list should render zero
+     * items.
+     */
+    withoutBottomGhostTask?: boolean;
+
+    /**
+     * Don't render the up to three decorative ghost row items. Similar to
+     * `withoutBottomGhostTask`.
+     *
+     * Same as `withoutDecorativeGhostRowsIfEmpty` but doesn't have a secondary
+     * condition which needs to be met.
+     *
+     * If this is true and `withoutColumnHeader` is true and
+     * `withoutBottomGhostTask` is true then this list should render zero items.
+     */
+    withoutDecorativeGhostRows?: boolean;
+
+    /**
      * Don't render the bottom ghost task if there are no tasks. Similar to
      * `withoutDecorativeGhostRowsIfEmpty`.
      *
@@ -879,9 +903,11 @@ export function useTaskGridViewVirtualizedListBase({
     withoutBorderTopIfFirstRow = false,
     columnHeaderControls,
     rowMaxWidth = null,
+    withoutBottomGhostTask = false,
+    withoutDecorativeGhostRows = false,
     withoutBottomGhostTaskIfEmpty = false,
-    withBottomGhostTaskIfNullQuery = false,
     withoutDecorativeGhostRowsIfEmpty = false,
+    withBottomGhostTaskIfNullQuery = false,
     onApplyUndoStackEntry,
     stateKey: stateKeyFromProps,
     isDragging,
@@ -1024,6 +1050,7 @@ export function useTaskGridViewVirtualizedListBase({
         (!isRootQueryNull || withBottomGhostTaskIfNullQuery) &&
         isRootQueryManuallySorted &&
         bottomGhostTaskId !== null &&
+        !withoutBottomGhostTask &&
         (!withoutBottomGhostTaskIfEmpty || stateItemCount > 0);
 
     const hasColumnHeader: boolean =
@@ -1036,7 +1063,10 @@ export function useTaskGridViewVirtualizedListBase({
             ? stateItemCount + 1
             : Math.max(
                   stateItemCount + (hasBottomGhostTask ? 1 : 0),
-                  withoutDecorativeGhostRowsIfEmpty && stateItemCount === 0 ? 0 : 3,
+                  withoutDecorativeGhostRows ||
+                      (withoutDecorativeGhostRowsIfEmpty && stateItemCount === 0)
+                      ? 0
+                      : 3,
               ));
 
     const taskRowByGridKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
