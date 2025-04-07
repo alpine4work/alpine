@@ -115,7 +115,18 @@ function resolveContentTableColumnWidthPxWithoutCache(
             totalColumnWidthPxVariable,
             kiwi.Operator.Le,
             totalColumnWidthPx,
-            kiwi.Strength.required,
+            // If we have a bunch of columns and the `tableWidth` hasn't grown (e.g. right
+            // now when you paste columns the `tableWidth` doesn't grow) then our total
+            // column width is going to exceed the expected column width so lower the
+            // less-than-or-equal-to constraint from required to "very strong"
+            // (`kiwi.Strength.strong` is the same as `kiwi.Strength.create(1, 0, 0)`).
+            //
+            // NOTE(calebmer): In this case aren't all columns going to be
+            // `columnMinWidthPx` anyway? Maybe we should early return an array that's just
+            // `columnMinWidthPx`s.
+            columnWidths.length * columnMinWidthPx > totalColumnWidthPx
+                ? kiwi.Strength.create(2, 0, 0)
+                : kiwi.Strength.required,
         ),
     );
 

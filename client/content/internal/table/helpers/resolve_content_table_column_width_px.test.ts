@@ -2,11 +2,14 @@ import {resolveContentTableColumnWidthPxWithoutCacheForTest} from "~/client/cont
 import {contentStyles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 
 const testCases: Array<{
+    only?: CommitBlocker;
     columnWidths: Array<number>;
     columnWidthPxs: Array<number>;
     tableWidth?: number;
+    actualTableWidth?: number;
 }> = [
     {
         columnWidths: [1, 1],
@@ -152,9 +155,17 @@ const testCases: Array<{
             147.6190476190476, 157.14285714285714, 147.6190476190476, 500, 147.6190476190476,
         ],
     },
+    {
+        tableWidth: 1,
+        columnWidths: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        columnWidthPxs: [100, 100, 100, 100, 100, 100, 100, 100, 100],
+        actualTableWidth: 1.5,
+    },
 ];
 
 for (const testCase of testCases) {
+    const test = testCase.only ? globalThis.test.only : globalThis.test;
+
     test(`column widths = [${testCase.columnWidths.join(", ")}], table width = ${
         testCase.tableWidth ?? 1
     }`, () => {
@@ -164,16 +175,22 @@ for (const testCase of testCases) {
         const platform: Platform = "desktop";
         const spacingScale: SpacingScale = "small";
         const remPx = remPxBySpacingScale[spacingScale];
+        const blockWidthPx = contentStyles.blockMaxWidthRem[platform] * remPx;
 
         const columnWidthPxs = resolveContentTableColumnWidthPxWithoutCacheForTest(
             totalColumnWidth,
             testCase.columnWidths,
             testCase.tableWidth ?? 1,
-            contentStyles.blockMaxWidthRem[platform] * remPx,
+            blockWidthPx,
             contentStyles.tableColumnMinWidthRem * remPx,
             contentStyles.tableColumnMaxWidthRem * remPx,
         );
 
         expect(columnWidthPxs).toEqual(testCase.columnWidthPxs);
+
+        expect(columnWidthPxs.reduce((a, b) => a + b, 0) / blockWidthPx).toBeCloseTo(
+            testCase.actualTableWidth ?? testCase.tableWidth ?? 1,
+            10,
+        );
     });
 }
