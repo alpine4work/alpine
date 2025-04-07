@@ -75,7 +75,6 @@ import {ContentTableCellSelection} from "~/shared/content/table/content_table_ce
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 
@@ -250,9 +249,6 @@ export function createContentEditorTableNodeView({
 
             const tableWrapper3Element = tableElement.parentElement!;
 
-            const columnMinWidthPx =
-                contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale];
-
             const tableMap = ContentTableMap.get(node);
             const tableLayout = optimisticTableLayout ?? tableMap;
 
@@ -275,34 +271,13 @@ export function createContentEditorTableNodeView({
                 spacingScale,
             );
 
-            // 100% width includes the overflow gradient width (because of our parent's
-            // negative margin). So the CSS `${100 * tableWidth}%` would give us the size
-            // `(blockWidthPx + tableOverflowGradientWidthPx * 2) * tableWidth`. What we
-            // actually want is width to be
-            // `blockWidthPx * tableWidth + tableOverflowGradientWidthPx * 2`. This
-            // calculation leaves us with the right width.
-            tableWrapper3Element.style.width = `round(nearest, ${
-                100 * tableLayout.tableWidth
-            }% - ${-(tableOverflowGradientWidthPx * 2 * (1 - tableLayout.tableWidth))}px, 1px)`;
-
-            tableWrapper3Element.style.maxWidth = `${
+            tableWrapper3Element.style.width = `${
                 totalColumnWidthPx + tableOverflowGradientWidthPx * 2
             }px`;
+            tableWrapper3Element.style.maxWidth = "none";
 
-            // Instead of setting the column fr units to `columnWidths`, we set the column
-            // fr units to the resolved column max width rounded to device pixels. When the
-            // table is at the block max width (e.g. on desktop but not mobile) the fr
-            // value should exactly equal the column px values. By using fr units the
-            // columns will still shrink on mobile.
-            //
-            // Using `columnWidths` would be more correct in theory, but we ran into
-            // strange browser behavior in practice. See [this StackOverflow issue][1]. We
-            // were able to workaround the issue by giving the browser clean, rounded,
-            // values instead of floats requiring 17 places of precision.
-            //
-            // [1]: https://stackoverflow.com/questions/79397471/css-grid-incorrectly-constrains-column-width-when-min-width-css-is-present
             tableElement.style.gridTemplateColumns = columnWidthPxs
-                .map(columnWidthPx => `minmax(${columnMinWidthPx}px, ${columnWidthPx}fr)`)
+                .map(columnWidthPx => `${columnWidthPx}px`)
                 .join(" ");
         }
 
