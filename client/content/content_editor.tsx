@@ -2902,7 +2902,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 view.state.selection instanceof TextSelection &&
                 isPosInContentTable(view.state.selection.$head)
             ) {
-                const cellPos = view.state.selection.$head.before(3);
+                const cellPos = view.state.selection.$head.start(3);
                 const cellElement = view.domAtPos(cellPos).node as HTMLElement;
                 const cellRect = cellElement.getBoundingClientRect();
                 const textRect = view.coordsAtPos(view.state.selection.head, 1);
