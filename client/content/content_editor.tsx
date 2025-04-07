@@ -23,7 +23,13 @@ import {
     Transaction,
 } from "prosemirror-state";
 import {dropPoint} from "prosemirror-transform";
-import {Decoration, DecorationSet, DirectEditorProps, EditorView} from "prosemirror-view";
+import {
+    Decoration,
+    DecorationSet,
+    DirectEditorProps,
+    EditorView,
+    scrollRectIntoView,
+} from "prosemirror-view";
 import {
     FocusEvent,
     Memo,
@@ -1153,6 +1159,32 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             return lastScrollMargin;
         }
+
+        // If the user is in a table then we want to scroll to the edges of the table
+        // cell that we're in instead of the edge of the text.
+        viewProps.handleScrollToSelection = view => {
+            if (
+                view.state.selection instanceof TextSelection &&
+                isPosInContentTable(view.state.selection.$head)
+            ) {
+                const cellPos = view.state.selection.$head.before(2);
+                const cellElement = view.domAtPos(cellPos).node as HTMLElement;
+                const cellRect = cellElement.getBoundingClientRect();
+                const textRect = view.coordsAtPos(view.state.selection.head, 1);
+
+                const rect = {
+                    top: textRect.top,
+                    bottom: textRect.bottom,
+                    left: cellRect.left,
+                    right: cellRect.right,
+                };
+
+                scrollRectIntoView(view, rect, document.getSelection()!.focusNode!);
+                return true;
+            }
+
+            return false;
+        };
 
         /* ========================================================================== *\
          *                            Node and mark views                             *

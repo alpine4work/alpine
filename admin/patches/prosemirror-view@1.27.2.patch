@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..0902478b8ff85e84b2d6b972b1c69b7e1878e5d9 100644
+index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..6acde02965e8c2f8bec49d1e5aee306dcbd5e54d 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -162,7 +162,7 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..0902478b8ff85e84b2d6b972b1c69b7e
    }
  
    _createClass(EditorView, [{
-@@ -5792,3 +5866,7 @@ exports.EditorView = EditorView;
+@@ -5792,3 +5866,9 @@ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
  exports.__serializeForClipboard = __serializeForClipboard;
@@ -170,8 +170,11 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..0902478b8ff85e84b2d6b972b1c69b7e
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +exports.serializeForClipboard = serializeForClipboard;
 +exports.parseFromClipboard = parseFromClipboard;
++// NOTE(calebmer): Exported so we can build our own scroll into view logic.
++exports.scrollRectIntoView = scrollRectIntoView;
+\ No newline at end of file
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..7a87c7ad89084bf2054a6913e2c7ea55a9d365b7 100644
+index 52ee8840c754562f9ae4d9891f61682035b092e7..9c6cb2d4b493b9f78ae76ccf8a0a9c94d91492d8 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
 @@ -543,7 +543,11 @@ declare class EditorView {
@@ -231,7 +234,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..7a87c7ad89084bf2054a6913e2c7ea55
      /**
      Allows you to pass custom rendering and behavior logic for
      nodes. Should map node names to constructor functions that
-@@ -831,6 +849,24 @@ interface DirectEditorProps extends EditorProps {
+@@ -831,6 +849,31 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -256,8 +259,16 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..7a87c7ad89084bf2054a6913e2c7ea55
 +    plainText: boolean,
 +    $context: ResolvedPos,
 +): Slice | null;
++
++// NOTE(calebmer): Exported so we can build our own scroll into view logic.
++export function scrollRectIntoView(
++    view: EditorView,
++    rect: {left: number, right: number, top: number, bottom: number},
++    startDOM: DOMNode,
++): void;
+\ No newline at end of file
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ab04bd0b573f82b79e0ff4fc84aa1269a9417163 100644
+index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e9ced8330 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -429,13 +440,16 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..ab04bd0b573f82b79e0ff4fc84aa1269
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5372,6 @@ function checkStateComponent(plugin) {
+@@ -5304,3 +5372,8 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
 +
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +export { serializeForClipboard, parseFromClipboard };
++// NOTE(calebmer): Exported so we can build our own scroll into view logic.
++export { scrollRectIntoView };
+\ No newline at end of file
 diff --git a/src/clipboard.ts b/src/clipboard.ts
 index 2f0f8f415b999bffd29c3164d80cd970f4f4f209..008b771bef87f67e709d8be757056974a18c66d3 100644
 --- a/src/clipboard.ts
@@ -559,20 +573,22 @@ index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..2616c1df549bf81e175d8b6aee07b868
  
    setCurSelection() {
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554ce72a2ba 100644
+index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55510c8ac9 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -25,6 +25,9 @@ export const __parseFromClipboard = parseFromClipboard
+@@ -25,6 +25,11 @@ export const __parseFromClipboard = parseFromClipboard
  /// @internal
  export const __endComposition = endComposition
  
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
 +export {serializeForClipboard, parseFromClipboard};
++// NOTE(calebmer): Exported so we can build our own scroll into view logic.
++export {scrollRectIntoView};
 +
  /// An editor view manages the DOM structure that represents an
  /// editable document. Its state and behavior are determined by its
  /// [props](#view.DirectEditorProps).
-@@ -57,6 +60,8 @@ export class EditorView {
+@@ -57,6 +62,8 @@ export class EditorView {
    /// [space is eaten issue](https://github.com/ProseMirror/prosemirror/issues/651)
    /// @internal
    requiresGeckoHackNode: boolean = false
@@ -581,7 +597,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554
  
    /// The view's current [state](#state.EditorState).
    public state: EditorState
-@@ -90,6 +95,8 @@ export class EditorView {
+@@ -90,6 +97,8 @@ export class EditorView {
      this.domObserver.start()
      initInput(this)
      this.updatePluginViews()
@@ -590,7 +606,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554
    }
  
    /// An editable DOM node containing the document. (You probably
-@@ -592,7 +599,7 @@ export interface EditorProps<P = any> {
+@@ -592,7 +601,7 @@ export interface EditorProps<P = any> {
    /// Called when something is dropped on the editor. `moved` will be
    /// true if this drop moves from the current selection (which should
    /// thus be deleted).
@@ -599,7 +615,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554
  
    /// Called when the view, after updating its state, tries to scroll
    /// the selection into view. A handler function may return false to
-@@ -600,6 +607,14 @@ export interface EditorProps<P = any> {
+@@ -600,6 +609,14 @@ export interface EditorProps<P = any> {
    /// handlers or the default behavior should be tried.
    handleScrollToSelection?: (this: P, view: EditorView) => boolean
  
@@ -614,7 +630,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554
    /// Can be used to override the way a selection is created when
    /// reading a DOM selection between the given anchor and head.
    createSelectionBetween?: (this: P, view: EditorView, anchor: ResolvedPos, head: ResolvedPos) => Selection | null
-@@ -614,6 +629,11 @@ export interface EditorProps<P = any> {
+@@ -614,6 +631,11 @@ export interface EditorProps<P = any> {
    /// for example to clean it up.
    transformPastedHTML?: (this: P, html: string) => string
  
@@ -626,7 +642,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554
    /// The [parser](#model.DOMParser) to use when reading content from
    /// the clipboard. When not given, the value of the
    /// [`domParser`](#view.EditorProps.domParser) prop is used.
-@@ -636,6 +656,10 @@ export interface EditorProps<P = any> {
+@@ -636,6 +658,10 @@ export interface EditorProps<P = any> {
    /// before it is applied to the document.
    transformPasted?: (this: P, slice: Slice) => Slice
  
@@ -637,7 +653,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..124ee23a6e6aece6ed091b0aa9b06554
    /// Allows you to pass custom rendering and behavior logic for
    /// nodes. Should map node names to constructor functions that
    /// produce a [`NodeView`](#view.NodeView) object implementing the
-@@ -734,4 +758,9 @@ export interface DirectEditorProps extends EditorProps {
+@@ -734,4 +760,9 @@ export interface DirectEditorProps extends EditorProps {
    /// [applied](#state.EditorState.apply). The callback will be bound to have
    /// the view instance as its `this` binding.
    dispatchTransaction?: (tr: Transaction) => void
