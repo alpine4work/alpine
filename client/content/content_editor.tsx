@@ -2902,16 +2902,21 @@ function ContentEditor<Content extends ContentWithReferences>(
                 view.state.selection instanceof TextSelection &&
                 isPosInContentTable(view.state.selection.$head)
             ) {
-                const cellPos = view.state.selection.$head.before(2);
+                const cellPos = view.state.selection.$head.before(3);
                 const cellElement = view.domAtPos(cellPos).node as HTMLElement;
                 const cellRect = cellElement.getBoundingClientRect();
                 const textRect = view.coordsAtPos(view.state.selection.head, 1);
 
+                const overflowGradientWidthPx = convertRemLengthToPx(
+                    contentStyles.tableOverflowGradientWidth,
+                    getSpacingScaleWithoutListening(),
+                );
+
                 const rect = {
                     top: textRect.top,
                     bottom: textRect.bottom,
-                    left: cellRect.left,
-                    right: cellRect.right,
+                    left: cellRect.left - overflowGradientWidthPx,
+                    right: cellRect.right + overflowGradientWidthPx,
                 };
 
                 scrollRectIntoView(view, rect, document.getSelection()!.focusNode!);
