@@ -40,6 +40,7 @@ import {
     channelFilesViewMaxWidth,
     channelViewAsideFileGap,
     channelViewAsideFileHeight,
+    channelViewAsidePaddingTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
@@ -50,6 +51,7 @@ import {
     channelViewMetadataSectionTitleMarginBottom,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonHeight,
+    postFauxInputCreateButtonInnerButtonHeight,
     postFauxInputCreateButtonMarginTop,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
@@ -413,7 +415,7 @@ function ChannelRouteShimmer() {
                     >
                         <Box
                             paddingX="2"
-                            height="7"
+                            height={postFauxInputCreateButtonInnerButtonHeight}
                             minWidth="16"
                             backgroundColor="grey-10"
                             borderRadius="1"
@@ -450,6 +452,7 @@ function ChannelRouteShimmer() {
                         display="flex"
                         flexDirection="column"
                         gap={channelViewAsideSectionGap}
+                        style={{paddingTop: channelViewAsidePaddingTop}}
                     >
                         <Box>
                             <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>

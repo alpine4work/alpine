@@ -5,7 +5,10 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {postFauxInputCreateButtonHeight} from "~/client/styles/forum_shared_styles.js";
+import {
+    postFauxInputCreateButtonHeight,
+    postFauxInputCreateButtonInnerButtonHeight,
+} from "~/client/styles/forum_shared_styles.js";
 import {
     accentThemeBackgroundColor,
     accentThemeForegroundColor,
@@ -90,7 +93,7 @@ export function PostFauxInputCreateButton({
                 </Box>
                 <Box
                     paddingX="2"
-                    height="7"
+                    height={postFauxInputCreateButtonInnerButtonHeight}
                     minWidth="16"
                     backgroundColor={accentThemeBackgroundColor}
                     color={accentThemeForegroundColor}

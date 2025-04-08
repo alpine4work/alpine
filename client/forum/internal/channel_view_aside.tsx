@@ -20,6 +20,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsideFileGap,
     channelViewAsideFileHeight,
+    channelViewAsidePaddingTop,
     channelViewAsidePostFileColumnCount,
     channelViewAsidePostFileCount,
     channelViewAsidePostFileRowCount,
@@ -103,6 +104,7 @@ export function ChannelViewAside({
                 display="flex"
                 flexDirection="column"
                 gap={channelViewAsideSectionGap}
+                style={{paddingTop: channelViewAsidePaddingTop}}
             >
                 {(isEditingDescription || !isContentEmpty(channel.description.doc)) && (
                     <Box

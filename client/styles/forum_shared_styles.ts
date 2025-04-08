@@ -27,6 +27,7 @@ export const postFauxInputCreateButtonMarginTop = {
 } as const;
 
 export const postFauxInputCreateButtonHeight = "12";
+export const postFauxInputCreateButtonInnerButtonHeight = "7";
 
 export const postContentViewOuterMarginY = "4";
 
@@ -108,6 +109,12 @@ export const postListViewAsideMaxWidth = "96";
 export const channelViewMetadataSectionTitleFontSize = "75";
 export const channelViewMetadataSectionTitleColor = "grey-50";
 export const channelViewMetadataSectionTitleMarginBottom = "1.5";
+
+// Align the "About" text with the "Post" button in the faux input create button.
+export const channelViewAsidePaddingTop: RemLength = `${
+    parseRemLength(postFauxInputCreateButtonHeight) / 2 -
+    parseRemLength(fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight) / 2
+}rem`;
 
 export const channelViewAsidePostFileRowCount = 2;
 export const channelViewAsidePostFileColumnCount = 2;
