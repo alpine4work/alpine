@@ -110,7 +110,6 @@ import {
 } from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
 import {
-    isInContentTable,
     isPosInContentTable,
     isSelectionInContentTable,
 } from "~/client/content/internal/table/content_table_client_util.js";
