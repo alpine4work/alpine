@@ -389,6 +389,16 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             }
         }
 
+        if (node.type.name === "table") {
+            const tableDom = document.createElement("table");
+            const tbodyDom = document.createElement("tbody");
+            tableDom.appendChild(tbodyDom);
+
+            this.serializeFragment(node.content, options, tbodyDom);
+
+            return tableDom;
+        }
+
         const dom = super.serializeNodeInner(node, options);
 
         // Remove any custom styling for this element. Let the user agent styles for

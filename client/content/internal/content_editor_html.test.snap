@@ -3971,60 +3971,50 @@ exports[`strike: clipboard text 1`] = `"Hello world!"`;
 
 exports[`table (2x2) bold: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4040,60 +4030,50 @@ Hello world!"
 
 exports[`table (2x2) code: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4109,36 +4089,26 @@ Hello world!"
 
 exports[`table (2x2) empty: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4154,68 +4124,58 @@ exports[`table (2x2) empty: clipboard text 1`] = `
 
 exports[`table (2x2) highlight: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4231,60 +4191,50 @@ Hello world!"
 
 exports[`table (2x2) italic: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4300,76 +4250,66 @@ Hello world!"
 
 exports[`table (2x2) link: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4401,10 +4341,10 @@ exports[`table (2x2) plain 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="max-width: 640px;"
+        style="width: 640px; max-width: none;"
       >
         <table
-          style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
+          style="grid-template-columns: 300px 300px;"
         >
           <tbody>
             <tr>
@@ -4449,44 +4389,34 @@ exports[`table (2x2) plain 1`] = `
 
 exports[`table (2x2) plain: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4502,60 +4432,50 @@ Hello world!"
 
 exports[`table (2x2) strike: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4571,107 +4491,97 @@ Hello world!"
 
 exports[`table (3x3 with custom widths) bold: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4697,107 +4607,97 @@ Hello world!"
 
 exports[`table (3x3 with custom widths) code: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4823,53 +4723,43 @@ Hello world!"
 
 exports[`table (3x3 with custom widths) empty: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-              <td>
-                <p />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -4895,125 +4785,115 @@ exports[`table (3x3 with custom widths) empty: clipboard text 1`] = `
 
 exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -5039,107 +4919,97 @@ Hello world!"
 
 exports[`table (3x3 with custom widths) italic: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -5165,143 +5035,133 @@ Hello world!"
 
 exports[`table (3x3 with custom widths) link: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -5343,10 +5203,10 @@ exports[`table (3x3 with custom widths) plain 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="max-width: 640px;"
+        style="width: 640px; max-width: none;"
       >
         <table
-          style="grid-template-columns: minmax(100px, 200fr) minmax(100px, 200fr) minmax(100px, 200fr);"
+          style="grid-template-columns: 200px 200px 200px;"
         >
           <tbody>
             <tr>
@@ -5428,71 +5288,61 @@ exports[`table (3x3 with custom widths) plain 1`] = `
 
 exports[`table (3x3 with custom widths) plain: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -5518,107 +5368,97 @@ Hello world!"
 
 exports[`table (3x3 with custom widths) strike: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -5660,10 +5500,10 @@ exports[`table with fileRowTable (mixed content) 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="max-width: 640px;"
+        style="width: 640px; max-width: none;"
       >
         <table
-          style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
+          style="grid-template-columns: 300px 300px;"
         >
           <tbody>
             <tr>
@@ -5768,78 +5608,68 @@ exports[`table with fileRowTable (mixed content) 1`] = `
 
 exports[`table with fileRowTable (mixed content): clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Before
-                </p>
-                <div
-                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
-                >
-                  <img
-                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-                    height="512"
-                    src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
-                    style="display: block;"
-                    width="512"
-                  />
-                </div>
-                <p>
-                  After
-                </p>
-              </td>
-              <td>
-                <p>
-                  Test
-                </p>
-                <div
-                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
-                >
-                  <img
-                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-                    height="512"
-                    src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
-                    style="display: block;"
-                    width="512"
-                  />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <div
-                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
-                >
-                  <object
-                    data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4phegz57116pce7eg5j30?exp=1727963711&sig=test-image"
-                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-                    height="512"
-                    style="display: block;"
-                    type="image/heif"
-                    width="512"
-                  />
-                </div>
-              </td>
-              <td>
-                <p>
-                  End
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Before
+          </p>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+          >
+            <img
+              data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+              height="512"
+              src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
+              style="display: block;"
+              width="512"
+            />
+          </div>
+          <p>
+            After
+          </p>
+        </td>
+        <td>
+          <p>
+            Test
+          </p>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+          >
+            <img
+              data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+              height="512"
+              src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4mxds3kj518c0dygx272c?exp=1727963615&sig=test-image"
+              style="display: block;"
+              width="512"
+            />
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+          >
+            <object
+              data="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4phegz57116pce7eg5j30?exp=1727963711&sig=test-image"
+              data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+              height="512"
+              style="display: block;"
+              type="image/heif"
+              width="512"
+            />
+          </div>
+        </td>
+        <td>
+          <p>
+            End
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -5871,10 +5701,10 @@ exports[`table with fileRowTable (null reference) 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="max-width: 640px;"
+        style="width: 640px; max-width: none;"
       >
         <table
-          style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
+          style="grid-template-columns: 300px 300px;"
         >
           <tbody>
             <tr>
@@ -5918,38 +5748,28 @@ exports[`table with fileRowTable (null reference) 1`] = `
 
 exports[`table with fileRowTable (null reference): clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <div
-                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
-                >
-                  <object
-                    height="133"
-                    style="display: block;"
-                    width="200"
-                  />
-                </div>
-              </td>
-              <td>
-                <p>
-                  Test
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+          >
+            <object
+              height="133"
+              style="display: block;"
+              width="200"
+            />
+          </div>
+        </td>
+        <td>
+          <p>
+            Test
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -5973,10 +5793,10 @@ exports[`table with fileRowTable (one file) 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="max-width: 640px;"
+        style="width: 640px; max-width: none;"
       >
         <table
-          style="grid-template-columns: minmax(100px, 200fr) minmax(100px, 200fr) minmax(100px, 200fr);"
+          style="grid-template-columns: 200px 200px 200px;"
         >
           <tbody>
             <tr>
@@ -6027,45 +5847,35 @@ exports[`table with fileRowTable (one file) 1`] = `
 
 exports[`table with fileRowTable (one file): clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <div
-                  style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
-                >
-                  <img
-                    data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
-                    height="512"
-                    src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
-                    style="display: block;"
-                    width="512"
-                  />
-                </div>
-              </td>
-              <td>
-                <p>
-                  col2-test
-                </p>
-              </td>
-              <td>
-                <p>
-                  col3-test
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+          >
+            <img
+              data-cy-attached="A2MrGMx1bh5aiKRvOUSrO-g"
+              height="512"
+              src="http://localhost/files/pv9hmw9x4nkzpnn404ntddmbp0/0694v4cbx7m1126vx03wpkpg8g?exp=1727963596&sig=test-image"
+              style="display: block;"
+              width="512"
+            />
+          </div>
+        </td>
+        <td>
+          <p>
+            col2-test
+          </p>
+        </td>
+        <td>
+          <p>
+            col3-test
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6077,54 +5887,44 @@ col3-test"
 
 exports[`table with multiple blocks in cells bold: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <strong>
-                    world
-                  </strong>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6140,54 +5940,44 @@ Hello world!"
 
 exports[`table with multiple blocks in cells code: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <code>
-                    world
-                  </code>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6203,30 +5993,20 @@ Hello world!"
 
 exports[`table with multiple blocks in cells empty: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p />
-                <p />
-              </td>
-              <td>
-                <p />
-                <p />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+          <p />
+        </td>
+        <td>
+          <p />
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6242,62 +6022,52 @@ exports[`table with multiple blocks in cells empty: clipboard text 1`] = `
 
 exports[`table with multiple blocks in cells highlight: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <mark
-                    data-highlight-color="green"
-                  >
-                    world
-                  </mark>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+          <p>
+            Hello 
+            <mark
+              data-highlight-color="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6313,54 +6083,44 @@ Hello world!"
 
 exports[`table with multiple blocks in cells italic: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <em>
-                    world
-                  </em>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6376,70 +6136,60 @@ Hello world!"
 
 exports[`table with multiple blocks in cells link: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <a
-                    href="https://example.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    world
-                  </a>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6471,10 +6221,10 @@ exports[`table with multiple blocks in cells plain 1`] = `
     >
       <div
         class="content_tableWrapper3"
-        style="max-width: 640px;"
+        style="width: 640px; max-width: none;"
       >
         <table
-          style="grid-template-columns: minmax(100px, 300fr) minmax(100px, 300fr);"
+          style="grid-template-columns: 300px 300px;"
         >
           <tbody>
             <tr>
@@ -6513,38 +6263,28 @@ exports[`table with multiple blocks in cells plain 1`] = `
 
 exports[`table with multiple blocks in cells plain: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello world!
-                </p>
-                <p>
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
@@ -6560,54 +6300,44 @@ Hello world!"
 
 exports[`table with multiple blocks in cells strike: clipboard 1`] = `
 <div>
-  <div>
-    <div
-      class="content_tableWrapper2"
-    >
-      <div
-        class="content_tableWrapper3"
-      >
-        <table>
-          <tbody>
-            <tr>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-              <td>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-                <p>
-                  Hello 
-                  <del>
-                    world
-                  </del>
-                  !
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 `;
 
