@@ -62,13 +62,9 @@ test("sections in personal view: 1, 2, 3, 4", async ({page, context: browserCont
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -96,22 +92,6 @@ test("sections in personal view: 1, 2, 3, 4", async ({page, context: browserCont
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(5)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(8)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(9)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(9)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(8)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(5)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(4)).toBeFocused();
@@ -171,11 +151,8 @@ test("sections in personal view: 1, 2, 3", async ({page, context: browserContext
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -201,18 +178,6 @@ test("sections in personal view: 1, 2, 3", async ({page, context: browserContext
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
@@ -270,11 +235,8 @@ test("sections in personal view: 1, 2, 4", async ({page, context: browserContext
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -300,18 +262,6 @@ test("sections in personal view: 1, 2, 4", async ({page, context: browserContext
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
@@ -369,11 +319,8 @@ test("sections in personal view: 1, 3, 4", async ({page, context: browserContext
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -399,18 +346,6 @@ test("sections in personal view: 1, 3, 4", async ({page, context: browserContext
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
@@ -469,11 +404,8 @@ test("sections in personal view: 2, 3, 4", async ({page, context: browserContext
         page,
         [
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -499,18 +431,6 @@ test("sections in personal view: 2, 3, 4", async ({page, context: browserContext
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(7)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(6)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(4)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
@@ -563,9 +483,7 @@ test("sections in personal view: 1, 2", async ({page, context: browserContext}) 
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -589,14 +507,6 @@ test("sections in personal view: 1, 2", async ({page, context: browserContext}) 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
@@ -647,9 +557,7 @@ test("sections in personal view: 1, 3", async ({page, context: browserContext}) 
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -673,14 +581,6 @@ test("sections in personal view: 1, 3", async ({page, context: browserContext}) 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
@@ -731,9 +631,7 @@ test("sections in personal view: 1, 4", async ({page, context: browserContext}) 
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -757,14 +655,6 @@ test("sections in personal view: 1, 4", async ({page, context: browserContext}) 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
@@ -815,9 +705,7 @@ test("sections in personal view: 2, 3", async ({page, context: browserContext}) 
         page,
         [
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -841,14 +729,6 @@ test("sections in personal view: 2, 3", async ({page, context: browserContext}) 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
@@ -899,9 +779,7 @@ test("sections in personal view: 2, 4", async ({page, context: browserContext}) 
         page,
         [
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -925,14 +803,6 @@ test("sections in personal view: 2, 4", async ({page, context: browserContext}) 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
@@ -983,9 +853,7 @@ test("sections in personal view: 3, 4", async ({page, context: browserContext}) 
         page,
         [
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1009,14 +877,6 @@ test("sections in personal view: 3, 4", async ({page, context: browserContext}) 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(5)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
-    await expect(rowTitleLocator(4)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(3)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
@@ -1060,7 +920,6 @@ test("sections in personal view: 1", async ({page, context: browserContext}) => 
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1082,10 +941,6 @@ test("sections in personal view: 1", async ({page, context: browserContext}) => 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(1)).toBeFocused();
@@ -1129,7 +984,6 @@ test("sections in personal view: 2", async ({page, context: browserContext}) => 
         page,
         [
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1151,10 +1005,6 @@ test("sections in personal view: 2", async ({page, context: browserContext}) => 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(1)).toBeFocused();
@@ -1198,7 +1048,6 @@ test("sections in personal view: 3", async ({page, context: browserContext}) => 
         page,
         [
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1220,10 +1069,6 @@ test("sections in personal view: 3", async ({page, context: browserContext}) => 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(1)).toBeFocused();
@@ -1267,7 +1112,6 @@ test("sections in personal view: 4", async ({page, context: browserContext}) => 
         page,
         [
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1289,10 +1133,6 @@ test("sections in personal view: 4", async ({page, context: browserContext}) => 
     await page.keyboard.press("ArrowDown");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(rowTitleLocator(3)).toBeFocused();
-    await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(2)).toBeFocused();
     await page.keyboard.press("ArrowUp");
     await expect(rowTitleLocator(1)).toBeFocused();
@@ -1405,13 +1245,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1435,13 +1271,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1454,13 +1286,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         page,
         [
             [["OpenActive", "Test task 1"], [[true, "t1a"]]],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1474,42 +1302,15 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.type("t1b");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
-            [true, "Test task 2"],
-            [null, ""],
-            [true, "Test task 3"],
-            [null, ""],
-            [true, "Test task 4"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
@@ -1520,15 +1321,10 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1542,14 +1338,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [[true, "Test task 2"], [[true, "t2a"]]],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1563,46 +1354,16 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.type("t2b");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
-            [true, "Test task 2"],
-            [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
-            [true, "Test task 3"],
-            [null, ""],
-            [true, "Test task 4"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
@@ -1613,17 +1374,11 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1637,16 +1392,10 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [[true, "Test task 3"], [[true, "t3a"]]],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1660,50 +1409,17 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.type("t3b");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
-            [true, "Test task 2"],
-            [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
-            [true, "Test task 3"],
-            [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
-            [true, "Test task 4"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
@@ -1714,19 +1430,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1740,18 +1449,11 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [[true, "Test task 4"], [[true, "t4a"]]],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -1765,54 +1467,18 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.type("t4b");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
-            [true, "Test task 2"],
-            [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
-            [true, "Test task 3"],
-            [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
-            [true, "Test task 4"],
-            [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
@@ -1823,20 +1489,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [true, "Test task 5"],
             [true, "t5a"],
             [null, ""],
@@ -1851,20 +1509,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [[true, "Test task 5"], [[true, "t5a"]]],
             [null, ""],
         ],
@@ -1878,20 +1528,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [true, "Test task 5"],
             [true, "t5a"],
             [null, ""],
@@ -1907,20 +1549,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [true, "Test task 5"],
             [true, "t5a"],
             [true, "t5b"],
@@ -1936,20 +1570,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [true, "Test task 5"],
             [true, "t5a"],
             [null, ""],
@@ -1964,20 +1590,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [[true, "Test task 5"], [[true, "t5a"]]],
             [null, ""],
         ],
@@ -1993,20 +1611,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2020,44 +1630,11 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
-            [true, "Test task 4"],
-            [true, "t4a"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ControlOrMeta+z");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
-            [true, "Test task 2"],
-            [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
-            [true, "Test task 3"],
-            [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [[true, "Test task 4"], [[true, "t4a"]]],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2073,18 +1650,11 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2098,40 +1668,10 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
-            [true, "Test task 3"],
-            [true, "t3a"],
-            [null, ""],
-            [true, "Test task 4"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ControlOrMeta+z");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
-            [true, "Test task 2"],
-            [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [[true, "Test task 3"], [[true, "t3a"]]],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2147,16 +1687,10 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2170,36 +1704,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
-            [true, "Test task 2"],
-            [true, "t2a"],
-            [null, ""],
-            [true, "Test task 3"],
-            [null, ""],
-            [true, "Test task 4"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ControlOrMeta+z");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [[true, "Test task 2"], [[true, "t2a"]]],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2215,34 +1722,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
-            [true, "Test task 5"],
-            [null, ""],
-        ],
-        {hasGhostTaskRow: false, withoutColumns: true},
-    );
-
-    await page.keyboard.press("ControlOrMeta+z");
-
-    await expectTaskGridView(
-        page,
-        [
-            ["OpenActive", "Test task 1"],
-            ["OpenActive", "t1a"],
-            [null, ""],
-            [true, "Test task 2"],
-            [null, ""],
-            [true, "Test task 3"],
-            [null, ""],
-            [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2255,13 +1737,9 @@ test("interactions across all sections", async ({page, context: browserContext})
         page,
         [
             [["OpenActive", "Test task 1"], [[true, "t1a"]]],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
@@ -2276,23 +1754,15 @@ test("interactions across all sections", async ({page, context: browserContext})
         page,
         [
             ["OpenActive", "Test task 1"],
-            [null, ""],
             [true, "Test task 2"],
-            [null, ""],
             [true, "Test task 3"],
-            [null, ""],
             [true, "Test task 4"],
-            [null, ""],
             [true, "Test task 5"],
             [null, ""],
         ],
         {hasGhostTaskRow: false, withoutColumns: true},
     );
 
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
-    await page.keyboard.press("ControlOrMeta+Shift+z");
     await page.keyboard.press("ControlOrMeta+Shift+z");
     await page.keyboard.press("ControlOrMeta+Shift+z");
     await page.keyboard.press("ControlOrMeta+Shift+z");
@@ -2320,20 +1790,12 @@ test("interactions across all sections", async ({page, context: browserContext})
         [
             ["OpenActive", "Test task 1"],
             ["OpenActive", "t1a"],
-            ["OpenActive", "t1b"],
-            [null, ""],
             [true, "Test task 2"],
             [true, "t2a"],
-            [true, "t2b"],
-            [null, ""],
             [true, "Test task 3"],
             [true, "t3a"],
-            [true, "t3b"],
-            [null, ""],
             [true, "Test task 4"],
             [true, "t4a"],
-            [true, "t4b"],
-            [null, ""],
             [true, "Test task 5"],
             [true, "t5a"],
             [true, "t5b"],
