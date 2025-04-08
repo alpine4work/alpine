@@ -42,7 +42,7 @@ import {
     channelViewAsideFileHeight,
     channelViewAsidePaddingTop,
     channelViewAsidePostFileColumnCount,
-    channelViewAsidePostFileCount,
+    channelViewAsidePostFileMaxCount,
     channelViewAsidePostFileRowCount,
     channelViewAsideSectionGap,
     channelViewHeaderNarrowRouteLayoutMarginTop,
@@ -490,7 +490,7 @@ function ChannelRouteShimmer() {
                                     gridTemplateRows: `repeat(${channelViewAsidePostFileRowCount}, ${channelViewAsideFileHeight})`,
                                 }}
                             >
-                                {createArrayWithLength(channelViewAsidePostFileCount, index => {
+                                {createArrayWithLength(channelViewAsidePostFileMaxCount, index => {
                                     return <Box key={index} border="grey-5" />;
                                 })}
                             </Box>

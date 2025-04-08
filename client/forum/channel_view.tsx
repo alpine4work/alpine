@@ -26,7 +26,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    channelViewAsidePostFileCount,
+    channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
@@ -97,7 +97,7 @@ export function ChannelView({
             reloadQuery: useCallback(async () => {
                 const {channelResult} = await getChannelAndMetadata(context, {
                     channelId,
-                    postFilesLimit: channelViewAsidePostFileCount,
+                    postFilesLimit: channelViewAsidePostFileMaxCount,
                 });
                 return channelResult;
             }, [channelId, context]),

@@ -22,7 +22,7 @@ import {
     channelViewAsideFileHeight,
     channelViewAsidePaddingTop,
     channelViewAsidePostFileColumnCount,
-    channelViewAsidePostFileCount,
+    channelViewAsidePostFileMaxCount,
     channelViewAsidePostFileRowCount,
     channelViewAsideSectionGap,
     channelViewMetadataSectionTitleColor,
@@ -41,8 +41,9 @@ import {
     ChannelOrMetadataModel,
     ChannelPostFilesModel,
 } from "~/shared/forum/channel_model.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
@@ -88,7 +89,7 @@ export function ChannelViewAside({
                 signedUrlSearch: file.signedUrlSearch,
             });
 
-            if (fileReferences.length > channelViewAsidePostFileCount) break outer;
+            if (fileReferences.length > channelViewAsidePostFileMaxCount) break outer;
         }
     }
 
@@ -133,55 +134,55 @@ export function ChannelViewAside({
                     </Box>
                 )}
                 <ChannelViewContributorsSection channel={channel} contributors={contributors} />
-                <Box>
-                    <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        marginBottom={channelViewMetadataSectionTitleMarginBottom}
-                        style={{
-                            height: fontSizes[channelViewMetadataSectionTitleFontSize].lineHeight,
-                        }}
-                    >
-                        <h3
-                            className={sprinkles({
-                                color: channelViewMetadataSectionTitleColor,
-                                fontSize: channelViewMetadataSectionTitleFontSize,
-                            })}
+                {fileReferences.length > 0 && (
+                    <Box>
+                        <Box
+                            display="flex"
+                            justifyContent="space-between"
+                            marginBottom={channelViewMetadataSectionTitleMarginBottom}
+                            style={{
+                                height: fontSizes[channelViewMetadataSectionTitleFontSize]
+                                    .lineHeight,
+                            }}
                         >
-                            Files
-                        </h3>
-                        {(fileReferences.length > channelViewAsidePostFileCount ||
-                            channelAndMetadataQuery.hasLoadingIndicatorAtEnd()) && (
-                            <ChannelViewAsideSeeAllFilesButton channel={channel} />
-                        )}
+                            <h3
+                                className={sprinkles({
+                                    color: channelViewMetadataSectionTitleColor,
+                                    fontSize: channelViewMetadataSectionTitleFontSize,
+                                })}
+                            >
+                                Files
+                            </h3>
+                            {(fileReferences.length > channelViewAsidePostFileMaxCount ||
+                                channelAndMetadataQuery.hasLoadingIndicatorAtEnd()) && (
+                                <ChannelViewAsideSeeAllFilesButton channel={channel} />
+                            )}
+                        </Box>
+                        <Box
+                            gap={channelViewAsideFileGap}
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: `repeat(${channelViewAsidePostFileColumnCount}, 1fr)`,
+                                gridTemplateRows: `repeat(${channelViewAsidePostFileRowCount}, ${channelViewAsideFileHeight})`,
+                            }}
+                        >
+                            {mapIterable(
+                                sliceIterable(fileReferences, 0, channelViewAsidePostFileMaxCount),
+                                fileReference => {
+                                    return (
+                                        <ChannelViewContentFileMiniPreview
+                                            key={`${fileReference.postId}-${fileReference.file.id}`}
+                                            postId={fileReference.postId}
+                                            file={fileReference.file}
+                                            signedUrlSearch={fileReference.signedUrlSearch}
+                                            size={fileSizePx}
+                                        />
+                                    );
+                                },
+                            )}
+                        </Box>
                     </Box>
-                    <Box
-                        gap={channelViewAsideFileGap}
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: `repeat(${channelViewAsidePostFileColumnCount}, 1fr)`,
-                            gridTemplateRows: `repeat(${channelViewAsidePostFileRowCount}, ${channelViewAsideFileHeight})`,
-                        }}
-                    >
-                        {createArrayWithLength(channelViewAsidePostFileCount, index => {
-                            const fileReference = fileReferences[index];
-
-                            if (!fileReference) {
-                                return <Box key={`null-${index}`} backgroundColor="grey-5" />;
-                            }
-
-                            return (
-                                <ChannelViewContentFileMiniPreview
-                                    key={`${fileReference.postId}-${fileReference.file.id}`}
-                                    postId={fileReference.postId}
-                                    file={fileReference.file}
-                                    signedUrlSearch={fileReference.signedUrlSearch}
-                                    size={fileSizePx}
-                                />
-                            );
-                        })}
-                    </Box>
-                </Box>
+                )}
             </Box>
         </OverlayScopeContextProvider>
     );

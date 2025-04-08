@@ -16,7 +16,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    channelViewAsidePostFileCount,
+    channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
 } from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
@@ -161,7 +161,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
                   // rendering for mobile since mobile doesn't show recent files in a sidebar.
                   // Then the client would need to load new files if switching from mobile to
                   // desktop.
-                  postFilesLimit: channelViewAsidePostFileCount,
+                  postFilesLimit: channelViewAsidePostFileMaxCount,
                   consistency:
                       url.searchParams.get("consistency") === "strong" ? "Strong" : undefined,
               }),

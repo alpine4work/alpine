@@ -118,7 +118,7 @@ export const channelViewAsidePaddingTop: RemLength = `${
 
 export const channelViewAsidePostFileRowCount = 2;
 export const channelViewAsidePostFileColumnCount = 2;
-export const channelViewAsidePostFileCount =
+export const channelViewAsidePostFileMaxCount =
     channelViewAsidePostFileRowCount * channelViewAsidePostFileColumnCount;
 
 export const channelViewAsideFileGap = "2";
