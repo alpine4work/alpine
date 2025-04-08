@@ -204,7 +204,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                     "mark",
                     {
                         class: highlightClassNameByColor[color],
-                        "data-highlight-color": color,
+                        "data-cy-highlight": color,
                     },
                     0,
                 ];
@@ -218,12 +218,14 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
 
                         const attrs: {[key: string]: unknown} = {};
 
-                        if (
-                            node instanceof HTMLElement &&
-                            node.dataset.highlightColor &&
-                            isHighlightColor(node.dataset.highlightColor)
-                        ) {
-                            attrs.color = node.dataset.highlightColor;
+                        const highlightColorAttribute =
+                            node instanceof HTMLElement
+                                ? node.getAttribute("data-highlight-color") ??
+                                  node.getAttribute("data-cy-highlight")
+                                : null;
+
+                        if (highlightColorAttribute && isHighlightColor(highlightColorAttribute)) {
+                            attrs.color = highlightColorAttribute;
                         } else {
                             attrs.color = HighlightColor.Orange;
                         }

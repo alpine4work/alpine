@@ -253,7 +253,7 @@ exports[`bullet list highlight: clipboard 1`] = `
       <p>
         Hello 
         <mark
-          data-highlight-color="green"
+          data-cy-highlight="green"
         >
           world
         </mark>
@@ -704,7 +704,7 @@ exports[`check list (checked) highlight: clipboard 1`] = `
       <p>
         Hello 
         <mark
-          data-highlight-color="green"
+          data-cy-highlight="green"
         >
           world
         </mark>
@@ -913,7 +913,7 @@ exports[`check list (unchecked) highlight: clipboard 1`] = `
       <p>
         Hello 
         <mark
-          data-highlight-color="green"
+          data-cy-highlight="green"
         >
           world
         </mark>
@@ -1499,7 +1499,7 @@ exports[`code (multiline) highlight: clipboard 1`] = `
     <code>
       Hello 
       <mark
-        data-highlight-color="green"
+        data-cy-highlight="green"
       >
         world
       </mark>
@@ -1510,7 +1510,7 @@ exports[`code (multiline) highlight: clipboard 1`] = `
 
         Hello 
       <mark
-        data-highlight-color="green"
+        data-cy-highlight="green"
       >
         world
       </mark>
@@ -1519,7 +1519,7 @@ exports[`code (multiline) highlight: clipboard 1`] = `
 
       Hello 
       <mark
-        data-highlight-color="green"
+        data-cy-highlight="green"
       >
         world
       </mark>
@@ -1796,7 +1796,7 @@ exports[`code highlight: clipboard 1`] = `
     <code>
       Hello 
       <mark
-        data-highlight-color="green"
+        data-cy-highlight="green"
       >
         world
       </mark>
@@ -2651,7 +2651,7 @@ exports[`heading 1 highlight: clipboard 1`] = `
   <h2>
     Hello 
     <mark
-      data-highlight-color="green"
+      data-cy-highlight="green"
     >
       world
     </mark>
@@ -2776,7 +2776,7 @@ exports[`heading 2 highlight: clipboard 1`] = `
   <h3>
     Hello 
     <mark
-      data-highlight-color="green"
+      data-cy-highlight="green"
     >
       world
     </mark>
@@ -2901,7 +2901,7 @@ exports[`heading 3 highlight: clipboard 1`] = `
   <h4>
     Hello 
     <mark
-      data-highlight-color="green"
+      data-cy-highlight="green"
     >
       world
     </mark>
@@ -3000,7 +3000,7 @@ exports[`highlight 1`] = `
     Hello 
     <mark
       class="content_highlightGreen"
-      data-highlight-color="green"
+      data-cy-highlight="green"
     >
       world
     </mark>
@@ -3014,7 +3014,7 @@ exports[`highlight: clipboard 1`] = `
   <p>
     Hello 
     <mark
-      data-highlight-color="green"
+      data-cy-highlight="green"
     >
       world
     </mark>
@@ -3236,7 +3236,7 @@ exports[`ordered list highlight: clipboard 1`] = `
       <p>
         Hello 
         <mark
-          data-highlight-color="green"
+          data-cy-highlight="green"
         >
           world
         </mark>
@@ -3703,7 +3703,7 @@ exports[`paragraph highlight: clipboard 1`] = `
   <p>
     Hello 
     <mark
-      data-highlight-color="green"
+      data-cy-highlight="green"
     >
       world
     </mark>
@@ -3835,7 +3835,7 @@ exports[`quote highlight: clipboard 1`] = `
     <p>
       Hello 
       <mark
-        data-highlight-color="green"
+        data-cy-highlight="green"
       >
         world
       </mark>
@@ -4131,7 +4131,7 @@ exports[`table (2x2) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4142,7 +4142,7 @@ exports[`table (2x2) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4155,7 +4155,7 @@ exports[`table (2x2) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4166,7 +4166,7 @@ exports[`table (2x2) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4792,7 +4792,7 @@ exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4803,7 +4803,7 @@ exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4814,42 +4814,7 @@ exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-highlight-color="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-highlight-color="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4862,7 +4827,7 @@ exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4873,7 +4838,7 @@ exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -4884,7 +4849,42 @@ exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -6029,7 +6029,7 @@ exports[`table with multiple blocks in cells highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -6038,7 +6038,7 @@ exports[`table with multiple blocks in cells highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -6049,7 +6049,7 @@ exports[`table with multiple blocks in cells highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
@@ -6058,7 +6058,7 @@ exports[`table with multiple blocks in cells highlight: clipboard 1`] = `
           <p>
             Hello 
             <mark
-              data-highlight-color="green"
+              data-cy-highlight="green"
             >
               world
             </mark>
