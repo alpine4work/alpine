@@ -23,12 +23,12 @@ assertAssignableTypes<ContentTableMap, ContentEditorTableLayout>();
  * don't have to compute it again.
  */
 export const resolveContentTableColumnWidthPx = createCachedFunction(
-    (spacingScale: SpacingScale, blockWidth: number, tableLayout: ContentEditorTableLayout) => {
+    (spacingScale: SpacingScale, blockWidthPx: number, tableLayout: ContentEditorTableLayout) => {
         return resolveContentTableColumnWidthPxWithoutCache(
             tableLayout.totalColumnWidth,
             tableLayout.columnWidths,
             tableLayout.tableWidth,
-            blockWidth,
+            blockWidthPx,
             contentStyles.tableColumnMinWidthRem * remPxBySpacingScale[spacingScale],
             contentStyles.tableColumnMaxWidthRem * remPxBySpacingScale[spacingScale],
         );

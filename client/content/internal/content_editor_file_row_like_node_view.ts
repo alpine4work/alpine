@@ -86,7 +86,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
 
-            let blockWidth = getContentBlockWidth({
+            let blockWidthPx = getContentBlockWidth({
                 spacingScale,
                 platform,
                 routeLayout: getRouteLayout(),
@@ -109,13 +109,13 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
 
                     const columnWidths = resolveContentTableColumnWidthPx(
                         spacingScale,
-                        blockWidth,
+                        blockWidthPx,
                         optimisticTableLayout ?? tableMap,
                     );
 
                     const columnWidth = assertExists(columnWidths[columnIndex]);
 
-                    blockWidth =
+                    blockWidthPx =
                         columnWidth -
                         convertRemLengthToPx(contentStyles.tableCellPaddingX, spacingScale) * 2;
                 }
@@ -131,7 +131,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
 
             if (
                 lastSpacingScale === spacingScale &&
-                lastBlockWidth === blockWidth &&
+                lastBlockWidth === blockWidthPx &&
                 lastFileReferences !== null &&
                 isShallowEqual(lastFileReferences, fileReferences) &&
                 // If the optimistic table layout changes we need to forward the new
@@ -143,7 +143,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             }
 
             lastSpacingScale = spacingScale;
-            lastBlockWidth = blockWidth;
+            lastBlockWidth = blockWidthPx;
             lastFileReferences = fileReferences;
             lastOptimisticTableLayout = optimisticTableLayout;
 
@@ -152,7 +152,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
 
             const layoutsStore = computeStore(get =>
                 layoutContentFileParent(node, {
-                    blockWidth,
+                    blockWidth: blockWidthPx,
                     spacingScale,
                     getFile: fileId => {
                         const fileReference = references.fileById.get(fileId);

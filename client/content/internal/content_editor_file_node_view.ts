@@ -98,7 +98,7 @@ export function createContentEditorFileNodeViewConstructor({
             const platform = getPlatformWithoutListening();
             const spacingScale = getSpacingScaleWithoutListening();
 
-            let blockWidth = getContentBlockWidth({
+            let blockWidthPx = getContentBlockWidth({
                 spacingScale,
                 platform,
                 routeLayout: getRouteLayout(),
@@ -121,13 +121,13 @@ export function createContentEditorFileNodeViewConstructor({
 
                     const columnWidths = resolveContentTableColumnWidthPx(
                         spacingScale,
-                        blockWidth,
+                        blockWidthPx,
                         optimisticTableLayout ?? tableMap,
                     );
 
                     const columnWidth = assertExists(columnWidths[columnIndex]);
 
-                    blockWidth =
+                    blockWidthPx =
                         columnWidth -
                         convertRemLengthToPx(contentStyles.tableCellPaddingX, spacingScale) * 2;
                 }
@@ -140,11 +140,11 @@ export function createContentEditorFileNodeViewConstructor({
 
             if (
                 lastSpacingScale !== spacingScale ||
-                lastBlockWidth !== blockWidth ||
+                lastBlockWidth !== blockWidthPx ||
                 lastFileReference !== fileReference
             ) {
                 lastSpacingScale = spacingScale;
-                lastBlockWidth = blockWidth;
+                lastBlockWidth = blockWidthPx;
                 lastFileReference = fileReference;
 
                 cleanup?.();
@@ -161,7 +161,7 @@ export function createContentEditorFileNodeViewConstructor({
 
                     const layout = layoutContentFile(view.state.doc, getPos(), node, {
                         spacingScale,
-                        blockWidth,
+                        blockWidth: blockWidthPx,
                         getFile: otherFileId => {
                             if (otherFileId === fileId) return file ?? null;
 
@@ -188,7 +188,7 @@ export function createContentEditorFileNodeViewConstructor({
                         node,
                         file,
                         layout,
-                        blockWidth,
+                        blockWidth: blockWidthPx,
                         transformScale: 1,
                         platform,
                         spacingScale,

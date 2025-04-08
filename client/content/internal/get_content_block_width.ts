@@ -10,6 +10,10 @@ import {
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
+/**
+ * Returns the pixel width of the content block with respect to
+ * platform, route layout, and client info.
+ */
 export function getContentBlockWidth({
     spacingScale,
     platform,
