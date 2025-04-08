@@ -1,10 +1,14 @@
-import {House, MagnifyingGlass, SignOut} from "phosphor-react";
+import {Action} from "@remix-run/router";
+import {ArrowLeft, ArrowRight, House, MagnifyingGlass, SignOut} from "phosphor-react";
+import {useEffect, useState} from "react";
+import {useLocation, useNavigationType} from "react-router";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
@@ -15,6 +19,7 @@ import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -106,9 +111,122 @@ export function SpaceLayoutSideBar({
                     gap="3"
                 >
                     <SpaceLayoutSideBarAccountButton currentAccount={currentAccount} />
+                    <SpaceLayoutSideBarNavigationButtons />
                 </Box>
             </Box>
         </Box>
+    );
+}
+
+const NavigationStateSchema = Schema.object({
+    initialLocationKey: Schema.string,
+    latestLocationKey: Schema.string,
+    locationKey: Schema.string,
+    hasNextLocation: Schema.boolean,
+    hasPreviousLocation: Schema.boolean,
+});
+
+function SpaceLayoutSideBarNavigationButtons() {
+    const location = useLocation();
+    const navigationType = useNavigationType();
+    const navigate = useNavigate();
+    const clientInfo = useClientInfo();
+
+    const [navigationState, setNavigationState] = useState<{
+        initialLocationKey: string;
+        latestLocationKey: string;
+        locationKey: string;
+        hasNextLocation: boolean;
+        hasPreviousLocation: boolean;
+    }>({
+        initialLocationKey: location.key,
+        latestLocationKey: location.key,
+        locationKey: location.key,
+        hasNextLocation: false,
+        hasPreviousLocation: false,
+    });
+
+    if (navigationState.locationKey !== location.key) {
+        setNavigationState({
+            initialLocationKey: navigationState.initialLocationKey,
+            latestLocationKey:
+                navigationType === Action.Push ? location.key : navigationState.latestLocationKey,
+            locationKey: location.key,
+            hasNextLocation:
+                navigationType === Action.Pop && location.key !== navigationState.latestLocationKey,
+            hasPreviousLocation:
+                navigationType === Action.Push ||
+                location.key !== navigationState.initialLocationKey,
+        });
+    }
+
+    // Read our current navigation state from `sessionStorage` and use it to
+    // initialize our component's state.
+    useEffect(() => {
+        const navigationStateString = sessionStorage.getItem("cyberworlds/navigationState");
+        if (navigationStateString) {
+            setNavigationState(
+                NavigationStateSchema.deserialize(JSON.parse(navigationStateString)),
+            );
+        }
+    }, []);
+
+    useEffect(() => {
+        sessionStorage.setItem(
+            "cyberworlds/navigationState",
+            JSON.stringify(NavigationStateSchema.serialize(navigationState)),
+        );
+    }, [navigationState]);
+
+    return (
+        <GlobalKeyDownEvent
+            onGlobalKeyDown={event => {
+                // NOTE(calebmer): Overriding Cmd+[ or Cmd+] does nothing in Chrome since
+                // browser level forward/backward shortcut can't be overridden. However,
+                // Chrome's behavior is exactly what we want! This implementation is here for
+                // other browsers or an eventual desktop app.
+                if (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey) {
+                    if (event.key === "[") {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        navigate(-1);
+                    }
+
+                    if (event.key === "]") {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        navigate(1);
+                    }
+                }
+            }}
+        >
+            <Box flexShrink="0" display="flex" justifyContent="flex-start" alignItems="center">
+                <IconButton
+                    size="xs"
+                    description="Go back"
+                    keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+[" : "Ctrl+["}
+                    tooltipPlacement="top"
+                    isDisabled={!navigationState.hasPreviousLocation}
+                    pressErrorTitle="Couldn’t go back"
+                    onPress={() => navigate(-1)}
+                >
+                    <ArrowLeft />
+                </IconButton>
+                <IconButton
+                    size="xs"
+                    description="Go forwards"
+                    keyboardShortcutHint={clientInfo.isAppleDevice ? "⌘+]" : "Ctrl+]"}
+                    tooltipPlacement="top"
+                    isDisabled={!navigationState.hasNextLocation}
+                    pressErrorTitle="Couldn’t go forwards"
+                    onPress={() => navigate(1)}
+                >
+                    <ArrowRight />
+                </IconButton>
+            </Box>
+        </GlobalKeyDownEvent>
     );
 }
 

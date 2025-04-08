@@ -635,6 +635,7 @@ export default function SpaceLayoutRoute() {
                         }
                         break;
                     }
+
                     case "p": {
                         if (
                             platform !== "mobile" &&
@@ -646,6 +647,23 @@ export default function SpaceLayoutRoute() {
                             if (loaderData.type === "WithAccess") {
                                 setSearchQueryText("");
                             }
+                        }
+                        break;
+                    }
+
+                    // Disable the browser default Cmd+ArrowLeft to navigate back behavior. It's
+                    // confusing when you're in a text input, try to use this shortcut, but
+                    // Cmd+ArrowLeft does nothing since you're selection is already at the start of
+                    // the text input. Instead you should use the Cmd+[ shortcut to navigate back.
+                    case "ArrowLeft":
+                    case "ArrowRight": {
+                        if (
+                            (!document.activeElement ||
+                                !isTextInputElement(document.activeElement)) &&
+                            (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
+                        ) {
+                            event.preventDefault();
+                            event.stopPropagation();
                         }
                         break;
                     }
