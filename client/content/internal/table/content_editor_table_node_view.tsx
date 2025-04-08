@@ -122,16 +122,16 @@ export function createContentEditorTableNodeView({
         let optimisticTableLayout: ContentEditorTableLayout | null = null;
         let fileRowLikeElementsCache: {node: Node; elements: Array<HTMLElement>} | null = null;
 
-        update();
+        updateTableLayout();
 
-        const unsubscribeFromPlatformChange = subscribeToPlatformChange(update);
-        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(update);
+        const unsubscribeFromPlatformChange = subscribeToPlatformChange(updateTableLayout);
+        const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(updateTableLayout);
 
         const unsubscribeFromOptimisticLayout =
             optimisticContentEditorTableLayoutEventEmitter.subscribe(tableElement, layout => {
                 optimisticTableLayout = layout;
 
-                update();
+                updateTableLayout();
 
                 // While resizing we may need to make sure scroll is locked to the left/right
                 // side. For example when dragging to grow the rightmost edge.
@@ -185,7 +185,7 @@ export function createContentEditorTableNodeView({
                 }
 
                 node = newNode;
-                update();
+                updateTableLayout();
 
                 if (hasLayoutChanged) {
                     // Dispatch child events after a microtask since ProseMirror updates parent
@@ -235,7 +235,7 @@ export function createContentEditorTableNodeView({
             },
         };
 
-        function update(): void {
+        function updateTableLayout(): void {
             const spacingScale = getSpacingScaleWithoutListening();
             const platform = getPlatformWithoutListening();
             const {devicePixelRatio} = window;
