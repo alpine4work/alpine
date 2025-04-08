@@ -2170,7 +2170,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                     slice.content.content.map(node =>
                                         node.type.name === "file"
                                             ? schema.node(
-                                                  isInContentTable(view.state)
+                                                  isSelectionInContentTable(selection)
                                                       ? "fileRowTable"
                                                       : "fileRow",
                                                   {},
