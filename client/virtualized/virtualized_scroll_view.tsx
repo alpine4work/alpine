@@ -428,6 +428,7 @@ function VirtualizedScrollView(
         extraChildren,
         extraChildrenOutsideContentElement,
         extraChildrenContentHeight = 0,
+        withRoundedContentHeight = false,
     }: {
         /**
          * The total number of virtualized items. You do not need all the items loaded
@@ -621,6 +622,15 @@ function VirtualizedScrollView(
          * This is an advanced property. You probably don't need it.
          */
         extraChildrenContentHeight?: number;
+
+        /**
+         * If `contentHeight` is not an integer, round up to the nearest integer. So if
+         * it's 100.2px we'll round up to 101px. Given scroll offset is always an
+         * integer, it can be useful for content height to also always be an integer if
+         * you have some manually positioned scroll linked UI outside the virtualized
+         * list (e.g. asides in `<PostListView>`).
+         */
+        withRoundedContentHeight?: boolean;
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -1353,7 +1363,7 @@ function VirtualizedScrollView(
 
         previousScrollAnchorAdjustmentDuringMobileWebKitScrollRef.current =
             scrollAnchorAdjustmentDuringMobileWebKitScroll;
-    }, [contentHeight, scrollAnchorAdjustmentDuringMobileWebKitScroll]);
+    }, [scrollAnchorAdjustmentDuringMobileWebKitScroll]);
 
     const lastStateKeyRef = useRef(actualState.key);
 
@@ -1811,7 +1821,8 @@ function VirtualizedScrollView(
         [],
     );
 
-    const actualContentHeight = Math.max(contentHeight, extraChildrenContentHeight);
+    let actualContentHeight = Math.max(contentHeight, extraChildrenContentHeight);
+    if (withRoundedContentHeight) actualContentHeight = Math.ceil(actualContentHeight);
 
     return (
         <>

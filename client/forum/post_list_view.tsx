@@ -1664,6 +1664,12 @@ function PostListView(
                     )}
                     onRenderedRangeChange={tryLoadingMoreData}
                     onScroll={handleScroll}
+                    // Make sure content height is an integer. This guarantees we properly position
+                    // our aside given scroll offset is always an integer. We see some rendering
+                    // bugs in Chrome if content height isn't rounded. For example:
+                    //
+                    // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/xdcahs0wp7zwv27gbj4tt11dq8
+                    withRoundedContentHeight={true}
                     // If the aside is larger than our virtualized list's content then we need to
                     // make sure the `<VirtualizedScrollView>`s DOM includes the aside's height in
                     // some measurements. Otherwise the navigation bar among other things start to
