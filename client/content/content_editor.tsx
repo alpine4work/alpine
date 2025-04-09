@@ -4952,21 +4952,18 @@ function transformPastedForContentTable(
             case "fileRow":
             case "fileFloat": {
                 const fileNodes: Array<Node> = [];
-                for (const sourceNode of slice.content.content) {
-                    if (
-                        sourceNode.type.name === "fileRow" ||
-                        sourceNode.type.name === "fileFloat"
-                    ) {
-                        for (const fileNode of sourceNode.content.content) {
-                            assert(fileNode.type.name === "file");
-                            fileNodes.push(fileNode);
-                        }
-                    } else if (sourceNode.type.name === "file") {
-                        // very unlikely to happen
-                        // Direct file node
-                        fileNodes.push(sourceNode);
+
+                if (node.type.name === "fileRow" || node.type.name === "fileFloat") {
+                    for (const fileNode of node.content.content) {
+                        assert(fileNode.type.name === "file");
+                        fileNodes.push(fileNode);
                     }
+                } else if (node.type.name === "file") {
+                    // very unlikely to happen
+                    // Direct file node
+                    fileNodes.push(node);
                 }
+
                 fileNodes.forEach(fileNode => {
                     const fileRowTableNode = schema.node("fileRowTable", {}, [fileNode]);
                     primaryContent.push(fileRowTableNode);
