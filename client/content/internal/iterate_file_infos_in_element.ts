@@ -22,15 +22,15 @@ export type FileInfo =
       };
 
 /**
- * Iterates through all media elements in the given element and yields an object
+ * Iterates through all media elements in the given container element and yields an object
  * containing:
- * - The element itself
+ * - The discovered media element itself
  * - File information that indicates whether the file should be:
  *   - Uploaded as a new file (type: "UploadFile")
  *   - Attached from an existing file (type: "AttachFile")
  *   - Or null if no valid source is found
  *
- * @param element The element to iterate through
+ * @param element The container element to search through for media elements
  * @param getSpaceId A function that returns the current space ID
  * @returns An iterable iterator of objects containing fileInfo
  */

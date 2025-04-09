@@ -91,8 +91,7 @@ export function isInContentTable(state: EditorState): boolean {
 
 export function isSelectionInContentTable(selection: Selection): boolean {
     const $head = selection.$head;
-    for (let d = $head.depth; d > 0; d--) if ($head.node(d).type.name === "tableRow") return true;
-    return false;
+    return isPosInContentTable($head);
 }
 
 export function isPosInContentTable($pos: ResolvedPos): boolean {
