@@ -340,8 +340,16 @@ function actuallyRenderContentFileProcessingPreview({
     layout: {width: number; height: number};
 }): HtmlElementGenerator {
     const schema = ContentBaseProsemirrorSchemaWithFiles.get();
+
+    // NOTE(rohitt-gupta, 2025-04-09): here we are using non-null assertion
+    // operator(`!`) because we know that `schema.nodes.file` will always be
+    // present in the schema as it's in `baseNodes` of
+    // `createContentFileProsemirrorNodeSpecs`.
+    //
+    // check `createContentFileProsemirrorNodeSpecs` in
+    // `shared/content/content_schema_extra.ts` for more details.
     const {html} = renderProsemirrorDomOutputSpec(
-        schema.nodes.file.spec.toDOM!(schema.nodes.file.create()),
+        schema.nodes.file!.spec.toDOM!(schema.nodes.file!.create()),
     );
 
     assert(html instanceof HtmlElementGenerator);

@@ -503,6 +503,4 @@ const dontCutLeadingChildrenByNodeType: {
     // One more reason to `false` on tableCell is that the content
     // these are nothing but tableBlock which we already handle above
     tableCell: false,
-    // It's okay to cut the leading children of a file table because the file table's
-    // structure is defined by its rows, not its position in the document.
 };

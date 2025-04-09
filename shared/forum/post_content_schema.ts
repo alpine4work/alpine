@@ -23,7 +23,7 @@ const postContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         // narrative storytelling and can create odd layouts if not carefully designed.
         // So in posts and task notes where file attachments mostly serve as a utility
         // (vs as a narrative device) we don't currently allow `fileFloat`s.
-        ...createContentFileProsemirrorNodeSpecs(),
+        ...createContentFileProsemirrorNodeSpecs({withTable: true}),
     },
     marks: {
         ...contentBaseProsemirrorSchemaSpec.marks,
