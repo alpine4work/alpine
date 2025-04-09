@@ -2458,7 +2458,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                         // Validate remainingSlice exists and has content before proceeding
                         if (
                             remainingSlice &&
-                            remainingSlice.content &&
                             remainingSlice.content.size > 0
                         ) {
                             const originalCreateTransaction = createTransaction;
