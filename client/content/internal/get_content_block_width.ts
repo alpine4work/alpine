@@ -11,8 +11,27 @@ import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_sc
 import {ClientInfo} from "~/shared/remix/client_info.js";
 
 /**
- * Returns the pixel width of the content block with respect to
- * platform, route layout, and client info.
+ * Returns the pixel width of a block of content in either <ContentEditor> or
+ * <ContentView>. Normally, a block's width is determined by CSS (particularly
+ * something like `width: 100%; max-width: var(--max-block-width);` see
+ * `blockStyles` in `content.css.ts`). However, sometimes we need to know the
+ * block width at render time to properly layout certain views. Namely file
+ * rows and tables. This function computes the block width with information
+ * available at render time (it also runs on the server).
+ *
+ * This function isn't perfect. Namely, if you have a large screen width but a
+ * window width that's narrower than the max block width, a block with the CSS
+ * `width: 100%;` will be the window width. However, this function will return
+ * the max block width. Leading to file rows or tables being lain out assuming a
+ * larger block width than what we actually have available.
+ *
+ * It's unclear how to fix this issue. We don't know the window width at server
+ * render time. The window width can change between different web browser tabs
+ * (unlike the screen width which is why the screen width is in `ClientInfo`
+ * but not the window width). We think the current calculation, even with its
+ * inaccuracies, is good enough for now and can make the calculation more
+ * specific as we find problematic bugs that arise from an occasionally
+ * inaccurate block width calculation.
  */
 export function getContentBlockWidth({
     spacingScale,

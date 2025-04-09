@@ -1368,13 +1368,13 @@ export function buildContentEditorKeymapPlugin(
                 const {$from} = selection;
                 const isSelectionAtEndOfDoc = selection.eq(Selection.atEnd(state.doc));
 
-                const parentNode = $from.node($from.depth - 1);
-                const currentNode = $from.node();
-
                 // 1. Check if the selection is the last object in the entire doc
                 if (!isSelectionAtEndOfDoc) {
                     return false;
                 }
+
+                const parentNode = $from.node($from.depth - 1);
+                const currentNode = $from.node();
 
                 // 2. Check if the selection is a `codeBlockLine` within `codeBlock`, a
                 //    `divider`, or a `file`
@@ -1426,13 +1426,14 @@ export function buildContentEditorKeymapPlugin(
                 const {selection, schema} = state;
                 const {$from} = selection;
                 const isSelectionAtStartOfDoc = selection.eq(Selection.atStart(state.doc));
-                const parentNode = $from.node($from.depth - 1);
-                const currentNode = $from.node();
 
                 // 1. Check if the selection is the last object in the entire doc
                 if (!isSelectionAtStartOfDoc) {
                     return false;
                 }
+
+                const parentNode = $from.node($from.depth - 1);
+                const currentNode = $from.node();
 
                 // 2. Check if the selection is a `codeBlockLine` within `codeBlock`, a
                 //    `divider`, or a `file`
