@@ -2456,15 +2456,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                         slice = transformedSlice;
 
                         // Validate remainingSlice exists and has content before proceeding
-                        if (
-                            remainingSlice &&
-                            remainingSlice.content.size > 0
-                        ) {
+                        if (remainingSlice && remainingSlice.content.size > 0) {
                             const originalCreateTransaction = createTransaction;
                             createTransaction = () => {
                                 const transaction = originalCreateTransaction();
                                 // Insert remainingSlice after the table
-                                const insertPos = selection.$anchor.after(1);
+                                const insertPos = $mouse.after(1);
                                 transaction.insert(insertPos, remainingSlice.content);
                                 return transaction;
                             };
@@ -2484,7 +2481,14 @@ function ContentEditor<Content extends ContentWithReferences>(
                     if (insertPos == null) insertPos = $mouse.pos;
 
                     const transaction = createTransaction();
-                    if (move) selection.replace(transaction);
+                    if (move) {
+                        selection
+                            // We need to map `selection` because `createTransaction()` may insert some
+                            // stuff (e.g. `remainingSlice` from `transformPastedForContentTable()`) into
+                            // the document above our selection.
+                            .map(transaction.doc, transaction.mapping)
+                            .replace(transaction);
+                    }
 
                     const pos = transaction.mapping.map(insertPos);
 
@@ -4853,9 +4857,9 @@ function handlePasteAfterResolvingReferences(
                 : null;
 
         if (singleNode) {
-            transaction.selection.replaceWith(transaction, singleNode);
+            selection.replaceWith(transaction, singleNode);
         } else {
-            transaction.selection.replace(transaction, slice);
+            selection.replace(transaction, slice);
         }
 
         dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
