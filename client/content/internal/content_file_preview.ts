@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import Color from "color";
 import prettyBytes from "pretty-bytes";
-import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
+import {Node} from "prosemirror-model";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
@@ -46,8 +46,6 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
-import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
-import {createContentFileProsemirrorNodeSpecs} from "~/shared/content/content_schema_extra.js";
 import {
     codeBlockClassName,
     codeBlockLineClassName,
@@ -1915,15 +1913,7 @@ export async function handleCopyContentFile(
         attachmentTarget: FileAttachmentTarget | "Uploader";
     },
 ) {
-    // Create a temporary schema we can use for constructing a `file` node we
-    // can copy.
-    const schema = new ProsemirrorSchema({
-        nodes: {
-            ...contentBaseProsemirrorSchemaSpec.nodes,
-            ...createContentFileProsemirrorNodeSpecs(),
-        },
-        marks: contentBaseProsemirrorSchemaSpec.marks,
-    });
+    const schema = ContentBaseProsemirrorSchemaWithFiles.get();
 
     const node = schema.node("file", {fileId: file?.id ?? null});
 

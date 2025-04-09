@@ -10,7 +10,7 @@ export const ContentBaseProsemirrorSchemaWithFiles = new Lazy(
         new ProsemirrorSchema({
             nodes: {
                 ...contentBaseProsemirrorSchemaSpec.nodes,
-                ...createContentFileProsemirrorNodeSpecs(),
+                ...createContentFileProsemirrorNodeSpecs({withTable: true}),
             },
             marks: contentBaseProsemirrorSchemaSpec.marks,
         }),
