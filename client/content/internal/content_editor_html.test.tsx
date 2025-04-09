@@ -127,48 +127,120 @@ const blockTestCases: Array<{
             schema.node("checkListItem", {checked: true}, schema.node("paragraph", {}, content)),
     },
     {
-        name: "table (2x2)",
+        name: "2x2 table (1st row has content) ",
         build: content =>
             schema.node("table", {columnWidths: [], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                 ]),
                 schema.node("tableRow", {}, [
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+            ]),
+    },
+    {
+        name: "2x2 table (1st row has content) ",
+        build: content =>
+            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
                 ]),
             ]),
     },
     {
-        name: "table (3x3 with custom widths)",
+        name: "3x3 table (1st row has content) ",
         build: content =>
             schema.node("table", {columnWidths: [], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                 ]),
                 schema.node("tableRow", {}, [
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                 ]),
                 schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+            ]),
+    },
+    {
+        name: "3x3 table (2nd row has content) ",
+        build: content =>
+            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
-                    schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+            ]),
+    },
+    {
+        name: "3x3 table (3rd row has content) ",
+        build: content =>
+            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
                 ]),
             ]),
     },
     {
-        name: "table with multiple blocks in cells",
+        name: "table with multiple blocks in cells (1st cell with content, 2nd cell empty)",
         build: content =>
             schema.node("table", {columnWidths: [], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [
                         schema.node("paragraph", {}, content),
                         schema.node("paragraph", {}, content),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, []),
+                        schema.node("paragraph", {}, []),
+                    ]),
+                ]),
+            ]),
+    },
+    {
+        name: "table with multiple blocks in cells (1st cell empty, 2nd cell with content)",
+        build: content =>
+            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, []),
+                        schema.node("paragraph", {}, []),
                     ]),
                     schema.node("tableCell", {}, [
                         schema.node("paragraph", {}, content),

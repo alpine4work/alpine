@@ -1,5 +1,2704 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`2x2 table (1st row has content)  bold: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  bold: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  bold: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  bold: clipboard text 2`] = `
+"
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`2x2 table (1st row has content)  code: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  code: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  code: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  code: clipboard text 2`] = `
+"
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`2x2 table (1st row has content)  empty: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  empty: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  empty: clipboard text 1`] = `
+"
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  empty: clipboard text 2`] = `
+"
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  highlight: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  highlight: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  highlight: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  highlight: clipboard text 2`] = `
+"
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`2x2 table (1st row has content)  italic: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  italic: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  italic: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  italic: clipboard text 2`] = `
+"
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`2x2 table (1st row has content)  link: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  link: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  link: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  link: clipboard text 2`] = `
+"
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`2x2 table (1st row has content)  plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 640px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 300px 300px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Hello world!
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  plain 2`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 640px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 300px 300px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Hello world!
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  plain: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  plain: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  plain: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  plain: clipboard text 2`] = `
+"
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`2x2 table (1st row has content)  strike: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  strike: clipboard 2`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`2x2 table (1st row has content)  strike: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+"
+`;
+
+exports[`2x2 table (1st row has content)  strike: clipboard text 2`] = `
+"
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`3x3 table (1st row has content)  bold: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  bold: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (1st row has content)  code: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  code: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (1st row has content)  empty: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  empty: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (1st row has content)  highlight: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  highlight: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (1st row has content)  italic: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  italic: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (1st row has content)  link: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  link: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (1st row has content)  plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 640px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 200px 200px 200px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Hello world!
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  plain: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  plain: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (1st row has content)  strike: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (1st row has content)  strike: clipboard text 1`] = `
+"Hello world!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  bold: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  bold: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+Hello world!
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  code: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  code: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+Hello world!
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  empty: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  empty: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  highlight: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  highlight: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+Hello world!
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  italic: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  italic: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+Hello world!
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  link: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  link: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+Hello world!
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 640px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 200px 200px 200px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Hello world!
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  plain: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  plain: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+Hello world!
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (2nd row has content)  strike: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (2nd row has content)  strike: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+Hello world!
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (3rd row has content)  bold: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  bold: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`3x3 table (3rd row has content)  code: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  code: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`3x3 table (3rd row has content)  empty: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  empty: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
+
+exports[`3x3 table (3rd row has content)  highlight: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  highlight: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`3x3 table (3rd row has content)  italic: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  italic: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`3x3 table (3rd row has content)  link: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  link: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`3x3 table (3rd row has content)  plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 640px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 200px 200px 200px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Hello world!
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  plain: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  plain: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hello world!"
+`;
+
+exports[`3x3 table (3rd row has content)  strike: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`3x3 table (3rd row has content)  strike: clipboard text 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hello world!"
+`;
+
 exports[`account long mention 1`] = `
 <div
   aria-label="Test"
@@ -3969,1519 +6668,6 @@ exports[`strike: clipboard 1`] = `
 
 exports[`strike: clipboard text 1`] = `"Hello world!"`;
 
-exports[`table (2x2) bold: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) bold: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (2x2) code: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) code: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (2x2) empty: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) empty: clipboard text 1`] = `
-"
-
-
-
-
-
-"
-`;
-
-exports[`table (2x2) highlight: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) highlight: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (2x2) italic: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) italic: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (2x2) link: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) link: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (2x2) plain 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <div
-    class="content_tableWrapper"
-  >
-    <div
-      class="content_tableWrapper2"
-      data-scrollbar="false"
-    >
-      <div
-        class="content_tableWrapper3"
-        style="width: 640px; max-width: none;"
-      >
-        <table
-          style="grid-template-columns: 300px 300px;"
-        >
-          <tbody>
-            <tr>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-`;
-
-exports[`table (2x2) plain: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) plain: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (2x2) strike: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (2x2) strike: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (3x3 with custom widths) bold: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) bold: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (3x3 with custom widths) code: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) code: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (3x3 with custom widths) empty: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-        <td>
-          <p />
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) empty: clipboard text 1`] = `
-"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"
-`;
-
-exports[`table (3x3 with custom widths) highlight: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) highlight: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (3x3 with custom widths) italic: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) italic: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (3x3 with custom widths) link: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) link: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (3x3 with custom widths) plain 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <div
-    class="content_tableWrapper"
-  >
-    <div
-      class="content_tableWrapper2"
-      data-scrollbar="false"
-    >
-      <div
-        class="content_tableWrapper3"
-        style="width: 640px; max-width: none;"
-      >
-        <table
-          style="grid-template-columns: 200px 200px 200px;"
-        >
-          <tbody>
-            <tr>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Hello world!
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) plain: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello world!
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) plain: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
-exports[`table (3x3 with custom widths) strike: clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-        <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table (3x3 with custom widths) strike: clipboard text 1`] = `
-"Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!
-
-Hello world!"
-`;
-
 exports[`table with fileRowTable (mixed content) 1`] = `
 <div
   aria-label="Test"
@@ -5885,26 +7071,14 @@ exports[`table with fileRowTable (one file): clipboard text 1`] = `
 col3-test"
 `;
 
-exports[`table with multiple blocks in cells bold: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) bold: clipboard 1`] = `
 <div>
   <table>
     <tbody>
       <tr>
         <td>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
-          <p>
-            Hello 
-            <strong>
-              world
-            </strong>
-            !
-          </p>
+          <p />
+          <p />
         </td>
         <td>
           <p>
@@ -5928,36 +7102,24 @@ exports[`table with multiple blocks in cells bold: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells bold: clipboard text 1`] = `
-"Hello world!
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) bold: clipboard text 1`] = `
+"
 
-Hello world!
+
 
 Hello world!
 
 Hello world!"
 `;
 
-exports[`table with multiple blocks in cells code: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) code: clipboard 1`] = `
 <div>
   <table>
     <tbody>
       <tr>
         <td>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
-          <p>
-            Hello 
-            <code>
-              world
-            </code>
-            !
-          </p>
+          <p />
+          <p />
         </td>
         <td>
           <p>
@@ -5981,17 +7143,17 @@ exports[`table with multiple blocks in cells code: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells code: clipboard text 1`] = `
-"Hello world!
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) code: clipboard text 1`] = `
+"
 
-Hello world!
+
 
 Hello world!
 
 Hello world!"
 `;
 
-exports[`table with multiple blocks in cells empty: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) empty: clipboard 1`] = `
 <div>
   <table>
     <tbody>
@@ -6010,7 +7172,7 @@ exports[`table with multiple blocks in cells empty: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells empty: clipboard text 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) empty: clipboard text 1`] = `
 "
 
 
@@ -6020,30 +7182,14 @@ exports[`table with multiple blocks in cells empty: clipboard text 1`] = `
 "
 `;
 
-exports[`table with multiple blocks in cells highlight: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) highlight: clipboard 1`] = `
 <div>
   <table>
     <tbody>
       <tr>
         <td>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
-          <p>
-            Hello 
-            <mark
-              data-cy-highlight="green"
-            >
-              world
-            </mark>
-            !
-          </p>
+          <p />
+          <p />
         </td>
         <td>
           <p>
@@ -6071,36 +7217,24 @@ exports[`table with multiple blocks in cells highlight: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells highlight: clipboard text 1`] = `
-"Hello world!
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) highlight: clipboard text 1`] = `
+"
 
-Hello world!
+
 
 Hello world!
 
 Hello world!"
 `;
 
-exports[`table with multiple blocks in cells italic: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) italic: clipboard 1`] = `
 <div>
   <table>
     <tbody>
       <tr>
         <td>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
-          <p>
-            Hello 
-            <em>
-              world
-            </em>
-            !
-          </p>
+          <p />
+          <p />
         </td>
         <td>
           <p>
@@ -6124,44 +7258,24 @@ exports[`table with multiple blocks in cells italic: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells italic: clipboard text 1`] = `
-"Hello world!
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) italic: clipboard text 1`] = `
+"
 
-Hello world!
+
 
 Hello world!
 
 Hello world!"
 `;
 
-exports[`table with multiple blocks in cells link: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) link: clipboard 1`] = `
 <div>
   <table>
     <tbody>
       <tr>
         <td>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
-          <p>
-            Hello 
-            <a
-              href="https://example.com/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              world
-            </a>
-            !
-          </p>
+          <p />
+          <p />
         </td>
         <td>
           <p>
@@ -6193,17 +7307,395 @@ exports[`table with multiple blocks in cells link: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells link: clipboard text 1`] = `
-"Hello world!
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) link: clipboard text 1`] = `
+"
 
-Hello world!
+
 
 Hello world!
 
 Hello world!"
 `;
 
-exports[`table with multiple blocks in cells plain 1`] = `
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) plain 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 640px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 300px 300px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+                <p
+                  class="content_paragraph"
+                >
+                  <br />
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Hello world!
+                </p>
+                <p
+                  class="content_paragraph"
+                >
+                  Hello world!
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) plain: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello world!
+          </p>
+          <p>
+            Hello world!
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) plain: clipboard text 1`] = `
+"
+
+
+
+Hello world!
+
+Hello world!"
+`;
+
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) strike: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+          <p />
+        </td>
+        <td>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+          <p>
+            Hello 
+            <del>
+              world
+            </del>
+            !
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) strike: clipboard text 1`] = `
+"
+
+
+
+Hello world!
+
+Hello world!"
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) bold: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+          <p>
+            Hello 
+            <strong>
+              world
+            </strong>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) bold: clipboard text 1`] = `
+"Hello world!
+
+Hello world!
+
+
+
+"
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) code: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+          <p>
+            Hello 
+            <code>
+              world
+            </code>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) code: clipboard text 1`] = `
+"Hello world!
+
+Hello world!
+
+
+
+"
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) empty: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p />
+          <p />
+        </td>
+        <td>
+          <p />
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) empty: clipboard text 1`] = `
+"
+
+
+
+
+
+"
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) highlight: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+          <p>
+            Hello 
+            <mark
+              data-cy-highlight="green"
+            >
+              world
+            </mark>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) highlight: clipboard text 1`] = `
+"Hello world!
+
+Hello world!
+
+
+
+"
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) italic: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+          <p>
+            Hello 
+            <em>
+              world
+            </em>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) italic: clipboard text 1`] = `
+"Hello world!
+
+Hello world!
+
+
+
+"
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) link: clipboard 1`] = `
+<div>
+  <table>
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+          <p>
+            Hello 
+            <a
+              href="https://example.com/"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              world
+            </a>
+            !
+          </p>
+        </td>
+        <td>
+          <p />
+          <p />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) link: clipboard text 1`] = `
+"Hello world!
+
+Hello world!
+
+
+
+"
+`;
+
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
@@ -6244,12 +7736,12 @@ exports[`table with multiple blocks in cells plain 1`] = `
                 <p
                   class="content_paragraph"
                 >
-                  Hello world!
+                  <br />
                 </p>
                 <p
                   class="content_paragraph"
                 >
-                  Hello world!
+                  <br />
                 </p>
               </td>
             </tr>
@@ -6261,7 +7753,7 @@ exports[`table with multiple blocks in cells plain 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells plain: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) plain: clipboard 1`] = `
 <div>
   <table>
     <tbody>
@@ -6275,12 +7767,8 @@ exports[`table with multiple blocks in cells plain: clipboard 1`] = `
           </p>
         </td>
         <td>
-          <p>
-            Hello world!
-          </p>
-          <p>
-            Hello world!
-          </p>
+          <p />
+          <p />
         </td>
       </tr>
     </tbody>
@@ -6288,17 +7776,17 @@ exports[`table with multiple blocks in cells plain: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells plain: clipboard text 1`] = `
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) plain: clipboard text 1`] = `
 "Hello world!
 
 Hello world!
 
-Hello world!
 
-Hello world!"
+
+"
 `;
 
-exports[`table with multiple blocks in cells strike: clipboard 1`] = `
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) strike: clipboard 1`] = `
 <div>
   <table>
     <tbody>
@@ -6320,20 +7808,8 @@ exports[`table with multiple blocks in cells strike: clipboard 1`] = `
           </p>
         </td>
         <td>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
-          <p>
-            Hello 
-            <del>
-              world
-            </del>
-            !
-          </p>
+          <p />
+          <p />
         </td>
       </tr>
     </tbody>
@@ -6341,14 +7817,14 @@ exports[`table with multiple blocks in cells strike: clipboard 1`] = `
 </div>
 `;
 
-exports[`table with multiple blocks in cells strike: clipboard text 1`] = `
+exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) strike: clipboard text 1`] = `
 "Hello world!
 
 Hello world!
 
-Hello world!
 
-Hello world!"
+
+"
 `;
 
 exports[`unknown account mention 1`] = `

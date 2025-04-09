@@ -185,7 +185,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
             const gap = contentStyles.fileRowGapWidthRem * remPxBySpacingScale.small;
 
-            if (node.type.name === "fileRow" || node.type.name === "fileRowTable") {
+            if (node.type.groups.includes("fileRowLike")) {
                 fileRowDom.style.display = "flex";
                 fileRowDom.style.gap = `${gap}px`;
                 fileRowDom.style.marginTop = `${gap}px`;
