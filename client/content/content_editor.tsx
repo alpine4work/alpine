@@ -2580,7 +2580,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                 Fragment.from(
                     fileIdsByRow.map(fileIds =>
                         schema.node(
-                            isPosInContentTable(view.state.selection.$head)
+                            isPosInContentTable(
+                                posOrSelection instanceof Selection
+                                    ? posOrSelection.$head
+                                    : view.state.doc.resolve(posOrSelection),
+                            )
                                 ? "fileRowTable"
                                 : "fileRow",
                             {},
