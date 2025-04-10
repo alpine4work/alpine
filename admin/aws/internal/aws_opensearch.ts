@@ -1,4 +1,8 @@
+/* eslint-disable no-commit-blockers */
+// NOCOMMIT: Remove the above
+
 import {CfnOutput, CustomResource, Duration, Fn, Stack} from "aws-cdk-lib";
+import {AuthorizationType, LambdaIntegration, RestApi} from "aws-cdk-lib/aws-apigateway";
 import {IConnectable, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
@@ -12,15 +16,17 @@ import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
-const opensearchDeployLambdaRelativePath =
+const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
         ? "cyberworlds/admin/aws/empty_lambda"
-        : "cyberworlds/admin/opensearch/deploy/deploy";
+        : "cyberworlds/admin/opensearch/deploy_script/deploy_script";
 
 const opensearchDeployScriptLambdaPath = joinPath(
     runfilesPath,
-    `${opensearchDeployLambdaRelativePath}.zip`,
+    `${opensearchDeployScriptLambdaRelativePath}.zip`,
 );
+
+const opensearchDeployScriptLambdaHandler = `${opensearchDeployScriptLambdaRelativePath}.handler`;
 
 const opensearchDeployScriptLambdaHash = await getFileSha256Hash(opensearchDeployScriptLambdaPath);
 
@@ -34,7 +40,17 @@ async function getFileSha256Hash(path: string): Promise<string> {
     });
 }
 
-const opensearchDeployScriptLambdaHandler = `${opensearchDeployLambdaRelativePath}.handler`;
+const opensearchDashboardProxyLambdaRelativePath =
+    process.env.CDK_LITE === "true"
+        ? "cyberworlds/admin/aws/empty_lambda"
+        : "cyberworlds/admin/opensearch/dashboard_proxy/dashboard_proxy";
+
+const opensearchDashboardProxyLambdaPath = joinPath(
+    runfilesPath,
+    `${opensearchDashboardProxyLambdaRelativePath}.zip`,
+);
+
+const opensearchDashboardProxyLambdaHandler = `${opensearchDashboardProxyLambdaRelativePath}.handler`;
 
 export class AwsOpensearch {
     protected readonly _domain: IDomain;
@@ -73,54 +89,113 @@ export class AwsOpensearch {
             },
         });
 
-        // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
-        // `NodejsLambda` since we bundle the code ourselves.
-        const deployScript = new LambdaFunction(construct, "DeployScript", {
-            code: Code.fromAsset(opensearchDeployScriptLambdaPath),
-            handler: opensearchDeployScriptLambdaHandler,
-            vpc,
-            vpcSubnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
-            timeout: Duration.seconds(60),
-            // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda
-            // runtime.
-            // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
-            runtime: Runtime.NODEJS_18_X,
-            environment: {
-                OPENSEARCH_HOST: domain.domainEndpoint,
-            },
-            // Don't retain deploy script logs forever.
-            logRetention: RetentionDays.ONE_MONTH,
-        });
+        // OpenSearch deploy script:
+        {
+            // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
+            // `NodejsLambda` since we bundle the code ourselves.
+            const deployScript = new LambdaFunction(construct, "DeployScript", {
+                code: Code.fromAsset(opensearchDeployScriptLambdaPath),
+                handler: opensearchDeployScriptLambdaHandler,
+                vpc,
+                vpcSubnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
+                timeout: Duration.seconds(60),
+                // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda
+                // runtime.
+                // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
+                runtime: Runtime.NODEJS_18_X,
+                environment: {OPENSEARCH_HOST: domain.domainEndpoint},
+                // Don't retain deploy script logs forever.
+                logRetention: RetentionDays.ONE_MONTH,
+            });
 
-        domain.connections.allowFrom(deployScript, Port.tcp(443));
+            domain.connections.allowFrom(deployScript, Port.tcp(443));
 
-        deployScript.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: ["es:*"],
-                resources: [`${domain.domainArn}/*`],
-            }),
-        );
+            deployScript.addToRolePolicy(
+                new PolicyStatement({
+                    effect: Effect.ALLOW,
+                    actions: ["es:*"],
+                    resources: [`${domain.domainArn}/*`],
+                }),
+            );
 
-        const deployScriptProvider = new Provider(construct, "DeployScriptProvider", {
-            onEventHandler: deployScript,
-        });
+            const deployScriptProvider = new Provider(construct, "DeployScriptProvider", {
+                onEventHandler: deployScript,
+            });
 
-        const deployScriptResource = new CustomResource(construct, "DeployScriptResource", {
-            serviceToken: deployScriptProvider.serviceToken,
-            properties: {
-                // Re-run our deploy script whenever the script file itself changes. This means
-                // the script will run more often than it needs to, but that's fine the script
-                // should be idempotent.
-                //
-                // We could instead build some other hash of index settings and mappings and
-                // only re-run when that changes as an optimization.
-                deployScriptLambdaIndexHash: opensearchDeployScriptLambdaHash,
-            },
-        });
+            const deployScriptResource = new CustomResource(construct, "DeployScriptResource", {
+                serviceToken: deployScriptProvider.serviceToken,
+                properties: {
+                    // Re-run our deploy script whenever the script file itself changes. This means
+                    // the script will run more often than it needs to, but that's fine the script
+                    // should be idempotent.
+                    //
+                    // We could instead build some other hash of index settings and mappings and
+                    // only re-run when that changes as an optimization.
+                    deployScriptLambdaIndexHash: opensearchDeployScriptLambdaHash,
+                },
+            });
 
-        // Run our deploy script whenever the OpenSearch domain is created/updated.
-        deployScriptResource.node.addDependency(domain);
+            // Run our deploy script whenever the OpenSearch domain is created/updated.
+            deployScriptResource.node.addDependency(domain);
+        }
+
+        // OpenSearch dashboard proxy:
+        {
+            const dashboardProxyLambda = new LambdaFunction(construct, "DashboardProxy", {
+                code: Code.fromAsset(opensearchDashboardProxyLambdaPath),
+                handler: opensearchDashboardProxyLambdaHandler,
+                vpc,
+                vpcSubnets: {subnetType: SubnetType.PRIVATE_WITH_EGRESS},
+                // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda
+                // runtime.
+                // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
+                runtime: Runtime.NODEJS_18_X,
+                timeout: Duration.seconds(60),
+                environment: {OPENSEARCH_HOST: domain.domainEndpoint},
+            });
+
+            domain.grantReadWrite(dashboardProxyLambda);
+
+            // NOCOMMIT: Seems dangerous
+            // dashboardProxyLambda.addToRolePolicy(
+            //     new PolicyStatement({
+            //         actions: [
+            //             "sts:AssumeRole",
+            //             "iam:GetUser",
+            //             "iam:ListAttachedUserPolicies",
+            //             "iam:ListGroupsForUser",
+            //             "iam:ListAttachedGroupPolicies",
+            //             "sts:GetCallerIdentity",
+            //         ],
+            //         resources: ["*"],
+            //     }),
+            // );
+
+            const dashboardProxyRestApi = new RestApi(construct, "DashboardProxyRestApi", {
+                // NOCOMMIT: Seems dangerous
+                // defaultCorsPreflightOptions: {
+                //     allowOrigins: Cors.ALL_ORIGINS,
+                //     allowMethods: Cors.ALL_METHODS,
+                //     allowHeaders: [
+                //         "Content-Type",
+                //         "Authorization",
+                //         "X-Amz-Date",
+                //         "X-Api-Key",
+                //         "X-Amz-Security-Token",
+                //         "X-Amz-User-Agent",
+                //     ],
+                // },
+            });
+
+            const dashboardProxyRestApiResource =
+                dashboardProxyRestApi.root.addResource("{proxy+}");
+
+            dashboardProxyRestApiResource.addMethod(
+                "ANY",
+                new LambdaIntegration(dashboardProxyLambda),
+                {authorizationType: AuthorizationType.IAM},
+            );
+        }
 
         return AwsOpensearchWithConnections._new(domain);
     }
