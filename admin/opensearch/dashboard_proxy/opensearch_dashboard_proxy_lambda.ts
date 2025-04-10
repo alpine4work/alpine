@@ -63,6 +63,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
         const {response} = await nodeHttpHandler.handle(signedRequest);
 
+        // eslint-disable-next-line no-console
+        console.log("Response:", response.body);
+
         // Return the response from OpenSearch
         return {
             statusCode: response.statusCode,
