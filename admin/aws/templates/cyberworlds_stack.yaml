@@ -827,7 +827,7 @@ Resources:
             Name: DashboardProxyRestApi
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/DashboardProxyRestApi/Resource
-    OpensearchDashboardProxyRestApiDeploymentAC04BC0D0117e5e0e8cb45b19b26774a429ce5a0:
+    OpensearchDashboardProxyRestApiDeploymentAC04BC0D2435eff363d96ff968ad883517f4f8ca:
         Type: AWS::ApiGateway::Deployment
         Properties:
             Description: Automatically created by the RestApi construct
@@ -842,7 +842,7 @@ Resources:
         Type: AWS::ApiGateway::Stage
         Properties:
             DeploymentId:
-                Ref: OpensearchDashboardProxyRestApiDeploymentAC04BC0D0117e5e0e8cb45b19b26774a429ce5a0
+                Ref: OpensearchDashboardProxyRestApiDeploymentAC04BC0D2435eff363d96ff968ad883517f4f8ca
             RestApiId:
                 Ref: OpensearchDashboardProxyRestApi8F4D621C
             StageName: prod
@@ -903,7 +903,7 @@ Resources:
     OpensearchDashboardProxyRestApiproxyANYB2066E3B:
         Type: AWS::ApiGateway::Method
         Properties:
-            AuthorizationType: AWS_IAM
+            AuthorizationType: NONE
             HttpMethod: ANY
             Integration:
                 IntegrationHttpMethod: POST

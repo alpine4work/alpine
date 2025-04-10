@@ -194,7 +194,8 @@ export class AwsOpensearch {
             dashboardProxyRestApiResource.addMethod(
                 "ANY",
                 new LambdaIntegration(dashboardProxyLambda),
-                {authorizationType: AuthorizationType.IAM},
+                // NOCOMMIT: Very bad must remove this!
+                {authorizationType: AuthorizationType.NONE},
             );
         }
 
