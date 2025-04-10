@@ -154,7 +154,7 @@ export class AwsOpensearch {
                 environment: {OPENSEARCH_HOST: domain.domainEndpoint},
             });
 
-            domain.grantReadWrite(dashboardProxyLambda);
+            domain.grantRead(dashboardProxyLambda);
             domain.connections.allowFrom(dashboardProxyLambda, Port.tcp(443));
 
             // NOCOMMIT: Seems dangerous
@@ -172,6 +172,8 @@ export class AwsOpensearch {
             //     }),
             // );
 
+            // NOCOMMIT: Do I really need API gateway? Can I make it so the AWS lambda
+            // directly receives API requests?
             const dashboardProxyRestApi = new RestApi(construct, "DashboardProxyRestApi", {
                 // NOCOMMIT: Seems dangerous
                 // defaultCorsPreflightOptions: {
