@@ -42,6 +42,9 @@ import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -603,7 +606,7 @@ async function getAccountSearchEntity(
 
         // Anyone in a space can see all the accounts in a space.
         accessPolicy: {
-            accountGrantAccountIds: new Set(),
+            accountGrantAccountIds: emptySet,
             defaultGrantType: "Space",
         },
 
@@ -612,12 +615,12 @@ async function getAccountSearchEntity(
         title: account.initialData.name,
         body: null,
         media: {type: "Account", accountId: accountId as AccountId},
-        embeddingChunks: [],
+        embeddingChunks: emptyArray,
 
         // Doesn't make sense that an account would create itself. So mark an account
         // has having no creator.
         creatorId: null,
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -759,7 +762,7 @@ async function getDocumentCommentSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: new Set(),
+            accountGrantAccountIds: emptySet,
             defaultGrantType: "Space",
         },
 
@@ -769,7 +772,7 @@ async function getDocumentCommentSearchEntity(
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
         creatorId: authorId,
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -803,7 +806,7 @@ async function getChannelSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: new Set(),
+            accountGrantAccountIds: emptySet,
             defaultGrantType: "Space",
         },
 
@@ -815,7 +818,7 @@ async function getChannelSearchEntity(
         creatorId: channel.creatorId,
         // Maybe in the future we could track who posts in a channel to support
         // searches like "channels I've posted in".
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -865,7 +868,7 @@ async function getPostSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: new Set(),
+            accountGrantAccountIds: emptySet,
             defaultGrantType: "Space",
         },
 
@@ -876,7 +879,7 @@ async function getPostSearchEntity(
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks,
         creatorId: post.authorId,
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -911,7 +914,7 @@ async function getPostCommentSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: new Set(),
+            accountGrantAccountIds: emptySet,
             defaultGrantType: "Space",
         },
 
@@ -921,7 +924,7 @@ async function getPostCommentSearchEntity(
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
         creatorId: authorId,
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -931,23 +934,32 @@ async function getChatSearchEntity(
 ): Promise<SearchEntity> {
     const {createdTime, hasMessages, accountIds} = await state.getChatAccountIds(chatId);
 
-    // If the chat has no messages yet, don't index any content. This means the
-    // chat won't show up in search. We don't show the chat in search until it gets
-    // its first message.
-    if (!hasMessages) {
+    if (
+        // If the chat has no messages yet, don't index any content. This means the
+        // chat won't show up in search. We don't show the chat in search until it gets
+        // its first message.
+        !hasMessages ||
+        // If a chat only has two accounts, don't index the chat. Instead you should
+        // access a 1:1 chat with another account by searching for their account entity
+        // (indexed by `getAccountSearchEntity()`).
+        //
+        // Otherwise when you search for an account's name you'll see both your 1:1
+        // chat with them and their account which is a little weird.
+        accountIds.length === 2
+    ) {
         return {
             id: `Chat:${chatId}`,
             accessPolicy: {
-                accountGrantAccountIds: new Set(accountIds),
+                accountGrantAccountIds: emptySet,
                 defaultGrantType: null,
             },
             createdTime,
             title: null,
             body: null,
             media: null,
-            embeddingChunks: [],
+            embeddingChunks: emptyArray,
             creatorId: null,
-            contributorIds: new Map(),
+            contributorIds: emptyMap,
         };
     }
 
@@ -985,11 +997,11 @@ async function getChatSearchEntity(
             accountIds.length === 1
                 ? {type: "Account", accountId: accountIds[0]!}
                 : {type: "AccountPile", accountIds},
-        embeddingChunks: [],
+        embeddingChunks: emptyArray,
         creatorId: null,
         // We could keep track of relative proportions of who's sending messages to the
         // chat, but it's unclear what search queries this would support.
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -1051,7 +1063,7 @@ async function getChatMessageSearchEntity(
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
         creatorId: authorId,
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -1149,14 +1161,14 @@ async function getTaskSearchEntity(
     if (task.isDeleted()) {
         return {
             id: `Task:${taskId}`,
-            accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: null},
+            accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
             createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
             title: null,
             body: null,
             media: null,
-            embeddingChunks: [],
+            embeddingChunks: emptyArray,
             creatorId: null,
-            contributorIds: new Map(),
+            contributorIds: emptyMap,
         };
     }
 
@@ -1303,14 +1315,14 @@ async function getTaskCollectionSearchEntity(
     if (collection.isDeleted()) {
         return {
             id: `TaskCollection:${collectionId}`,
-            accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: null},
+            accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
             createdTime: new Date(collection.getCreatedTime()[0]),
             title: null,
             body: null,
             media: null,
-            embeddingChunks: [],
+            embeddingChunks: emptyArray,
             creatorId: null,
-            contributorIds: new Map(),
+            contributorIds: emptyMap,
         };
     }
 
@@ -1321,11 +1333,11 @@ async function getTaskCollectionSearchEntity(
         title: collection.getName(),
         body: null,
         media: {type: "TaskCollectionColor", color: collection.getColor()},
-        embeddingChunks: [],
+        embeddingChunks: emptyArray,
         creatorId: collection.rawData.creatorId,
         // In the future we could keep track of which accounts were adding tasks to the
         // collection to answer queries like "collections I've added tasks to".
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }
 
@@ -1371,6 +1383,6 @@ async function getTaskCommentSearchEntity(
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
         creatorId: authorId,
-        contributorIds: new Map(),
+        contributorIds: emptyMap,
     };
 }

@@ -273,7 +273,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
         });
     },
     Chat: () => {
-        test("can get chat search entity", async () => {
+        test("can't get 1:1 chat search entity", async () => {
             const space = await TestSpace.create(context);
             const session1 = await space.createSession({name: "Caleb Meredith"});
             const session2 = await space.createSession({name: "Josh Meredith"});
@@ -292,7 +292,67 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 entity: {
                     id: `Chat:${chat.id}`,
                     accessPolicy: {
-                        accountGrantAccountIds: new Set([session1.account.id, session2.account.id]),
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: null,
+                    },
+                    createdTime: expect.any(Date),
+                    title: null,
+                    body: null,
+                    embeddingChunks: [],
+                    media: null,
+                    creatorId: null,
+                    contributorIds: new Map(),
+                },
+            });
+
+            await chat.sendMessage(session2, "Test chat message content.");
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Chat", chatId: chat.id},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `Chat:${chat.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
+                        defaultGrantType: null,
+                    },
+                    createdTime: expect.any(Date),
+                    title: null,
+                    body: null,
+                    embeddingChunks: [],
+                    media: null,
+                    creatorId: null,
+                    contributorIds: new Map(),
+                },
+            });
+        });
+
+        test("can get chat search entity", async () => {
+            const space = await TestSpace.create(context);
+            const session1 = await space.createSession({name: "Caleb Meredith"});
+            const session2 = await space.createSession({name: "Josh Meredith"});
+            const session3 = await space.createSession({name: "Shawn Meredith"});
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+            const chat = await TestChat.get(session1, session2, session3);
+
+            expect(
+                await getSearchEntity(
+                    space.systemAction(),
+                    {type: "Chat", chatId: chat.id},
+                    tokenizer,
+                ),
+            ).toEqual({
+                dependencyIds: new Set(),
+                entity: {
+                    id: `Chat:${chat.id}`,
+                    accessPolicy: {
+                        accountGrantAccountIds: new Set(),
                         defaultGrantType: null,
                     },
                     createdTime: expect.any(Date),
@@ -318,25 +378,30 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     [
                         `Account:${session1.account.id}:WithoutSpace`,
                         `Account:${session2.account.id}:WithoutSpace`,
+                        `Account:${session3.account.id}:WithoutSpace`,
                     ].sort(defaultCompareStrings),
                 ),
                 entity: {
                     id: `Chat:${chat.id}`,
                     accessPolicy: {
                         accountGrantAccountIds: new Set(
-                            [session1.account.id, session2.account.id].sort(defaultCompareStrings),
+                            [session1.account.id, session2.account.id, session3.account.id].sort(
+                                defaultCompareStrings,
+                            ),
                         ),
                         defaultGrantType: null,
                     },
                     createdTime: expect.any(Date),
-                    title: "Caleb Meredith and Josh Meredith",
+                    title: "Caleb Meredith, Josh Meredith, and Shawn Meredith",
                     body: null,
                     embeddingChunks: [],
                     media: {
                         type: "AccountPile",
-                        accountIds: [session1.account.id, session2.account.id].sort(
-                            defaultCompareStrings,
-                        ),
+                        accountIds: [
+                            session1.account.id,
+                            session2.account.id,
+                            session3.account.id,
+                        ].sort(defaultCompareStrings),
                     },
                     creatorId: null,
                     contributorIds: new Map(),
