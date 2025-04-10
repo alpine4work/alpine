@@ -341,6 +341,29 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     opensearch: {
         query: Schema.string,
         sort: Schema.string,
+        get: {
+            found: Schema.boolean,
+        },
+        mget: {
+            count: Schema.integer,
+            foundCount: Schema.integer,
+        },
+        bulk: {
+            count: Schema.integer,
+        },
+        search: {
+            hitCount: Schema.integer,
+        },
+        updateByQuery: {
+            totalCount: Schema.integer,
+            updatedCount: Schema.integer,
+            deletedCount: Schema.integer,
+            batchCount: Schema.integer,
+            versionConflictCount: Schema.integer,
+            retryCount: Schema.integer,
+            throttledMs: Schema.float,
+            requestsPerSecond: Schema.float,
+        },
     },
     jobs: {
         type: IdentifierStringSchema,

@@ -1013,6 +1013,60 @@ export type TracerEventData = {
 
         /** A JSON string representation of a search's sorts. */
         readonly sort?: string;
+
+        /** Information regarding an OpenSearch get document request. */
+        readonly get?: {
+            /** Was the document found? */
+            readonly found?: boolean;
+        };
+
+        /** Information regarding an OpenSearch multi-get document request. */
+        readonly mget?: {
+            /** How many documents were requested? */
+            readonly count?: number;
+
+            /** How many documents were found? */
+            readonly foundCount?: number;
+        };
+
+        /** Information regarding an OpenSearch bulk request. */
+        readonly bulk?: {
+            /** How many bulk operations were made? */
+            readonly count?: number;
+        };
+
+        /** Information regarding an OpenSearch search request. */
+        readonly search?: {
+            /** How many hits were returned by the search? */
+            readonly hitCount?: number;
+        };
+
+        /** Information regarding an OpenSearch update by query request. */
+        readonly updateByQuery?: {
+            /** Total number of documents processed. */
+            readonly totalCount?: number;
+
+            /** Total number of documents updated. */
+            readonly updatedCount?: number;
+
+            /** Total number of documents deleted. */
+            readonly deletedCount?: number;
+
+            /** Number of scroll responses the request processed. */
+            readonly batchCount?: number;
+
+            /** Number of conflicts the request ran into. */
+            readonly versionConflictCount?: number;
+
+            /** The number of bulk and search retry requests. */
+            readonly retryCount?: number;
+
+            /** Number of throttled milliseconds during the request. */
+            readonly throttledMs?: number;
+
+            /** Number of requests executed per second during the operation. */
+            readonly requestsPerSecond?: number;
+        };
     };
 
     /**

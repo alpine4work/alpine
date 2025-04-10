@@ -1167,7 +1167,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_doc/:docId`,
             },
-            async response => {
+            async (response, span) => {
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
@@ -1193,6 +1193,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                         {cause: body.error},
                     );
                 }
+
+                span.addData({opensearch: {get: {found: body.found}}});
 
                 return body;
             },
@@ -1255,7 +1257,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_doc/:docId`,
             },
-            async response => {
+            async (response, span) => {
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
@@ -1282,6 +1284,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                         {cause: body.error},
                     );
                 }
+
+                span.addData({opensearch: {get: {found: body.found}}});
 
                 return body;
             },
@@ -1396,7 +1400,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                     })),
                 }),
             },
-            async response => {
+            async (response, span) => {
+                span.addData({opensearch: {mget: {count: commands.length}}});
+
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
@@ -1431,6 +1437,26 @@ export class OpensearchClient implements OpensearchClientInterface {
                     );
                 }
 
+                let foundCount = 0;
+
+                for (const bodyDoc of body.docs) {
+                    if (!bodyDoc.found) {
+                        if (bodyDoc.error) {
+                            throw new UnknownError(
+                                `OpenSearch multi-get documents failed with ${formatOpensearchError(
+                                    bodyDoc.error,
+                                )}`,
+                                {cause: bodyDoc.error},
+                            );
+                        }
+                        continue;
+                    }
+
+                    foundCount++;
+                }
+
+                span.addData({opensearch: {mget: {foundCount}}});
+
                 return body;
             },
         );
@@ -1438,17 +1464,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         const docByIdByIndex = new Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>();
 
         for (const bodyDoc of body.docs) {
-            if (!bodyDoc.found) {
-                if (bodyDoc.error) {
-                    throw new UnknownError(
-                        `OpenSearch multi-get documents failed with ${formatOpensearchError(
-                            bodyDoc.error,
-                        )}`,
-                        {cause: bodyDoc.error},
-                    );
-                }
-                continue;
-            }
+            if (!bodyDoc.found) continue;
 
             const index = assertExists(indexByName.get(bodyDoc._index));
             const command = assertExists(commandByIdByIndex.get(index)?.get(bodyDoc._id));
@@ -1597,7 +1613,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             bulkBody.push(body);
         }
 
-        const body = await fetchWithTracer(
+        const versionConflictError: FailedPreconditionError | null = await fetchWithTracer(
             tracer,
             url,
             {
@@ -1612,7 +1628,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // `long`s will be strings and we know how to handle those strings.
                 body: bulkBody.map(object => `${JSON.stringify(object)}\n`).join(""),
             },
-            async response => {
+            async (response, span) => {
+                span.addData({opensearch: {bulk: {count: bulkBody.length}}});
+
                 // NOTE(#opensearch-important-json-disclaimer): This response only contains
                 // errors and the error numbers fit in 64-bit floats.
                 const body:
@@ -1635,46 +1653,51 @@ export class OpensearchClient implements OpensearchClientInterface {
                     );
                 }
 
-                return body;
+                if (body.errors) {
+                    const maybeRecoverableErrors = filterMapArray(
+                        body.items,
+                        item =>
+                            item.create?.error ??
+                            item.update?.error ??
+                            item.delete?.error ??
+                            item.index?.error,
+                    );
+
+                    const [versionConflictErrors, errors] = partitionArray(
+                        maybeRecoverableErrors,
+                        error => error.type === "version_conflict_engine_exception",
+                    );
+
+                    // If the only errors were version conflicts, allow the caller to retry the
+                    // error. This implements [optimistic concurrency control][1].
+                    //
+                    // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
+                    if (errors.length === 0 && versionConflictErrors.length > 0) {
+                        return new FailedPreconditionError(
+                            `OpenSearch bulk version conflicts in ${versionConflictErrors.length} operation(s) out of ${body.items.length} operation(s)`,
+                        );
+                    }
+
+                    const error = new UnknownError(
+                        `OpenSearch bulk partially failed with ${errors.length} error(s) out of ${
+                            body.items.length
+                        } operation(s)${
+                            errors[0] ? `, first error is ${formatOpensearchError(errors[0])}` : ""
+                        }`,
+                    );
+
+                    throw error;
+                }
+
+                return null;
             },
         );
 
-        if (body.errors) {
-            const maybeRecoverableErrors = filterMapArray(
-                body.items,
-                item =>
-                    item.create?.error ??
-                    item.update?.error ??
-                    item.delete?.error ??
-                    item.index?.error,
-            );
-
-            const [versionConflictErrors, errors] = partitionArray(
-                maybeRecoverableErrors,
-                error => error.type === "version_conflict_engine_exception",
-            );
-
-            // If the only errors were version conflicts, allow the caller to retry the
-            // error. This implements [optimistic concurrency control][1].
-            //
-            // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
-            if (errors.length === 0 && versionConflictErrors.length > 0) {
-                const error = new FailedPreconditionError(
-                    `OpenSearch bulk version conflicts in ${versionConflictErrors.length} operation(s) out of ${body.items.length} operation(s)`,
-                );
-                retryPartialVersionConflictError?.(error);
-                throw error;
-            }
-
-            const error = new UnknownError(
-                `OpenSearch bulk partially failed with ${errors.length} error(s) out of ${
-                    body.items.length
-                } operation(s)${
-                    errors[0] ? `, first error is ${formatOpensearchError(errors[0])}` : ""
-                }`,
-            );
-
-            throw error;
+        // If there's a version conflict error, don't report the retry exception in the
+        // trace.
+        if (versionConflictError) {
+            retryPartialVersionConflictError?.(versionConflictError);
+            throw versionConflictError;
         }
     }
 
@@ -1794,6 +1817,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                         {cause: body.error},
                     );
                 }
+
+                span.addData({opensearch: {search: {hitCount: body.hits.hits.length}}});
 
                 return body;
             },
@@ -2155,7 +2180,20 @@ export class OpensearchClient implements OpensearchClientInterface {
                 const body:
                     | {
                           timed_out: boolean;
+                          total: number;
+                          updated: number;
+                          // NOTE(calebmer, 2025-04-10): The documentation is confusing. The `deleted`
+                          // property exists in the "Example response" section but not the "Response body
+                          // fields" section at time of writing.
+                          // https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
+                          deleted?: number;
+                          batches: number;
                           version_conflicts: number;
+                          noops: number;
+                          retries: number;
+                          throttled_millis: number;
+                          requests_per_second: number;
+                          throttled_until_millis: number;
                           failures: Array<unknown>;
                           error?: undefined;
                       }
@@ -2168,6 +2206,21 @@ export class OpensearchClient implements OpensearchClientInterface {
                         )}`,
                     );
                 }
+
+                span.addData({
+                    opensearch: {
+                        updateByQuery: {
+                            totalCount: body.total,
+                            updatedCount: body.updated,
+                            deletedCount: body.deleted,
+                            batchCount: body.batches,
+                            versionConflictCount: body.version_conflicts,
+                            retryCount: body.retries,
+                            throttledMs: body.throttled_millis,
+                            requestsPerSecond: body.requests_per_second,
+                        },
+                    },
+                });
 
                 if (body.failures.length > 0) {
                     throw new UnknownError(
