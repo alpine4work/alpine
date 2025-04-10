@@ -757,7 +757,7 @@ export async function processIndexSearchEntityJob(
 
         // Maximum search page size is 10k.
         const searchSize = 10_000;
-        let searchAfter: ReadonlyArray<JsonScalarValue> | null = null;
+        let afterCursor: ReadonlyArray<JsonScalarValue> | null = null;
 
         do {
             const {hits} = await context.opensearch.searchWithoutSource(
@@ -766,7 +766,7 @@ export async function processIndexSearchEntityJob(
                 {
                     size: searchSize,
                     sort: ["_doc"],
-                    searchAfter: searchAfter ?? undefined,
+                    afterCursor: afterCursor ?? undefined,
                     query: {
                         bool: {
                             filter: {
@@ -810,14 +810,14 @@ export async function processIndexSearchEntityJob(
                 }),
             );
 
-            searchAfter = (
-                hits.length > 0 ? assertExists(hits[hits.length - 1]!.sort) : null
+            afterCursor = (
+                hits.length > 0 ? assertExists(hits[hits.length - 1]!.cursor) : null
             ) as ReadonlyArray<JsonScalarValue> | null;
 
             // If we did not reach the pagination limit then don't query again for the
             // next page.
-            if (hits.length < searchSize) searchAfter = null;
-        } while (searchAfter !== null);
+            if (hits.length < searchSize) afterCursor = null;
+        } while (afterCursor !== null);
     }
 }
 
