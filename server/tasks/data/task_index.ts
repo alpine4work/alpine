@@ -61,7 +61,12 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    InternalError,
+    NotFoundError,
+} from "~/shared/error/error.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -77,13 +82,20 @@ import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskActionTransactionId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {
     TaskAction,
     TaskUpdateAccountNameAction,
     TaskUpdateTaskAction,
+    getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
@@ -500,6 +512,62 @@ export const indexTaskActionTransactionAfterUpdateTestCheckpoint = new TestCheck
  *   is valid.
  */
 export function indexTaskActionTransactionAssumingItsCommitted(
+    context: TaskSystemActionContext,
+    actionTransaction: {
+        spaceId: SpaceId;
+        committedTime: Date;
+        actionTransactionId: TaskActionTransactionId;
+        actions: ReadonlyArray<TaskAction>;
+        actorId: AccountId | null;
+    },
+) {
+    return context.tracer.withSpan("Index task action transaction", async (context, span) => {
+        span.addData({
+            tasks: {
+                actions: actionTransaction.actions.map(getTaskActionLabel).join(","),
+                actionCount: actionTransaction.actions.length,
+                actionTransactionId: actionTransaction.actionTransactionId,
+            },
+        });
+
+        try {
+            await actuallyIndexTaskActionTransactionAssumingItsCommitted(
+                context,
+                actionTransaction.spaceId,
+                actionTransaction.actorId,
+                actionTransaction.actions,
+            );
+        } catch (error) {
+            // Escalate task indexing errors to `DataLossError` since it means we
+            // failed to index tasks but the user doesn't know.
+            //
+            // It would be very bad for the process to shutdown midway through indexing
+            // such that we don't see this error! We need some backup monitoring/retry
+            // method.
+            throw DataLossError.from(error);
+        }
+    });
+}
+
+export function indexTaskActionTransactionAssumingItsCommittedForTest(
+    context: TaskSystemActionContext,
+    spaceId: SpaceId,
+    actorId: AccountId | null,
+    actions: ReadonlyArray<TaskAction>,
+    options?: {onRetry?: () => void},
+) {
+    assert(import.meta.jest);
+
+    return actuallyIndexTaskActionTransactionAssumingItsCommitted(
+        context,
+        spaceId,
+        actorId,
+        actions,
+        options,
+    );
+}
+
+function actuallyIndexTaskActionTransactionAssumingItsCommitted(
     context: TaskSystemActionContext,
     spaceId: SpaceId,
     actorId: AccountId | null,

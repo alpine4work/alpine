@@ -13,7 +13,7 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {DataLossError, UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -94,33 +94,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
         return this._dangerouslyEscalateToSystemContext(
             this._context,
             actionTransaction.spaceId,
-            context =>
-                context.tracer.withSpan("Index task action transaction", async (context, span) => {
-                    span.addData({
-                        tasks: {
-                            actions: actionTransaction.actions.map(getTaskActionLabel).join(","),
-                            actionCount: actionTransaction.actions.length,
-                            actionTransactionId: actionTransaction.actionTransactionId,
-                        },
-                    });
-
-                    try {
-                        await indexTaskActionTransactionAssumingItsCommitted(
-                            context,
-                            actionTransaction.spaceId,
-                            actionTransaction.actorId,
-                            actionTransaction.actions,
-                        );
-                    } catch (error) {
-                        // Escalate task indexing errors to `DataLossError` since it means we
-                        // failed to index tasks but the user doesn't know.
-                        //
-                        // It would be very bad for the process to shutdown midway through indexing
-                        // such that we don't see this error! We need some backup monitoring/retry
-                        // method.
-                        throw DataLossError.from(error);
-                    }
-                }),
+            context => indexTaskActionTransactionAssumingItsCommitted(context, actionTransaction),
         );
     }
 }

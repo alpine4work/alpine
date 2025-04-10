@@ -7,7 +7,7 @@ import {getAccount, getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
-    indexTaskActionTransactionAssumingItsCommitted,
+    indexTaskActionTransactionAssumingItsCommittedForTest,
 } from "~/server/tasks/data/task_index.js";
 import {
     getTaskIndexDocAssigneePosition,
@@ -79,7 +79,7 @@ testTaskActionPermutations({
             }
         }
 
-        await indexTaskActionTransactionAssumingItsCommitted(
+        await indexTaskActionTransactionAssumingItsCommittedForTest(
             context.systemAction(space.id),
             space.id,
             null,

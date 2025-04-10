@@ -3,6 +3,7 @@ import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {
@@ -18,7 +19,10 @@ import {
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {
+    DynamoBatchContextModule,
+    DynamoContextModule,
+} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -52,6 +56,7 @@ import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
     ensureLocalTaskIndexesIfEnabled,
+    indexTaskActionTransactionAssumingItsCommitted,
     runIndexTaskInitialAssigneePositionMigrationForTask,
     withSendTaskIndexSearchEntityJobIfNeeded,
 } from "~/server/tasks/data/task_index.js";
@@ -974,6 +979,102 @@ export async function runIndexTaskInitialAssigneePositionMigration(
 
         void mutexes[i++ % mutexes.length]!.withLock(() =>
             runIndexTaskInitialAssigneePositionMigrationForTask(context, item.spaceId, item.taskId),
+        );
+    }
+
+    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+}
+
+/**
+ * Reindex every task action in our task actions table to rebuild our task
+ * OpenSearch index.
+ *
+ * This migration needs to be run in two steps. The first step creates all the
+ * task docs in OpenSearch. The second step applies all non-create updates. We
+ * need to create docs first since if an update action doesn't find the task
+ * doc it's updating it'll retry until the task doc exists. We can't guarantee
+ * the scan will find create actions first so we run the migration in two
+ * steps to guarantee tasks are created before updated.
+ */
+export async function runIndexEveryTaskActionStep1Of2(
+    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+) {
+    const {serviceName: unknownServiceName} = context.tracer.getRoot();
+    assert(unknownServiceName === "MigrationService");
+    const serviceName = unknownServiceName;
+
+    let i = 0;
+    const mutexes = createArrayWithLength(10, () => new Mutex());
+
+    for await (const item of TaskActionTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+    })) {
+        const createActions = item.actions.filter(
+            action =>
+                (action.type === "UpdateTask" && action.taskAction.type === "Create") ||
+                (action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
+        );
+        if (createActions.length === 0) return;
+
+        void mutexes[i++ % mutexes.length]!.withLock(() =>
+            indexTaskActionTransactionAssumingItsCommitted(
+                context.clone({
+                    cache: new CacheContextModule(),
+                    dynamoBatchContext: new DynamoBatchContextModule(),
+                    actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, item.spaceId),
+                }),
+                {...item, actions: createActions},
+            ),
+        );
+    }
+
+    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+}
+
+/**
+ * Reindex every task action in our task actions table to rebuild our task
+ * OpenSearch index.
+ *
+ * This migration needs to be run in two steps. The first step creates all the
+ * task docs in OpenSearch. The second step applies all non-create updates. We
+ * need to create docs first since if an update action doesn't find the task
+ * doc it's updating it'll retry until the task doc exists. We can't guarantee
+ * the scan will find create actions first so we run the migration in two
+ * steps to guarantee tasks are created before updated.
+ */
+export async function runIndexEveryTaskActionStep2Of2(
+    context: Context<ServerProcessContextModules & {opensearch: OpensearchContextModule}>,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+) {
+    const {serviceName: unknownServiceName} = context.tracer.getRoot();
+    assert(unknownServiceName === "MigrationService");
+    const serviceName = unknownServiceName;
+
+    let i = 0;
+    const mutexes = createArrayWithLength(10, () => new Mutex());
+
+    for await (const item of TaskActionTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+    })) {
+        const updateActions = item.actions.filter(
+            action =>
+                !(action.type === "UpdateTask" && action.taskAction.type === "Create") &&
+                !(action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
+        );
+        if (updateActions.length === 0) return;
+
+        void mutexes[i++ % mutexes.length]!.withLock(() =>
+            indexTaskActionTransactionAssumingItsCommitted(
+                context.clone({
+                    cache: new CacheContextModule(),
+                    dynamoBatchContext: new DynamoBatchContextModule(),
+                    actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, item.spaceId),
+                }),
+                {...item, actions: updateActions},
+            ),
         );
     }
 

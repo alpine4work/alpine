@@ -8,7 +8,7 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {
     getTaskIndexDocIfExistsForTest,
     indexTaskActionTransactionAfterUpdateTestCheckpoint,
-    indexTaskActionTransactionAssumingItsCommitted,
+    indexTaskActionTransactionAssumingItsCommittedForTest,
     indexTaskActionTransactionBeforeUpdateTestCheckpoint,
     indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint,
     indexTaskUpdateAccountNameActionBeforeUpdateTestCheckpoint,
@@ -39,7 +39,7 @@ test("can't update task from a different space", async () => {
 
     const taskId = generateId<TaskId>();
 
-    await indexTaskActionTransactionAssumingItsCommitted(
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
         context.systemAction(space.id),
         space.id,
         null,
@@ -58,7 +58,7 @@ test("can't update task from a different space", async () => {
     );
 
     await expect(
-        indexTaskActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommittedForTest(
             context.systemAction(otherSpace.id),
             otherSpace.id,
             null,
@@ -77,7 +77,7 @@ test("can't update task from a different space", async () => {
     ).rejects.toThrow(new FailedPreconditionError("Space mismatch"));
 
     await expect(
-        indexTaskActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommittedForTest(
             context.systemAction(otherSpace.id),
             space.id,
             null,
@@ -95,7 +95,7 @@ test("can't update task from a different space", async () => {
         ),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await indexTaskActionTransactionAssumingItsCommitted(
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
         context.systemAction(space.id),
         space.id,
         null,
@@ -119,7 +119,7 @@ test("can't update collection from a different space", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await indexTaskActionTransactionAssumingItsCommitted(
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
         context.systemAction(space.id),
         space.id,
         null,
@@ -139,7 +139,7 @@ test("can't update collection from a different space", async () => {
     );
 
     await expect(
-        indexTaskActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommittedForTest(
             context.systemAction(otherSpace.id),
             otherSpace.id,
             null,
@@ -158,7 +158,7 @@ test("can't update collection from a different space", async () => {
     ).rejects.toThrow(new FailedPreconditionError("Space mismatch"));
 
     await expect(
-        indexTaskActionTransactionAssumingItsCommitted(
+        indexTaskActionTransactionAssumingItsCommittedForTest(
             context.systemAction(otherSpace.id),
             space.id,
             null,
@@ -176,7 +176,7 @@ test("can't update collection from a different space", async () => {
         ),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await indexTaskActionTransactionAssumingItsCommitted(
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
         context.systemAction(space.id),
         space.id,
         null,
@@ -684,15 +684,20 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 0,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, null, [
-        {
-            type: "UpdateAccountName",
-            time: testClock.nowLogical(),
-            accountId: account.id,
-            accountName: newAccountName1,
-            accountNameVersion: 1,
-        },
-    ]);
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
+        space1.systemAction(),
+        space1.id,
+        null,
+        [
+            {
+                type: "UpdateAccountName",
+                time: testClock.nowLogical(),
+                accountId: account.id,
+                accountName: newAccountName1,
+                accountNameVersion: 1,
+            },
+        ],
+    );
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
@@ -715,15 +720,20 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 0,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, null, [
-        {
-            type: "UpdateAccountName",
-            time: testClock.nowLogical(),
-            accountId: account.id,
-            accountName: newAccountName2,
-            accountNameVersion: 2,
-        },
-    ]);
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
+        space2.systemAction(),
+        space2.id,
+        null,
+        [
+            {
+                type: "UpdateAccountName",
+                time: testClock.nowLogical(),
+                accountId: account.id,
+                accountName: newAccountName2,
+                accountNameVersion: 2,
+            },
+        ],
+    );
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
@@ -746,15 +756,20 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 2,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, null, [
-        {
-            type: "UpdateAccountName",
-            time: testClock.nowLogical(),
-            accountId: account.id,
-            accountName: newAccountName2,
-            accountNameVersion: 2,
-        },
-    ]);
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
+        space1.systemAction(),
+        space1.id,
+        null,
+        [
+            {
+                type: "UpdateAccountName",
+                time: testClock.nowLogical(),
+                accountId: account.id,
+                accountName: newAccountName2,
+                accountNameVersion: 2,
+            },
+        ],
+    );
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
@@ -777,15 +792,20 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 2,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, null, [
-        {
-            type: "UpdateAccountName",
-            time: testClock.nowLogical(),
-            accountId: account.id,
-            accountName: newAccountName1,
-            accountNameVersion: 1,
-        },
-    ]);
+    await indexTaskActionTransactionAssumingItsCommittedForTest(
+        space2.systemAction(),
+        space2.id,
+        null,
+        [
+            {
+                type: "UpdateAccountName",
+                time: testClock.nowLogical(),
+                accountId: account.id,
+                accountName: newAccountName1,
+                accountNameVersion: 1,
+            },
+        ],
+    );
 
     expect((await task1.getIndexDoc()).creator).toEqual({
         accountId: account.id,
