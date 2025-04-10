@@ -525,6 +525,9 @@ importers:
       '@types/set-cookie-parser':
         specifier: ^2.4.2
         version: 2.4.2
+      '@types/statuses':
+        specifier: ^2.0.5
+        version: 2.0.5
       '@types/testing-library__jest-dom':
         specifier: ^5.14.5
         version: 5.14.5
@@ -912,6 +915,9 @@ importers:
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
+      statuses:
+        specifier: ^2.0.1
+        version: 2.0.1
       stemmer:
         specifier: ^2.0.1
         version: 2.0.1
@@ -3664,6 +3670,9 @@ packages:
 
   '@types/stack-utils@2.0.1':
     resolution: {integrity: sha512-Hl219/BT5fLAaz6NDkSuhzasy49dwQS/DSdu4MdggFB8zcXv7vflBI3xp7FEmkmdDkBUI2bPUNeMttp2knYdxw==}
+
+  '@types/statuses@2.0.5':
+    resolution: {integrity: sha512-jmIUGWrAiwu3dZpxntxieC+1n/5c3mjrImkmOSQ2NC5uP6cYO4aAZDdSmRcI5C1oiTmqlZGHC+/NmJrKogbP5A==}
 
   '@types/testing-library__jest-dom@5.14.5':
     resolution: {integrity: sha512-SBwbxYoyPIvxHbeHxTZX2Pe/74F/tX2/D3mMvzabdeJ25bBojfW0TyB8BHrbq/9zaaKICJZjLP+8r6AeZMFCuQ==}
@@ -12873,6 +12882,8 @@ snapshots:
   '@types/stack-trace@0.0.29': {}
 
   '@types/stack-utils@2.0.1': {}
+
+  '@types/statuses@2.0.5': {}
 
   '@types/testing-library__jest-dom@5.14.5':
     dependencies:

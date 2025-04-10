@@ -1,3 +1,4 @@
+import status from "statuses";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {
     ProgressValueStore,
@@ -53,6 +54,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {ReadonlyTuple} from "~/shared/helpers/types/tuple.js";
+import {idLength} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Store} from "~/shared/store/store.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -146,28 +148,56 @@ async function actuallyUploadFile(
                     contentType ?? "application/octet-stream",
                 );
 
-                const linkSegment = errorDisplayMessage.link(
-                    `${input.url.protocol}//${input.url.host}`,
-                    `${input.url.protocol}//${input.url.host}`,
-                );
-
-                return errorDisplayMessage`Can’t add ${contentTypeNoun} from ${linkSegment} because the ${contentTypeNoun} is in an incorrect format. Try adding a different ${contentTypeNoun}.`;
+                return errorDisplayMessage`The ${contentTypeNoun} is in an incorrect format. Try adding a different ${contentTypeNoun}.`;
             };
+
+            const currentUrl = new URL(window.location.href);
+
+            const isSameOrigin =
+                currentUrl.protocol === input.url.protocol &&
+                currentUrl.hostname === input.url.hostname &&
+                currentUrl.port === input.url.port;
 
             downloadPromise = fetchWithTracer(
                 context.tracer.getTracer(),
-                new URL(
-                    `/files/cors-proxy/${encodeURIComponent(input.url.toString())}`,
-                    window.location.href,
-                ),
+                // If `input.url` is from the same origin as `window.location.href` then we
+                // don't need to use our CORS proxy. Skip the CORS proxy for better
+                // performance.
+                isSameOrigin
+                    ? input.url
+                    : new URL(
+                          `/files/cors-proxy/${encodeURIComponent(input.url.toString())}`,
+                          currentUrl,
+                      ),
                 {
                     serviceName: "EdgeService",
-                    route: "/files/cors-proxy/:url",
+                    // If we're not using the CORS proxy our route needs to be `/*` since we don't
+                    // know the route pattern. However, we do sniff to see if the route looks like
+                    // `/files/:spaceId/:fileId` and use that pattern if possible.
+                    route: isSameOrigin
+                        ? input.url.pathname.startsWith("/files/") &&
+                          input.url.pathname.slice(7).length === idLength * 2 + 1
+                            ? "/files/:spaceId/:fileId"
+                            : "/*"
+                        : "/files/cors-proxy/:url",
                     method: "GET",
                     // To use the CORS proxy you must be authenticated with Alpine to prevent abuse.
-                    credentials: "include",
+                    credentials: isSameOrigin ? undefined : "include",
                 },
                 async response => {
+                    // Throw an error instead of attaching HTML/JSON file if the response doesn't
+                    // have a 200 status code.
+                    if (!response.ok) {
+                        const statusMessage = status.message[response.status];
+
+                        throw new UnknownError(`Fetch failed with status code ${response.status}`, {
+                            displayMessage:
+                                statusMessage === undefined
+                                    ? errorDisplayMessage`The file download failed with HTTP status code ${response.status}.`
+                                    : errorDisplayMessage`The file download failed with HTTP status code ${response.status} (${statusMessage}).`,
+                        });
+                    }
+
                     const responseContentLengthString = response.headers.get("content-length");
                     const responseContentType = response.headers.get("content-type");
 
