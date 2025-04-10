@@ -97,7 +97,7 @@ import {
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -757,7 +757,7 @@ export async function processIndexSearchEntityJob(
 
         // Maximum search page size is 10k.
         const searchSize = 10_000;
-        let searchAfter: ReadonlyArray<JsonValue> | null = null;
+        let searchAfter: ReadonlyArray<JsonScalarValue> | null = null;
 
         do {
             const {hits} = await context.opensearch.searchWithoutSource(
@@ -765,7 +765,8 @@ export async function processIndexSearchEntityJob(
                 job.spaceId,
                 {
                     size: searchSize,
-
+                    sort: ["_doc"],
+                    searchAfter: searchAfter ?? undefined,
                     query: {
                         bool: {
                             filter: {
@@ -788,7 +789,6 @@ export async function processIndexSearchEntityJob(
                             },
                         },
                     },
-                    sort: ["_doc"],
                 },
             );
 
@@ -810,7 +810,9 @@ export async function processIndexSearchEntityJob(
                 }),
             );
 
-            searchAfter = hits.length > 0 ? assertExists(hits[hits.length - 1]!.sort) : null;
+            searchAfter = (
+                hits.length > 0 ? assertExists(hits[hits.length - 1]!.sort) : null
+            ) as ReadonlyArray<JsonScalarValue> | null;
 
             // If we did not reach the pagination limit then don't query again for the
             // next page.

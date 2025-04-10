@@ -19,6 +19,7 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -1953,4 +1954,55 @@ test("adds search affinity points for task collection when it's added to a task"
 
     expect(await getTaskCollectionSearchAffinityPoints(session1)).toBeCloseTo(3.4);
     expect(await getTaskCollectionSearchAffinityPoints(session2)).toBeCloseTo(0.2);
+});
+
+test("updating account name updates inlined creator account name of 100+ tasks in index", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await runAllPromises([
+        space.createSession(),
+        space.createSession(),
+    ]);
+
+    const tasks = await runAllPromises(createArrayWithLength(250, () => TestTask.create(session1)));
+
+    const newAccountName = generateId();
+
+    expect(session1.account.initialName).not.toEqual(session2.account.initialName);
+    expect(session1.account.initialName).not.toEqual(newAccountName);
+
+    expect(
+        await runAllPromises(
+            tasks.map(async task => {
+                const taskIndexDoc = await task.getIndexDoc();
+                return {
+                    workingAccountName: taskIndexDoc.creator.workingAccountName,
+                    workingAccountNameVersion: taskIndexDoc.creator.workingAccountNameVersion,
+                };
+            }),
+        ),
+    ).toEqual(
+        createArrayWithLength(250, () => ({
+            workingAccountName: session1.account.initialName,
+            workingAccountNameVersion: 0,
+        })),
+    );
+
+    await updateOurAccountName(TestTask.action(session1), newAccountName);
+
+    expect(
+        await runAllPromises(
+            tasks.map(async task => {
+                const taskIndexDoc = await task.getIndexDoc();
+                return {
+                    workingAccountName: taskIndexDoc.creator.workingAccountName,
+                    workingAccountNameVersion: taskIndexDoc.creator.workingAccountNameVersion,
+                };
+            }),
+        ),
+    ).toEqual(
+        createArrayWithLength(250, () => ({
+            workingAccountName: newAccountName,
+            workingAccountNameVersion: 1,
+        })),
+    );
 });

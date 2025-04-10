@@ -79,8 +79,7 @@ import {TaskTitle, getTaskTitleText} from "~/shared/tasks/task_title.js";
  *
  * We inline the account name into this object so we can sort by account
  * name. When the account name changes we run a
- * [`/:index/_update_by_query` request][1] to update all tasks the name is
- * present in at once.
+ * [`/:index/_search` request][1] to find all tasks we need to update.
  *
  * The inlined account name/version is prefixed with "working" to denote that
  * the account is what we're currently using for sorting but it's not the

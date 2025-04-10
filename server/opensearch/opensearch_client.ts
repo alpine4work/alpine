@@ -24,7 +24,6 @@ import {
 } from "~/server/opensearch/opensearch_query_clause.js";
 import {OpensearchSortClause} from "~/server/opensearch/opensearch_sort_clause.js";
 import {
-    DeadlineExceededError,
     FailedPreconditionError,
     InternalError,
     UnavailableError,
@@ -45,7 +44,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -224,7 +223,7 @@ export interface OpensearchClientInterface {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
-            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            afterCursor?: ReadonlyArray<JsonScalarValue | bigint>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             explain?: boolean;
         },
@@ -273,7 +272,7 @@ export interface OpensearchClientInterface {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
-            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            afterCursor?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             explain?: boolean;
@@ -287,7 +286,7 @@ export interface OpensearchClientInterface {
                     OpensearchIndexStoredFieldsType<Index>[Key]
                 >;
             };
-            readonly sort?: ReadonlyArray<JsonValue>;
+            readonly cursor?: ReadonlyArray<JsonValue>;
             readonly highlight?: {
                 readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
             };
@@ -313,32 +312,6 @@ export interface OpensearchClientInterface {
         tracer: TracerBase,
         index: Index,
     ): Promise<void>;
-
-    /**
-     * Update many documents in an OpenSearch index at once with the [update by
-     * query API][1].
-     *
-     * If there are version conflicts while updating a document the update on that
-     * document is dropped and we proceed updating other documents. It's
-     * [recommended by the ElasticSearch team][2] to keep retrying updates by query
-     * until you have no version conflicts.
-     *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
-     * [2]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
-     */
-    updateByQuery<Index extends OpensearchIndex<any, any, any, any, any>>(
-        tracer: TracerBase,
-        index: Index,
-        routing: OpensearchIndexRoutingType<Index>,
-        options: {
-            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
-            script: {
-                lang: "painless";
-                source: string;
-                params?: JsonObjectValue;
-            };
-        },
-    ): Promise<{versionConflictCount: number}>;
 
     /**
      * Analyze some text using the [analysis API][1].
@@ -1709,7 +1682,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             size,
             query,
             sort = ["_score"],
-            searchAfter,
+            afterCursor,
             storedFields,
             highlight,
             explain = false,
@@ -1718,7 +1691,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
-            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            afterCursor?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: ReadonlyArray<string>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             explain?: boolean;
@@ -1780,7 +1753,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 body: JsonBigInt.stringify({
                     query,
                     sort,
-                    search_after: searchAfter,
+                    search_after: afterCursor,
                     _source: !withoutSource,
                     highlight,
                 }),
@@ -1848,14 +1821,16 @@ export class OpensearchClient implements OpensearchClientInterface {
             size,
             query,
             sort,
-            searchAfter,
+            afterCursor,
+            withCursor,
             highlight,
             explain,
         }: {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
-            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            afterCursor?: ReadonlyArray<JsonScalarValue | bigint>;
+            withCursor?: boolean;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             explain?: boolean;
         },
@@ -1865,6 +1840,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 OpensearchIndexDocIdType<Index>,
                 OpensearchIndexDocType<Index>
             > & {
+                readonly cursor?: ReadonlyArray<JsonValue>;
                 readonly highlight?: {
                     readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
                 };
@@ -1886,7 +1862,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             size,
             query,
             sort,
-            searchAfter,
+            afterCursor,
             highlight,
             explain,
         });
@@ -1895,6 +1871,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             const doc = Object.assign(index.type.deserialize(hit._source), {
                 id: hit._id,
             });
+
+            if (withCursor && hit.sort) {
+                doc.cursor = hit.sort;
+            }
 
             if (hit.highlight) {
                 doc.highlight = hit.highlight;
@@ -1960,7 +1940,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             size,
             query,
             sort,
-            searchAfter,
+            afterCursor,
             storedFields,
             highlight,
             explain,
@@ -1968,7 +1948,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
-            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            afterCursor?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             explain?: boolean;
@@ -1982,7 +1962,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     OpensearchIndexStoredFieldsType<Index>[Key]
                 >;
             };
-            readonly sort?: ReadonlyArray<JsonValue>;
+            readonly cursor?: ReadonlyArray<JsonValue>;
             readonly highlight?: {
                 readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
             };
@@ -2003,7 +1983,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             size,
             query,
             sort,
-            searchAfter,
+            afterCursor,
             highlight,
             storedFields,
             explain,
@@ -2029,7 +2009,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 id: hit._id as OpensearchIndexDocIdType<Index>,
                 score: hit._score,
                 fields: fields as any,
-                sort: hit.sort,
+                cursor: hit.sort,
                 highlight: hit.highlight as any,
                 innerHits: hit.inner_hits
                     ? mapObjectValues(hit.inner_hits, innerHits =>
@@ -2096,143 +2076,6 @@ export class OpensearchClient implements OpensearchClientInterface {
                 if (!response.ok) {
                     throw new InternalError("OpenSearch refresh failed");
                 }
-            },
-        );
-    }
-
-    /**
-     * Update many documents in an OpenSearch index at once with the [update by
-     * query API][1].
-     *
-     * If there are version conflicts while updating a document the update on that
-     * document is dropped and we proceed updating other documents. It's
-     * [recommended by the ElasticSearch team][2] to keep retrying updates by query
-     * until you have no version conflicts.
-     *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
-     * [2]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
-     */
-    public async updateByQuery<Index extends OpensearchIndex<any, any, any, any, any>>(
-        tracer: TracerBase,
-        index: Index,
-        routing: OpensearchIndexRoutingType<Index>,
-        {
-            query,
-            script,
-        }: {
-            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
-            script: {
-                lang: "painless";
-                source: string;
-                params?: JsonObjectValue;
-            };
-        },
-    ): Promise<{versionConflictCount: number}> {
-        if (process.env.NODE_ENV !== "production") {
-            await this.ensureLocalIndex(tracer, index);
-        }
-
-        const url = new URL(`/${index.name}/_update_by_query`, this._url);
-        url.searchParams.set("routing", routing);
-
-        // If there's a version conflict, proceed with the update. We'll have the
-        // `versionConflictCount` return number to tell us if we had any version
-        // conflicts.
-        //
-        // It's [recommended by the ElasticSearch][1] team to perform your query
-        // updates with `conflicts=proceed` on then retry against documents which
-        // didn't update if there were conflicts.
-        //
-        // [1]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
-        url.searchParams.set("conflicts", "proceed");
-
-        // Bound how long this update may take. `TaskRealtimeService` expects actions
-        // to be indexed promptly (currently it's history window is configured to 10min
-        // but we need to index in less time to account for refresh interval, search
-        // time, and other factors). If it's taking too long we reject the update and
-        // should debug what's going on.
-        url.searchParams.set("timeout", "1m");
-
-        return fetchWithTracer(
-            tracer,
-            url,
-            {
-                sign: this._signer.sign,
-                serviceName: "OpenSearch",
-                route: `/${index.name}/_update_by_query`,
-                method: "POST",
-                headers: {"content-type": "application/json"},
-                // NOTE(#opensearch-important-json-disclaimer): `long`s in `query` must be
-                // stringified since the query clause type only supports JSON values. `script`
-                // also is typed as a JSON safe value.
-                body: JSON.stringify({query, script}),
-            },
-            async (response, span) => {
-                span.addData({
-                    opensearch: {
-                        query: getOpensearchQueryClauseDescription(query),
-                    },
-                });
-
-                // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
-                // should safely fit into JavaScript float-64 numbers so we don't need to use
-                // bigint parsing.
-                const body:
-                    | {
-                          timed_out: boolean;
-                          total: number;
-                          updated: number;
-                          // NOTE(calebmer, 2025-04-10): The documentation is confusing. The `deleted`
-                          // property exists in the "Example response" section but not the "Response body
-                          // fields" section at time of writing.
-                          // https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
-                          deleted?: number;
-                          batches: number;
-                          version_conflicts: number;
-                          noops: number;
-                          retries: number;
-                          throttled_millis: number;
-                          requests_per_second: number;
-                          throttled_until_millis: number;
-                          failures: Array<unknown>;
-                          error?: undefined;
-                      }
-                    | {error: OpensearchError} = await response.json();
-
-                if (body.error) {
-                    throw new UnknownError(
-                        `OpenSearch update by query failed with ${formatOpensearchError(
-                            body.error,
-                        )}`,
-                    );
-                }
-
-                span.addData({
-                    opensearch: {
-                        updateByQuery: {
-                            totalCount: body.total,
-                            updatedCount: body.updated,
-                            deletedCount: body.deleted,
-                            batchCount: body.batches,
-                            versionConflictCount: body.version_conflicts,
-                            retryCount: body.retries,
-                            throttledMs: body.throttled_millis,
-                            requestsPerSecond: body.requests_per_second,
-                        },
-                    },
-                });
-
-                if (body.failures.length > 0) {
-                    throw new UnknownError(
-                        `OpenSearch update by query failed with ${body.failures.length} failure(s)`,
-                    );
-                }
-
-                if (body.timed_out) {
-                    throw new DeadlineExceededError("OpenSearch update by query timed out");
-                }
-
-                return {versionConflictCount: body.version_conflicts};
             },
         );
     }
@@ -2359,10 +2202,6 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     }
 
     public refresh(): never {
-        throw this._newUnavailableError();
-    }
-
-    public updateByQuery(): never {
         throw this._newUnavailableError();
     }
 

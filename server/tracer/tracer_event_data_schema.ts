@@ -354,16 +354,6 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         search: {
             hitCount: Schema.integer,
         },
-        updateByQuery: {
-            totalCount: Schema.integer,
-            updatedCount: Schema.integer,
-            deletedCount: Schema.integer,
-            batchCount: Schema.integer,
-            versionConflictCount: Schema.integer,
-            retryCount: Schema.integer,
-            throttledMs: Schema.float,
-            requestsPerSecond: Schema.float,
-        },
     },
     jobs: {
         type: IdentifierStringSchema,

@@ -28,7 +28,7 @@ import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_mo
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -301,7 +301,8 @@ export class OpensearchContextModule
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
-            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            afterCursor?: ReadonlyArray<JsonScalarValue | bigint>;
+            withCursor?: boolean;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             explain?: boolean;
         },
@@ -311,6 +312,8 @@ export class OpensearchContextModule
                 OpensearchIndexDocIdType<Index>,
                 OpensearchIndexDocType<Index>
             > & {
+                readonly score: number;
+                readonly cursor?: ReadonlyArray<JsonValue>;
                 readonly highlight?: {
                     readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
                 };
@@ -351,7 +354,7 @@ export class OpensearchContextModule
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
-            searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            afterCursor?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             explain?: boolean;
@@ -365,7 +368,7 @@ export class OpensearchContextModule
                     OpensearchIndexStoredFieldsType<Index>[Key]
                 >;
             };
-            readonly sort?: ReadonlyArray<JsonValue>;
+            readonly cursor?: ReadonlyArray<JsonValue>;
             readonly highlight?: {
                 readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
             };
@@ -399,38 +402,6 @@ export class OpensearchContextModule
         index: Index,
     ): Promise<void> {
         return this._client.refresh(this._context.tracer.getTracer(), index);
-    }
-
-    /**
-     * Update many documents in an OpenSearch index at once with the [update by
-     * query API][1].
-     *
-     * If there are version conflicts while updating a document the update on that
-     * document is dropped and we proceed updating other documents. It's
-     * [recommended by the ElasticSearch team][2] to keep retrying updates by query
-     * until you have no version conflicts.
-     *
-     * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
-     * [2]: https://github.com/elastic/elasticsearch/issues/22723#issuecomment-274156818
-     */
-    public updateByQuery<Index extends OpensearchIndex<any, any, any, any, any>>(
-        index: Index,
-        routing: OpensearchIndexRoutingType<Index>,
-        options: {
-            query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
-            script: {
-                lang: "painless";
-                source: string;
-                params?: JsonObjectValue;
-            };
-        },
-    ): Promise<{versionConflictCount: number}> {
-        return this._client.updateByQuery(
-            this._context.tracer.getTracer(),
-            index,
-            routing,
-            options,
-        );
     }
 
     /**

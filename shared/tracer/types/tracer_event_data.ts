@@ -1040,33 +1040,6 @@ export type TracerEventData = {
             /** How many hits were returned by the search? */
             readonly hitCount?: number;
         };
-
-        /** Information regarding an OpenSearch update by query request. */
-        readonly updateByQuery?: {
-            /** Total number of documents processed. */
-            readonly totalCount?: number;
-
-            /** Total number of documents updated. */
-            readonly updatedCount?: number;
-
-            /** Total number of documents deleted. */
-            readonly deletedCount?: number;
-
-            /** Number of scroll responses the request processed. */
-            readonly batchCount?: number;
-
-            /** Number of conflicts the request ran into. */
-            readonly versionConflictCount?: number;
-
-            /** The number of bulk and search retry requests. */
-            readonly retryCount?: number;
-
-            /** Number of throttled milliseconds during the request. */
-            readonly throttledMs?: number;
-
-            /** Number of requests executed per second during the operation. */
-            readonly requestsPerSecond?: number;
-        };
     };
 
     /**

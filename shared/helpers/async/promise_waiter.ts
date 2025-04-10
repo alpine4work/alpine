@@ -34,7 +34,8 @@ export class PromiseWaiter {
     }
 
     /**
-     * Wait for all promises added with `waitUntil()` to resolve.
+     * Wait for all promises added with `waitUntil()` to resolve. If any of the
+     * promises passed into `waitUntil()` reject then this rejects as well.
      */
     public async wait() {
         const errors: Array<unknown> = [];
