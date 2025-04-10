@@ -99,6 +99,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "react/jsx-runtime",
     "scheduler",
     "set-cookie-parser",
+    "statuses",
     "tough-cookie",
     "unicode-default-word-boundary",
     "whatwg-mimetype",
