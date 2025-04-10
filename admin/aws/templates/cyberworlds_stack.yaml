@@ -741,12 +741,8 @@ Resources:
             PolicyDocument:
                 Statement:
                     - Action:
-                          - es:ESHttpDelete
                           - es:ESHttpGet
                           - es:ESHttpHead
-                          - es:ESHttpPatch
-                          - es:ESHttpPost
-                          - es:ESHttpPut
                       Effect: Allow
                       Resource:
                           - Fn::GetAtt:
