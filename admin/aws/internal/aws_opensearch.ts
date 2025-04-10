@@ -145,7 +145,7 @@ export class AwsOpensearch {
                 code: Code.fromAsset(opensearchDashboardProxyLambdaPath),
                 handler: opensearchDashboardProxyLambdaHandler,
                 vpc,
-                vpcSubnets: {subnetType: SubnetType.PRIVATE_WITH_EGRESS},
+                vpcSubnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
                 // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda
                 // runtime.
                 // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
@@ -155,6 +155,7 @@ export class AwsOpensearch {
             });
 
             domain.grantReadWrite(dashboardProxyLambda);
+            domain.connections.allowFrom(dashboardProxyLambda, Port.tcp(443));
 
             // NOCOMMIT: Seems dangerous
             // dashboardProxyLambda.addToRolePolicy(
