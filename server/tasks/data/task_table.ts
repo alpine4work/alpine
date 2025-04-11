@@ -58,6 +58,7 @@ import {
     ensureLocalTaskIndexesIfEnabled,
     indexTaskActionTransactionAssumingItsCommitted,
     runIndexTaskInitialAssigneePositionMigrationForTask,
+    taskIndexWaitForRefreshDelayMs,
     withSendTaskIndexSearchEntityJobIfNeeded,
 } from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
@@ -1287,6 +1288,8 @@ export async function retryUnprocessedTaskActionTransactions(
     >,
     span: TracerSpan,
 ) {
+    const currentTime = Date.now();
+
     const indexItems = await arrayFromAsyncIterable(
         UnprocessedActionTransactionsIndex.query(context, {
             partitionKey: {wasProcessed: false},
@@ -1295,7 +1298,7 @@ export async function retryUnprocessedTaskActionTransactions(
             // been unprocessed for more than 12 seconds.
             //
             // p99 action transaction processing currently peeks at ~6s.
-            endSortKey: {committedTime: new Date(Date.now() - 1000 * 12)},
+            endSortKey: {committedTime: new Date(currentTime - 1000 * 12)},
             limit: "All",
         }),
     );
@@ -1305,6 +1308,18 @@ export async function retryUnprocessedTaskActionTransactions(
     await runAllPromises(
         indexItems.map(async indexItem => {
             const item = await TaskActionTable.getItem(context, indexItem);
+
+            // `UpdateAccountName` actions take a lot longer to process than other actions
+            // since they need to wait for the task index to refresh. Don't retry
+            // processing of an `UpdateAccountName` action until it has been twice the task
+            // index refresh delay interval.
+            if (
+                item.actions.some(action => action.type === "UpdateAccountName") &&
+                item.committedTime.getTime() + taskIndexWaitForRefreshDelayMs * 2 < currentTime
+            ) {
+                return;
+            }
+
             await processTaskActionTransaction(context, item);
         }),
     );

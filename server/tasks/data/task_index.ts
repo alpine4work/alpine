@@ -113,7 +113,20 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
-const taskIndexRefreshIntervalSeconds = 30;
+/**
+ * The refresh interval of our task index and task collection index. Since we
+ * use OpenSearch serverless we must use the constant refresh interval they
+ * provide.
+ *
+ * > The refresh interval for indexes in vector search collections is
+ * > approximately 60 seconds. The refresh interval for indexes in search and
+ * > time series collections is approximately 10 seconds.
+ *
+ * ([Source][1])
+ *
+ * [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
+ */
+const taskIndexRefreshIntervalMs = 10 * 1000;
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -130,6 +143,7 @@ const TaskIndex = new OpensearchIndex<
     name: "tasks",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
+    refreshInterval: `${Math.floor(taskIndexRefreshIntervalMs / 1000)}s`,
     // Our searches are basically always within a specific space and basically
     // always exclude deleted tasks. After that tasks exclude closed tasks most
     // of the time and the default sort order for views is creation time.
@@ -139,10 +153,6 @@ const TaskIndex = new OpensearchIndex<
         {field: "status.value.type"},
         {field: "createdTime.absoluteTime"},
     ],
-    // Serving realtime task data is handled by a separate service. So we can
-    // afford to slow down our task refresh interval for improved indexing
-    // performance.
-    refreshInterval: `${taskIndexRefreshIntervalSeconds}s`,
 });
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
@@ -160,17 +170,12 @@ const TaskCollectionIndex = new OpensearchIndex<
     name: "task_collections",
     numberOfShards: 3,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
+    refreshInterval: `${Math.floor(taskIndexRefreshIntervalMs / 1000)}s`,
     // Our searches are basically always within a specific space and basically
     // always exclude deleted collections.
     //
     // Finally sort by `createdTime` since that's generally useful.
     sort: [{field: "spaceId"}, {field: "isDeleted"}, {field: "createdTime"}],
-    // We want to see new collections in search in near realtime.
-    //
-    // TODO(calebmer): When we search collections via our search entity index
-    // instead of the collection index we can increase this to
-    // `taskIndexRefreshIntervalSeconds`.
-    refreshInterval: "1s",
 });
 
 /**
@@ -1551,6 +1556,16 @@ export const indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 /**
+ * Since we don't have a way to reliably wait for the task index to refresh we
+ * wait _five times_ the refresh interval. This should be enough to cover any
+ * variance in refresh interval time.
+ *
+ * Ideally AWS OpenSearch serverless would provide us a `/_wait_for_refresh`
+ * endpoint that gives us reliable read-after-write consistency.
+ */
+export const taskIndexWaitForRefreshDelayMs = taskIndexRefreshIntervalMs * 5;
+
+/**
  * Index an account name update action for a space. Uses the OpenSearch [update
  * by query API][1] to find every `TaskSortableAccount` the account name is
  * referenced in and updates to the latest value. This may take a while to run
@@ -1574,9 +1589,10 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
         // referenced accounts with strong consistency during action indexing.)
         //
         // We immediately start updating account names in tasks (the first `run()` call
-        // above) but we can't guarantee we've updated absolutely all tasks until the
-        // index refreshes. The [OpenSearch serverless refresh interval for search
-        // indexes][1] is approximately 10 seconds. We'll wait 30 seconds just to
+        // above) but we since OpenSearch doesn't have read-after-write consistency we
+        // can't guarantee we've updated absolutely all tasks until the index
+        // refreshes. The [OpenSearch serverless refresh interval for search
+        // indexes][1] is approximately 10 seconds. We'll wait 5x that (50 seconds) to
         // absolutely make sure we're running after the index refreshes then we call
         // `run()` to update all account names update a second time in case there are
         // any new tasks we missed before the refresh.
@@ -1613,7 +1629,10 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
             await run();
             const firstRunEndTimeMs = Date.now();
 
-            const waitDurationMs = 30 * 1000 - (firstRunEndTimeMs - firstRunStartTimeMs);
+            // Make sure a refresh has happened since the start of this action. In case our
+            // initial search missed some stale data.
+            const waitDurationMs =
+                taskIndexWaitForRefreshDelayMs - (firstRunEndTimeMs - firstRunStartTimeMs);
 
             if (waitDurationMs > 0) {
                 await context.tracer.withSpan("Waiting for task index to refresh", async () => {
@@ -1871,6 +1890,8 @@ export async function queryTaskIndex(
  * Searches our task collection index for collections matching the provided
  * name query.
  */
+// TODO(calebmer): We should use the search index for searching task
+// collections by name. Not the task collection index.
 export async function searchTaskCollections(
     context: TaskSessionActionContext,
     {spaceId, nameQuery, limit}: {spaceId: SpaceId; nameQuery: string; limit: number},
