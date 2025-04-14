@@ -60,9 +60,14 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
      *
      * ([Source][1])
      *
+     * Unfortunately, the [OpenSearch Faiss engine does not support cosine
+     * similarity (`cosinesimil`)][2] so we use `l2` which is the OpenSearch
+     * default space type.
+     *
      * [1]: https://www.pinecone.io/learn/vector-similarity/
+     * [2]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-methods-engines/#faiss-engine
      */
-    public static readonly opensearchSpaceType = "cosinesimil";
+    public static readonly opensearchSpaceType = "l2";
 
     private readonly _extractor: FeatureExtractionPipeline;
 

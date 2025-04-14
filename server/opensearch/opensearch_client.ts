@@ -44,7 +44,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -573,13 +573,13 @@ export abstract class OpensearchBulkCommandBase<
 > {
     public abstract readonly index: Index;
     public abstract readonly routing: OpensearchIndexRoutingType<Index>;
-    public abstract readonly id: OpensearchIndexDocIdType<Index>;
+    public abstract readonly id: OpensearchIndexDocIdType<Index> | null;
 
     public abstract serialize(): {
         action: "index" | "create" | "update" | "delete";
         ifSequenceNumber?: number;
         ifPrimaryTerm?: number;
-        body: JsonValue;
+        body: JsonObjectValue | null;
     };
 }
 
@@ -615,6 +615,60 @@ export class OpensearchIndexDocIfVersionCommand<
             ifSequenceNumber: this.doc.version?.sequenceNumber,
             ifPrimaryTerm: this.doc.version?.primaryTerm,
             body: this.index.type.serialize(this.doc),
+        };
+    }
+}
+
+export class OpensearchIndexDocWithoutIdCommand<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+> extends OpensearchBulkCommandBase<Index> {
+    public readonly index: Index;
+    public readonly routing: OpensearchIndexRoutingType<Index>;
+    public readonly id: null;
+    public readonly doc: OpensearchIndexDocType<Index>;
+
+    constructor(
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        doc: OpensearchIndexDocType<Index>,
+    ) {
+        super();
+        this.index = index;
+        this.routing = routing;
+        this.id = null;
+        this.doc = doc;
+    }
+
+    public serialize() {
+        return {
+            action: "index" as const,
+            body: this.index.type.serialize(this.doc),
+        };
+    }
+}
+
+export class OpensearchDeleteDocCommand<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+> extends OpensearchBulkCommandBase<Index> {
+    public readonly index: Index;
+    public readonly routing: OpensearchIndexRoutingType<Index>;
+    public readonly id: OpensearchIndexDocIdType<Index>;
+
+    constructor(
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        id: OpensearchIndexDocIdType<Index>,
+    ) {
+        super();
+        this.index = index;
+        this.routing = routing;
+        this.id = id;
+    }
+
+    public serialize() {
+        return {
+            action: "delete" as const,
+            body: null,
         };
     }
 }
@@ -1578,12 +1632,15 @@ export class OpensearchClient implements OpensearchClientInterface {
                 [action]: {
                     _index: !singularIndex ? command.index.name : undefined,
                     routing: !singularRouting ? command.routing : undefined,
-                    _id: command.id,
+                    _id: command.id !== null ? command.id : undefined,
                     if_seq_no: ifSequenceNumber,
                     if_primary_term: ifPrimaryTerm,
                 },
             });
-            bulkBody.push(body);
+
+            if (body !== null) {
+                bulkBody.push(body);
+            }
         }
 
         const versionConflictError: FailedPreconditionError | null = await fetchWithTracer(
@@ -2005,44 +2062,56 @@ export class OpensearchClient implements OpensearchClientInterface {
                 }
             }
 
-            return {
+            const actualHit: any = {
                 id: hit._id as OpensearchIndexDocIdType<Index>,
                 score: hit._score,
                 fields: fields as any,
-                cursor: hit.sort,
-                highlight: hit.highlight as any,
-                innerHits: hit.inner_hits
-                    ? mapObjectValues(hit.inner_hits, innerHits =>
-                          innerHits.hits.hits.map(innerHit => {
-                              if (innerHit._source) {
-                                  throw new UnimplementedError(
-                                      "`_source` not implemented for inner hits",
-                                  );
-                              }
-
-                              const innerFields: {[key: string]: Array<any>} = {};
-
-                              for (const [key, values] of Object.entries(innerHit.fields ?? {})) {
-                                  const storedFieldType = index.type.storedFields[key];
-                                  if (!storedFieldType)
-                                      throw new InternalError(
-                                          quote`Stored field type not found for ${key}`,
-                                      );
-
-                                  innerFields[key] = values.map(value =>
-                                      storedFieldType.deserialize(value),
-                                  );
-                              }
-
-                              return {
-                                  offset: innerHit._nested.offset,
-                                  fields: innerFields as any,
-                              };
-                          }),
-                      )
-                    : undefined,
-                explanation: hit._explanation,
             };
+
+            if (hit.sort) {
+                actualHit.cursor = hit.sort;
+            }
+
+            if (hit.highlight) {
+                actualHit.highlight = hit.highlight;
+            }
+
+            if (hit.inner_hits) {
+                actualHit.innerHits = mapObjectValues(hit.inner_hits, innerHits =>
+                    innerHits.hits.hits.map(innerHit => {
+                        if (innerHit._source) {
+                            throw new UnimplementedError(
+                                "`_source` not implemented for inner hits",
+                            );
+                        }
+
+                        const innerFields: {[key: string]: Array<any>} = {};
+
+                        for (const [key, values] of Object.entries(innerHit.fields ?? {})) {
+                            const storedFieldType = index.type.storedFields[key];
+                            if (!storedFieldType)
+                                throw new InternalError(
+                                    quote`Stored field type not found for ${key}`,
+                                );
+
+                            innerFields[key] = values.map(value =>
+                                storedFieldType.deserialize(value),
+                            );
+                        }
+
+                        return {
+                            offset: innerHit._nested.offset,
+                            fields: innerFields as any,
+                        };
+                    }),
+                );
+            }
+
+            if (hit._explanation) {
+                actualHit.explanation = hit._explanation;
+            }
+
+            return actualHit;
         });
 
         return {hits: actualHits};

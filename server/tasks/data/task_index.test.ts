@@ -1965,6 +1965,8 @@ test("updating account name updates inlined creator account name of 100+ tasks i
 
     const tasks = await runAllPromises(createArrayWithLength(250, () => TestTask.create(session1)));
 
+    await ProcessContextModule.waitForTestTasks();
+
     const newAccountName = generateId();
 
     expect(session1.account.initialName).not.toEqual(session2.account.initialName);
@@ -1988,6 +1990,8 @@ test("updating account name updates inlined creator account name of 100+ tasks i
     );
 
     await updateOurAccountName(TestTask.action(session1), newAccountName);
+
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await runAllPromises(

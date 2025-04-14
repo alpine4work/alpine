@@ -23,7 +23,7 @@ diff --color -bur a/config/jvm.options b/config/jvm.options
 +# NOTE(calebmer): Remove GC logging from local OpenSearch instance. GC logging
 +# specifies a relative path which is a problem when running in a Linux sandbox
 +# where most of the file system is read-only to the executing program. Trying
-+# to write to this relative path was causing all tests that us OpenSearch to
++# to write to this relative path was causing all tests that use OpenSearch to
 +# fail on our Linux CI servers!
 +#
 +# If we want GC logging we can add it back in `startOpensearchLocal()` under

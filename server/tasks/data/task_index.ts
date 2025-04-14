@@ -128,6 +128,16 @@ import {TracerBase} from "~/shared/tracer/tracer_base.js";
  */
 const taskIndexRefreshIntervalMs = 10 * 1000;
 
+/**
+ * Since we don't have a way to reliably wait for the task index to refresh we
+ * wait _three times_ the refresh interval. This should be enough to cover any
+ * variance in refresh interval time.
+ *
+ * Ideally AWS OpenSearch serverless would provide us a `/_wait_for_refresh`
+ * endpoint that gives us reliable read-after-write consistency.
+ */
+export const taskIndexWaitForRefreshDelayMs = taskIndexRefreshIntervalMs * 3;
+
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
 // putting all the logic around this index in one file it allows developers to
@@ -143,7 +153,8 @@ const TaskIndex = new OpensearchIndex<
     name: "tasks",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
-    refreshInterval: `${Math.floor(taskIndexRefreshIntervalMs / 1000)}s`,
+    refreshInterval: `${assertInteger(taskIndexRefreshIntervalMs / 1000)}s`,
+
     // Our searches are basically always within a specific space and basically
     // always exclude deleted tasks. After that tasks exclude closed tasks most
     // of the time and the default sort order for views is creation time.
@@ -170,13 +181,19 @@ const TaskCollectionIndex = new OpensearchIndex<
     name: "task_collections",
     numberOfShards: 3,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
-    refreshInterval: `${Math.floor(taskIndexRefreshIntervalMs / 1000)}s`,
+    refreshInterval: `${assertInteger(taskIndexRefreshIntervalMs / 1000)}s`,
+
     // Our searches are basically always within a specific space and basically
     // always exclude deleted collections.
     //
     // Finally sort by `createdTime` since that's generally useful.
     sort: [{field: "spaceId"}, {field: "isDeleted"}, {field: "createdTime"}],
 });
+
+function assertInteger(value: number): number {
+    assert(Number.isInteger(value));
+    return value;
+}
 
 /**
  * The throttle interval for task indexing jobs in seconds. Indexing a
@@ -867,10 +884,8 @@ class TaskActionTransactionIndexState {
                         if (
                             !areUpdatedTraitsInLastIndexSearchEntityJob ||
                             isDatePossiblyLessThanWithUncertaintyWindow(
-                                new Date(
-                                    oldTask.lastIndexSearchEntityJob.sendTime.getTime() +
-                                        oldTask.lastIndexSearchEntityJob.delaySeconds * 1000,
-                                ),
+                                oldTask.lastIndexSearchEntityJob.sendTime.getTime() +
+                                    oldTask.lastIndexSearchEntityJob.delaySeconds * 1000,
                                 currentTime,
                             )
                         ) {
@@ -1556,16 +1571,6 @@ export const indexTaskUpdateAccountNameActionAfterUpdateTestCheckpoint =
     new TestCheckpoint<AccountId>();
 
 /**
- * Since we don't have a way to reliably wait for the task index to refresh we
- * wait _five times_ the refresh interval. This should be enough to cover any
- * variance in refresh interval time.
- *
- * Ideally AWS OpenSearch serverless would provide us a `/_wait_for_refresh`
- * endpoint that gives us reliable read-after-write consistency.
- */
-export const taskIndexWaitForRefreshDelayMs = taskIndexRefreshIntervalMs * 5;
-
-/**
  * Index an account name update action for a space. Uses the OpenSearch [update
  * by query API][1] to find every `TaskSortableAccount` the account name is
  * referenced in and updates to the latest value. This may take a while to run
@@ -1592,7 +1597,7 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
         // above) but we since OpenSearch doesn't have read-after-write consistency we
         // can't guarantee we've updated absolutely all tasks until the index
         // refreshes. The [OpenSearch serverless refresh interval for search
-        // indexes][1] is approximately 10 seconds. We'll wait 5x that (50 seconds) to
+        // indexes][1] is approximately 10 seconds. We'll wait 3x that (30 seconds) to
         // absolutely make sure we're running after the index refreshes then we call
         // `run()` to update all account names update a second time in case there are
         // any new tasks we missed before the refresh.
@@ -2068,10 +2073,8 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
         // When the delayed indexing job runs it will pick up this update.
         if (
             isDatePossiblyLessThanWithUncertaintyWindow(
-                new Date(
-                    task.lastIndexSearchEntityJob.sendTime.getTime() +
-                        task.lastIndexSearchEntityJob.delaySeconds * 1000,
-                ),
+                task.lastIndexSearchEntityJob.sendTime.getTime() +
+                    task.lastIndexSearchEntityJob.delaySeconds * 1000,
                 currentTime,
             )
         ) {

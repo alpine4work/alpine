@@ -13,7 +13,6 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//admin/dynamo/local:local",
     "//admin/eslint:eslint",
     "//admin/helpers:helpers",
-    "//admin/opensearch/dashboard_proxy:dashboard_proxy_lib",
     "//admin/opensearch/deploy_script:deploy_script_lib",
     "//admin/opensearch/local:local",
     "//admin/sqs/local:local",

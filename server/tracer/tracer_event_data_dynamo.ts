@@ -65,7 +65,7 @@ export const tracerEventDataDynamoPartitionTypesByTableName = new Map<string, Re
     ["Forum", ["Channel", "Post", "Account"]],
     ["ForumRealtime", ["Channel", "Post", "Realtime", "Graveyard"]],
     ["Inbox", ["Account", "Inbox", "Realtime", "Graveyard"]],
-    ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections"]],
+    ["SearchEntities", ["Account", "SpaceChannels", "SpaceTaskCollections", "IndexSearchEntityEmbeddingChunksJob"]],
     ["Spaces", ["Space", "Account"]],
     ["TaskActions", ["TaskActions"]],
     ["Tasks", ["Account", "TaskCollection", "Task", "TaskGridViewExpansionState"]],

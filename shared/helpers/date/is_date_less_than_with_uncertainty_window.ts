@@ -1,4 +1,8 @@
-export const defaultUncertaintyWindowMs = 500;
+/**
+ * We default to a 500ms uncertainty window, but in tests use a 0ms uncertainty
+ * window since everything happens on the same machine.
+ */
+export const defaultUncertaintyWindowMs = process.env.NODE_ENV === "test" ? 0 : 500;
 
 /**
  * Returns true if `date1 < date2` within some uncertainty window.
@@ -27,18 +31,21 @@ export const defaultUncertaintyWindowMs = 500;
  * a safe default. Generally you should only be calling this function in server
  * environments. Client clocks can't be trusted.
  *
+ * If `date1` and `date2` are numbers then they should be in milliseconds.
+ *
  * [1]: https://aws.amazon.com/blogs/aws/keeping-time-with-amazon-time-sync-service/
  * [2]: https://www.youtube.com/watch?v=BRvj8PykSc4
  * [3]: https://www.cockroachlabs.com/docs/v21.2/operational-faqs#what-happens-when-node-clocks-are-not-properly-synchronized
  */
 export function isDatePossiblyLessThanWithUncertaintyWindow(
-    date1: Date,
-    date2: Date,
-    // We default to a 500ms uncertainty window, but in tests use a 0ms uncertainty
-    // window since everything happens on the same machine.
-    uncertaintyWindowMs: number = process.env.NODE_ENV === "test" ? 0 : defaultUncertaintyWindowMs,
+    date1: Date | number,
+    date2: Date | number,
+    uncertaintyWindowMs: number = defaultUncertaintyWindowMs,
 ): boolean {
-    return date1.getTime() - uncertaintyWindowMs / 2 <= date2.getTime() + uncertaintyWindowMs / 2;
+    return (
+        (typeof date1 !== "number" ? date1.getTime() : date1) - uncertaintyWindowMs / 2 <=
+        (typeof date2 !== "number" ? date2.getTime() : date2) + uncertaintyWindowMs / 2
+    );
 }
 
 /**
@@ -56,13 +63,16 @@ export function isDatePossiblyLessThanWithUncertaintyWindow(
  * `isDatePossiblyLessThanWithUncertaintyWindow()` which tells you if `date1`
  * is possibly less than `date2`. See that function's documentation for more
  * information on uncertainty windows in distributed systems.
+ *
+ * If `date1` and `date2` are numbers then they should be in milliseconds.
  */
 export function isDateDefinitelyLessThanWithUncertaintyWindow(
-    date1: Date,
-    date2: Date,
-    // We default to a 500ms uncertainty window, but in tests use a 0ms uncertainty
-    // window since everything happens on the same machine.
-    uncertaintyWindowMs: number = process.env.NODE_ENV === "test" ? 0 : defaultUncertaintyWindowMs,
+    date1: Date | number,
+    date2: Date | number,
+    uncertaintyWindowMs: number = defaultUncertaintyWindowMs,
 ): boolean {
-    return date1.getTime() + uncertaintyWindowMs / 2 < date2.getTime() - uncertaintyWindowMs / 2;
+    return (
+        (typeof date1 !== "number" ? date1.getTime() : date1) + uncertaintyWindowMs / 2 <
+        (typeof date2 !== "number" ? date2.getTime() : date2) - uncertaintyWindowMs / 2
+    );
 }

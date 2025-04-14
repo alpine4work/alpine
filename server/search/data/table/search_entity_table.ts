@@ -3,36 +3,46 @@ import {
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {
     authorizeOwnAccountAccess,
     authorizeSpaceAccess,
     expensiveScanEverySpaceAccountForMigration,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {Context} from "~/shared/context/context.js";
+import {ErrorBase, InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {createInterval} from "~/shared/helpers/async/interval.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {
+    defaultUncertaintyWindowMs,
+    isDateDefinitelyLessThanWithUncertaintyWindow,
+    isDatePossiblyLessThanWithUncertaintyWindow,
+} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterAsyncIterableIterator} from "~/shared/helpers/iterable/filter_async_iterable_iterator.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {
     OrderKey,
     generateOrderKeyBetween,
     initialOrderKey,
 } from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {Id, assertId} from "~/shared/id/id.js";
+import {Id, assertId, generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -44,7 +54,59 @@ import {
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
-import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchAffinityEntityId, SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
+
+/**
+ * The refresh interval of our search entity keywords index. Since we
+ * use OpenSearch serverless we must use the constant refresh interval they
+ * provide.
+ *
+ * > The refresh interval for indexes in vector search collections is
+ * > approximately 60 seconds. The refresh interval for indexes in search and
+ * > time series collections is approximately 10 seconds.
+ *
+ * ([Source][1])
+ *
+ * [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
+ */
+export const searchEntityKeywordIndexRefreshIntervalMs = 10 * 1000;
+
+/**
+ * The refresh interval of our search entity embedding chunk index. Since we
+ * use OpenSearch serverless we must use the constant refresh interval they
+ * provide.
+ *
+ * > The refresh interval for indexes in vector search collections is
+ * > approximately 60 seconds. The refresh interval for indexes in search and
+ * > time series collections is approximately 10 seconds.
+ *
+ * ([Source][1])
+ *
+ * [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
+ */
+export const searchEntityEmbeddingChunkIndexRefreshIntervalMs = 60 * 1000;
+
+/**
+ * Since we don't have a way to reliably wait for the search index to refresh
+ * we wait _three times_ the refresh interval. This should be enough to cover
+ * any variance in refresh interval time.
+ *
+ * Ideally AWS OpenSearch serverless would provide us a `/_wait_for_refresh`
+ * endpoint that gives us reliable read-after-write consistency.
+ */
+export const searchEntityKeywordIndexWaitForRefreshDelayMs =
+    searchEntityKeywordIndexRefreshIntervalMs * 3;
+
+/**
+ * Since we don't have a way to reliably wait for the search index to refresh
+ * we wait _three times_ the refresh interval. This should be enough to cover
+ * any variance in refresh interval time.
+ *
+ * Ideally AWS OpenSearch serverless would provide us a `/_wait_for_refresh`
+ * endpoint that gives us reliable read-after-write consistency.
+ */
+const searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs =
+    searchEntityEmbeddingChunkIndexRefreshIntervalMs * 3;
 
 const SearchEntityTable = DynamoTableSchema.new({
     name: "SearchEntities",
@@ -244,6 +306,93 @@ const SearchEntityTable = DynamoTableSchema.new({
                 },
             ],
         },
+        {
+            name: "IndexSearchEntityEmbeddingChunksJob",
+            partitionKeyAttributes: {
+                spaceId: DynamoKeyAttributeSchema.id<SpaceId>(),
+                entityId:
+                    DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchDynamicEntityId>,
+            },
+            sortRanges: [
+                /**
+                 * Distributed locking for the `IndexSearchEntityEmbeddingChunks` job. We need
+                 * to guarantee only one process is processing the
+                 * `IndexSearchEntityEmbeddingChunks` job at once. We also need to make sure
+                 * `IndexSearchEntityEmbeddingChunks` jobs are run at least three minutes apart
+                 * (the value of `searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs` as of
+                 * 2025-04-14) because we need to wait for OpenSearch to refresh between jobs
+                 * so we can read previously written data with the OpenSearch `/_search`
+                 * endpoint.
+                 *
+                 * We throttle `IndexSearchEntityEmbeddingChunks` jobs to a five minute
+                 * throttle interval (as of 2025-04-14) even though it's larger than the
+                 * required three minute refresh wait time since embedding search entities is
+                 * expensive. So it's good to slow that down.
+                 */
+                {
+                    name: "State",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * Once we finish processing a job we set `activeJob` to null and `previousJob`
+                         * to the finished job.
+                         */
+                        previousJob: Schema.object({
+                            id: Schema.id<Id>(),
+                            startTime: Schema.date,
+                            endTime: Schema.date,
+                        }).nullable(),
+
+                        /**
+                         * The job that's currently running. There should only be one and exactly one
+                         * active job running at a time across our entire fleet of servers. Before we
+                         * start indexing embedding chunks, we first try to acquire the lock. If
+                         * another process has the lock then we schedule an SQS message for the future
+                         * (presumably after the other process releases the lock).
+                         *
+                         * The lock expires at `expirationTime`. This way if a process acquires the
+                         * lock, then crashes, the lock will eventually expire and another process can
+                         * acquire the lock. While our process has the lock we run an interval that
+                         * continually updates the `expirationTime` pushing it further and further out.
+                         * So if our Node.js process is continuing to run smoothly, the lock will never
+                         * expire! The lock is only released once our processing code ends (lock is
+                         * released immediately) or our Node.js process crashes (lock is released at
+                         * `expirationTime`).
+                         */
+                        activeJob: Schema.object({
+                            id: Schema.id<Id>(),
+                            startTime: Schema.date,
+                            expirationTime: Schema.date,
+                        }).nullable(),
+
+                        /**
+                         * Jobs scheduled for the future. The `IndexSearchEntityEmbeddingChunks` job
+                         * does nothing if it's `id` is not in this array. This forces you to schedule
+                         * updates with `scheduleIndexSearchEntityEmbeddingChunksJob()` which will
+                         * update this state.
+                         *
+                         * In theory there should only be one scheduled job at a time. In practice
+                         * there may be edge cases where we have multiple scheduled jobs. We still make
+                         * sure only one job runs at a time by using `activeJob` as a lock. If, for
+                         * some reason, we update `scheduledJobs` but the SQS job never runs (e.g. the
+                         * Node.js process crashes after updating DynamoDB but before sending a message
+                         * to SQS) we clean out this when we acquire the `activeJob` lock when the job
+                         * we're processing is later than any scheduled `startTime`s.
+                         */
+                        scheduledJobs: Schema.array(
+                            Schema.object({
+                                id: Schema.id<Id>(),
+                                startTime: Schema.date,
+                            }),
+                        ).validation("Scheduled job `id`s must be unique", scheduledJobs => {
+                            const ids = new Set<Id>();
+                            for (const job of scheduledJobs) ids.add(job.id);
+                            return ids.size === scheduledJobs.length;
+                        }),
+                    }),
+                },
+            ],
+        },
     ],
 });
 
@@ -337,22 +486,461 @@ export async function runFavoriteTaskPersonalSearchEntityMigration(
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     let i = 0;
+    const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(10, () => new Mutex());
 
     for await (const {spaceId, accountId} of expensiveScanEverySpaceAccountForMigration(context, {
         segmentIndex,
         totalSegmentCount,
     })) {
-        void mutexes[i++ % mutexes.length]!.withLock(() =>
-            dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
-                spaceId,
-                accountId,
-                entityId: "TaskPersonal",
-            }),
+        promiseWaiter.waitUntil(
+            mutexes[i++ % mutexes.length]!.withLock(() =>
+                dangerouslyFavoriteSearchEntityWithoutAuthorization(context, {
+                    spaceId,
+                    accountId,
+                    entityId: "TaskPersonal",
+                }),
+            ),
         );
     }
 
-    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+    await promiseWaiter.wait();
+}
+
+/**
+ * Schedule a `IndexSearchEntityEmbeddingChunks` job.
+ * `IndexSearchEntityEmbeddingChunks` jobs are throttled (as of 2025-04-11
+ * they're throttled to once every 5min) so:
+ *
+ * - New jobs are scheduled with some delay.
+ * - If there's a job scheduled in the future that will read the entity after
+ *   `readAfterTime` we won't schedule a new job.
+ *
+ * You must call this function to schedule a
+ * `IndexSearchEntityEmbeddingChunksJob` job. Since when the job runs it needs
+ * an exclusive lock. The state for that exclusive lock is set up here.
+ */
+export async function scheduleIndexSearchEntityEmbeddingChunksJob(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+    {
+        spaceId,
+        entityId,
+        readAfterTime,
+    }: {
+        spaceId: SpaceId;
+        entityId: SearchDynamicEntityId;
+        readAfterTime: Date;
+    },
+) {
+    const jobId = generateId();
+
+    const item = await SearchEntityTable.updateItem(
+        context,
+        {
+            partitionType: "IndexSearchEntityEmbeddingChunksJob",
+            sortRangeType: "State",
+            spaceId,
+            entityId,
+        },
+        item => {
+            // Our previous job already read the entity update we're targeting. So we
+            // don't need to schedule another job.
+            if (
+                item?.previousJob &&
+                isDateDefinitelyLessThanWithUncertaintyWindow(
+                    readAfterTime,
+                    item.previousJob.startTime,
+                )
+            ) {
+                return item;
+            }
+
+            // A scheduled job will read the entity update we're targeting. So we
+            // don't need to schedule another job.
+            if (
+                item?.scheduledJobs.some(scheduledJob =>
+                    isDateDefinitelyLessThanWithUncertaintyWindow(
+                        readAfterTime,
+                        scheduledJob.startTime,
+                    ),
+                )
+            ) {
+                return item;
+            }
+
+            // The active job is currently reading the entity update we're targeting. So we
+            // don't need to schedule another job.
+            if (
+                item?.activeJob &&
+                isDateDefinitelyLessThanWithUncertaintyWindow(
+                    readAfterTime,
+                    item.activeJob.startTime,
+                )
+            ) {
+                return item;
+            }
+
+            const currentTime = new Date();
+
+            // We want to throttle `IndexSearchEntityEmbeddingChunks` jobs. Since:
+            //
+            // 1. Embedding text with our LLM is expensive
+            // 2. Updating the OpenSearch vector index is expensive
+            //
+            // So schedule our `IndexSearchEntityEmbeddingChunks` job for the future. The
+            // specific amount of delay we add here is the throttle rate. It should be
+            // greater than `searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs`. Since we
+            // have to wait at least that much time between job runs anyway since our job
+            // needs to wait for OpenSearch to refresh because it uses `/_search` to read
+            // data from the previous job.
+            //
+            // Currently `searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs` is 3min and
+            // we add 2min so our throttle rate is 5min.
+            const scheduledJobStartTime = new Date(
+                Math.max(
+                    readAfterTime.getTime() +
+                        searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs +
+                        2 * 60 * 1000,
+
+                    // If `readAfterTime` is more than five minutes before the current time then
+                    // schedule the job to run immediately.
+                    currentTime.getTime(),
+                ),
+            );
+
+            const scheduledJobStartDelayMs =
+                scheduledJobStartTime.getTime() - currentTime.getTime();
+
+            // The max SQS `delaySeconds` is 15min. Make sure we're not scheduling a job
+            // for more than 15min from now.
+            assert(0 <= scheduledJobStartDelayMs && scheduledJobStartDelayMs <= 15 * 60 * 1000);
+
+            return {
+                ...item,
+                partitionType: "IndexSearchEntityEmbeddingChunksJob",
+                sortRangeType: "State",
+                spaceId,
+                entityId,
+                previousJob: item?.previousJob ?? null,
+                activeJob: item?.activeJob ?? null,
+                scheduledJobs: [
+                    ...(item?.scheduledJobs ?? []),
+                    {
+                        id: jobId,
+                        startTime: scheduledJobStartTime,
+                    },
+                ],
+            };
+        },
+        // Make sure we didn't read data with an eventual consistency lag by making an
+        // `updateLockVersion` condition check even for noop updates.
+        {withNoopUpdateLockVersionConditionCheck: true},
+    );
+
+    const scheduledJob = item?.scheduledJobs.find(job => job.id === jobId);
+
+    // We didn't schedule a new job.
+    if (!scheduledJob) return;
+
+    await context.jobs.sendAndWait(
+        {
+            type: "IndexSearchEntityEmbeddingChunks",
+            id: jobId,
+            spaceId,
+            entityId,
+        },
+        {
+            delaySeconds: Math.max(
+                Math.ceil((scheduledJob.startTime.getTime() - Date.now()) / 1000),
+
+                // If `scheduledJob.startTime` is in the past then `delaySeconds` would be a
+                // negative number which we can't allow.
+                0,
+            ),
+        },
+    );
+}
+
+export const withIndexSearchEntityEmbeddingChunksJobLockIntervalPromiseWaiterForTest = import.meta
+    .jest
+    ? new PromiseWaiter()
+    : null;
+
+const withIndexSearchEntityEmbeddingChunksJobLockSimulatedCrashErrorSymbol =
+    Symbol("simulatedCrash");
+
+function isWithIndexSearchEntityEmbeddingChunksJobLockSimulatedCrashErrorForTest(
+    error: unknown,
+): boolean {
+    return (
+        !!import.meta.jest &&
+        isObject(error) &&
+        !!error[withIndexSearchEntityEmbeddingChunksJobLockSimulatedCrashErrorSymbol]
+    );
+}
+
+export function createWithIndexSearchEntityEmbeddingChunksJobLockSimulatedCrashErrorForTest(): ErrorBase {
+    assert(import.meta.jest);
+    const error = new UnavailableError("Simulated crash");
+    (error as any)[withIndexSearchEntityEmbeddingChunksJobLockSimulatedCrashErrorSymbol] = true;
+    return error;
+}
+
+/**
+ * Called from `processIndexSearchEntityEmbeddingChunksJob()` to acquire a lock
+ * on embedding chunks processing for the search entity. If another process
+ * currently has the lock then we'll schedule another
+ * `IndexSearchEntityEmbeddingChunks` job for later and not call `action`. If
+ * we're able to acquire the lock then `action` is called. The lock is released
+ * once `action` returns.
+ *
+ * If the process shuts down while `action` is running the lock will eventually
+ * expire.
+ */
+export async function withIndexSearchEntityEmbeddingChunksJobLock(
+    context: ServerActionContext,
+    {id: jobId, spaceId, entityId}: {id: Id; spaceId: SpaceId; entityId: SearchDynamicEntityId},
+    action: () => Promise<void>,
+): Promise<void> {
+    const updateExpirationTimeIntervalMs = 15 * 1000;
+
+    // Expire locks after a period of inactivity. We picked this value so that if
+    // the process holding the lock crashes OpenSearch will refresh with any
+    // partial writes from the crashed process before the next process starts.
+    const expirationTimeoutMs =
+        searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs + updateExpirationTimeIntervalMs;
+
+    {
+        let effect: "Activate" | "Reschedule" | null = null;
+
+        const item = await SearchEntityTable.updateItem(
+            context,
+            {
+                partitionType: "IndexSearchEntityEmbeddingChunksJob",
+                sortRangeType: "State",
+                spaceId,
+                entityId,
+            },
+            item => {
+                // Reset `action` in case `updateItem()` is retried and we previously set
+                // `action`.
+                effect = null;
+
+                if (!item) return item;
+                if (!item.scheduledJobs.some(scheduledJob => scheduledJob.id === jobId))
+                    return item;
+
+                const currentTime = new Date();
+                let scheduledJobStartTime: Date | null = null;
+
+                // We can't start a new job until the OpenSearch index refreshes after our
+                // previous job. So if we haven't waited long enough for an index refresh,
+                // reschedule our job.
+                if (
+                    item.previousJob &&
+                    isDatePossiblyLessThanWithUncertaintyWindow(
+                        currentTime,
+                        item.previousJob.endTime.getTime() +
+                            searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs,
+                    )
+                ) {
+                    scheduledJobStartTime = new Date(
+                        item.previousJob.endTime.getTime() +
+                            searchEntityEmbeddingChunkIndexWaitForRefreshDelayMs +
+                            defaultUncertaintyWindowMs / 2,
+                    );
+                }
+                // We can't start a new job if there's an active job unless the active job has
+                // expired. So reschedule our job for after the active job's expiration time.
+                else if (
+                    item.activeJob &&
+                    isDatePossiblyLessThanWithUncertaintyWindow(
+                        currentTime,
+                        item.activeJob.expirationTime,
+                    )
+                ) {
+                    scheduledJobStartTime = new Date(
+                        item.activeJob.expirationTime.getTime() + defaultUncertaintyWindowMs / 2,
+                    );
+                }
+
+                // We rescheduled our job! Don't set it as the `activeJob`. Instead update it
+                // in the `scheduledJobs` array.
+                if (scheduledJobStartTime !== null) {
+                    effect = "Reschedule";
+
+                    const scheduledJobStartDelayMs =
+                        scheduledJobStartTime.getTime() - currentTime.getTime();
+
+                    // The max SQS `delaySeconds` is 15min. Make sure we're not scheduling a job
+                    // for more than 15min from now.
+                    assert(
+                        0 <= scheduledJobStartDelayMs && scheduledJobStartDelayMs <= 15 * 60 * 1000,
+                    );
+
+                    return {
+                        ...item,
+                        scheduledJobs: [
+                            ...item.scheduledJobs.filter(scheduledJob => scheduledJob.id !== jobId),
+                            {
+                                id: jobId,
+                                startTime: scheduledJobStartTime,
+                            },
+                        ],
+                    };
+                }
+
+                effect = "Activate";
+
+                return {
+                    ...item,
+                    scheduledJobs: item.scheduledJobs.filter(
+                        scheduledJob =>
+                            scheduledJob.id !== jobId &&
+                            // Unschedule any jobs with a scheduled start time that's definitely before the
+                            // current time. These scheduled jobs either lost a race condition or (through
+                            // some edge case) were never processed by SQS (e.g. server shutdown after
+                            // adding to `scheduledJobs` and before actually sending job to SQS).
+                            !isDateDefinitelyLessThanWithUncertaintyWindow(
+                                scheduledJob.startTime,
+                                currentTime,
+                            ),
+                    ),
+                    activeJob: {
+                        id: jobId,
+                        startTime: currentTime,
+                        expirationTime: new Date(currentTime.getTime() + expirationTimeoutMs),
+                    },
+                };
+            },
+            // Make sure we didn't read data with an eventual consistency lag by making an
+            // `updateLockVersion` condition check even for noop updates.
+            {withNoopUpdateLockVersionConditionCheck: true},
+        );
+
+        // Reschedule our job to run later...
+        if (effect === "Reschedule") {
+            const scheduledJob = assertExists(item?.scheduledJobs.find(job => job.id === jobId));
+
+            await context.jobs.sendAndWait(
+                {
+                    type: "IndexSearchEntityEmbeddingChunks",
+                    id: jobId,
+                    spaceId,
+                    entityId,
+                },
+                {
+                    delaySeconds: Math.max(
+                        Math.ceil((scheduledJob.startTime.getTime() - Date.now()) / 1000),
+
+                        // If `scheduledJob.startTime` is in the past then `delaySeconds` would be a
+                        // negative number which we can't allow.
+                        0,
+                    ),
+                },
+            );
+            return;
+        }
+
+        // If we weren't activated then bail out! We only want to run `action()` if
+        // `updateItem()` successfully activated our job.
+        if (effect !== "Activate") return;
+    }
+
+    // While our action is running, update our `expirationTime` every 15s. That way
+    // another process doesn't come along and steal our lock if the action takes
+    // more than `expirationTimeoutMs` to complete.
+    const interval = createInterval(() => {
+        const promise = (async () => {
+            await SearchEntityTable.updateItem(
+                context,
+                {
+                    partitionType: "IndexSearchEntityEmbeddingChunksJob",
+                    sortRangeType: "State",
+                    spaceId,
+                    entityId,
+                },
+                item => {
+                    if (!item?.activeJob) return item;
+                    if (item.activeJob.id !== jobId) return item;
+
+                    return {
+                        ...item,
+                        activeJob: {
+                            ...item.activeJob,
+                            expirationTime: new Date(Date.now() + expirationTimeoutMs),
+                        },
+                    };
+                },
+                // Make sure we didn't read data with an eventual consistency lag by making an
+                // `updateLockVersion` condition check even for noop updates.
+                {withNoopUpdateLockVersionConditionCheck: true},
+            );
+        })();
+
+        context.process.waitUntil(promise);
+        withIndexSearchEntityEmbeddingChunksJobLockIntervalPromiseWaiterForTest?.waitUntil(promise);
+    }, updateExpirationTimeIntervalMs);
+
+    let isError = false;
+    let isSimulatedCrashForTest = false;
+
+    try {
+        await action();
+    } catch (error) {
+        isError = true;
+        isSimulatedCrashForTest =
+            isWithIndexSearchEntityEmbeddingChunksJobLockSimulatedCrashErrorForTest(error);
+        throw error;
+    } finally {
+        interval.clear();
+
+        // Simulated crashes don't run any cleanup.
+        if (import.meta.jest && isSimulatedCrashForTest) return;
+
+        const endTime = new Date();
+
+        // Once our action has finished, release the lock.
+        await SearchEntityTable.updateItem(
+            context,
+            {
+                partitionType: "IndexSearchEntityEmbeddingChunksJob",
+                sortRangeType: "State",
+                spaceId,
+                entityId,
+            },
+            item => {
+                if (!item?.activeJob) return item;
+                if (item.activeJob.id !== jobId) return item;
+
+                // Set `activeJob` to null to release our lock.
+                //
+                // - If the job succeeded then set `previousJob` so we don't need to read data
+                //   again which we've already read (and we wait an appropriate amount of time
+                //   before the next job).
+                //
+                // - If the job failed, SQS is going to retry it automatically so add an entry
+                //   back to `scheduledJobs` so we don't skip the retry. If SQS doesn't retry
+                //   (since we've hit the retry limit). The entry in `scheduledJobs` will
+                //   eventually be cleaned up.
+                return {
+                    ...item,
+                    previousJob: {
+                        id: jobId,
+                        startTime: item.activeJob.startTime,
+                        endTime,
+                    },
+                    scheduledJobs: isError
+                        ? [...item.scheduledJobs, {id: jobId, startTime: item.activeJob.startTime}]
+                        : item.scheduledJobs,
+                    activeJob: null,
+                };
+            },
+            // Make sure we didn't read data with an eventual consistency lag by making an
+            // `updateLockVersion` condition check even for noop updates.
+            {withNoopUpdateLockVersionConditionCheck: true},
+        );
+    }
 }
 
 /**

@@ -2,7 +2,11 @@ import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
 import {processNotificationEvent} from "~/server/notifications/data/notifications_table.js";
-import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
+import {
+    processIndexSearchEntityDependentsJob,
+    processIndexSearchEntityEmbeddingChunksJob,
+    processIndexSearchEntityJob,
+} from "~/server/search/data/index/search_entity_index.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -21,7 +25,15 @@ export async function processJob(
             return;
         }
         case "IndexSearchEntity": {
-            await processIndexSearchEntityJob(context, job, jobStartTime);
+            await processIndexSearchEntityJob(context, job, jobStartTime, span);
+            return;
+        }
+        case "IndexSearchEntityDependents": {
+            await processIndexSearchEntityDependentsJob(context, job);
+            return;
+        }
+        case "IndexSearchEntityEmbeddingChunks": {
+            await processIndexSearchEntityEmbeddingChunksJob(context, job);
             return;
         }
         case "NotificationEvent": {

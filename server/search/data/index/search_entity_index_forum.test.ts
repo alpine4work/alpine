@@ -3,6 +3,8 @@ import {createPost} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     getSearchEntityIndexesForTest,
+    processIndexSearchEntityDependentsJob,
+    processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
     searchChannelsByAffinity,
     searchChannelsByKeywords,
@@ -31,10 +33,18 @@ afterEach(() => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    processJob: async (actionContext, job, jobStartTime) => {
+    processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
-                await processIndexSearchEntityJob(actionContext, job, jobStartTime);
+                await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
+                break;
+            }
+            case "IndexSearchEntityDependents": {
+                await processIndexSearchEntityDependentsJob(actionContext, job);
+                break;
+            }
+            case "IndexSearchEntityEmbeddingChunks": {
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
                 break;
             }
             default: {

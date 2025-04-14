@@ -1,8 +1,4 @@
-/* eslint-disable no-commit-blockers */
-// NOCOMMIT: Remove the above
-
 import {CfnOutput, CustomResource, Duration, Fn, Stack} from "aws-cdk-lib";
-import {AuthorizationType, LambdaIntegration, RestApi} from "aws-cdk-lib/aws-apigateway";
 import {IConnectable, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
@@ -15,6 +11,7 @@ import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
@@ -39,18 +36,6 @@ async function getFileSha256Hash(path: string): Promise<string> {
         stream.on("end", () => resolve(hash.digest("hex")));
     });
 }
-
-const opensearchDashboardProxyLambdaRelativePath =
-    process.env.CDK_LITE === "true"
-        ? "cyberworlds/admin/aws/empty_lambda"
-        : "cyberworlds/admin/opensearch/dashboard_proxy/dashboard_proxy";
-
-const opensearchDashboardProxyLambdaPath = joinPath(
-    runfilesPath,
-    `${opensearchDashboardProxyLambdaRelativePath}.zip`,
-);
-
-const opensearchDashboardProxyLambdaHandler = `${opensearchDashboardProxyLambdaRelativePath}.handler`;
 
 export class AwsOpensearch {
     protected readonly _domain: IDomain;
@@ -139,67 +124,9 @@ export class AwsOpensearch {
             deployScriptResource.node.addDependency(domain);
         }
 
-        // OpenSearch dashboard proxy:
-        {
-            const dashboardProxyLambda = new LambdaFunction(construct, "DashboardProxy", {
-                code: Code.fromAsset(opensearchDashboardProxyLambdaPath),
-                handler: opensearchDashboardProxyLambdaHandler,
-                vpc,
-                vpcSubnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
-                // TODO(calebmer): Node.js v20 is not currently supported as an AWS lambda
-                // runtime.
-                // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
-                runtime: Runtime.NODEJS_18_X,
-                timeout: Duration.seconds(60),
-                environment: {OPENSEARCH_HOST: domain.domainEndpoint},
-            });
-
-            domain.grantRead(dashboardProxyLambda);
-            domain.connections.allowFrom(dashboardProxyLambda, Port.tcp(443));
-
-            // NOCOMMIT: Seems dangerous
-            // dashboardProxyLambda.addToRolePolicy(
-            //     new PolicyStatement({
-            //         actions: [
-            //             "sts:AssumeRole",
-            //             "iam:GetUser",
-            //             "iam:ListAttachedUserPolicies",
-            //             "iam:ListGroupsForUser",
-            //             "iam:ListAttachedGroupPolicies",
-            //             "sts:GetCallerIdentity",
-            //         ],
-            //         resources: ["*"],
-            //     }),
-            // );
-
-            // NOCOMMIT: Do I really need API gateway? Can I make it so the AWS lambda
-            // directly receives API requests?
-            const dashboardProxyRestApi = new RestApi(construct, "DashboardProxyRestApi", {
-                // NOCOMMIT: Seems dangerous
-                // defaultCorsPreflightOptions: {
-                //     allowOrigins: Cors.ALL_ORIGINS,
-                //     allowMethods: Cors.ALL_METHODS,
-                //     allowHeaders: [
-                //         "Content-Type",
-                //         "Authorization",
-                //         "X-Amz-Date",
-                //         "X-Api-Key",
-                //         "X-Amz-Security-Token",
-                //         "X-Amz-User-Agent",
-                //     ],
-                // },
-            });
-
-            const dashboardProxyRestApiResource =
-                dashboardProxyRestApi.root.addResource("{proxy+}");
-
-            dashboardProxyRestApiResource.addMethod(
-                "ANY",
-                new LambdaIntegration(dashboardProxyLambda),
-                // NOCOMMIT: Very bad must remove this!
-                {authorizationType: AuthorizationType.NONE},
-            );
-        }
+        // Block deploy (but don't block tests). We want to switch to OpenSearch
+        // serverless before deploying our our recent search entity indexing refactors.
+        assert(false);
 
         return AwsOpensearchWithConnections._new(domain);
     }

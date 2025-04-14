@@ -56,7 +56,6 @@ import {
     searchEntityViewDefaultMarginX,
     searchEntityViewDefaultPaddingX,
     searchEntityViewMinHeightPx,
-    searchEntityViewPaddingY,
 } from "~/client/styles/search_shared_styles.js";
 import {
     contentStyles,
@@ -439,30 +438,33 @@ export function SearchModal({
                                             <SearchEntityShimmer titleWidth="96" />
                                         </Box>
                                     ) : output.results.length === 0 ? (
-                                        <Box
-                                            color="grey-50"
-                                            padding={searchEntityViewPaddingY}
-                                            style={contentStyles.paragraphFontSize}
-                                        >
-                                            {queryText.trim().length === 0 ? (
-                                                <>
-                                                    As you explore, content you’ve recently visited
-                                                    will show up here. For now, try searching.
-                                                </>
-                                            ) : (
-                                                <>
-                                                    Couldn’t find anything matching “
-                                                    <span
-                                                        className={sprinkles({
-                                                            color: "grey-70",
-                                                            fontStyle: "bold",
-                                                        })}
-                                                    >
-                                                        {queryText}
-                                                    </span>
-                                                    .” Try a different search?
-                                                </>
-                                            )}
+                                        <Box padding={searchEntityViewDefaultMarginX}>
+                                            <Box
+                                                color="grey-50"
+                                                padding={searchEntityViewDefaultPaddingX}
+                                                style={contentStyles.paragraphFontSize}
+                                            >
+                                                {queryText.trim().length === 0 ? (
+                                                    <>
+                                                        As you explore, content you’ve recently
+                                                        visited will show up here. For now, try
+                                                        searching.
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Couldn’t find anything matching “
+                                                        <span
+                                                            className={sprinkles({
+                                                                color: "grey-70",
+                                                                fontStyle: "bold",
+                                                            })}
+                                                        >
+                                                            {queryText}
+                                                        </span>
+                                                        .” Try a different search?
+                                                    </>
+                                                )}
+                                            </Box>
                                         </Box>
                                     ) : (
                                         <SearchModalResultList

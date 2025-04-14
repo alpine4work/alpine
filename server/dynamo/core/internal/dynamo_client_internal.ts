@@ -294,7 +294,7 @@ export class DynamoClientInternal {
 
                     if (!linkedTracers.has(otherTracer)) {
                         linkedTracers.add(otherTracer);
-                        otherTracer.link(span);
+                        otherTracer.link(`Batch execution: ${span.getName()}`, span);
                     }
                 }
 
@@ -487,7 +487,7 @@ export class DynamoClientInternal {
 
                     if (!linkedTracers.has(otherTracer)) {
                         linkedTracers.add(otherTracer);
-                        otherTracer.link(span);
+                        otherTracer.link(`Batch execution: ${span.getName()}`, span);
                     }
                 }
 

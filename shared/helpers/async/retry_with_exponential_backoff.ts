@@ -2,6 +2,17 @@ import {CancelledError, DeadlineExceededError} from "~/shared/error/error.js";
 
 const originalSetTimeout = setTimeout;
 
+const retryKeySymbol = Symbol("retry");
+
+/**
+ * If this is an error thrown by calling the `retry()` function in
+ * `retryWithExponentialBackoff()`?
+ */
+export function isRetryError(error: unknown): error is CancelledError {
+    if (!(error instanceof CancelledError)) return false;
+    return !!(error as any)[retryKeySymbol];
+}
+
 /**
  * Retries an action with exponential backoff with jitter. Since we use
  * exponential backoff, retry delays can get quite long.
@@ -38,11 +49,11 @@ export function retryWithExponentialBackoff<Value>(
     // Important that this retry symbol is local to this function call. That way
     // when you have nested `retryWithExponentialBackoff()`s we correctly retry the
     // one whose `retry()` function was called.
-    const retrySymbol = Symbol("retry");
+    const retryValueSymbol = Symbol();
 
     const retry = (error?: unknown): never => {
         const retryError = new CancelledError("Retry", {cause: error});
-        (retryError as any)[retrySymbol] = true;
+        (retryError as any)[retryKeySymbol] = retryValueSymbol;
         throw retryError;
     };
 
@@ -50,7 +61,7 @@ export function retryWithExponentialBackoff<Value>(
         return (
             typeof error === "object" &&
             error !== null &&
-            (!!(error as any)[retrySymbol] ||
+            ((error as any)[retryKeySymbol] === retryValueSymbol ||
                 (error instanceof AggregateError &&
                     error.errors.length > 0 &&
                     error.errors.every(shouldRetry)))

@@ -4225,7 +4225,7 @@ test("correctly chunks document content", async () => {
                 ],
             }) as DocumentContent,
             {tokenizer, getAccountIfExists},
-        ).then(({embeddingChunks}) => embeddingChunks),
+        ).then(({getEmbeddingChunks}) => getEmbeddingChunks()),
     ).toEqual([
         // Chunk 1:
         {
@@ -4423,7 +4423,7 @@ test("correctly chunks long document content by sentences", async () => {
                 ],
             }) as DocumentContent,
             {tokenizer, getAccountIfExists},
-        ).then(({embeddingChunks}) => embeddingChunks),
+        ).then(({getEmbeddingChunks}) => getEmbeddingChunks()),
     ).toEqual([
         {
             preambleEndIndex: 15,

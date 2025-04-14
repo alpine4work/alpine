@@ -213,7 +213,7 @@ export class ForkActionContextModuleDetachedForker<
                 // as what we pass in then the data in `span` will win.
                 span._addDefaultPropagatedFlatData(this._propagationContext.data);
 
-                span.link({
+                span.link(`Parent of: ${span.getName()}`, {
                     traceId: this._propagationContext.traceId,
                     spanId: this._propagationContext.parentId,
                 });

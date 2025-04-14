@@ -9,7 +9,7 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
@@ -39,6 +39,7 @@ test.beforeAll(async () => {
 
     // Used to control parallelism. We run 3 action transactions in parallel
     // at once.
+    const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(3, () => new Mutex());
 
     const taskCount = 300;
@@ -103,16 +104,18 @@ test.beforeAll(async () => {
             });
         }
 
-        void mutexes[taskIndex % mutexes.length]!.withLock(async () => {
-            await commitTaskActionTransaction(TestTask.action(session1), space.id, actions);
+        promiseWaiter.waitUntil(
+            mutexes[taskIndex % mutexes.length]!.withLock(async () => {
+                await commitTaskActionTransaction(TestTask.action(session1), space.id, actions);
 
-            logTaskIndex++;
-            // eslint-disable-next-line no-console
-            console.log(`Created task ${logTaskIndex}/${taskCount}`);
-        });
+                logTaskIndex++;
+                // eslint-disable-next-line no-console
+                console.log(`Created task ${logTaskIndex}/${taskCount}`);
+            }),
+        );
     }
 
-    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+    await promiseWaiter.wait();
 });
 
 test("undo/redo can move a task between positions", async ({page, context: browserContext}) => {

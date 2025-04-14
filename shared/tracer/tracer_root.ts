@@ -220,7 +220,7 @@ export class TracerRoot extends TracerBase {
             propagatedEventFlatData: propagationContext.data,
         });
 
-        span.link({
+        span.link(`Parent of: ${name}`, {
             traceId: propagationContext.traceId,
             spanId: propagationContext.parentId,
         });

@@ -19,8 +19,9 @@ import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/
 import {
     getSearchEntitiesTitleAndMediaIfExist,
     getSearchEntityIndexesForTest,
+    processIndexSearchEntityDependentsJob,
+    processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
-    processSearchEntityJobFinishedTestCheckpoint,
     searchByAffinity,
     searchByKeywords,
     searchBySemantics,
@@ -53,6 +54,19 @@ import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
+/**
+ * Run all timers and any promises passed until `context.process.waitUntil()`
+ * until there are no timers or `context.process.waitUntil()` promises.
+ */
+async function runAllTimersAndWaitForTestTasks() {
+    await ProcessContextModule.waitForTestTasks();
+
+    while (import.meta.jest.getTimerCount() > 0) {
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    }
+}
+
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
 });
@@ -65,7 +79,7 @@ afterEach(() => {
 });
 
 const schema = DocumentContentProsemirrorSchema;
-const {SearchEntityKeywordIndex, SearchEntitySemanticIndex} = getSearchEntityIndexesForTest();
+const {SearchEntityKeywordIndex, SearchEntityEmbeddingChunkIndex} = getSearchEntityIndexesForTest();
 
 let languageModel: AllMiniLmL6V2LanguageModel;
 beforeAll(async () => {
@@ -74,15 +88,22 @@ beforeAll(async () => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    processJob: async (actionContext, job, jobStartTime) => {
+    processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
-                await processIndexSearchEntityJob(
+                await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
+                break;
+            }
+            case "IndexSearchEntityDependents": {
+                await processIndexSearchEntityDependentsJob(actionContext, job);
+                break;
+            }
+            case "IndexSearchEntityEmbeddingChunks": {
+                await processIndexSearchEntityEmbeddingChunksJob(
                     actionContext.clone({
                         languageModel: new LanguageModelContextModule(languageModel),
                     }),
                     job,
-                    jobStartTime,
                 );
                 break;
             }
@@ -145,8 +166,7 @@ test("can index and reindex a document", async () => {
             .then(({hits}) => hits),
     ).toEqual([]);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -198,8 +218,7 @@ test("can index and reindex a document", async () => {
 
     await document.type(session, " A new sentence, wow.");
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -253,8 +272,7 @@ test("can highlight a document", async () => {
         body: "This is a document. Very cool.",
     });
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -309,8 +327,7 @@ test("will skip indexing if already indexed", async () => {
         ),
     ).toEqual(null);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     const {primaryTerm, sequenceNumber: sequenceNumberBase} = assertExists(
         (
@@ -334,6 +351,8 @@ test("will skip indexing if already indexed", async () => {
         fields: {},
     });
 
+    const noopSpan = {addData: () => {}};
+
     await processIndexSearchEntityJob(
         TestTask.systemAction(space),
         {
@@ -346,6 +365,7 @@ test("will skip indexing if already indexed", async () => {
             },
         },
         new Date(),
+        noopSpan,
     );
 
     expect(
@@ -372,6 +392,7 @@ test("will skip indexing if already indexed", async () => {
             },
         },
         new Date(),
+        noopSpan,
     );
 
     expect(
@@ -398,6 +419,7 @@ test("will skip indexing if already indexed", async () => {
             },
         },
         new Date(Date.now() - 4 * 60 * 1000),
+        noopSpan,
     );
 
     expect(
@@ -424,6 +446,8 @@ test("will correctly index during race condition (scenario 1)", async () => {
 
     const pause1Promise = getDocumentSearchEntityTestCheckpoint.pauseForTest(document.id);
 
+    const noopSpan = {addData: () => {}};
+
     const job1Promise = processIndexSearchEntityJob(
         TestTask.systemAction(space),
         {
@@ -436,6 +460,7 @@ test("will correctly index during race condition (scenario 1)", async () => {
             },
         },
         new Date(),
+        noopSpan,
     );
 
     const pause1 = await pause1Promise;
@@ -455,6 +480,7 @@ test("will correctly index during race condition (scenario 1)", async () => {
             },
         },
         new Date(),
+        noopSpan,
     );
 
     pause1.unpause();
@@ -494,6 +520,8 @@ test("will correctly index during race condition (scenario 2)", async () => {
 
     const pause1Promise = getDocumentSearchEntityTestCheckpoint.pauseForTest(document.id);
 
+    const noopSpan = {addData: () => {}};
+
     const job1Promise = processIndexSearchEntityJob(
         TestTask.systemAction(space),
         {
@@ -506,6 +534,7 @@ test("will correctly index during race condition (scenario 2)", async () => {
             },
         },
         new Date(),
+        noopSpan,
     );
 
     const pause1 = await pause1Promise;
@@ -527,6 +556,7 @@ test("will correctly index during race condition (scenario 2)", async () => {
             },
         },
         new Date(),
+        noopSpan,
     );
 
     const pause2 = await pause2Promise;
@@ -570,8 +600,9 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
         body: "This is a document. Very cool.",
     });
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -582,21 +613,31 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
-    ).toEqual(null);
+        await context.opensearch.searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+            size: 100,
+            storedFields: ["textHash"],
+            query: {
+                bool: {
+                    filter: [
+                        {
+                            term: {
+                                "entity.id": new OpensearchQueryValue(`Document:${document.id}`),
+                            },
+                        },
+                    ],
+                },
+            },
+        }),
+    ).toEqual({hits: []});
 
     const {newInvertedSteps} = await document.type(
         session,
         " Add enough content that we'll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
     );
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -607,25 +648,30 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
+        await context.opensearch.searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+            size: 100,
+            storedFields: ["textHash"],
+            query: {
+                bool: {
+                    filter: [
+                        {
+                            term: {
+                                "entity.id": new OpensearchQueryValue(`Document:${document.id}`),
+                            },
+                        },
+                    ],
+                },
+            },
+        }),
     ).toEqual({
-        id: `Document:${document.id}`,
-        routing: space.id,
-        version: expect.any(Object),
-        fields: {
-            "embeddingChunksVectorCache.allMiniLmL6V2": [new Map([[673655517, expect.any(Array)]])],
-        },
+        hits: [{id: expect.any(String), score: 0, fields: {textHash: [673655517]}}],
     });
 
     await document.update(session, newInvertedSteps);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -636,18 +682,22 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
-    ).toEqual({
-        id: `Document:${document.id}`,
-        routing: space.id,
-        version: expect.any(Object),
-        fields: {},
-    });
+        await context.opensearch.searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+            size: 100,
+            storedFields: ["textHash"],
+            query: {
+                bool: {
+                    filter: [
+                        {
+                            term: {
+                                "entity.id": new OpensearchQueryValue(`Document:${document.id}`),
+                            },
+                        },
+                    ],
+                },
+            },
+        }),
+    ).toEqual({hits: []});
 });
 
 test("goes from no embeddings to some embeddings to no embeddings again with race conditions", async () => {
@@ -659,13 +709,13 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
         body: "This is a document. Very cool.",
     });
 
+    const noopSpan = {addData: () => {}};
+
     // Race 5 job processors...
     await runAllPromises(
         createArrayWithLength(5, () =>
             processIndexSearchEntityJob(
-                TestTask.systemAction(space).clone({
-                    languageModel: new LanguageModelContextModule(languageModel),
-                }),
+                TestTask.systemAction(space),
                 {
                     type: "IndexSearchEntity",
                     spaceId: space.id,
@@ -676,9 +726,14 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
                     },
                 },
                 new Date(),
+                noopSpan,
             ),
         ),
     );
+
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -689,13 +744,22 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
-    ).toEqual(null);
+        await context.opensearch.searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+            size: 100,
+            storedFields: ["textHash"],
+            query: {
+                bool: {
+                    filter: [
+                        {
+                            term: {
+                                "entity.id": new OpensearchQueryValue(`Document:${document.id}`),
+                            },
+                        },
+                    ],
+                },
+            },
+        }),
+    ).toEqual({hits: []});
 
     const {newInvertedSteps} = await document.type(
         session,
@@ -706,9 +770,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     await runAllPromises(
         createArrayWithLength(5, () =>
             processIndexSearchEntityJob(
-                TestTask.systemAction(space).clone({
-                    languageModel: new LanguageModelContextModule(languageModel),
-                }),
+                TestTask.systemAction(space),
                 {
                     type: "IndexSearchEntity",
                     spaceId: space.id,
@@ -719,9 +781,14 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
                     },
                 },
                 new Date(),
+                noopSpan,
             ),
         ),
     );
+
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -732,27 +799,29 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
+        await context.opensearch.searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+            size: 100,
+            storedFields: ["textHash"],
+            query: {
+                bool: {
+                    filter: [
+                        {
+                            term: {
+                                "entity.id": new OpensearchQueryValue(`Document:${document.id}`),
+                            },
+                        },
+                    ],
+                },
+            },
+        }),
     ).toEqual({
-        id: `Document:${document.id}`,
-        routing: space.id,
-        version: expect.any(Object),
-        fields: {
-            "embeddingChunksVectorCache.allMiniLmL6V2": [new Map([[673655517, expect.any(Array)]])],
-        },
+        hits: [{id: expect.any(String), score: 0, fields: {textHash: [673655517]}}],
     });
 
     await document.update(session, newInvertedSteps);
 
     await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
+        TestTask.systemAction(space),
         {
             type: "IndexSearchEntity",
             spaceId: space.id,
@@ -763,7 +832,12 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
             },
         },
         new Date(),
+        noopSpan,
     );
+
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -774,18 +848,22 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
-    ).toEqual({
-        id: `Document:${document.id}`,
-        routing: space.id,
-        version: expect.any(Object),
-        fields: {},
-    });
+        await context.opensearch.searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+            size: 100,
+            storedFields: ["textHash"],
+            query: {
+                bool: {
+                    filter: [
+                        {
+                            term: {
+                                "entity.id": new OpensearchQueryValue(`Document:${document.id}`),
+                            },
+                        },
+                    ],
+                },
+            },
+        }),
+    ).toEqual({hits: []});
 });
 
 test("generates embeddings and only regenerates embeddings for chunks that changed", async () => {
@@ -799,92 +877,112 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
     expect(getCount()).toEqual(0);
 
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${documentId}`,
-            {storedFields: ["embeddingChunks.text", "embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
-    ).toEqual(null);
+        await context.opensearch.searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+            size: 100,
+            storedFields: ["text", "textHash"],
+            query: {
+                bool: {
+                    filter: [
+                        {
+                            term: {
+                                "entity.id": new OpensearchQueryValue(`Document:${documentId}`),
+                            },
+                        },
+                    ],
+                },
+            },
+        }),
+    ).toEqual({hits: []});
 
     const document = await TestDocument.create(session, {
         id: documentId,
         content: wikipediaYoutubeDocumentContent.get(),
     });
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     expect(getCount()).toEqual(3);
 
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
-    ).toEqual({
-        id: `Document:${document.id}`,
-        routing: space.id,
-        version: expect.any(Object),
-        fields: {
-            "embeddingChunksVectorCache.allMiniLmL6V2": [
-                new Map([
-                    [3903773671, expect.any(Array)],
-                    [2338772678, expect.any(Array)],
-                    [2963917712, expect.any(Array)],
-                ]),
-            ],
-        },
-    });
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
-    const doc = await context.opensearch.getDocWithoutSourceIfExists(
-        SearchEntitySemanticIndex,
-        space.id,
-        `Document:${document.id}`,
-        {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-    );
+    expect(
+        await context.opensearch
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+                size: 100,
+                storedFields: ["textHash"],
+                query: {
+                    bool: {
+                        filter: [
+                            {
+                                term: {
+                                    "entity.id": new OpensearchQueryValue(`Document:${documentId}`),
+                                },
+                            },
+                        ],
+                    },
+                },
+            })
+            .then(result => ({
+                ...result,
+                hits: result.hits
+                    .slice()
+                    .sort(
+                        (hit1, hit2) =>
+                            assertExists(hit1.fields.textHash?.[0]) -
+                            assertExists(hit2.fields.textHash?.[0]),
+                    ),
+            })),
+    ).toEqual({
+        hits: [
+            {id: expect.any(String), score: 0, fields: {textHash: [-1956194618]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [-1331049584]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [-391193625]}},
+        ],
+    });
 
     await document.update(session, [
         new ReplaceStep(2700, 2710, new Slice(Fragment.from(schema.text("ASDASDASDA")), 0, 0)),
     ]);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     expect(getCount()).toEqual(4);
 
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
+
     expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntitySemanticIndex,
-            space.id,
-            `Document:${document.id}`,
-            {storedFields: ["embeddingChunksVectorCache.allMiniLmL6V2"]},
-        ),
+        await context.opensearch
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+                size: 100,
+                storedFields: ["textHash"],
+                query: {
+                    bool: {
+                        filter: [
+                            {
+                                term: {
+                                    "entity.id": new OpensearchQueryValue(`Document:${documentId}`),
+                                },
+                            },
+                        ],
+                    },
+                },
+            })
+            .then(result => ({
+                ...result,
+                hits: result.hits
+                    .slice()
+                    .sort(
+                        (hit1, hit2) =>
+                            assertExists(hit1.fields.textHash?.[0]) -
+                            assertExists(hit2.fields.textHash?.[0]),
+                    ),
+            })),
     ).toEqual({
-        id: `Document:${document.id}`,
-        routing: space.id,
-        version: expect.any(Object),
-        fields: {
-            "embeddingChunksVectorCache.allMiniLmL6V2": [
-                new Map([
-                    [
-                        3903773671,
-                        doc?.fields["embeddingChunksVectorCache.allMiniLmL6V2"]?.[0]?.get(
-                            3903773671,
-                        ),
-                    ],
-                    [2125688697, expect.any(Array)],
-                    [
-                        2963917712,
-                        doc?.fields["embeddingChunksVectorCache.allMiniLmL6V2"]?.[0]?.get(
-                            2963917712,
-                        ),
-                    ],
-                ]),
-            ],
-        },
+        hits: [
+            {id: expect.any(String), score: 0, fields: {textHash: [-1331049584]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [-391193625]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [2125688697]}},
+        ],
     });
 });
 
@@ -900,42 +998,30 @@ test("returns the right chunk when searching for embeddings", async () => {
 
     const documentId = generateId<DocumentId>();
 
-    const document = await TestDocument.create(session, {
+    await TestDocument.create(session, {
         id: documentId,
         content: wikipediaYoutubeDocumentContent.get(),
     });
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch
-            .searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
                 size: 1,
+                storedFields: ["text"],
                 query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        inner_hits: {
-                            size: 1,
-                            _source: false,
-                            stored_fields: ["embeddingChunks.text"],
-                        },
-                        query: {
-                            knn: {
-                                "embeddingChunks.vector.allMiniLmL6V2": {
-                                    vector: new OpensearchQueryValue(
-                                        await embedQuery("where did the founders meet"),
-                                    ),
-                                    k: 100,
-                                    filter: {
-                                        term: {
-                                            "embeddingChunks.spaceId": new OpensearchQueryValue(
-                                                space.id,
-                                            ),
-                                        },
-                                    },
+                    knn: {
+                        "vector.allMiniLmL6V2": {
+                            vector: new OpensearchQueryValue(
+                                await embedQuery("where did the founders meet"),
+                            ),
+                            k: 100,
+                            filter: {
+                                term: {
+                                    spaceId: new OpensearchQueryValue(space.id),
                                 },
                             },
                         },
@@ -945,16 +1031,11 @@ test("returns the right chunk when searching for embeddings", async () => {
             .then(({hits}) => hits),
     ).toEqual([
         {
-            id: `Document:${document.id}`,
-            score: expect.any(Number),
-            fields: {},
-            innerHits: {
-                embeddingChunks: [
-                    {
-                        offset: 1,
-                        fields: {
-                            "embeddingChunks.text": [
-                                `This is from the “YouTube” document:
+            id: expect.any(String),
+            score: expect.closeTo(0.3615967),
+            fields: {
+                text: [
+                    `This is from the “YouTube” document:
 
 ## History
 
@@ -963,9 +1044,6 @@ YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim. The trio were e
 According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen's apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party "was probably very strengthened by marketing ideas around creating a story that was very digestible".
 
 YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube's early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled "Me at the zoo", it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.`,
-                            ],
-                        },
-                    },
                 ],
             },
         },
@@ -1012,32 +1090,23 @@ test("can search based on vector embeddings", async () => {
         ),
     });
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch
-            .searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
                 size: 100,
+                storedFields: ["entity.id"],
                 query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            knn: {
-                                "embeddingChunks.vector.allMiniLmL6V2": {
-                                    vector: new OpensearchQueryValue(
-                                        await embedQuery("video site"),
-                                    ),
-                                    k: 100,
-                                    filter: {
-                                        term: {
-                                            "embeddingChunks.spaceId": new OpensearchQueryValue(
-                                                space.id,
-                                            ),
-                                        },
-                                    },
+                    knn: {
+                        "vector.allMiniLmL6V2": {
+                            vector: new OpensearchQueryValue(await embedQuery("video site")),
+                            k: 100,
+                            filter: {
+                                term: {
+                                    spaceId: new OpensearchQueryValue(space.id),
                                 },
                             },
                         },
@@ -1046,34 +1115,36 @@ test("can search based on vector embeddings", async () => {
             })
             .then(({hits}) => hits),
     ).toEqual([
-        {id: `Document:${document1.id}`, score: expect.any(Number), fields: {}},
-        {id: `Document:${document2.id}`, score: expect.any(Number), fields: {}},
+        {
+            id: expect.any(String),
+            score: expect.any(Number),
+            fields: {"entity.id": [`Document:${document1.id}`]},
+        },
+        {
+            id: expect.any(String),
+            score: expect.any(Number),
+            fields: {"entity.id": [`Document:${document2.id}`]},
+        },
     ]);
 
     expect(
         await context.opensearch
-            .searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
                 size: 100,
+                storedFields: ["entity.id"],
                 query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            knn: {
-                                "embeddingChunks.vector.allMiniLmL6V2": {
-                                    vector: new OpensearchQueryValue(
-                                        // These words aren't in our source material but the model should figure out
-                                        // that "dungeon master" is associated with tabletop games and "scary" is
-                                        // associated with suspense or running away.
-                                        await embedQuery("scary tabletop game"),
-                                    ),
-                                    k: 100,
-                                    filter: {
-                                        term: {
-                                            "embeddingChunks.spaceId": new OpensearchQueryValue(
-                                                space.id,
-                                            ),
-                                        },
-                                    },
+                    knn: {
+                        "vector.allMiniLmL6V2": {
+                            vector: new OpensearchQueryValue(
+                                // These words aren't in our source material but the model should figure out
+                                // that "dungeon master" is associated with tabletop games and "scary" is
+                                // associated with suspense or running away.
+                                await embedQuery("scary tabletop game"),
+                            ),
+                            k: 100,
+                            filter: {
+                                term: {
+                                    spaceId: new OpensearchQueryValue(space.id),
                                 },
                             },
                         },
@@ -1082,8 +1153,16 @@ test("can search based on vector embeddings", async () => {
             })
             .then(({hits}) => hits),
     ).toEqual([
-        {id: `Document:${document2.id}`, score: expect.any(Number), fields: {}},
-        {id: `Document:${document1.id}`, score: expect.any(Number), fields: {}},
+        {
+            id: expect.any(String),
+            score: expect.any(Number),
+            fields: {"entity.id": [`Document:${document2.id}`]},
+        },
+        {
+            id: expect.any(String),
+            score: expect.any(Number),
+            fields: {"entity.id": [`Document:${document1.id}`]},
+        },
     ]);
 });
 
@@ -1093,8 +1172,7 @@ test("will reindex if a dependency changes", async () => {
 
     const channel = await TestChannel.create(session, {name: "Test"});
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     const post1 = await channel.createPost(
         session,
@@ -1106,81 +1184,59 @@ test("will reindex if a dependency changes", async () => {
         "Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.",
     );
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch
-            .searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
                 size: 100,
+                storedFields: ["entity.id", "text"],
                 query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
-                        },
-                        inner_hits: {
-                            size: 100,
-                            _source: false,
-                            stored_fields: ["embeddingChunks.text"],
-                        },
-                    },
+                    term: {spaceId: new OpensearchQueryValue(space.id)},
                 },
             })
-            .then(({hits}) => hits.sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id))),
+            .then(({hits}) =>
+                hits.sort((doc1, doc2) =>
+                    defaultCompareStrings(
+                        doc1.fields["entity.id"]?.[0] ?? "",
+                        doc2.fields["entity.id"]?.[0] ?? "",
+                    ),
+                ),
+            ),
     ).toEqual(
         [
             {
-                id: `Post:${post1.id}`,
+                id: expect.any(String),
                 score: expect.any(Number),
-                fields: {},
-                innerHits: {
-                    embeddingChunks: [
-                        {
-                            offset: 0,
-                            fields: {
-                                "embeddingChunks.text": [
-                                    `This is a post in the “Test” channel:
+                fields: {
+                    "entity.id": [`Post:${post1.id}`],
+                    text: [
+                        `This is a post in the “Test” channel:
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.`,
-                                ],
-                            },
-                        },
                     ],
                 },
             },
             {
-                id: `Post:${post2.id}`,
+                id: expect.any(String),
                 score: expect.any(Number),
-                fields: {},
-                innerHits: {
-                    embeddingChunks: [
-                        {
-                            offset: 0,
-                            fields: {
-                                "embeddingChunks.text": [
-                                    `This is a post in the “Test” channel:
+                fields: {
+                    "entity.id": [`Post:${post2.id}`],
+                    text: [
+                        `This is a post in the “Test” channel:
 
 Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.`,
-                                ],
-                            },
-                        },
                     ],
                 },
             },
-        ].sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id)),
-    );
-
-    const pause1Promise = processSearchEntityJobFinishedTestCheckpoint.pauseForTest(
-        `Channel:${channel.id}`,
-    );
-    const pause2Promise = processSearchEntityJobFinishedTestCheckpoint.pauseForTest(
-        `Post:${post1.id}`,
-    );
-    const pause3Promise = processSearchEntityJobFinishedTestCheckpoint.pauseForTest(
-        `Post:${post2.id}`,
+        ].sort((doc1, doc2) =>
+            defaultCompareStrings(
+                doc1.fields["entity.id"][0] ?? "",
+                doc2.fields["entity.id"][0] ?? "",
+            ),
+        ),
     );
 
     await updateChannelName(session.action(), {
@@ -1188,74 +1244,59 @@ Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat s
         name: "Lorem Ipsum",
     });
 
-    import.meta.jest.runOnlyPendingTimers();
+    await runAllTimersAndWaitForTestTasks();
 
-    (await pause1Promise).unpause();
-    (await pause2Promise).unpause();
-    (await pause3Promise).unpause();
-
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await context.opensearch
-            .searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
                 size: 100,
+                storedFields: ["entity.id", "text"],
                 query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
-                        },
-                        inner_hits: {
-                            size: 100,
-                            _source: false,
-                            stored_fields: ["embeddingChunks.text"],
-                        },
-                    },
+                    term: {spaceId: new OpensearchQueryValue(space.id)},
                 },
             })
-            .then(({hits}) => hits.sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id))),
+            .then(({hits}) =>
+                hits.sort((doc1, doc2) =>
+                    defaultCompareStrings(
+                        doc1.fields["entity.id"]?.[0] ?? "",
+                        doc2.fields["entity.id"]?.[0] ?? "",
+                    ),
+                ),
+            ),
     ).toEqual(
         [
             {
-                id: `Post:${post1.id}`,
+                id: expect.any(String),
                 score: expect.any(Number),
-                fields: {},
-                innerHits: {
-                    embeddingChunks: [
-                        {
-                            offset: 0,
-                            fields: {
-                                "embeddingChunks.text": [
-                                    `This is a post in the “Lorem Ipsum” channel:
+                fields: {
+                    "entity.id": [`Post:${post1.id}`],
+                    text: [
+                        `This is a post in the “Lorem Ipsum” channel:
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.`,
-                                ],
-                            },
-                        },
                     ],
                 },
             },
             {
-                id: `Post:${post2.id}`,
+                id: expect.any(String),
                 score: expect.any(Number),
-                fields: {},
-                innerHits: {
-                    embeddingChunks: [
-                        {
-                            offset: 0,
-                            fields: {
-                                "embeddingChunks.text": [
-                                    `This is a post in the “Lorem Ipsum” channel:
+                fields: {
+                    "entity.id": [`Post:${post2.id}`],
+                    text: [
+                        `This is a post in the “Lorem Ipsum” channel:
 
 Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.`,
-                                ],
-                            },
-                        },
                     ],
                 },
             },
-        ].sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id)),
+        ].sort((doc1, doc2) =>
+            defaultCompareStrings(
+                doc1.fields["entity.id"][0] ?? "",
+                doc2.fields["entity.id"][0] ?? "",
+            ),
+        ),
     );
 });
 
@@ -1271,8 +1312,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id.",
     );
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -1294,8 +1334,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
 
     await message.delete(session1);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -1532,11 +1571,10 @@ test("search by keywords only sees entities the account has access to", async ()
     await task4.addCollection(session2, collection2);
     await task5.addCollection(session2, collection3);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     await expect(
         searchByKeywords(otherSession.action(), {
@@ -1666,11 +1704,10 @@ test("search by semantics only sees entities the account has access to", async (
     await task4.addCollection(session2, collection2);
     await task5.addCollection(session2, collection3);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     await expect(
         searchBySemantics(
@@ -1786,11 +1823,10 @@ test("get search entities only sees entities the account has access to", async (
     await task4.addCollection(session2, collection2);
     await task5.addCollection(session2, collection3);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     const getSearchEntityIds = async (context: TestSessionActionContext, space: TestSpace) => {
         const entities = await getSearchEntitiesTitleAndMediaIfExist(context, {
@@ -1857,11 +1893,10 @@ test("search by semantics will highlight matching words", async () => {
         ).join(" ")}`,
     });
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
-    await context.opensearch.refresh(SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     expect(
         await searchBySemantics(
@@ -1958,8 +1993,7 @@ test("searches with natural language parsing works", async () => {
         "Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Trains! Check out this trains document.",
     );
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -2501,8 +2535,7 @@ test("highlighting bullet points with bold formatting works well", async () => {
         ),
     });
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -3298,8 +3331,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await document5.access.revokeDefault(session2);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -3362,8 +3394,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await document4.access.revokeDefault(session2);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -3426,8 +3457,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await document6.access.revokeDefault(session2);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -3483,8 +3513,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await document5.access.grantDefault(session2);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -3548,8 +3577,7 @@ test("search by affinity will also return up to five favorites", async () => {
     await document4.access.grantDefault(session2);
     await document6.access.grantDefault(session2);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -3701,8 +3729,7 @@ test("search by affinity will also return up to five favorites", async () => {
     await document8.access.revokeDefault(session2);
     await document7.access.revokeDefault(session2);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -3763,8 +3790,7 @@ test("search by affinity will also return up to five favorites", async () => {
     await document6.access.revokeDefault(session2);
     await document5.access.revokeDefault(session2);
 
-    import.meta.jest.runOnlyPendingTimers();
-    await ProcessContextModule.waitForTestTasks();
+    await runAllTimersAndWaitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 

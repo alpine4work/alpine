@@ -5,13 +5,12 @@ import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/ope
 import {OpensearchIndexAnalysisCustomFilter} from "~/server/opensearch/opensearch_index_analysis.js";
 import {
     OpensearchIndexArrayType,
-    OpensearchIndexBinaryType,
+    OpensearchIndexBooleanType,
     OpensearchIndexByteType,
     OpensearchIndexDateType,
     OpensearchIndexIntegerType,
     OpensearchIndexKeywordType,
     OpensearchIndexKnnVectorType,
-    OpensearchIndexNestedType,
     OpensearchIndexObjectType,
     OpensearchIndexSearchAsYouTypeType,
     OpensearchIndexTextType,
@@ -23,7 +22,6 @@ import {
     SearchEntityMedia,
     SearchEntityMediaSchema,
 } from "~/server/search/data/index/internal/search_entity_media.js";
-import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
@@ -32,6 +30,7 @@ import {
 } from "~/shared/helpers/string/create_enum_integer_mapping.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 // NOTE(calebmer, 2025-01-14): The fact that this is a constant string
 // `"Space"` and not a boolean is a historical artifact based on data written
@@ -160,6 +159,11 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
          * The last time where we started the read that produced this search entity.
          */
         lastReadStartTime: new OpensearchIndexDateType().store(),
+
+        /**
+         * Does this search entity have some embedding chunks?
+         */
+        hasEmbeddingChunks: new OpensearchIndexBooleanType().default(false).store(),
 
         /**
          * Determines who is allowed to view this search entity. We filter against this
@@ -325,34 +329,54 @@ for (const [key, languageModelClass] of Object.entries(
     assert(key === languageModelClass.key);
 }
 
-export type SearchEntitySemanticIndexEmbeddingChunk = OpensearchIndexTypeType<
-    typeof SearchEntitySemanticIndexEmbeddingChunkType
+export type SearchEntityEmbeddingChunkIndexDoc = OpensearchIndexTypeType<
+    typeof SearchEntityEmbeddingChunkIndexDocType
 >;
 
-const SearchEntitySemanticIndexEmbeddingChunkType = OpensearchIndexObjectType.new({
+export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.new({
     fields: {
-        spaceId: new OpensearchIndexKeywordType({isFilterable: true}).validate<SpaceId>(isId),
+        spaceId: new OpensearchIndexKeywordType({
+            isFilterable: true,
+            isSortable: true,
+        }).validate<SpaceId>(isId),
 
-        /**
-         * `spaceId` and `accessPolicy` are copied to every nested embedding chunk
-         * object. They are the same across all objects. Why is this? It's quite
-         * inefficient from a JSON point of view. Why not store the `accessPolicy` at
-         * the root document level if it doesn't change across chunks? Instead of
-         * copying the `accessPolicy` (which can get big) across all chunks.
-         *
-         * The reason we add the `accessPolicy` to every chunk is to make searching
-         * chunks more efficient. Otherwise if we were searching nested chunks that
-         * match an `accessPolicy` on the root doc, OpenSearch would need to do a bunch
-         * of expensive joins.
-         *
-         * Furthermore, [efficient k-NN filtering][1] structurally MUST be on the
-         * nested doc. There's no syntax for filtering on a parent property with k-NN
-         * efficient filtering. (See the `filter` property on
-         * `OpensearchKnnQueryClause`.)
-         *
-         * [1]: opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
-         */
-        accessPolicy: SearchEntityIndexAccessPolicyType,
+        entity: OpensearchIndexObjectType.new({
+            fields: {
+                type: new OpensearchIndexKeywordType({
+                    isFilterable: true,
+                    isSortable: true,
+                }),
+
+                id: new OpensearchIndexKeywordType({
+                    isFilterable: true,
+                })
+                    .validate<SearchDynamicEntityId>(
+                        (value): value is SearchDynamicEntityId => true,
+                    )
+                    .store(),
+
+                /**
+                 * `accessPolicy` is copied to every nested embedding chunk object so we can
+                 * perform [efficient k-NN filtering][1] on the chunks.
+                 *
+                 * [1]: opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
+                 */
+                accessPolicy: SearchEntityIndexAccessPolicyType,
+
+                /**
+                 * The title of the chunked entity. Copied here in addition to the keyword
+                 * index so we can load the title when searching.
+                 */
+                title: new OpensearchIndexKeywordType().nullable().store(),
+
+                /**
+                 * Media we display alongside the search entity if available. For example, if
+                 * search surfaces a chat message then we show the avatar of the account who
+                 * sent the chat message.
+                 */
+                media: SearchEntityMediaType.nullable().store(),
+            },
+        }),
 
         /**
          * The chunk's text. Can be provided to a conversational LLM (like ChatGPT) to
@@ -360,6 +384,12 @@ const SearchEntitySemanticIndexEmbeddingChunkType = OpensearchIndexObjectType.ne
          * content they searched for.
          */
         text: new OpensearchIndexKeywordType().store(),
+
+        /**
+         * A hash of the chunk's text. Uses `murmurhash.v3()` to generate the hash. We
+         * use this to detect duplicate chunks.
+         */
+        textHash: new OpensearchIndexIntegerType().store(),
 
         /**
          * Index at which the preamble ends in `text`. The preamble contains context we
@@ -414,216 +444,92 @@ const SearchEntitySemanticIndexEmbeddingChunkType = OpensearchIndexObjectType.ne
 
                             spaceType: languageModelClass.opensearchSpaceType,
 
-                            // Choosing the Lucene engine because it supports important functionality for
-                            // performance (byte vectors and efficient filter search).
-                            engine: "lucene",
+                            // If we're in a development environment on MacOS we must use the Lucene engine
+                            // for `knn` fields since the Lucene engine is written in cross-platform Java
+                            // code. Faiss is a native library which is only available for Linux in the
+                            // OpenSearch distribution we run in development environments.
+                            //
+                            // We must use Faiss in production since it's the only engine that's supported
+                            // by [OpenSearch serverless][1].
+                            //
+                            // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-vector-search.html
+                            ...(process.env.NODE_ENV !== "production" &&
+                            process.platform === "darwin"
+                                ? {
+                                      engine: "lucene",
+                                      parameters: {ef_construction: 100, m: 16},
+                                  }
+                                : {
+                                      engine: "faiss",
 
-                            // We use the OpenSearch [default values][1] for these parameters. To learn the
-                            // performance tradeoff of various configurations, this is a [great blog
-                            // post][2]. To summarize:
-                            //
-                            // - `m` is the number of connections between nodes in the graph at each layer
-                            //   and large values have a big impact on memory usage. Larger values can also
-                            //   slow down search time. The tradeoff is higher `m` values are better for
-                            //   recall.
-                            //
-                            // - `ef_construction` determines the number of layers in the HNSW structure.
-                            //   It has little to no impact on search performance and memory usage but
-                            //   higher values do increase indexing time. Higher `ef_construction` values
-                            //   improve recall for lower `m` values.
-                            //
-                            // A combination of high `ef_construction`, low `m`, gives us good search
-                            // performance and recall while hurting indexing time. Given we care about
-                            // search performance upmost we're happy with this tradeoff and will use the
-                            // default OpenSearch values.
-                            //
-                            // If anything, we should experiment with lowering the `m` value to 8.
-                            //
-                            // [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#hnsw-parameters-2
-                            // [2]: https://www.pinecone.io/learn/series/faiss/hnsw/
-                            parameters: {
-                                ef_construction: 512,
-                                m: 16,
-                            },
+                                      // We use the OpenSearch [default values][1] for these parameters. To learn the
+                                      // performance tradeoff of various configurations, this is a [great blog
+                                      // post][2]. To summarize:
+                                      //
+                                      // - `m` is the number of connections between nodes in the graph at each layer
+                                      //   and large values have a big impact on memory usage. Larger values can also
+                                      //   slow down search time. The tradeoff is higher `m` values are better for
+                                      //   recall.
+                                      //
+                                      // - `ef_construction` determines the number of layers in the HNSW structure.
+                                      //   It has little to no impact on search performance and memory usage but
+                                      //   higher values do increase indexing time. Higher `ef_construction` values
+                                      //   improve recall for lower `m` values.
+                                      //
+                                      // A combination of high `ef_construction`, low `m`, gives us good search
+                                      // performance and recall while hurting indexing time. Given we care about
+                                      // search performance upmost we're happy with this tradeoff and will use the
+                                      // default OpenSearch values.
+                                      //
+                                      // If anything, we should experiment with lowering the `m` value to 8.
+                                      //
+                                      // [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-methods-engines/#hnsw-parameters-1
+                                      // [2]: https://www.pinecone.io/learn/series/faiss/hnsw/
+                                      parameters: {
+                                          ef_search: 100,
+                                          ef_construction: 100,
+                                          m: 16,
+                                          encoder: {name: "flat"},
+                                      },
+                                  }),
                         },
                     }).nullable();
                 },
             ),
         }),
     },
+
+    // NOTE(calebmer, 2025-04-14): Originally, embedding chunks were represented
+    // with an OpenSearch `nested` field. Nested OpenSearch fields index each
+    // object as a separate internal doc under-the-hood. What's really nice about a
+    // nested field is we can update all the child docs atomically. The thing is,
+    // once we migrated to AWS OpenSearch Serverless we learned their vector search
+    // collection type doesn't support insert and update by a custom doc ID. You
+    // must use OpenSearch's automatically generated IDs!
+    //
+    // > For time series and vector search collections, you can't index by custom
+    // > document ID or update by upsert requests. This operation is reserved for
+    // > search use cases.
+    //
+    // ([Source][1])
+    //
+    // Our new approach uses the `/_search` endpoint to find all chunks for a
+    // provided `entityId` and inserts/deletes new/old chunks. So we don't need to
+    // use the nested field anymore. Which is good, there are performance dangers
+    // to OpenSearch nested fields ([good blog post on one company's journey][2]).
+    // Since OpenSearch has to perform joins at query time.
+    //
+    // However, we do see recommendations around the internet for [using nested
+    // docs for chunks][3]. Furthermore, it would appear like Lucene understands
+    // this is an important use case and is building optimizations for it ([PR
+    // optimizing joins with k-NN in Lucene][4] which OpenSearch/ElasticSearch use
+    // under-the-hood, [blog post explaining the PR][5]). Though since we have to
+    // use the Faiss k-NN engine with OpenSearch Serverless, Lucene optimizations
+    // don't matter.
+    //
+    // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
+    // [2]: https://www.gojek.io/blog/elasticsearch-the-trouble-with-nested-documents
+    // [3]: https://www.elastic.co/search-labs/blog/articles/chunking-via-ingest-pipelines
+    // [4]: https://github.com/apache/lucene/pull/12434
+    // [5]: https://www.elastic.co/search-labs/blog/articles/adding-passage-vector-search-to-lucene
 });
-
-export type SearchEntitySemanticIndexDoc = OpensearchIndexTypeType<
-    typeof SearchEntitySemanticIndexDocType
->;
-
-export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
-    fields: {
-        /**
-         * The last time where we started the read that produced this search entity.
-         */
-        lastReadStartTime: new OpensearchIndexDateType().nullable().store(),
-
-        /**
-         * The title of the chunked entity. Copied here in addition to the keyword
-         * index so we can load the title when searching.
-         */
-        title: new OpensearchIndexKeywordType().nullable().store(),
-
-        /**
-         * Media we display alongside the search entity if available. For example, if
-         * search surfaces a chat message then we show the avatar of the account who
-         * sent the chat message.
-         */
-        media: SearchEntityMediaType.nullable().store(),
-
-        /**
-         * Embedding chunks are represented as a nested OpenSearch fields. Nested
-         * OpenSearch fields index each object as a separate internal doc
-         * under-the-hood. What's really nice about a nested field is we can update all
-         * the child docs atomically.
-         *
-         * There are certainly performance dangers to OpenSearch nested fields ([good
-         * blog post on one company's journey][1]). Since OpenSearch has to perform
-         * joins at query time.
-         *
-         * However, state-of-the-art vector search chunking strategies on
-         * OpenSearch/ElasticSearch appear to [recommend using nested docs][2].
-         * Furthermore, it would appear like Lucene understands this is an important
-         * use case and is building optimizations for it ([PR optimizing joins with
-         * k-NN in Lucene][3] which OpenSearch/ElasticSearch use under-the-hood, [blog
-         * post explaining the PR][4]).
-         *
-         * [1]: https://www.gojek.io/blog/elasticsearch-the-trouble-with-nested-documents
-         * [2]: https://www.elastic.co/search-labs/blog/articles/chunking-via-ingest-pipelines
-         * [3]: https://github.com/apache/lucene/pull/12434
-         * [4]: https://www.elastic.co/search-labs/blog/articles/adding-passage-vector-search-to-lucene
-         */
-        embeddingChunks: new OpensearchIndexNestedType(SearchEntitySemanticIndexEmbeddingChunkType),
-
-        /**
-         * A cache of embedding chunk vectors. Cohere, and other API language model
-         * providers, charge by the token. To avoid getting charged for content we've
-         * previously embedded we have this vector cache.
-         *
-         * The cache is keyed by a hash of an embedding chunk's text content and the
-         * value is the embedding vector for that content. We serialize the cache map
-         * to binary for OpenSearch to save space. Since the hash is a 32-bit unsigned
-         * integer (generated by murmurhash) and the embedding is an n-dimensional
-         * vector of bytes (we quantize the vector dimensions from float32 to uint8 for
-         * space efficiency with minimal recall loss).
-         *
-         * As with any hash, murmurhash has a chance of collision. In case of collision
-         * we'll use an embedding vector that doesn't match the text. This will impact
-         * recall (since we won't embed the actual text's meaning) but doesn't impact
-         * permissions or anything else critical. Since you have access to everything
-         * in the search entity. We're ok with a very very rare recall loss on hash
-         * collision.
-         */
-        embeddingChunksVectorCache: OpensearchIndexObjectType.new({
-            fields: mapObjectValues(
-                searchEntitySemanticIndexEmbeddingChunkLanguageModels,
-                languageModelClass => {
-                    return new OpensearchIndexBinaryType()
-                        .transform<ReadonlyMap<number, ReadonlyArray<number>>>({
-                            serialize: vectorCache =>
-                                serializeSearchEntityEmbeddingChunksVectorCache(
-                                    languageModelClass,
-                                    vectorCache,
-                                ),
-                            deserialize: bytes =>
-                                deserializeSearchEntityEmbeddingChunksVectorCache(
-                                    languageModelClass,
-                                    bytes,
-                                ),
-                        })
-                        .nullable()
-                        .store();
-                },
-            ),
-        }),
-    },
-});
-
-export function serializeSearchEntityEmbeddingChunksVectorCache(
-    languageModelClass: LanguageModelBaseClass,
-    vectorCache: ReadonlyMap<number, ReadonlyArray<number>>,
-): Uint8Array {
-    const isByteDimensionDataType = languageModelClass.dimensionDataType === "byte";
-
-    const buffer = new ArrayBuffer(
-        vectorCache.size *
-            (4 + languageModelClass.dimensionCount * (isByteDimensionDataType ? 1 : 4)),
-    );
-
-    const view = new DataView(buffer);
-    let byteOffset = 0;
-
-    for (const [textHash, vector] of vectorCache) {
-        view.setUint32(byteOffset, textHash);
-        byteOffset += 4;
-
-        for (let i = 0; i < languageModelClass.dimensionCount; i++) {
-            const dimension = vector[i]!;
-
-            if (isByteDimensionDataType) {
-                if (!(-128 <= dimension && dimension <= 127)) {
-                    throw new InternalError(
-                        "Expected byte vector dimension to be between -128 and 127",
-                    );
-                }
-
-                view.setUint8(byteOffset, dimension);
-                byteOffset += 1;
-            } else {
-                view.setFloat32(byteOffset, dimension);
-                byteOffset += 4;
-            }
-        }
-    }
-
-    return new Uint8Array(buffer);
-}
-
-export function deserializeSearchEntityEmbeddingChunksVectorCache(
-    languageModelClass: LanguageModelBaseClass,
-    bytes: Uint8Array,
-): ReadonlyMap<number, ReadonlyArray<number>> {
-    const isByteDimensionDataType = languageModelClass.dimensionDataType === "byte";
-
-    const vectorCache = new Map<number, Array<number>>();
-
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    let byteOffset = 0;
-
-    while (byteOffset < bytes.byteLength) {
-        const textHash = view.getUint32(byteOffset);
-        byteOffset += 4;
-
-        const vector = [];
-        for (let i = 0; i < languageModelClass.dimensionCount; i++) {
-            if (isByteDimensionDataType) {
-                const dimension = view.getUint8(byteOffset);
-                byteOffset += 1;
-
-                // The serialization function converts signed bytes (-128 to 127 range) into
-                // unsigned bytes by wrapping negative values. Unwrap values back to a
-                // signed positive/negative range.
-                if (dimension > 127) {
-                    vector.push(dimension - 256);
-                } else {
-                    vector.push(dimension);
-                }
-            } else {
-                const dimension = view.getFloat32(byteOffset);
-                byteOffset += 4;
-
-                vector.push(dimension);
-            }
-        }
-
-        vectorCache.set(textHash, vector);
-    }
-
-    return vectorCache;
-}

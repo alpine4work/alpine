@@ -1,5 +1,9 @@
 import {NotificationEventJobDescriptionSchema} from "~/server/notifications/core/notification_event.js";
-import {IndexSearchEntityJobDescriptionSchema} from "~/server/search/core/index_search_entity_job_description.js";
+import {
+    IndexSearchEntityDependentsJobDescriptionSchema,
+    IndexSearchEntityEmbeddingChunksJobDescriptionSchema,
+    IndexSearchEntityJobDescriptionSchema,
+} from "~/server/search/core/index_search_entity_job_description.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -77,6 +81,8 @@ const ProcessFileJobDescriptionSchema = Schema.object({
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
+    IndexSearchEntityDependents: IndexSearchEntityDependentsJobDescriptionSchema,
+    IndexSearchEntityEmbeddingChunks: IndexSearchEntityEmbeddingChunksJobDescriptionSchema,
     NotificationEvent: NotificationEventJobDescriptionSchema,
     ProcessFile: ProcessFileJobDescriptionSchema,
 });

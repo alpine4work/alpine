@@ -319,7 +319,7 @@ oci_pull(
 http_archive(
     name = "opensearch_local",
     build_file = "@//admin/bazel:third_party/BUILD.opensearch_local.bazel",
-    integrity = "sha256-cF2JZX5psuh7h8acazK9tcjNu6wralJtliwqaBnd/V8=",
+    integrity = "sha256-RVuQAYLvKnGT1EPZaq6lX1NOwPkbG61tLqzbrqYB8W4=",
     patch_args = ["-p1"],
     patch_cmds = [
         # Remove the `jdk` directory. The `jdk` binaries are built for an x86_64 Linux
@@ -331,8 +331,8 @@ http_archive(
         "cd plugins && ls | grep -v knn | xargs rm -rf",
     ],
     patches = ["//admin/patches:bazel/opensearch_local.patch"],
-    strip_prefix = "opensearch-2.13.0",
-    url = "https://artifacts.opensearch.org/releases/bundle/opensearch/2.13.0/opensearch-2.13.0-linux-x64.tar.gz",
+    strip_prefix = "opensearch-2.19.0",
+    url = "https://artifacts.opensearch.org/releases/bundle/opensearch/2.19.0/opensearch-2.19.0-linux-x64.tar.gz",
 )
 
 # =========================================================================== #

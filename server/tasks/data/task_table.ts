@@ -87,6 +87,7 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {
@@ -969,6 +970,7 @@ export async function runIndexTaskInitialAssigneePositionMigration(
     assert(context.tracer.getRoot().serviceName === "MigrationService");
 
     let i = 0;
+    const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(5, () => new Mutex());
 
     for await (const item of TaskTable.expensiveScan(context, {
@@ -978,12 +980,18 @@ export async function runIndexTaskInitialAssigneePositionMigration(
     })) {
         assert(item.partitionType === "Task" && item.sortRangeType === "EssentialAttributes");
 
-        void mutexes[i++ % mutexes.length]!.withLock(() =>
-            runIndexTaskInitialAssigneePositionMigrationForTask(context, item.spaceId, item.taskId),
+        promiseWaiter.waitUntil(
+            mutexes[i++ % mutexes.length]!.withLock(() =>
+                runIndexTaskInitialAssigneePositionMigrationForTask(
+                    context,
+                    item.spaceId,
+                    item.taskId,
+                ),
+            ),
         );
     }
 
-    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+    await promiseWaiter.wait();
 }
 
 /**
@@ -1006,6 +1014,7 @@ export async function runIndexEveryTaskActionStep1Of2(
     const serviceName = unknownServiceName;
 
     let i = 0;
+    const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(10, () => new Mutex());
 
     for await (const item of TaskActionTable.expensiveScan(context, {
@@ -1017,21 +1026,26 @@ export async function runIndexEveryTaskActionStep1Of2(
                 (action.type === "UpdateTask" && action.taskAction.type === "Create") ||
                 (action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
         );
-        if (createActions.length === 0) return;
+        if (createActions.length === 0) continue;
 
-        void mutexes[i++ % mutexes.length]!.withLock(() =>
-            indexTaskActionTransactionAssumingItsCommitted(
-                context.clone({
-                    cache: new CacheContextModule(),
-                    dynamoBatchContext: new DynamoBatchContextModule(),
-                    actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, item.spaceId),
-                }),
-                {...item, actions: createActions},
+        promiseWaiter.waitUntil(
+            mutexes[i++ % mutexes.length]!.withLock(() =>
+                indexTaskActionTransactionAssumingItsCommitted(
+                    context.clone({
+                        cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        actor: DynamoSystemActorContextModule.dangerouslyNew(
+                            serviceName,
+                            item.spaceId,
+                        ),
+                    }),
+                    {...item, actions: createActions},
+                ),
             ),
         );
     }
 
-    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+    await promiseWaiter.wait();
 }
 
 /**
@@ -1054,6 +1068,7 @@ export async function runIndexEveryTaskActionStep2Of2(
     const serviceName = unknownServiceName;
 
     let i = 0;
+    const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(10, () => new Mutex());
 
     for await (const item of TaskActionTable.expensiveScan(context, {
@@ -1065,21 +1080,26 @@ export async function runIndexEveryTaskActionStep2Of2(
                 !(action.type === "UpdateTask" && action.taskAction.type === "Create") &&
                 !(action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
         );
-        if (updateActions.length === 0) return;
+        if (updateActions.length === 0) continue;
 
-        void mutexes[i++ % mutexes.length]!.withLock(() =>
-            indexTaskActionTransactionAssumingItsCommitted(
-                context.clone({
-                    cache: new CacheContextModule(),
-                    dynamoBatchContext: new DynamoBatchContextModule(),
-                    actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, item.spaceId),
-                }),
-                {...item, actions: updateActions},
+        promiseWaiter.waitUntil(
+            mutexes[i++ % mutexes.length]!.withLock(() =>
+                indexTaskActionTransactionAssumingItsCommitted(
+                    context.clone({
+                        cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        actor: DynamoSystemActorContextModule.dangerouslyNew(
+                            serviceName,
+                            item.spaceId,
+                        ),
+                    }),
+                    {...item, actions: updateActions},
+                ),
             ),
         );
     }
 
-    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+    await promiseWaiter.wait();
 }
 
 /**

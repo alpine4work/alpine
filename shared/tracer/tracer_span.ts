@@ -265,7 +265,7 @@ export class TracerSpan extends TracerBase {
             },
         );
 
-        span.link({
+        span.link(`Parent of: ${name}`, {
             traceId: this.traceId,
             spanId: this._spanId,
         });
@@ -278,6 +278,13 @@ export class TracerSpan extends TracerBase {
      */
     public isFinished() {
         return this._isFinished;
+    }
+
+    /**
+     * Get the span's name.
+     */
+    public getName(): string {
+        return this._name;
     }
 
     /**
@@ -464,7 +471,7 @@ export class TracerSpan extends TracerBase {
      * processing from many spans. You may use the link function to express a
      * causal relationship between these spans.
      */
-    public link(span: {traceId: TraceId; spanId: TraceSpanId} | TracerSpan) {
+    public link(name: string, span: {traceId: TraceId; spanId: TraceSpanId} | TracerSpan) {
         this._isReferenced = true;
         if (span instanceof TracerSpan) span._isReferenced = true;
 
@@ -473,6 +480,7 @@ export class TracerSpan extends TracerBase {
         // Link this span with another using the Honeycomb link event format:
         // https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/#links
         const data: TracerEventFullData = {
+            name,
             meta: {annotationType: "link"},
             trace: {
                 parentId: this._spanId,

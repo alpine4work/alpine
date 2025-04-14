@@ -2,12 +2,13 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
-import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
     getSearchEntityIndexesForTest,
+    processIndexSearchEntityDependentsJob,
+    processIndexSearchEntityDependentsJobTestCounter,
+    processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
-    processSearchEntityJobUpdateDependentEntitiesTestCounter,
     searchByKeywords,
     searchTaskCollectionsByAffinity,
 } from "~/server/search/data/index/search_entity_index.js";
@@ -38,7 +39,7 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
-const {SearchEntityKeywordIndex, SearchEntitySemanticIndex} = getSearchEntityIndexesForTest();
+const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
 let indexSearchEntityJobCount = 0;
 
@@ -48,14 +49,22 @@ beforeEach(() => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    processJob: async (actionContext, job, jobStartTime) => {
+    processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
                 if (job.update.type !== "Account") {
                     indexSearchEntityJobCount++;
                 }
 
-                await processIndexSearchEntityJob(actionContext, job, jobStartTime);
+                await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
+                break;
+            }
+            case "IndexSearchEntityDependents": {
+                await processIndexSearchEntityDependentsJob(actionContext, job);
+                break;
+            }
+            case "IndexSearchEntityEmbeddingChunks": {
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
                 break;
             }
             default: {
@@ -81,23 +90,17 @@ async function actuallyGetIndexedSearchEntity(
 ): Promise<{
     title: string | null;
     body: string | null;
-    embeddingChunkCount?: number;
 }> {
-    const [docForKeywordIndex, docForSemanticIndex] = await context.opensearch.multiGetDocsIfExist([
-        new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
-            storedFields: ["title", "body"],
-        }),
-        new OpensearchGetDocWithoutSourceCommand(SearchEntitySemanticIndex, spaceId, entityId, {
-            storedFields: ["embeddingChunks.text"],
-        }),
-    ]);
-
-    const embeddingChunkCount = docForSemanticIndex?.fields["embeddingChunks.text"]?.length ?? 0;
+    const docForKeywordIndex = await context.opensearch.getDocWithoutSourceIfExists(
+        SearchEntityKeywordIndex,
+        spaceId,
+        entityId,
+        {storedFields: ["title", "body"]},
+    );
 
     return {
         title: docForKeywordIndex?.fields.title?.[0] ?? null,
         body: docForKeywordIndex?.fields.body?.[0] ?? null,
-        ...(embeddingChunkCount !== 0 ? {embeddingChunkCount} : {}),
     };
 }
 
@@ -324,7 +327,7 @@ test("will schedule another indexing job if task assignee is updated after creat
     });
 
     const {getCount: getUpdateAuthorizationDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Task:${task.id}:Authorization`,
         );
 
@@ -394,7 +397,7 @@ test("will schedule another indexing job if task authorization is updated after 
     });
 
     const {getCount: getUpdateAuthorizationDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Task:${task.id}:Authorization`,
         );
 
@@ -486,7 +489,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     });
 
     const {getCount: getUpdateAuthorizationDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Task:${task.id}:Authorization`,
         );
 

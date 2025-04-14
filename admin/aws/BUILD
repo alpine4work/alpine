@@ -33,7 +33,6 @@ filegroup(
     data = [
         ":aws",
         "//:cdk_files",
-        "//admin/opensearch/dashboard_proxy:dashboard_proxy_production",
         "//admin/opensearch/deploy_script:deploy_script_production",
         "//app:app_image_tarball_production",
         "//server/files/processor:processor_image_tarball_production",

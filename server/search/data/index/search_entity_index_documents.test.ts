@@ -6,11 +6,12 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
 import {
     getSearchEntityIndexesForTest,
+    processIndexSearchEntityDependentsJob,
+    processIndexSearchEntityDependentsJobTestCounter,
+    processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
-    processSearchEntityJobUpdateDependentEntitiesTestCounter,
     searchByAffinity,
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
@@ -43,7 +44,7 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
-const {SearchEntityKeywordIndex, SearchEntitySemanticIndex} = getSearchEntityIndexesForTest();
+const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
 let indexSearchEntityJobCount = 0;
 
@@ -53,14 +54,22 @@ beforeEach(() => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    processJob: async (actionContext, job, jobStartTime) => {
+    processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
                 if (job.update.type !== "Account") {
                     indexSearchEntityJobCount++;
                 }
 
-                await processIndexSearchEntityJob(actionContext, job, jobStartTime);
+                await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
+                break;
+            }
+            case "IndexSearchEntityDependents": {
+                await processIndexSearchEntityDependentsJob(actionContext, job);
+                break;
+            }
+            case "IndexSearchEntityEmbeddingChunks": {
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
                 break;
             }
             default: {
@@ -86,23 +95,17 @@ async function actuallyGetIndexedSearchEntity(
 ): Promise<{
     title: string | null;
     body: string | null;
-    embeddingChunkCount?: number;
 }> {
-    const [docForKeywordIndex, docForSemanticIndex] = await context.opensearch.multiGetDocsIfExist([
-        new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
-            storedFields: ["title", "body"],
-        }),
-        new OpensearchGetDocWithoutSourceCommand(SearchEntitySemanticIndex, spaceId, entityId, {
-            storedFields: ["embeddingChunks.text"],
-        }),
-    ]);
-
-    const embeddingChunkCount = docForSemanticIndex?.fields["embeddingChunks.text"]?.length ?? 0;
+    const docForKeywordIndex = await context.opensearch.getDocWithoutSourceIfExists(
+        SearchEntityKeywordIndex,
+        spaceId,
+        entityId,
+        {storedFields: ["title", "body"]},
+    );
 
     return {
         title: docForKeywordIndex?.fields.title?.[0] ?? null,
         body: docForKeywordIndex?.fields.body?.[0] ?? null,
-        ...(embeddingChunkCount !== 0 ? {embeddingChunkCount} : {}),
     };
 }
 
@@ -145,7 +148,10 @@ test("will index a document after a timeout", async () => {
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("will only index a document once if update happened within the timeout", async () => {
@@ -200,7 +206,10 @@ test("will only index a document once if update happened within the timeout", as
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("will only index a document once if update happened within timeout even across different caches", async () => {
@@ -272,7 +281,10 @@ test("will only index a document once if update happened within timeout even acr
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
     otherCache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("will index a document again if update happened after timeout", async () => {
@@ -286,15 +298,15 @@ test("will index a document again if update happened after timeout", async () =>
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    const {getCount: getUpdateTitleDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+    const {getCount: getUpdateTitleDependentsCount} =
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Document:${document.id}:Title`,
         );
 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(0);
+    expect(getUpdateTitleDependentsCount()).toEqual(0);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: null,
         body: null,
@@ -304,7 +316,7 @@ test("will index a document again if update happened after timeout", async () =>
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -318,7 +330,7 @@ test("will index a document again if update happened after timeout", async () =>
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -328,7 +340,7 @@ test("will index a document again if update happened after timeout", async () =>
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
@@ -336,7 +348,10 @@ test("will index a document again if update happened after timeout", async () =>
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("will index a document again if update happened after timeout with more updates after first timeout", async () => {
@@ -352,13 +367,13 @@ test("will index a document again if update happened after timeout with more upd
 
     await ProcessContextModule.waitForTestTasks();
 
-    const {getCount: getUpdateTitleDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+    const {getCount: getUpdateTitleDependentsCount} =
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Document:${document.id}:Title`,
         );
 
     expect(indexSearchEntityJobCount).toEqual(0);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(0);
+    expect(getUpdateTitleDependentsCount()).toEqual(0);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: null,
         body: null,
@@ -368,7 +383,7 @@ test("will index a document again if update happened after timeout with more upd
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -379,7 +394,7 @@ test("will index a document again if update happened after timeout with more upd
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -389,7 +404,7 @@ test("will index a document again if update happened after timeout with more upd
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -400,7 +415,7 @@ test("will index a document again if update happened after timeout with more upd
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -410,7 +425,7 @@ test("will index a document again if update happened after timeout with more upd
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
@@ -418,7 +433,10 @@ test("will index a document again if update happened after timeout with more upd
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("will not schedule another indexing job if document title is updated after creation", async () => {
@@ -432,15 +450,15 @@ test("will not schedule another indexing job if document title is updated after 
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    const {getCount: getUpdateTitleDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+    const {getCount: getUpdateTitleDependentsCount} =
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Document:${document.id}:Title`,
         );
 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(0);
+    expect(getUpdateTitleDependentsCount()).toEqual(0);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: null,
         body: null,
@@ -450,7 +468,7 @@ test("will not schedule another indexing job if document title is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(0);
+    expect(getUpdateTitleDependentsCount()).toEqual(0);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: null,
         body: null,
@@ -467,7 +485,7 @@ test("will not schedule another indexing job if document title is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(0);
+    expect(getUpdateTitleDependentsCount()).toEqual(0);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: null,
         body: null,
@@ -477,7 +495,7 @@ test("will not schedule another indexing job if document title is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -499,15 +517,15 @@ test("will schedule another indexing job if document title is updated after cont
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    const {getCount: getUpdateTitleDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+    const {getCount: getUpdateTitleDependentsCount} =
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Document:${document.id}:Title`,
         );
 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(0);
+    expect(getUpdateTitleDependentsCount()).toEqual(0);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: null,
         body: null,
@@ -517,7 +535,7 @@ test("will schedule another indexing job if document title is updated after cont
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -531,7 +549,7 @@ test("will schedule another indexing job if document title is updated after cont
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -541,7 +559,7 @@ test("will schedule another indexing job if document title is updated after cont
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -558,7 +576,7 @@ test("will schedule another indexing job if document title is updated after cont
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -568,7 +586,7 @@ test("will schedule another indexing job if document title is updated after cont
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
@@ -578,7 +596,7 @@ test("will schedule another indexing job if document title is updated after cont
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(2);
+    expect(getUpdateTitleDependentsCount()).toEqual(2);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
@@ -586,7 +604,10 @@ test("will schedule another indexing job if document title is updated after cont
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("will not schedule another indexing job if document title is updated twice after content update", async () => {
@@ -600,15 +621,15 @@ test("will not schedule another indexing job if document title is updated twice 
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
 
-    const {getCount: getUpdateTitleDependentEntitiesCount} =
-        processSearchEntityJobUpdateDependentEntitiesTestCounter.recordForTest(
+    const {getCount: getUpdateTitleDependentsCount} =
+        processIndexSearchEntityDependentsJobTestCounter.recordForTest(
             `Document:${document.id}:Title`,
         );
 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(0);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(0);
+    expect(getUpdateTitleDependentsCount()).toEqual(0);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: null,
         body: null,
@@ -618,7 +639,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -632,7 +653,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -642,7 +663,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -659,7 +680,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
@@ -669,7 +690,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
@@ -689,7 +710,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateTitleDependentsCount()).toEqual(1);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
@@ -699,7 +720,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
-    expect(getUpdateTitleDependentEntitiesCount()).toEqual(2);
+    expect(getUpdateTitleDependentsCount()).toEqual(2);
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywooooooood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
@@ -707,7 +728,10 @@ test("will not schedule another indexing job if document title is updated twice 
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("document access policies are enforced in search", async () => {
@@ -1179,5 +1203,8 @@ test("newly created documents will be visible in search even before indexing", a
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });

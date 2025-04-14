@@ -1895,7 +1895,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key>,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key>>,
-        options: {initialItem: Types["Item"] & Key},
+        options: {
+            initialItem: Types["Item"] & Key;
+            withNoopUpdateLockVersionConditionCheck?: boolean;
+        },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>>;
     public updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -1903,7 +1906,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key>,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key> | null>,
-        options: {initialItem: Types["Item"] & Key},
+        options: {
+            initialItem: Types["Item"] & Key;
+            withNoopUpdateLockVersionConditionCheck?: boolean;
+        },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
     public updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -1911,7 +1917,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         update: (
             item: MergeObjectIntersection<Types["Item"] & Key> | null,
         ) => MaybePromise<MergeObjectIntersection<Types["Item"] & Key> | null>,
-        options?: {initialItem?: Types["Item"] & Key},
+        options?: {
+            initialItem?: Types["Item"] & Key;
+            withNoopUpdateLockVersionConditionCheck?: boolean;
+        },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null>;
     public updateItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
@@ -1919,7 +1928,13 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         // Typed as `never` since a caller should always match one of the overloads,
         // not this base definition.
         update: never,
-        {initialItem}: {initialItem?: Types["Item"] & Key} = {},
+        {
+            initialItem,
+            withNoopUpdateLockVersionConditionCheck = false,
+        }: {
+            initialItem?: Types["Item"] & Key;
+            withNoopUpdateLockVersionConditionCheck?: boolean;
+        } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         let hasAttempted = false;
 
@@ -1934,8 +1949,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const newItem: (Types["Item"] & Key) | null = await (update as any)(item);
 
-            // Update was short-circuited.
-            if (item === newItem) return item;
+            // Noop update if item didn't change.
+            if (item === newItem) {
+                if (withNoopUpdateLockVersionConditionCheck) {
+                    await DynamoTableSchema.executeTransaction(context, [
+                        this.transactionUpdateLockVersionConditionCheck(
+                            key,
+                            item?.updateLockVersion,
+                        ),
+                    ]);
+                }
+
+                return item;
+            }
 
             const condition = !item
                 ? DynamoConditionExpression._unsafeRaw(

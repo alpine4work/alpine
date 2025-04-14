@@ -10,7 +10,7 @@ import {expensiveScanEveryTaskAndTaskCollectionForMigration} from "~/server/task
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
@@ -56,6 +56,7 @@ async function runIndexSearchEntityMigrationModules(
     modules: Array<MigrationModule>,
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
+    const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(subSegmentCount, () => new Mutex());
 
     const errors: Array<unknown> = [];
@@ -68,22 +69,24 @@ async function runIndexSearchEntityMigrationModules(
             const subSegmentIndex = segmentIndex * subSegmentCount + i;
             const totalSubSegmentCount = totalSegmentCount * subSegmentCount;
 
-            void mutex.withLock(async () => {
-                try {
-                    await migrationModule(context, {
-                        segmentIndex: subSegmentIndex,
-                        totalSegmentCount: totalSubSegmentCount,
-                    });
-                } catch (error) {
-                    // eslint-disable-next-line no-console
-                    console.error("Migration module failed:", error);
-                    errors.push(error);
-                }
-            });
+            promiseWaiter.waitUntil(
+                mutex.withLock(async () => {
+                    try {
+                        await migrationModule(context, {
+                            segmentIndex: subSegmentIndex,
+                            totalSegmentCount: totalSubSegmentCount,
+                        });
+                    } catch (error) {
+                        // eslint-disable-next-line no-console
+                        console.error("Migration module failed:", error);
+                        errors.push(error);
+                    }
+                }),
+            );
         }
     }
 
-    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
+    await promiseWaiter.wait();
 
     if (errors.length > 0) throw createAggregateError(errors);
 }

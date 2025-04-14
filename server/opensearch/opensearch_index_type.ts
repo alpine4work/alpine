@@ -9,7 +9,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {JsonValue} from "~/shared/helpers/types/json_value.js";
+import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {ObjectSchema, UnionSchema} from "~/shared/schema/schema.js";
@@ -473,8 +473,11 @@ export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, 
     }
 
     public override serialize(value: number): JsonValue {
-        assert(Number.isInteger(value));
-        assert(-(2 ** 31) <= value && value <= 2 ** 31 - 1);
+        assert(Number.isInteger(value), "Expected an integer");
+        assert(
+            -(2 ** 31) <= value && value <= 2 ** 31 - 1,
+            "Expected a signed 32-bit integer (min -2^31, max 2^31-1)",
+        );
         return value;
     }
 
@@ -905,7 +908,7 @@ export type OpensearchIndexKnnVectorTypeConfig = {
                   readonly ef_search: number;
                   readonly ef_construction: number;
                   readonly m: number;
-                  readonly encoder: string;
+                  readonly encoder: OpensearchIndexKnnVectorTypeConfigMethodParametersEncoder;
               };
           }
         | {
@@ -920,11 +923,21 @@ export type OpensearchIndexKnnVectorTypeConfig = {
               readonly parameters: {
                   readonly nlist: number;
                   readonly nprobes: number;
-                  readonly encoder: string;
+                  readonly encoder: OpensearchIndexKnnVectorTypeConfigMethodParametersEncoder;
               };
           }
     );
 };
+
+export type OpensearchIndexKnnVectorTypeConfigMethodParametersEncoder =
+    | {
+          readonly name: "flat";
+      }
+    | {
+          readonly name: "pq";
+          readonly m: number;
+          readonly code_size: number;
+      };
 
 /**
  * An OpenSearch [k-NN vector field type][1] for implementing semantic search.
@@ -1213,7 +1226,7 @@ export class OpensearchIndexObjectType<
         };
     }
 
-    public override serialize(value: Value): JsonValue {
+    public override serialize(value: Value): JsonObjectValue {
         const serializedValue: {[key: string]: JsonValue} = {};
 
         for (const [key, field] of this._fields) {

@@ -4,20 +4,22 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {ServerContentSessionActionContextModules} from "~/server/context/server_content_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
 import {getChannelIfPossible} from "~/server/forum/data/forum_table.js";
-import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {
     OpensearchClient,
+    OpensearchClientDocVersion,
     OpensearchClientDocWithIdAndVersion,
+    OpensearchDeleteDocCommand,
     OpensearchGetDocWithoutSourceCommand,
-    OpensearchIndexDocIfVersionCommand,
+    OpensearchIndexDocWithoutIdCommand,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {
     OpensearchIndex,
+    OpensearchIndexDocType,
     OpensearchIndexFlattenedKeysType,
 } from "~/server/opensearch/opensearch_index.js";
 import {
@@ -29,25 +31,31 @@ import {
     OpensearchQueryClause,
     OpensearchQueryValue,
 } from "~/server/opensearch/opensearch_query_clause.js";
-import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
+import {
+    IndexSearchEntityDependentsJobDescription,
+    IndexSearchEntityEmbeddingChunksJobDescription,
+    IndexSearchEntityJobDescription,
+} from "~/server/search/core/index_search_entity_job_description.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
-import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
+import {
+    SearchEntityEmbeddingChunk,
+    getSearchEntity,
+} from "~/server/search/data/index/internal/get_search_entity.js";
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 import {parseSearchNaturalLanguageQuery} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
 import {
+    SearchEntityEmbeddingChunkIndexDocType,
     SearchEntityIndexDefaultGrantType,
     SearchEntityIndexDefaultGrantTypeIntegerMapping,
     SearchEntityKeywordIndexDoc,
     SearchEntityKeywordIndexDocType,
-    SearchEntitySemanticIndexDoc,
-    SearchEntitySemanticIndexDocType,
-    SearchEntitySemanticIndexEmbeddingChunk,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {
     SearchSessionActionContext,
     SearchSessionActionContextModules,
+    SearchSystemActionContext,
     SearchSystemActionContextModules,
 } from "~/server/search/data/index/search_action_context.js";
 import {
@@ -57,6 +65,11 @@ import {
     internalDangerouslyGetSpaceTaskCollectionSearchAffinityEntities,
     internalGetSearchAffinityEntities,
     internalGetSearchFavoriteEntities,
+    scheduleIndexSearchEntityEmbeddingChunksJob,
+    searchEntityEmbeddingChunkIndexRefreshIntervalMs,
+    searchEntityKeywordIndexRefreshIntervalMs,
+    searchEntityKeywordIndexWaitForRefreshDelayMs,
+    withIndexSearchEntityEmbeddingChunksJobLock,
 } from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
@@ -84,18 +97,15 @@ import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {
-    defaultUncertaintyWindowMs,
-    isDateDefinitelyLessThanWithUncertaintyWindow,
-} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -119,14 +129,7 @@ import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
 import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
-
-/**
- * The search index should be near realtime to serve search requests. However,
- * there's already some delay because entities are indexed in a background job.
- * To improve indexing performance we can afford to slow down the refresh
- * interval a bit.
- */
-const searchEntityIndexRefreshIntervalSeconds = 3;
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Our "search entity index" is actually two OpenSearch indexes.
@@ -180,7 +183,7 @@ const SearchEntityKeywordIndex = new OpensearchIndex<
     name: "search_entity_keywords",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
-    refreshInterval: `${searchEntityIndexRefreshIntervalSeconds}s`,
+    refreshInterval: `${assertInteger(searchEntityKeywordIndexRefreshIntervalMs / 1000)}s`,
 
     // Basically every query to this index will filter to a specific `SpaceId`. We
     // may have specialized queries (e.g. account name auto-complete) that filter
@@ -226,20 +229,22 @@ const SearchEntityKeywordIndex = new OpensearchIndex<
 // putting all the logic around this index in one file it allows developers to
 // carefully control how data is written to this index. Instead of updates
 // sprawling out around the codebase.
-const SearchEntitySemanticIndex = new OpensearchIndex<
+const SearchEntityEmbeddingChunkIndex = new OpensearchIndex<
     SpaceId,
-    SearchDynamicEntityId,
-    OpensearchIndexTypeType<typeof SearchEntitySemanticIndexDocType>,
-    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntitySemanticIndexDocType>,
-    OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>
->(SearchEntitySemanticIndexDocType, {
-    name: "search_entity_semantics",
+    string,
+    OpensearchIndexTypeType<typeof SearchEntityEmbeddingChunkIndexDocType>,
+    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityEmbeddingChunkIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityEmbeddingChunkIndexDocType>
+>(SearchEntityEmbeddingChunkIndexDocType, {
+    name: "search_entity_embedding_chunks",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
-    refreshInterval: `${searchEntityIndexRefreshIntervalSeconds}s`,
+    refreshInterval: `${assertInteger(searchEntityEmbeddingChunkIndexRefreshIntervalMs / 1000)}s`,
 
-    // We use the `nested` mapping type and index sorting at the same time.
-    sort: [],
+    // Basically every query to this index will filter to a specific `SpaceId`. We
+    // may have specialized queries (e.g. account name auto-complete) that filter
+    // to a specific entity `type` as well.
+    sort: [{field: "spaceId"}, {field: "entity.type"}],
 
     // We disable the source field here for the same reasoning as
     // `SearchEntityKeywordIndex`. It's particularly important we disable the
@@ -247,6 +252,11 @@ const SearchEntitySemanticIndex = new OpensearchIndex<
     // document. It would be inefficient to store the full source.
     disableSourceField: true,
 });
+
+function assertInteger(value: number): number {
+    assert(Number.isInteger(value));
+    return value;
+}
 
 // Double check we've only stored fields we need.
 assertEqualTypes<
@@ -257,6 +267,7 @@ assertEqualTypes<
         "accessPolicy.accountGrantAccountIds": AccountId;
         "accessPolicy.defaultGrantType": SearchEntityIndexDefaultGrantType;
         lastReadStartTime: Date;
+        hasEmbeddingChunks: boolean;
         title: string;
         body: string;
         media: SearchEntityMedia;
@@ -265,18 +276,14 @@ assertEqualTypes<
 
 // Double check we've only stored fields we need.
 assertEqualTypes<
-    OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityEmbeddingChunkIndexDocType>,
     {
-        lastReadStartTime: Date;
-        title: string;
-        media: SearchEntityMedia;
-        "embeddingChunks.text": string;
-        "embeddingChunks.preambleEndIndex": number;
-        "embeddingChunksVectorCache.allMiniLmL6V2": ReadonlyMap<number, ReadonlyArray<number>>;
-        "embeddingChunksVectorCache.cohereEmbedEnglishV3": ReadonlyMap<
-            number,
-            ReadonlyArray<number>
-        >;
+        "entity.id": SearchDynamicEntityId;
+        "entity.title": string;
+        "entity.media": SearchEntityMedia;
+        text: string;
+        textHash: number;
+        preambleEndIndex: number;
     }
 >();
 
@@ -285,7 +292,7 @@ assertEqualTypes<
  */
 export function getSearchEntityIndexesForTest() {
     assert(import.meta.jest);
-    return {SearchEntityKeywordIndex, SearchEntitySemanticIndex};
+    return {SearchEntityKeywordIndex, SearchEntityEmbeddingChunkIndex};
 }
 
 /**
@@ -299,7 +306,7 @@ export async function deploySearchEntityIndexes(tracer: TracerBase, client: Open
 
     await runAllPromises([
         client.deployIndex(tracer, SearchEntityKeywordIndex),
-        client.deployIndex(tracer, SearchEntitySemanticIndex),
+        client.deployIndex(tracer, SearchEntityEmbeddingChunkIndex),
     ]);
 }
 
@@ -327,10 +334,7 @@ export async function deploySearchEntityIndexes(tracer: TracerBase, client: Open
  */
 const minEmbeddingChunkTokenCount = 35;
 
-export const processSearchEntityJobFinishedTestCheckpoint =
-    new TestCheckpoint<SearchDynamicEntityId>();
-
-export const processSearchEntityJobUpdateDependentEntitiesTestCounter =
+export const processIndexSearchEntityDependentsJobTestCounter =
     new TestCounter<SearchEntityDependencyId>();
 
 /**
@@ -340,20 +344,23 @@ export const processSearchEntityJobUpdateDependentEntitiesTestCounter =
  *
  * All searchable objects in our system can be converted to a `SearchEntity`
  * object. Which includes the object's text content, dependencies, and access
- * policy (for evaluating permissions). You also split the object's text
- * content into chunks of reasonable size for our language model to embed to
- * a vector representation. In production we use [Cohere][1] for embeddings. In
+ * policy (for evaluating permissions). We also split the object's text
+ * content into chunks of reasonable size for our LLM to embed to a vector
+ * representation. In production we use [Cohere][1] for embeddings. In
  * development we use a small model that's not very good but can run on a
  * personal computer.
  *
  * Our indexing steps are as follows:
  *
  * 1. Convert the object into a `SearchEntity`
- * 2. Embed new chunks from the `SearchEntity` with our language model
- * 3. Save the `SearchEntity` to both our search indexes
- *    (`SearchEntityKeywordIndex` and `SearchEntitySemanticIndex`)
- * 4. Find all other entities that depend on our `SearchEntity`, queue indexing
- *    jobs for all these dependent entities
+ * 2. Schedule an update to all other entities which have a dependency on this
+ *    entity (the `IndexSearchEntityDependents` job, which queues more
+ *    `IndexSearchEntity` jobs)
+ * 3. If the `SearchEntity` has embedding chunks, schedule a job
+ *    (`IndexSearchEntityEmbeddingChunks`) for later that'll save the
+ *    `SearchEntity`'s chunks into our vector index
+ *    (`SearchEntityEmbeddingChunkIndex`)
+ * 4. Save the `SearchEntity` to our keyword index (`SearchEntityKeywordIndex`)
  *
  * The guarantee provided by this function is: If this function completes
  * successfully, any updates committed before the time the job was queued
@@ -376,6 +383,344 @@ export const processSearchEntityJobUpdateDependentEntitiesTestCounter =
  * [1]: https://cohere.com
  */
 export async function processIndexSearchEntityJob(
+    context: SearchSystemActionContext,
+    job: IndexSearchEntityJobDescription,
+    jobStartTime: Date,
+    span: Pick<TracerSpan, "addData">,
+) {
+    const entityId = printSearchDynamicEntityId(job.update);
+
+    // A time after the update we're trying to process with this indexing job. We
+    // use this to check if the indexed entity has already been read after this
+    // time, if it has then we don't need to read it again!
+    //
+    // So the closer the time can get to the update, the better, since it allows us
+    // to noop in more cases. That's why we use `job.parentJobStartTime` when
+    // available. If we're a child job (probably because we're scheduled by
+    // dependent updates) as long as the entity was read after the parent job then
+    // we don't need to read it again.
+    const readAfterTime = job.parentJobStartTime ?? jobStartTime;
+
+    let hasScheduledIndexDependentsJob = false;
+    let hasScheduledIndexEmbeddingChunksJob = false;
+
+    await retryWithExponentialBackoff(async retry => {
+        const actualOldDocForKeywordIndex = await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            job.spaceId,
+            entityId,
+            {storedFields: ["lastUpdatedTime", "lastReadStartTime", "hasEmbeddingChunks"]},
+        );
+
+        const oldDocForKeywordIndex = actualOldDocForKeywordIndex
+            ? {
+                  version: actualOldDocForKeywordIndex.version,
+                  lastUpdatedTime: assertExists(
+                      actualOldDocForKeywordIndex.fields.lastUpdatedTime?.[0],
+                  ),
+                  lastReadStartTime: assertExists(
+                      actualOldDocForKeywordIndex.fields.lastReadStartTime?.[0],
+                  ),
+                  hasEmbeddingChunks:
+                      actualOldDocForKeywordIndex.fields.hasEmbeddingChunks?.[0] ?? false,
+              }
+            : null;
+
+        // Is the doc currently in the search index sufficient for this indexing job?
+        // If true we can end the job without needing to save `newDoc` to the index.
+        //
+        // It is sufficient if the data in the index was read AFTER the job was sent to
+        // our queue. That means `oldDoc` includes the update our job wants to index.
+        //
+        // Useful optimization when there are multiple updates to the same entity being
+        // processed in parallel. Or when jobs updating the same entity are delayed.
+        //
+        // We only need to check the keyword doc. If the keyword doc is sufficient then
+        // the job which indexed it should have also indexed an embedding doc. If it
+        // did not index an embedding doc, either an embedding doc doesn't exist or
+        // there was an error and the job will be retried.
+        const isOldDocSufficient =
+            !!oldDocForKeywordIndex &&
+            isDateDefinitelyLessThanWithUncertaintyWindow(
+                readAfterTime,
+                oldDocForKeywordIndex.lastReadStartTime,
+            );
+
+        if (isOldDocSufficient) {
+            span.addData({common: {didNothing: true}});
+            return;
+        }
+
+        await runAllPromises([update(retry, oldDocForKeywordIndex), scheduleUpdateDependents()]);
+    });
+
+    async function update(
+        retry: (error?: unknown) => never,
+        oldDocForKeywordIndex: {
+            version: OpensearchClientDocVersion | null;
+            lastUpdatedTime: Date;
+            lastReadStartTime: Date;
+            hasEmbeddingChunks: boolean;
+        } | null,
+    ) {
+        // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
+        // content. That's because it's the main model we use in production for
+        // embeddings. In development we embed with a smaller model we can run locally
+        // (`all-MiniLM-L6-v2`) but we standardize on Cohere's ideal chunk size to make
+        // debugging chunk generation easier.
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+
+        const readStartTime = new Date();
+        const {dependencyIds, entity} = await getSearchEntity(context, job.update, tokenizer);
+
+        // The new updated time should:
+        //
+        // - Always be bigger than `createdTime`
+        // - Always be bigger than the last `lastUpdatedTime`
+        // - Use `jobStartTime` since that more accurately represents when the update
+        //   happened rather than the current time (since the job may have been
+        //   delayed)
+        const newLastUpdatedTime = new Date(
+            Math.max(
+                ...[
+                    entity.createdTime.getTime(),
+                    ...(oldDocForKeywordIndex
+                        ? [oldDocForKeywordIndex.lastUpdatedTime.getTime()]
+                        : []),
+                    // We don't update `lastUpdatedTime` to the latest time if there are no updated
+                    // traits. Which happens when creating entities, re-indexing an entity after a
+                    // dependency changed, and indexes triggered by a migration.
+                    //
+                    // If `updatedTraits` is `None` that means the underlying entity didn't
+                    // actually update and we're indexing for some other reason.
+                    ...(job.update.updatedTraits.type !== "None" ? [jobStartTime.getTime()] : []),
+                ],
+            ),
+        );
+
+        const majorContributorIds = new Set<AccountId>();
+        const anyContributorIds = new Set<AccountId>();
+
+        if (entity.creatorId !== null) {
+            majorContributorIds.add(entity.creatorId);
+            anyContributorIds.add(entity.creatorId);
+        }
+
+        for (const [contributorId, type] of entity.contributorIds) {
+            if (type === "Major") {
+                majorContributorIds.add(contributorId);
+                anyContributorIds.add(contributorId);
+            } else {
+                anyContributorIds.add(contributorId);
+            }
+        }
+
+        const newDocForKeywordIndex: OpensearchClientDocWithIdAndVersion<
+            SearchDynamicEntityId,
+            SearchEntityKeywordIndexDoc
+        > = {
+            id: entityId,
+            version: oldDocForKeywordIndex?.version ?? null,
+            spaceId: job.spaceId,
+            type: job.update.type,
+            createdTime: entity.createdTime,
+            lastUpdatedTime: newLastUpdatedTime,
+            lastReadStartTime: readStartTime,
+            hasEmbeddingChunks: entity.embeddingChunks.some(
+                embeddingChunk =>
+                    embeddingChunk.tokenCountWithoutPreamble >= minEmbeddingChunkTokenCount,
+            ),
+            accessPolicy: entity.accessPolicy,
+            dependencyIds: Array.from(dependencyIds),
+            title: entity.title,
+            body: entity.body,
+            media: entity.media,
+            creatorId: entity.creatorId,
+            majorContributorIds: Array.from(majorContributorIds),
+            anyContributorIds: Array.from(anyContributorIds),
+        };
+
+        // If the entity has some embedding chunks, then we need to index those chunks.
+        // If the entity had some embedding chunks but no longer has those chunks we
+        // also need to run our embedding chunk indexing job since we need to delete
+        // any existing embedding chunks.
+        if (newDocForKeywordIndex.hasEmbeddingChunks || oldDocForKeywordIndex?.hasEmbeddingChunks) {
+            await scheduleUpdateEmbeddingChunks();
+        }
+
+        await context.opensearch.indexDocIfVersion(
+            SearchEntityKeywordIndex,
+            job.spaceId,
+            newDocForKeywordIndex,
+            {retryVersionConflictError: retry},
+        );
+    }
+
+    async function scheduleUpdateDependents() {
+        if (hasScheduledIndexDependentsJob) return;
+        hasScheduledIndexDependentsJob = true;
+
+        const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
+        if (dependencyIds.length === 0) return;
+
+        // Wait for the index to refresh before querying dependents. We want to capture
+        // ALL dependents created before the job started. There may be some dependents
+        // another job saved that won't appear in a query until after the index
+        // refreshes.
+        //
+        // We may capture some dependents that were recently updated and have the
+        // latest dependency data. That's ok since entity indexing is idempotent. We
+        // may even be able to skip re-reading them when we check `lastReadStartTime`.
+        if (!import.meta.jest) {
+            await context.jobs.sendAndWait(
+                {
+                    type: "IndexSearchEntityDependents",
+                    spaceId: job.spaceId,
+                    update: job.update,
+                    parentJobStartTime: job.parentJobStartTime ?? jobStartTime,
+                },
+                {
+                    // Instead of calling `wait()` and blocking the job queue we schedule a new job
+                    // with `delaySeconds`.
+                    delaySeconds: searchEntityKeywordIndexWaitForRefreshDelayMs / 1000,
+                },
+            );
+        } else {
+            // In Jest tests, indexes need to be refreshed manually. Don't refresh manually
+            // in production.
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            await context.jobs.sendAndWait({
+                type: "IndexSearchEntityDependents",
+                spaceId: job.spaceId,
+                update: job.update,
+                parentJobStartTime: job.parentJobStartTime ?? jobStartTime,
+            });
+        }
+    }
+
+    async function scheduleUpdateEmbeddingChunks() {
+        if (hasScheduledIndexEmbeddingChunksJob) return;
+        hasScheduledIndexEmbeddingChunksJob = true;
+
+        await scheduleIndexSearchEntityEmbeddingChunksJob(context, {
+            spaceId: job.spaceId,
+            entityId,
+            readAfterTime,
+        });
+    }
+}
+
+/**
+ * A continuation of `processIndexSearchEntityJob()`. Processes the dependents
+ * of a search entity after a delay while we wait for the search index to
+ * refresh.
+ *
+ * Only `processIndexSearchEntityJob()` should schedule this job. See where
+ * `processIndexSearchEntityJob()` sends a `IndexSearchEntityDependents` job.
+ */
+export async function processIndexSearchEntityDependentsJob(
+    context: SearchSystemActionContext,
+    job: IndexSearchEntityDependentsJobDescription,
+) {
+    const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
+    if (dependencyIds.length === 0) return;
+
+    for (const dependencyId of dependencyIds) {
+        processIndexSearchEntityDependentsJobTestCounter.incrementForTest(dependencyId);
+    }
+
+    // Maximum search page size is 10k.
+    const searchSize = 10_000;
+    let afterCursor: ReadonlyArray<JsonScalarValue> | null = null;
+
+    do {
+        const {hits} = await context.opensearch.searchWithoutSource(
+            SearchEntityKeywordIndex,
+            job.spaceId,
+            {
+                size: searchSize,
+                sort: ["_doc"],
+                afterCursor: afterCursor ?? undefined,
+                query: {
+                    bool: {
+                        filter: {
+                            bool: {
+                                must: [
+                                    {
+                                        term: {
+                                            spaceId: new OpensearchQueryValue(job.spaceId),
+                                        },
+                                    },
+                                    {
+                                        terms: {
+                                            dependencyIds: new OpensearchQueryValue(dependencyIds),
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        );
+
+        await runAllPromises(
+            hits.map(async hit => {
+                // Confirm the job was added to the queue before exiting. It's ok to take the
+                // batch delay performance hit when processing jobs.
+                await context.jobs.sendAndWait({
+                    type: "IndexSearchEntity",
+                    spaceId: job.spaceId,
+                    update: {
+                        ...parseSearchDynamicEntityId(hit.id),
+                        // Dependencies didn't update so we can skip reindexing transitive
+                        // dependencies.
+                        //
+                        // This should also prevent infinite job cycles since this
+                        // `IndexSearchEntity` job won't schedule a
+                        // `IndexSearchEntityDependentsJob`.
+                        updatedTraits: {type: "None"},
+                    },
+                    parentJobStartTime: job.parentJobStartTime,
+                });
+            }),
+        );
+
+        afterCursor = (
+            hits.length > 0 ? assertExists(hits[hits.length - 1]!.cursor) : null
+        ) as ReadonlyArray<JsonScalarValue> | null;
+
+        // If we did not reach the pagination limit then don't query again for the
+        // next page.
+        if (hits.length < searchSize) afterCursor = null;
+    } while (afterCursor !== null);
+}
+
+/**
+ * Index a search entity in our vector search index. The entity is split into
+ * chunks, those chunks are sent to an LLM to generate vector embeddings, and
+ * then those embeddings go into OpenSearch.
+ *
+ * We only need to index the parts of the entity that changed. If we have a
+ * long document, for example, we delete chunks that have been removed and
+ * insert new chunks. If some part of the document was updated that usually
+ * translates into deleting an old chunk for the section and inserting a new
+ * chunk for the section.
+ *
+ * Indexing search entities in our vector search index happens on a much slower
+ * cadence than indexing search entities in our keyword search index. We
+ * throttle this job so it only runs once every 5min (as of 2025-04-11) and we
+ * must wait at least 3min (as of 2025-04-11) between job runs for the
+ * OpenSearch index to refresh since we need to use the OpenSearch `/_search`
+ * endpoint to get the old chunks we diff against.
+ *
+ * We also have a locking mechanism for this job. Only one process may run this
+ * job for a given entity at a time. Otherwise we'd have wild, undefined,
+ * behavior if two processes were trying to issue a bunch of OpenSearch
+ * deletes/inserts at the same time.
+ */
+export async function processIndexSearchEntityEmbeddingChunksJob(
     context: Context<
         SearchSystemActionContextModules & {
             /**
@@ -385,440 +730,226 @@ export async function processIndexSearchEntityJob(
             languageModel?: LanguageModelContextModule;
         }
     >,
-    job: IndexSearchEntityJobDescription,
-    jobStartTime: Date,
+    job: IndexSearchEntityEmbeddingChunksJobDescription,
 ) {
-    const entityId = printSearchDynamicEntityId(job.update);
+    await withIndexSearchEntityEmbeddingChunksJobLock(context, job, async () => {
+        // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
+        // content. That's because it's the main model we use in production for
+        // embeddings. In development we embed with a smaller model we can run locally
+        // (`all-MiniLM-L6-v2`) but we standardize on Cohere's ideal chunk size to make
+        // debugging chunk generation easier.
+        const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
-    await runAllPromises([updateOurEntity(), updateDependentEntities()]);
+        const entityIdObject = parseSearchDynamicEntityId(job.entityId);
 
-    await processSearchEntityJobFinishedTestCheckpoint.waitForTest(entityId);
+        const [{entity}, allOldChunks] = await runAllPromises([
+            getSearchEntity(context, entityIdObject, tokenizer),
+            (async () => {
+                const allHits: Array<{
+                    id: string;
+                    textHash: number;
+                }> = [];
 
-    async function updateOurEntity() {
-        await retryWithExponentialBackoff(async retry => {
-            const [actualOldDocForKeywordIndex, actualOldDocForSemanticIndex] =
-                await context.opensearch.multiGetDocsIfExist([
-                    new OpensearchGetDocWithoutSourceCommand(
-                        SearchEntityKeywordIndex,
+                const size = 500;
+                let afterCursor: ReadonlyArray<JsonScalarValue> | null = null;
+
+                // Paginate through all chunks for the entity.
+                //
+                // In order for this to work, search needs to read data written by the previous
+                // `IndexSearchEntityEmbeddingChunks` job. This requires waiting for OpenSearch
+                // to refresh the index. `withIndexSearchEntityEmbeddingChunksJobLock()`
+                // manages this for us! Our locking function makes sure there's only one
+                // process updating the embedding chunks index for an entity at any given time.
+                do {
+                    const {hits} = await context.opensearch.searchWithoutSource(
+                        SearchEntityEmbeddingChunkIndex,
                         job.spaceId,
-                        entityId,
-                        {storedFields: ["lastUpdatedTime", "lastReadStartTime"]},
-                    ),
-                    new OpensearchGetDocWithoutSourceCommand(
-                        SearchEntitySemanticIndex,
-                        job.spaceId,
-                        entityId,
                         {
-                            storedFields: [
-                                "lastReadStartTime",
-                                ...(context.languageModel
-                                    ? [
-                                          `embeddingChunksVectorCache.${context.languageModel.model.statics.key}` as const,
-                                      ]
-                                    : []),
-                            ],
+                            size,
+                            sort: ["_doc"],
+                            afterCursor: afterCursor ?? undefined,
+                            storedFields: ["textHash"],
+                            query: {
+                                bool: {
+                                    filter: [
+                                        {
+                                            term: {
+                                                "entity.id": new OpensearchQueryValue(job.entityId),
+                                            },
+                                        },
+
+                                        // NOTE(calebmer): Adding this `spaceId` filter even though we've already set
+                                        // `job.spaceId` as the routing value in case we need to add an explicit filter
+                                        // to trigger [OpenSearch sorted index optimizations][1].
+                                        //
+                                        // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
+                                        {term: {spaceId: new OpensearchQueryValue(job.spaceId)}},
+                                    ],
+                                },
+                            },
                         },
-                    ),
-                ]);
+                    );
 
-            const oldDocForKeywordIndex = actualOldDocForKeywordIndex
-                ? {
-                      version: actualOldDocForKeywordIndex.version,
-                      lastUpdatedTime: assertExists(
-                          actualOldDocForKeywordIndex.fields.lastUpdatedTime?.[0],
-                      ),
-                      lastReadStartTime: assertExists(
-                          actualOldDocForKeywordIndex.fields.lastReadStartTime?.[0],
-                      ),
-                  }
-                : null;
+                    for (const hit of hits) {
+                        allHits.push({
+                            id: hit.id,
+                            textHash: assertExists(hit.fields.textHash?.[0]),
+                        });
+                    }
 
-            const oldDocForSemanticIndex = actualOldDocForSemanticIndex
-                ? {
-                      version: actualOldDocForSemanticIndex.version,
-                      embeddingChunksVectorCache: context.languageModel
-                          ? actualOldDocForSemanticIndex.fields[
-                                `embeddingChunksVectorCache.${context.languageModel.model.statics.key}`
-                            ]?.[0] ?? null
-                          : null,
-                      lastReadStartTime:
-                          actualOldDocForSemanticIndex.fields.lastReadStartTime?.[0] ?? null,
-                  }
-                : null;
+                    afterCursor = (
+                        hits.length > 0 ? assertExists(hits[hits.length - 1]!.cursor) : null
+                    ) as ReadonlyArray<JsonScalarValue> | null;
 
-            // Is the doc currently in the search index sufficient for this indexing job?
-            // If true we can end the job without needing to save `newDoc` to the index.
-            //
-            // It is sufficient if the data in the index was read AFTER the job was sent to
-            // our queue. That means `oldDoc` includes the update our job wants to index.
-            //
-            // Useful optimization when there are multiple updates to the same entity being
-            // processed in parallel. Or when jobs updating the same entity are delayed.
-            //
-            // We only need to check the keyword doc. If the keyword doc is sufficient then
-            // the job which indexed it should have also indexed an embedding doc. If it
-            // did not index an embedding doc, either an embedding doc doesn't exist or
-            // there was an error and the job will be retried.
-            const isOldDocSufficient =
-                (!!oldDocForKeywordIndex &&
-                    isDateDefinitelyLessThanWithUncertaintyWindow(
-                        // Optimization: If one of our dependencies updated (and we ourselves were not
-                        // updated) then a job will be queued with `parentJobStartTime`.
-                        // For these jobs, as long as we've indexed data that was read after our parent
-                        // job's start we're happy (since our parent job represents the entity with
-                        // updates).
-                        //
-                        // It should be logically ok to use `jobStartTime` here but we can skip more
-                        // reads by using `parentJobStartTime`.
-                        job.parentJobStartTime ?? jobStartTime,
-                        oldDocForKeywordIndex.lastReadStartTime,
-                    )) ||
-                (!!oldDocForSemanticIndex &&
-                    oldDocForSemanticIndex.lastReadStartTime !== null &&
-                    isDateDefinitelyLessThanWithUncertaintyWindow(
-                        // See above comment for why we use `job.parentJobStartTime`.
-                        job.parentJobStartTime ?? jobStartTime,
-                        oldDocForSemanticIndex.lastReadStartTime,
-                    ));
+                    // If we did not reach the pagination limit then don't query again for the
+                    // next page.
+                    if (hits.length < size) afterCursor = null;
+                } while (afterCursor !== null);
 
-            if (isOldDocSufficient) return;
+                return allHits;
+            })(),
+        ]);
 
-            // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
-            // content. That's because it's the main model we use in production for
-            // embeddings. In development we embed with a smaller model we can run locally
-            // (`all-MiniLM-L6-v2`) but we standardize on Cohere's ideal chunk size to make
-            // debugging chunk generation easier.
-            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+        const oldChunksByTextHash = new Map<number, Array<{id: string; textHash: number}>>();
 
-            const readStartTime = new Date();
-            const {dependencyIds, entity} = await getSearchEntity(context, job.update, tokenizer);
+        for (const chunk of allOldChunks) {
+            getOrSetDefaultMapValue(oldChunksByTextHash, chunk.textHash, () => []).push(chunk);
+        }
 
+        const newChunksByTextHash = new Map<number, Array<SearchEntityEmbeddingChunk>>();
+
+        for (const chunk of entity.embeddingChunks) {
             // We don't want to embed small messages like "Ok!" so filter out chunks
             // without much content.
             //
             // When seeing if this chunk is too small for embedding, we ignore the preamble
             // added for context. We only want to measure the content's tokens.
-            const embeddingChunksWithoutVectors = entity.embeddingChunks.filter(embeddingChunk => {
-                return embeddingChunk.tokenCountWithoutPreamble >= minEmbeddingChunkTokenCount;
-            });
+            if (chunk.tokenCountWithoutPreamble < minEmbeddingChunkTokenCount) continue;
 
-            let embeddingChunks: Array<SearchEntitySemanticIndexEmbeddingChunk>;
-            let embeddingChunksVectorCache: Map<number, ReadonlyArray<number>> | null;
+            // `murmurhash` returns a positive 32-bit integer. Convert to a signed 32-bit
+            // integer using the JavaScript bitwise operator `n | 0`.
+            const textHash = murmurhash.v3(chunk.text) | 0;
 
-            if (!context.languageModel) {
+            getOrSetDefaultMapValue(newChunksByTextHash, textHash, () => []).push(chunk);
+        }
+
+        const addNewChunks: Array<{
+            textHash: number;
+            chunk: SearchEntityEmbeddingChunk;
+        }> = [];
+
+        const deleteOldChunkIds: Array<string> = [];
+
+        for (const [textHash, newChunks] of newChunksByTextHash) {
+            const oldChunks = oldChunksByTextHash.get(textHash);
+            oldChunksByTextHash.delete(textHash);
+
+            if (!oldChunks) {
+                // Add any new chunks.
+                for (const newChunk of newChunks) {
+                    addNewChunks.push({textHash, chunk: newChunk});
+                }
+            } else {
+                // If there are more `newChunks` than `oldChunks`, add any additional
+                // `newChunks`.
+                for (let i = oldChunks.length; i < newChunks.length; i++) {
+                    const newChunk = newChunks[i]!;
+                    addNewChunks.push({textHash, chunk: newChunk});
+                }
+
+                // If there are more `oldChunks` than `newChunks`, delete any remaining
+                // `oldChunks`.
+                for (let i = newChunks.length; i < oldChunks.length; i++) {
+                    const oldChunk = oldChunks[i]!;
+                    deleteOldChunkIds.push(oldChunk.id);
+                }
+            }
+        }
+
+        // Delete any remaining old chunks.
+        for (const oldChunks of oldChunksByTextHash.values()) {
+            for (const oldChunk of oldChunks) {
+                deleteOldChunkIds.push(oldChunk.id);
+            }
+        }
+
+        await runAllPromises([
+            // Delete all the old chunks while we're generating embeddings for the
+            // new chunks...
+            (async () => {
+                if (deleteOldChunkIds.length === 0) return;
+
+                await context.opensearch.bulk(
+                    deleteOldChunkIds.map(deleteOldChunkId => {
+                        return new OpensearchDeleteDocCommand(
+                            SearchEntityEmbeddingChunkIndex,
+                            job.spaceId,
+                            deleteOldChunkId,
+                        );
+                    }),
+                );
+            })(),
+
+            // Generate embeddings for the new chunks and add them...
+            (async () => {
+                if (addNewChunks.length === 0) return;
+
                 // Must provide a language model in the system context everywhere except Jest
                 // unit tests. Since the language model can be big, we allow unit tests to
                 // exclude the language model from their runfiles.
-                if (!import.meta.jest) {
+                if (!context.languageModel && !import.meta.jest) {
                     throw new InternalError("Missing language model in context");
                 }
 
-                embeddingChunks = [];
-                embeddingChunksVectorCache = null;
-            } else if (embeddingChunksWithoutVectors.length === 0) {
-                // Optimization: This entity doesn't have any embedding chunks. Don't do any
-                // embedding generation.
-                embeddingChunks = [];
-                embeddingChunksVectorCache = null;
-            } else {
-                const embeddingChunkByIndex = new Map<
-                    number,
-                    SearchEntitySemanticIndexEmbeddingChunk
-                >();
-                const embeddingChunksNeedingNewVectors = [];
+                const vectors = !context.languageModel
+                    ? createArrayWithLength(addNewChunks.length, () => [])
+                    : Array.from(
+                          await context.languageModel.model.embed(
+                              context.tracer.getTracer(),
+                              addNewChunks.map(({chunk}) => chunk.text),
+                              {inputType: "SearchDocument"},
+                          ),
+                          vector => Array.from(vector),
+                      );
 
-                embeddingChunks = [];
-                embeddingChunksVectorCache = new Map();
+                const addCommands = addNewChunks.map(({textHash, chunk}, i) => {
+                    const vector = assertExists(vectors[i]);
 
-                for (let index = 0; index < embeddingChunksWithoutVectors.length; index++) {
-                    const embeddingChunk = embeddingChunksWithoutVectors[index]!;
-                    const embeddingChunkTextHash = murmurhash.v3(embeddingChunk.text);
-
-                    const cachedEmbeddingVector =
-                        oldDocForSemanticIndex?.embeddingChunksVectorCache?.get(
-                            embeddingChunkTextHash,
-                        );
-
-                    if (!cachedEmbeddingVector) {
-                        embeddingChunksNeedingNewVectors.push({
-                            index,
-                            preambleEndIndex: embeddingChunk.preambleEndIndex,
-                            text: embeddingChunk.text,
-                            textHash: embeddingChunkTextHash,
-                        });
-                    } else {
-                        embeddingChunkByIndex.set(index, {
-                            spaceId: job.spaceId,
+                    const newDoc: OpensearchIndexDocType<typeof SearchEntityEmbeddingChunkIndex> = {
+                        spaceId: job.spaceId,
+                        entity: {
+                            type: entityIdObject.type,
+                            id: job.entityId,
                             accessPolicy: entity.accessPolicy,
-                            preambleEndIndex: embeddingChunk.preambleEndIndex,
-                            text: embeddingChunk.text,
-                            vector: {
-                                allMiniLmL6V2: null,
-                                cohereEmbedEnglishV3: null,
-                                [context.languageModel.model.statics.key]: cachedEmbeddingVector,
-                            },
-                        });
-
-                        embeddingChunksVectorCache.set(
-                            embeddingChunkTextHash,
-                            cachedEmbeddingVector,
-                        );
-                    }
-                }
-
-                const embeddingVectors =
-                    embeddingChunksNeedingNewVectors.length > 0
-                        ? Array.from(
-                              await context.languageModel.model.embed(
-                                  context.tracer.getTracer(),
-                                  embeddingChunksNeedingNewVectors.map(({text}) => text),
-                                  {inputType: "SearchDocument"},
-                              ),
-                          )
-                        : [];
-
-                for (
-                    let otherIndex = 0;
-                    otherIndex < embeddingChunksNeedingNewVectors.length;
-                    otherIndex++
-                ) {
-                    const embeddingChunk = embeddingChunksNeedingNewVectors[otherIndex]!;
-                    const embeddingVector = Array.from(embeddingVectors[otherIndex]!);
-
-                    embeddingChunkByIndex.set(embeddingChunk.index, {
-                        spaceId: job.spaceId,
-                        accessPolicy: entity.accessPolicy,
-                        preambleEndIndex: embeddingChunk.preambleEndIndex,
-                        text: embeddingChunk.text,
-                        vector: {
-                            allMiniLmL6V2: null,
-                            cohereEmbedEnglishV3: null,
-                            [context.languageModel.model.statics.key]: embeddingVector,
+                            title: entity.title,
+                            media: entity.media,
                         },
-                    });
+                        text: chunk.text,
+                        textHash,
+                        preambleEndIndex: chunk.preambleEndIndex,
+                        vector: !context.languageModel
+                            ? {
+                                  allMiniLmL6V2: null,
+                                  cohereEmbedEnglishV3: null,
+                              }
+                            : {
+                                  allMiniLmL6V2: null,
+                                  cohereEmbedEnglishV3: null,
+                                  [context.languageModel.model.statics.key]: vector,
+                              },
+                    };
 
-                    embeddingChunksVectorCache.set(embeddingChunk.textHash, embeddingVector);
-                }
+                    return new OpensearchIndexDocWithoutIdCommand(
+                        SearchEntityEmbeddingChunkIndex,
+                        job.spaceId,
+                        newDoc,
+                    );
+                });
 
-                // Through this process we should have created an embedding chunk object for
-                // every item in `embeddingChunksWithoutVectors`. Either:
-                //
-                // 1. Because we have a cached embedding
-                // 2. We requested a new embedding from our language model
-                embeddingChunks = createArrayWithLength(
-                    embeddingChunksWithoutVectors.length,
-                    index => assertExists(embeddingChunkByIndex.get(index)),
-                );
-            }
-
-            // The new updated time should:
-            //
-            // - Always be bigger than `createdTime`
-            // - Always be bigger than the last `lastUpdatedTime`
-            // - Use `jobStartTime` since that more accurately represents when the update
-            //   happened rather than the current time (since the job may have been
-            //   delayed)
-            const newLastUpdatedTime = new Date(
-                Math.max(
-                    ...[
-                        entity.createdTime.getTime(),
-                        ...(oldDocForKeywordIndex
-                            ? [oldDocForKeywordIndex.lastUpdatedTime.getTime()]
-                            : []),
-                        // We don't update `lastUpdatedTime` to the latest time if there are no updated
-                        // traits. Which happens when creating entities, re-indexing an entity after a
-                        // dependency changed, and indexes triggered by a migration.
-                        //
-                        // If `updatedTraits` is `None` that means the underlying entity didn't
-                        // actually update and we're indexing for some other reason.
-                        ...(job.update.updatedTraits.type !== "None"
-                            ? [jobStartTime.getTime()]
-                            : []),
-                    ],
-                ),
-            );
-
-            const majorContributorIds = new Set<AccountId>();
-            const anyContributorIds = new Set<AccountId>();
-
-            if (entity.creatorId !== null) {
-                majorContributorIds.add(entity.creatorId);
-                anyContributorIds.add(entity.creatorId);
-            }
-
-            for (const [contributorId, type] of entity.contributorIds) {
-                if (type === "Major") {
-                    majorContributorIds.add(contributorId);
-                    anyContributorIds.add(contributorId);
-                } else {
-                    anyContributorIds.add(contributorId);
-                }
-            }
-
-            const newDocForKeywordIndex: OpensearchClientDocWithIdAndVersion<
-                SearchDynamicEntityId,
-                SearchEntityKeywordIndexDoc
-            > = {
-                id: entityId,
-                version: oldDocForKeywordIndex?.version ?? null,
-                spaceId: job.spaceId,
-                type: job.update.type,
-                createdTime: entity.createdTime,
-                lastUpdatedTime: newLastUpdatedTime,
-                lastReadStartTime: readStartTime,
-                accessPolicy: entity.accessPolicy,
-                dependencyIds: Array.from(dependencyIds),
-                title: entity.title,
-                body: entity.body,
-                media: entity.media,
-                creatorId: entity.creatorId,
-                majorContributorIds: Array.from(majorContributorIds),
-                anyContributorIds: Array.from(anyContributorIds),
-            };
-
-            const newDocForSemanticIndex: OpensearchClientDocWithIdAndVersion<
-                SearchDynamicEntityId,
-                SearchEntitySemanticIndexDoc
-            > = {
-                id: entityId,
-                version: oldDocForSemanticIndex?.version ?? null,
-                lastReadStartTime: readStartTime,
-                title: entity.title,
-                media: entity.media,
-                embeddingChunks,
-                embeddingChunksVectorCache: {
-                    allMiniLmL6V2: null,
-                    cohereEmbedEnglishV3: null,
-                    ...(context.languageModel
-                        ? {[context.languageModel.model.statics.key]: embeddingChunksVectorCache}
-                        : {}),
-                },
-            };
-
-            // If the doc has never had embedding chunks and still doesn't have embedding
-            // chunks, we don't write the embedding doc to our index. Once the embedding
-            // doc is created the first time we don't delete it, instead updating it to an
-            // empty list of embedding chunks.
-            //
-            // If we get a version conflict then some other concurrent process wrote this
-            // search entity before us. We retry and completely re-read the entity. That
-            // way we guarantee we aren't overwriting new data (read by the other job) with
-            // old data (read by this job).
-            if (!oldDocForSemanticIndex && newDocForSemanticIndex.embeddingChunks.length === 0) {
-                await context.opensearch.indexDocIfVersion(
-                    SearchEntityKeywordIndex,
-                    job.spaceId,
-                    newDocForKeywordIndex,
-                    {retryVersionConflictError: retry},
-                );
-            } else {
-                await context.opensearch.bulk(
-                    [
-                        new OpensearchIndexDocIfVersionCommand(
-                            SearchEntityKeywordIndex,
-                            job.spaceId,
-                            newDocForKeywordIndex,
-                        ),
-                        new OpensearchIndexDocIfVersionCommand(
-                            SearchEntitySemanticIndex,
-                            job.spaceId,
-                            newDocForSemanticIndex,
-                        ),
-                    ],
-                    {retryPartialVersionConflictError: retry},
-                );
-            }
-        });
-    }
-
-    async function updateDependentEntities() {
-        const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
-        if (dependencyIds.length === 0) return;
-
-        for (const dependencyId of dependencyIds) {
-            processSearchEntityJobUpdateDependentEntitiesTestCounter.incrementForTest(dependencyId);
-        }
-
-        // Wait for the index to refresh before querying dependents. We want to capture
-        // ALL dependents created before the job started. There may be some dependents
-        // another job saved that won't appear in a query until after the index
-        // refreshes.
-        //
-        // We may capture some dependents that were recently updated and have the
-        // latest dependency data. That's ok since this function is idempotent. We may
-        // be able to skip re-reading them by checking `lastReadStartTime`.
-        if (!import.meta.jest) {
-            await wait(searchEntityIndexRefreshIntervalSeconds * 1000 + defaultUncertaintyWindowMs);
-        } else {
-            // In Jest tests, indexes need to be refreshed manually. Don't refresh manually
-            // in production.
-            await context.opensearch.refresh(SearchEntityKeywordIndex);
-        }
-
-        // Maximum search page size is 10k.
-        const searchSize = 10_000;
-        let afterCursor: ReadonlyArray<JsonScalarValue> | null = null;
-
-        do {
-            const {hits} = await context.opensearch.searchWithoutSource(
-                SearchEntityKeywordIndex,
-                job.spaceId,
-                {
-                    size: searchSize,
-                    sort: ["_doc"],
-                    afterCursor: afterCursor ?? undefined,
-                    query: {
-                        bool: {
-                            filter: {
-                                bool: {
-                                    must: [
-                                        {
-                                            term: {
-                                                spaceId: new OpensearchQueryValue(job.spaceId),
-                                            },
-                                        },
-                                        {
-                                            terms: {
-                                                dependencyIds: new OpensearchQueryValue(
-                                                    dependencyIds,
-                                                ),
-                                            },
-                                        },
-                                    ],
-                                },
-                            },
-                        },
-                    },
-                },
-            );
-
-            await runAllPromises(
-                hits.map(async hit => {
-                    // Confirm the job was added to the queue before exiting. It's ok to take the
-                    // batch delay performance hit when processing jobs.
-                    await context.jobs.sendAndWait({
-                        type: "IndexSearchEntity",
-                        spaceId: job.spaceId,
-                        update: {
-                            ...parseSearchDynamicEntityId(hit.id),
-                            // Dependencies didn't update so we can skip reindexing transitive
-                            // dependencies.
-                            updatedTraits: {type: "None"},
-                        },
-                        parentJobStartTime: jobStartTime,
-                    });
-                }),
-            );
-
-            afterCursor = (
-                hits.length > 0 ? assertExists(hits[hits.length - 1]!.cursor) : null
-            ) as ReadonlyArray<JsonScalarValue> | null;
-
-            // If we did not reach the pagination limit then don't query again for the
-            // next page.
-            if (hits.length < searchSize) afterCursor = null;
-        } while (afterCursor !== null);
-    }
+                await context.opensearch.bulk(addCommands);
+            })(),
+        ]);
+    });
 }
 
 /**
@@ -1373,78 +1504,67 @@ export async function searchBySemantics(
     assert(queryEmbeddingVector);
 
     const {hits} = await context.opensearch.searchWithoutSource(
-        SearchEntitySemanticIndex,
+        SearchEntityEmbeddingChunkIndex,
         spaceId,
         {
             size: limit,
-            storedFields: ["title", "media"],
+            storedFields: ["entity.id", "entity.title", "entity.media", "text", "preambleEndIndex"],
             sort: ["_score"],
             query: {
-                nested: {
-                    path: "embeddingChunks",
-                    inner_hits: {
-                        size: 1,
-                        _source: false,
-                        stored_fields: ["embeddingChunks.text", "embeddingChunks.preambleEndIndex"],
-                    },
-                    query: {
-                        knn: {
-                            [`embeddingChunks.vector.${context.languageModel.model.statics.key}`]: {
-                                vector: new OpensearchQueryValue(
-                                    Array.isArray(queryEmbeddingVector)
-                                        ? queryEmbeddingVector
-                                        : Array.from(queryEmbeddingVector),
-                                ),
+                knn: {
+                    [`vector.${context.languageModel.model.statics.key}`]: {
+                        vector: new OpensearchQueryValue(
+                            Array.isArray(queryEmbeddingVector)
+                                ? queryEmbeddingVector
+                                : Array.from(queryEmbeddingVector),
+                        ),
 
-                                // A higher `k` value improves recall. Picking an arbitrary value for now.
-                                // Really, we should test what provides the best recall. See:
-                                // https://www.pinecone.io/learn/k-nearest-neighbor/#How-to-find-k
-                                k: Math.max(limit, 30),
+                        // A higher `k` value improves recall. Picking an arbitrary value for now.
+                        // Really, we should test what provides the best recall. See:
+                        // https://www.pinecone.io/learn/k-nearest-neighbor/#How-to-find-k
+                        k: Math.max(limit, 30),
 
-                                // We filter chunks here (instead of with a boolean filter) to perform
-                                // efficient KNN-filtering which is a hybrid of pre-filtering and
-                                // post-filtering.
-                                // https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
-                                filter: {
-                                    bool: {
-                                        // Use filter context to only match content the user is allowed to see. The
-                                        // content must be in our space and must grant access to the account. Either
-                                        // directly or through a default grant.
-                                        filter: [
-                                            {
-                                                term: {
-                                                    "embeddingChunks.spaceId":
-                                                        new OpensearchQueryValue(spaceId),
-                                                },
-                                            },
-                                            {
-                                                bool: {
-                                                    minimum_should_match: 1,
-                                                    should: [
-                                                        {
-                                                            term: {
-                                                                "embeddingChunks.accessPolicy.accountGrantAccountIds":
-                                                                    new OpensearchQueryValue(
-                                                                        context.actor.getAccountId(),
-                                                                    ),
-                                                            },
-                                                        },
-                                                        {
-                                                            term: {
-                                                                "embeddingChunks.accessPolicy.defaultGrantType":
-                                                                    new OpensearchQueryValue(
-                                                                        SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
-                                                                            "Space",
-                                                                        ),
-                                                                    ),
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            },
-                                        ],
+                        // We filter chunks here (instead of with a boolean filter) to perform
+                        // efficient KNN-filtering which is a hybrid of pre-filtering and
+                        // post-filtering.
+                        // https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
+                        filter: {
+                            bool: {
+                                // Use filter context to only match content the user is allowed to see. The
+                                // content must be in our space and must grant access to the account. Either
+                                // directly or through a default grant.
+                                filter: [
+                                    {
+                                        term: {
+                                            spaceId: new OpensearchQueryValue(spaceId),
+                                        },
                                     },
-                                },
+                                    {
+                                        bool: {
+                                            minimum_should_match: 1,
+                                            should: [
+                                                {
+                                                    term: {
+                                                        "entity.accessPolicy.accountGrantAccountIds":
+                                                            new OpensearchQueryValue(
+                                                                context.actor.getAccountId(),
+                                                            ),
+                                                    },
+                                                },
+                                                {
+                                                    term: {
+                                                        "entity.accessPolicy.defaultGrantType":
+                                                            new OpensearchQueryValue(
+                                                                SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                                    "Space",
+                                                                ),
+                                                            ),
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    },
+                                ],
                             },
                         },
                     },
@@ -1460,8 +1580,23 @@ export async function searchBySemantics(
         ),
     );
 
+    const highestScoreByEntityId = new Map<SearchDynamicEntityId, number>();
+
     const results = await runAllPromises(
         hits.map(async (hit): Promise<SearchEntityResult | null> => {
+            const id = assertExists(hit.fields["entity.id"]?.[0]);
+
+            // If we've already seen this entity, return null. We only return one result
+            // per entity and only the result with the highest score. The first entity we
+            // see should have the highest score given the hit list is sorted by score (we
+            // double check this with an `assert()`).
+            const highestScore = highestScoreByEntityId.get(id);
+            if (highestScore !== undefined) {
+                assert(highestScore >= hit.score);
+                return null;
+            }
+            highestScoreByEntityId.set(id, hit.score);
+
             const score = hit.score * options.semanticScoreScaleFromOpensearch;
 
             // TODO(calebmer): Instead of filtering out hits that don't meet the minimum
@@ -1476,13 +1611,8 @@ export async function searchBySemantics(
             //
             // 1. Parse the Markdown back to a ProseMirror node
             // 2. Print the ProseMirror node to a single line of text
-            let rawBodyTextSnippet =
-                hit.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.text"]?.[0];
-
-            const preambleEndIndex =
-                hit.innerHits?.embeddingChunks?.[0]?.fields[
-                    "embeddingChunks.preambleEndIndex"
-                ]?.[0];
+            let rawBodyTextSnippet = hit.fields.text?.[0];
+            const preambleEndIndex = hit.fields?.preambleEndIndex?.[0];
 
             // Remove the preamble from the chunk text.
             rawBodyTextSnippet =
@@ -1539,15 +1669,16 @@ export async function searchBySemantics(
                   ).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : [];
 
-            const docMedia = hit.fields.media?.[0];
-            const resultMedia = docMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, hit.id, docMedia)
+            const media = hit.fields["entity.media"]?.[0];
+
+            const resultMedia = media
+                ? await prepareSearchEntityMediaForResult(context, spaceId, id, media)
                 : null;
 
             return {
-                id: hit.id,
+                id,
                 score,
-                title: hit.fields.title?.[0] ?? null,
+                title: hit.fields["entity.title"]?.[0] ?? null,
                 bodyTextSnippet,
                 media: resultMedia,
             };

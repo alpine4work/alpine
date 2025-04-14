@@ -2,6 +2,8 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     getSearchEntityIndexesForTest,
+    processIndexSearchEntityDependentsJob,
+    processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
@@ -31,14 +33,22 @@ beforeEach(() => {
 
 const context = createTestContext({
     shouldStartOpensearch: true,
-    processJob: async (actionContext, job, jobStartTime) => {
+    processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
                 if (job.update.type !== "Account") {
                     indexSearchEntityJobCount++;
                 }
 
-                await processIndexSearchEntityJob(actionContext, job, jobStartTime);
+                await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
+                break;
+            }
+            case "IndexSearchEntityDependents": {
+                await processIndexSearchEntityDependentsJob(actionContext, job);
+                break;
+            }
+            case "IndexSearchEntityEmbeddingChunks": {
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
                 break;
             }
             default: {
@@ -184,6 +194,7 @@ test("will not make chat searchable even if manually indexed until first message
             },
         },
         new Date(),
+        {addData: () => {}},
     );
 
     import.meta.jest.runOnlyPendingTimers();

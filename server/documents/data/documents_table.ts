@@ -3101,10 +3101,8 @@ export async function updateDocumentContent(
             if (
                 !areUpdatedTraitsInLastIndexSearchEntityJob ||
                 isDatePossiblyLessThanWithUncertaintyWindow(
-                    new Date(
-                        internalDocument.lastIndexSearchEntityJob.sendTime.getTime() +
-                            internalDocument.lastIndexSearchEntityJob.delaySeconds * 1000,
-                    ),
+                    internalDocument.lastIndexSearchEntityJob.sendTime.getTime() +
+                        internalDocument.lastIndexSearchEntityJob.delaySeconds * 1000,
                     currentTime,
                 )
             ) {

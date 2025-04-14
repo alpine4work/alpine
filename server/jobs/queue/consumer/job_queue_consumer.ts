@@ -745,8 +745,13 @@ export class JobQueueConsumer<
                     handleSpanName += ` (${messageBody.job.event.type})`;
                     break;
                 }
-                case "IndexSearchEntity": {
+                case "IndexSearchEntity":
+                case "IndexSearchEntityDependents": {
                     handleSpanName += ` (${messageBody.job.update.type})`;
+                    break;
+                }
+                case "IndexSearchEntityEmbeddingChunks": {
+                    handleSpanName += ` (${messageBody.job.entityId.split(":", 2)[0]})`;
                     break;
                 }
                 case "ProcessFile": {
@@ -767,7 +772,7 @@ export class JobQueueConsumer<
                           )
                     : this._processContext.tracer.getRoot().startSpan(spanName));
 
-            fiberSpan.link(span);
+            fiberSpan.link(`Execution: ${handleSpanName}`, span);
 
             // The time at which the job starts to be available for processing. The send
             // time plus delay seconds. This will be a little earlier than when the job is
@@ -989,7 +994,10 @@ export class JobQueueConsumer<
             const {span: fiberSpan, finishSpan: finishFiberSpan} = this._activitySpan.startSpan(
                 `JobQueueConsumer fiber external (${this._queueName})`,
             );
-            fiberSpan.link(fiberQueueSpan);
+            fiberSpan.link(
+                `Execution: JobQueueConsumer fiber external (${this._queueName})`,
+                fiberQueueSpan,
+            );
 
             this._fiberCount++;
 

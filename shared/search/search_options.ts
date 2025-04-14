@@ -246,7 +246,7 @@ export const standardSearchOptions: SearchOptions = {
         // to perform this search most of the time.
         controlMatchBoost: 0.5,
 
-        // Our constant score approximately `greatBodyKeywordScore * titleBoost`
+        // Our constant score is approximately `greatBodyKeywordScore * titleBoost`
         // (currently 11 * 1.8). So our constant score is equivalent to one great title
         // match.
         //
@@ -274,6 +274,11 @@ export const standardSearchOptions: SearchOptions = {
             semanticScore:
                 // Cohere in production and `all-MiniLM-L6-v2` in development produce different
                 // scores.
+                //
+                // NOTE(calebmer, 2025-04-14): These values are looking kinda similar now that
+                // we're using the `l2` space in our `hnsw` search both in development and
+                // production. Is that a coincidence or can we consolidate on the same values
+                // for development and production?
                 process.env.NODE_ENV === "production"
                     ? // We got this score when searching (with Cohere in production) "second quarter roadmap" and
                       // getting a passage from my update email after the notification cycle talking about the plan for
@@ -284,16 +289,21 @@ export const standardSearchOptions: SearchOptions = {
                       // coin)][1]" Wikipedia article which is an excellent match.
                       //
                       // [1]: https://en.wikipedia.org/wiki/Penny_(British_decimal_coin)
-                      0.84,
+                      0.6,
         },
 
         // Our second point is for a low confidence signal:
         point2: {
             keywordScore: fineBodyKeywordScore,
 
-            // Cohere in production and `all-MiniLM-L6-v2` in development produce different
-            // scores.
             semanticScore:
+                // Cohere in production and `all-MiniLM-L6-v2` in development produce different
+                // scores.
+                //
+                // NOTE(calebmer, 2025-04-14): These values are looking kinda similar now that
+                // we're using the `l2` space in our `hnsw` search both in development and
+                // production. Is that a coincidence or can we consolidate on the same values
+                // for development and production?
                 process.env.NODE_ENV === "production"
                     ? // We got a score of 0.46864082 when searching (with Cohere in production)
                       // "business conference" and getting a passage from "product vision and strategy" with the word
@@ -310,7 +320,7 @@ export const standardSearchOptions: SearchOptions = {
                       //
                       // [1]: https://en.wikipedia.org/wiki/Big_King
                       // [2]: https://en.wikipedia.org/wiki/Big_King#Double_Supreme
-                      0.67,
+                      0.45,
         },
     },
 

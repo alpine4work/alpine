@@ -4,6 +4,7 @@ import {getErrorCodeName} from "~/shared/error/error_code.js";
 import {ErrorOriginalTracerSpanResult} from "~/shared/error/error_original_tracer_span.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.js";
 import {renderDebugErrorDisplayMessage} from "~/shared/error/render_debug_error_display_message.js";
+import {isRetryError} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
 import {TraceId} from "~/shared/id/types/id_types.js";
 import {
@@ -20,6 +21,14 @@ export function getTracerEventExceptionData(
     error: unknown,
     originalResult: ErrorOriginalTracerSpanResult,
 ): TracerEventData["exception"] {
+    // If this is a retry error from `retryWithExponentialBackoff()` then we want
+    // to record the error cause not the retry error itself (which is a boring
+    // `CancelledError` with the message "Retry"). This way the `exception.message`
+    // property of retry errors is interesting.
+    if (isRetryError(error)) {
+        error = error.cause ?? error;
+    }
+
     const aggregateErrors: Array<unknown> = [];
 
     const pushAggregateError = (error: unknown) => {

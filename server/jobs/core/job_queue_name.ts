@@ -5,6 +5,8 @@ export type JobQueueName = (typeof jobQueueNameByType)[keyof typeof jobQueueName
 export const jobQueueNameByType = {
     Test: "Default",
     IndexSearchEntity: "Default",
+    IndexSearchEntityDependents: "Default",
+    IndexSearchEntityEmbeddingChunks: "Default",
     NotificationEvent: "Default",
     ProcessFile: "FileProcessor",
 } as const satisfies Record<JobDescription["type"], string>;

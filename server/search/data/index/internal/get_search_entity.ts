@@ -634,7 +634,10 @@ async function getDocumentSearchEntity(
         await state.getDocumentContent(documentId);
     await getDocumentSearchEntityTestCheckpoint.waitForTest(documentId);
 
-    const {title, getFullText, embeddingChunks} = await chunkDocumentSearchContent(content, state);
+    const {title, getFullText, getEmbeddingChunks} = await chunkDocumentSearchContent(
+        content,
+        state,
+    );
 
     const contributorIds = new Map<AccountId, "Major" | "Minor">();
     let stepCountByNonCreatorAccounts = 0;
@@ -664,7 +667,7 @@ async function getDocumentSearchEntity(
         title,
         body: getFullText(),
         media: null,
-        embeddingChunks,
+        embeddingChunks: getEmbeddingChunks(),
         creatorId,
         contributorIds,
     };
@@ -701,7 +704,7 @@ export async function chunkDocumentSearchContent(
         content.content.content.slice(1),
     );
 
-    const {getFullText, embeddingChunks} = await chunkSearchContent(contentWithoutTitle, {
+    const {getFullText, getEmbeddingChunks} = await chunkSearchContent(contentWithoutTitle, {
         tokenizer,
         getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
@@ -718,7 +721,7 @@ export async function chunkDocumentSearchContent(
         },
     });
 
-    return {title, getFullText, embeddingChunks};
+    return {title, getFullText, getEmbeddingChunks};
 }
 
 async function getDocumentCommentSearchEntity(
@@ -770,7 +773,7 @@ async function getDocumentCommentSearchEntity(
         title: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
-        embeddingChunks: content?.embeddingChunks ?? [],
+        embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
     };
@@ -786,7 +789,7 @@ async function getChannelSearchEntity(
         truncateTokens(state.tokenizer, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
-    const {getFullText, embeddingChunks} = await chunkSearchContent(channel.description, {
+    const {getFullText, getEmbeddingChunks} = await chunkSearchContent(channel.description, {
         tokenizer: state.tokenizer,
         getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({isInitialChunk}) => {
@@ -814,7 +817,7 @@ async function getChannelSearchEntity(
         title: channel.name,
         body: getFullText(),
         media: null,
-        embeddingChunks,
+        embeddingChunks: getEmbeddingChunks(),
         creatorId: channel.creatorId,
         // Maybe in the future we could track who posts in a channel to support
         // searches like "channels I've posted in".
@@ -844,7 +847,7 @@ async function getPostSearchEntity(
         ),
     );
 
-    const {getFullText, embeddingChunks} = await chunkSearchContent(post.content, {
+    const {getFullText, getEmbeddingChunks} = await chunkSearchContent(post.content, {
         tokenizer: state.tokenizer,
         getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
@@ -877,7 +880,7 @@ async function getPostSearchEntity(
         title: null,
         body: getFullText(),
         media: {type: "Account", accountId: post.authorId},
-        embeddingChunks,
+        embeddingChunks: getEmbeddingChunks(),
         creatorId: post.authorId,
         contributorIds: emptyMap,
     };
@@ -922,7 +925,7 @@ async function getPostCommentSearchEntity(
         title: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
-        embeddingChunks: content?.embeddingChunks ?? [],
+        embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
     };
@@ -1061,7 +1064,7 @@ async function getChatMessageSearchEntity(
         title: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
-        embeddingChunks: content?.embeddingChunks ?? [],
+        embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
     };
@@ -1298,7 +1301,7 @@ async function getTaskSearchEntity(
         title,
         body: notesChunkResult?.getFullText() ?? null,
         media: {type: "TaskDisplayStatus", displayStatus: task.getDisplayStatus()},
-        embeddingChunks: notesChunkResult?.embeddingChunks ?? [],
+        embeddingChunks: notesChunkResult?.getEmbeddingChunks() ?? [],
         creatorId: task.getCreator().accountId,
         contributorIds,
     };
@@ -1381,7 +1384,7 @@ async function getTaskCommentSearchEntity(
         title: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
-        embeddingChunks: content?.embeddingChunks ?? [],
+        embeddingChunks: content?.getEmbeddingChunks() ?? [],
         creatorId: authorId,
         contributorIds: emptyMap,
     };

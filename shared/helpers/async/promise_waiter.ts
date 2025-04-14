@@ -1,5 +1,6 @@
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 
 /**
  * Helper that allows you to wait for an arbitrary set of promises. Similar to
@@ -14,7 +15,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
  * can return from a function.
  */
 export class PromiseWaiter {
-    private _promises: Array<PromiseLike<unknown>> = [];
+    private _promises = new Set<PromiseLike<unknown>>();
+    private _waitPromise: Promise<void> | null = null;
 
     /**
      * When `wait()` is called it won't resolve until the provided promise
@@ -26,32 +28,60 @@ export class PromiseWaiter {
         // No unhandled promise exception warnings. Exceptions will be handled when
         // `wait()` is called.
         promise.then(
-            () => {},
-            () => {},
+            () => {
+                this._promises.delete(promise);
+            },
+            () => {
+                this._promises.delete(promise);
+            },
         );
 
-        this._promises.push(promise);
+        this._promises.add(promise);
     }
 
     /**
      * Wait for all promises added with `waitUntil()` to resolve. If any of the
      * promises passed into `waitUntil()` reject then this rejects as well.
      */
-    public async wait() {
-        const errors: Array<unknown> = [];
+    public wait(): Promise<void> {
+        // Must early return when there are no promises since otherwise
+        // `this._waitForTestTasksPromise` won't get cleared since the `finally` which
+        // clears `this._waitForTestTasksPromise` will run before the promise is
+        // assigned.
+        if (!(this._promises.size > 0)) return Promise.resolve();
 
-        try {
-            while (this._promises.length > 0) {
-                const promises = this._promises;
-                this._promises = [];
-                await runAllPromises(promises);
-            }
-        } catch (error) {
-            errors.push(error);
+        if (this._waitPromise === null) {
+            let isSync = true;
+
+            this._waitPromise = (async () => {
+                try {
+                    const errors: Array<unknown> = [];
+
+                    while (this._promises.size > 0) {
+                        try {
+                            const promises = this._promises;
+                            this._promises = new Set();
+                            await runAllPromises(promises);
+                        } catch (error) {
+                            errors.push(error);
+                        }
+                    }
+
+                    if (errors.length > 0) {
+                        throw createAggregateError(errors);
+                    }
+                } finally {
+                    // Double check that we're not running synchronously when we reach this point.
+                    // Otherwise `this._waitPromise` will be not be properly cleared.
+                    assert(!isSync);
+
+                    this._waitPromise = null;
+                }
+            })();
+
+            isSync = false;
         }
 
-        if (errors.length > 0) {
-            throw createAggregateError(errors);
-        }
+        return this._waitPromise;
     }
 }

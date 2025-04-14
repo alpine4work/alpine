@@ -65,7 +65,6 @@ import {
     DynamoItemKey,
     DynamoItemPartitionKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {
     DataLossError,
     DeadlineExceededError,
@@ -100,6 +99,7 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -936,9 +936,8 @@ export async function runMoveForumChannelsAndPostsMigration(
     {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
 ) {
     let n = 0;
+    const promiseWaiter = new PromiseWaiter();
     const mutexes = createArrayWithLength(8, () => new Mutex());
-
-    const errors: Array<unknown> = [];
 
     for await (const item of ForumTable.expensiveScan(context, {
         segmentIndex,
@@ -954,26 +953,20 @@ export async function runMoveForumChannelsAndPostsMigration(
         ) {
             const mutex = mutexes[n++ % mutexes.length]!;
 
-            void mutex.withLock(async () => {
-                try {
+            promiseWaiter.waitUntil(
+                mutex.withLock(async () => {
                     await DynamoTableSchema.executeTransaction(context, [
                         ForumTable.transactionDeleteItem(item),
                         ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
                             item,
                         ),
                     ]);
-                } catch (error) {
-                    // eslint-disable-next-line no-console
-                    console.error("Migration transaction failed:", error);
-                    errors.push(error);
-                }
-            });
+                }),
+            );
         }
     }
 
-    await runAllPromises(mutexes.map(mutex => mutex.waitForUnlock()));
-
-    if (errors.length > 0) throw createAggregateError(errors);
+    await promiseWaiter.wait();
 }
 
 export async function seedTestChannels(

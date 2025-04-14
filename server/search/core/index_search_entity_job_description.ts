@@ -1,6 +1,8 @@
 import {SearchEntityUpdateSchema} from "~/server/search/core/search_entity_update.js";
+import {Id} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * The `IndexSearchEntity` job reads the specified entity and adds it to our
@@ -19,4 +21,26 @@ export const IndexSearchEntityJobDescriptionSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),
     update: SearchEntityUpdateSchema,
     parentJobStartTime: Schema.date.optional(),
+});
+
+export type IndexSearchEntityDependentsJobDescription = SchemaType<
+    typeof IndexSearchEntityDependentsJobDescriptionSchema
+>;
+
+export const IndexSearchEntityDependentsJobDescriptionSchema = Schema.object({
+    type: Schema.value("IndexSearchEntityDependents"),
+    spaceId: Schema.id<SpaceId>(),
+    update: SearchEntityUpdateSchema,
+    parentJobStartTime: Schema.date,
+});
+
+export type IndexSearchEntityEmbeddingChunksJobDescription = SchemaType<
+    typeof IndexSearchEntityEmbeddingChunksJobDescriptionSchema
+>;
+
+export const IndexSearchEntityEmbeddingChunksJobDescriptionSchema = Schema.object({
+    type: Schema.value("IndexSearchEntityEmbeddingChunks"),
+    id: Schema.id<Id>(),
+    spaceId: Schema.id<SpaceId>(),
+    entityId: Schema.string as Schema<SearchDynamicEntityId>,
 });

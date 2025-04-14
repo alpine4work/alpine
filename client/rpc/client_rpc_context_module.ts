@@ -149,7 +149,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                 // The first call is the parent of our HTTP execution. Link the other calls to
                 // the HTTP execution span so we can see the causal relationship.
                 for (const otherCall of otherCalls) {
-                    otherCall.span.link(span);
+                    otherCall.span.link(`Batch execution: ${span.getName()}`, span);
                 }
 
                 if (otherCalls.length === 0) {

@@ -112,7 +112,7 @@ export async function chunkSearchContent(
     },
 ): Promise<{
     getFullText: () => string;
-    embeddingChunks: Array<{
+    getEmbeddingChunks: () => Array<{
         preambleEndIndex: number;
         tokenCountWithoutPreamble: number;
         text: string;
@@ -120,15 +120,19 @@ export async function chunkSearchContent(
 }> {
     const chunk = await getFullSearchContentChunk(content, {tokenizer, getAccountIfExists});
 
-    const splitChunks = splitSearchContentChunk(chunk, {
-        tokenizer,
-        getChunkPreamble,
-    });
-
     return {
-        getFullText: () =>
-            printSearchContentChunk({preamble: {text: "", lineMarginBottom: 0}, body: chunk}).text,
-        embeddingChunks: splitChunks.map(chunk => printSearchContentChunk(chunk)),
+        getFullText: () => {
+            return printSearchContentChunk({preamble: {text: "", lineMarginBottom: 0}, body: chunk})
+                .text;
+        },
+        getEmbeddingChunks: () => {
+            const splitChunks = splitSearchContentChunk(chunk, {
+                tokenizer,
+                getChunkPreamble,
+            });
+
+            return splitChunks.map(chunk => printSearchContentChunk(chunk));
+        },
     };
 }
 

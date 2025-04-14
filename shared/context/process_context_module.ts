@@ -55,16 +55,23 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
 
         return new ProcessContextModule({
             waitUntil: promise => {
-                // Don't treat errors as unhandled. They will be reported in `afterEach()`.
-                promise.catch(() => {});
+                const modifiedPromise = Object.assign(promise, {
+                    deadlineExceededError: new DeadlineExceededError(
+                        "`ProcessContextModule.waitForTestTasks()` has been waiting for promise for over 5 seconds",
+                    ),
+                });
 
-                assertExists(afterEachPromisesForTest).push(
-                    Object.assign(promise, {
-                        deadlineExceededError: new DeadlineExceededError(
-                            "`ProcessContextModule.waitForTestTasks()` has been waiting for promise for over 5 seconds",
-                        ),
-                    }),
+                // Don't treat errors as unhandled. They will be reported in `afterEach()`.
+                modifiedPromise.then(
+                    () => {
+                        assertExists(afterEachPromisesForTest).delete(modifiedPromise);
+                    },
+                    () => {
+                        assertExists(afterEachPromisesForTest).delete(modifiedPromise);
+                    },
                 );
+
+                assertExists(afterEachPromisesForTest).add(modifiedPromise);
             },
         });
     }
@@ -75,56 +82,72 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      * Wait for all the promises passed into the `waitUntil()` function of
      * `ProcessContextModule.test()`s to resolve.
      */
-    public static async waitForTestTasks({
+    public static waitForTestTasks({
         withoutDeadlineExceededLog = false,
     }: {
         withoutDeadlineExceededLog?: boolean;
-    } = {}) {
+    } = {}): Promise<void> {
         assert(process.env.NODE_ENV === "test");
         assert(afterEachPromisesForTest);
 
-        if (!this._waitForTestTasksPromise) {
+        // Must early return when there are no promises since otherwise
+        // `this._waitForTestTasksPromise` won't get cleared since the `finally` which
+        // clears `this._waitForTestTasksPromise` will run before the promise is
+        // assigned.
+        if (!(afterEachPromisesForTest.size > 0)) return Promise.resolve();
+
+        if (this._waitForTestTasksPromise === undefined) {
+            let isSync = true;
+
             this._waitForTestTasksPromise = (async () => {
-                const errors: Array<unknown> = [];
+                try {
+                    const errors: Array<unknown> = [];
 
-                // Wait for all promises to resolve. If there's an error, don't throw it until
-                // all promises have resolved.
-                while (afterEachPromisesForTest.length > 0) {
-                    const promises = afterEachPromisesForTest;
-                    afterEachPromisesForTest = [];
+                    // Wait for all promises to resolve. If there's an error, don't throw it until
+                    // all promises have resolved.
+                    while (afterEachPromisesForTest.size > 0) {
+                        const promises = afterEachPromisesForTest;
+                        afterEachPromisesForTest = new Set();
 
-                    if (!withoutDeadlineExceededLog) {
-                        // Log a warning when we've been waiting on a promise for too long. We construct
-                        // the error in the `waitUntil()` call so we can trace the source of the
-                        // promise.
-                        for (const promise of promises) {
-                            const timeoutId = originalSetTimeout(() => {
-                                // eslint-disable-next-line no-console
-                                console.error(promise.deadlineExceededError);
-                            }, 5000);
+                        if (!withoutDeadlineExceededLog) {
+                            // Log a warning when we've been waiting on a promise for too long. We construct
+                            // the error in the `waitUntil()` call so we can trace the source of the
+                            // promise.
+                            for (const promise of promises) {
+                                const timeoutId = originalSetTimeout(() => {
+                                    // eslint-disable-next-line no-console
+                                    console.error(promise.deadlineExceededError);
+                                }, 5000);
 
-                            void promise.catch(() => {}).finally(() => clearTimeout(timeoutId));
+                                void promise.catch(() => {}).finally(() => clearTimeout(timeoutId));
+                            }
+                        }
+
+                        try {
+                            await runAllPromises(promises);
+                        } catch (error) {
+                            errors.push(error);
                         }
                     }
 
-                    try {
-                        await runAllPromises(promises);
-                    } catch (error) {
-                        errors.push(error);
+                    if (errors.length > 0) {
+                        throw createAggregateError(errors);
                     }
-                }
+                } finally {
+                    // Double check that we're not running synchronously when we reach this point.
+                    // Otherwise `this._waitPromise` will be not be properly cleared.
+                    assert(!isSync);
 
-                if (errors.length > 0) {
-                    throw createAggregateError(errors);
+                    this._waitForTestTasksPromise = undefined;
                 }
-            })().finally(() => {
-                this._waitForTestTasksPromise = undefined;
-            });
+            })();
+
+            isSync = false;
         }
 
-        await this._waitForTestTasksPromise;
+        return this._waitForTestTasksPromise;
     }
 }
 
-let afterEachPromisesForTest: Array<Promise<unknown> & {deadlineExceededError: Error}> | null =
-    process.env.NODE_ENV === "test" ? [] : null;
+let afterEachPromisesForTest: Set<Promise<unknown> & {deadlineExceededError: Error}> | null =
+    process.env.NODE_ENV === "test" ? new Set() : null;
