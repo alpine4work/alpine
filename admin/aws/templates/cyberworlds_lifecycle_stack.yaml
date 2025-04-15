@@ -2794,7 +2794,7 @@ Resources:
                     - Action: sts:AssumeRole
                       Effect: Allow
                       Principal:
-                          Service: states.us-east-1.amazonaws.com
+                          Service: states.amazonaws.com
                 Version: 2012-10-17
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/GithubRunners/Runners/Runner Orchestrator/Role/Resource

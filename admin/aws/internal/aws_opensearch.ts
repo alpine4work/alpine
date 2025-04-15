@@ -11,7 +11,6 @@ import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
@@ -123,10 +122,6 @@ export class AwsOpensearch {
             // Run our deploy script whenever the OpenSearch domain is created/updated.
             deployScriptResource.node.addDependency(domain);
         }
-
-        // Block deploy (but don't block tests). We want to switch to OpenSearch
-        // serverless before deploying our our recent search entity indexing refactors.
-        assert(false);
 
         return AwsOpensearchWithConnections._new(domain);
     }

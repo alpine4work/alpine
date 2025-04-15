@@ -629,6 +629,12 @@ Resources:
                                         - OpensearchDeployScript4430A27B
                                         - Arn
                                   - :*
+                    - Action: lambda:GetFunction
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchDeployScript4430A27B
+                              - Arn
                 Version: 2012-10-17
             PolicyName: OpensearchDeployScriptProviderframeworkonEventServiceRoleDefaultPolicyE9DD73A2
             Roles:
@@ -641,7 +647,7 @@ Resources:
             Code:
                 S3Bucket:
                     Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
-                S3Key: 3542be390685e0c8353d92ccb5796d343cd93ca946b6b0de798004206a199adc.zip
+                S3Key: bdc104ed9cab1b5b6421713c8155f0b753380595356f710400609664d3635eca.zip
             Description: AWS CDK resource provider framework - onEvent
                 (CyberworldsStack/Opensearch/DeployScriptProvider)
             Environment:
@@ -662,7 +668,7 @@ Resources:
             - OpensearchDeployScriptProviderframeworkonEventServiceRole77B5FA3B
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/DeployScriptProvider/framework-onEvent/Resource
-            aws:asset:path: asset.3542be390685e0c8353d92ccb5796d343cd93ca946b6b0de798004206a199adc
+            aws:asset:path: asset.bdc104ed9cab1b5b6421713c8155f0b753380595356f710400609664d3635eca
             aws:asset:is-bundled: false
             aws:asset:property: Code
     OpensearchDeployScriptResource89D48168:
@@ -714,7 +720,7 @@ Resources:
             Code:
                 S3Bucket:
                     Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
-                S3Key: 97f30e67419a1676a2215492723e5add1aa491caf0cbe2dd878fc4fab0468cd4.zip
+                S3Key: 9d043014be736e8162bcc7ec5590cc6d2ff24fd0d9c73a5c5d595151c5fdad00.zip
             Handler: index.handler
             Role:
                 Fn::GetAtt:
@@ -726,7 +732,7 @@ Resources:
             - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
         Metadata:
             aws:cdk:path: CyberworldsStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
-            aws:asset:path: asset.97f30e67419a1676a2215492723e5add1aa491caf0cbe2dd878fc4fab0468cd4
+            aws:asset:path: asset.9d043014be736e8162bcc7ec5590cc6d2ff24fd0d9c73a5c5d595151c5fdad00
             aws:asset:is-bundled: false
             aws:asset:property: Code
     LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
@@ -772,7 +778,7 @@ Resources:
             Code:
                 S3Bucket:
                     Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
-                S3Key: 4e26bf2d0a26f2097fb2b261f22bb51e3f6b4b52635777b1e54edbd8e2d58c35.zip
+                S3Key: 2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d.zip
             Role:
                 Fn::GetAtt:
                     - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
@@ -782,7 +788,7 @@ Resources:
             - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
         Metadata:
             aws:cdk:path: CyberworldsStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
-            aws:asset:path: asset.4e26bf2d0a26f2097fb2b261f22bb51e3f6b4b52635777b1e54edbd8e2d58c35
+            aws:asset:path: asset.2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d
             aws:asset:is-bundled: false
             aws:asset:property: Code
     SqsJobDeadLetterQueueEE838C00:

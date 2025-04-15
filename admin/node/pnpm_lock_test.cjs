@@ -52,12 +52,12 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // NOTE(calebmer, 2024-08-13): Duplicate packages after adding dependencies
     // for `aws-cdk` to `packageExtensions` that we can't easily resolve but
     // shouldn't cause issues.
-    ["agent-base", ["6.0.2", "7.1.1"]],
+    ["agent-base", ["6.0.2", "7.1.3"]],
     ["ajv", ["6.12.6", "8.17.1"]],
-    ["https-proxy-agent", ["5.0.1", "7.0.5"]],
+    ["https-proxy-agent", ["5.0.1", "7.0.6"]],
     ["json-schema-traverse", ["0.4.1", "1.0.0"]],
     ["mute-stream", ["0.0.8", "1.0.0"]],
-    ["socks-proxy-agent", ["6.2.1", "8.0.4"]],
+    ["socks-proxy-agent", ["6.2.1", "8.0.5"]],
     ["sprintf-js", ["1.0.3", "1.1.3"]],
     ["yaml", ["1.10.2", "2.5.0"]],
 
@@ -67,7 +67,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
 
     // NOTE(calebmer, 2024-08-27): Duplicate packages after adding `looks-same`
     // that we can't easily resolve but shouldn't cause issues.
-    ["fs-extra", ["8.1.0", "11.2.0"]],
+    ["fs-extra", ["8.1.0", "9.1.0", "11.2.0"]],
     ["jsonfile", ["4.0.0", "6.1.0"]],
 
     // NOTE(calebmer, 2024-11-15): Duplicate packages after upgrading `miniflare`
@@ -75,6 +75,19 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["chokidar", ["3.6.0", "4.0.1"]],
     ["readdirp", ["3.6.0", "4.0.2"]],
     ["@jridgewell/trace-mapping", ["0.3.25", "0.3.9"]],
+
+    // NOTE(calebmer, 2025-04-15): Duplicate packages after upgrading `aws-cdk-lib`
+    // (to 2.189.1) and corresponding `@aws-sdk` packages that we can't easily
+    // resolve but shouldn't cause issues.
+    ["@smithy/is-array-buffer", ["2.2.0", "4.0.0"]],
+    ["@smithy/util-buffer-from", ["2.2.0", "4.0.0"]],
+    ["@smithy/util-utf8", ["2.3.0", "4.0.0"]],
+    ["diff", ["5.2.0", "7.0.0"]],
+    ["events", ["1.1.1", "3.3.0"]],
+    ["jackspeak", ["2.3.6", "4.1.0"]],
+    ["path-scurry", ["1.11.1", "2.0.0"]],
+    ["tar-stream", ["2.2.0", "3.1.7"]],
+    ["ufo", ["1.5.4", "1.6.1"]],
 
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this
     // test. We did a quick skim to see if there were any packages we use where
@@ -100,7 +113,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["argparse", ["1.0.10", "2.0.1"]],
     ["axe-core", ["4.4.3", "4.7.2"]],
     ["brace-expansion", ["1.1.11", "2.0.1"]],
-    ["buffer", ["4.9.2", "5.7.1"]],
+    ["buffer", ["4.9.2", "5.6.0", "5.7.1", "6.0.3"]],
     ["cacache", ["15.3.0", "17.1.4"]],
     ["camel-case", ["3.0.0", "4.1.2"]],
     ["camelcase", ["5.3.1", "6.3.0"]],
@@ -134,7 +147,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["fs-minipass", ["2.1.0", "3.0.3"]],
     ["fsevents", ["2.3.2", "2.3.3"]],
     ["glob-parent", ["5.1.2", "6.0.2"]],
-    ["glob", ["7.2.3", "8.0.3", "10.3.15"]],
+    ["glob", ["7.2.3", "8.0.3", "10.3.15", "11.0.1"]],
     ["globals", ["11.12.0", "13.24.0"]],
     ["globby", ["11.1.0", "13.1.3"]],
     ["has-flag", ["3.0.0", "4.0.0"]],
@@ -155,7 +168,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["kleur", ["3.0.3", "4.1.5"]],
     ["locate-path", ["5.0.0", "6.0.0"]],
     ["lower-case", ["1.1.4", "2.0.2"]],
-    ["lru-cache", ["4.1.5", "5.1.1", "6.0.0", "7.18.3", "10.2.2"]],
+    ["lru-cache", ["4.1.5", "5.1.1", "6.0.0", "7.18.3", "10.2.2", "11.1.0"]],
     ["mdast-util-from-markdown", ["1.2.0", "2.0.0"]],
     ["mdast-util-to-markdown", ["1.3.0", "2.1.0"]],
     ["mdast-util-to-string", ["3.1.0", "4.0.0"]],
@@ -182,8 +195,8 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["micromark", ["3.1.0", "4.0.0"]],
     ["mime", ["1.6.0", "2.6.0", "3.0.0"]],
     ["mimic-fn", ["2.1.0", "4.0.0"]],
-    ["minimatch", ["3.1.2", "5.1.1", "9.0.5"]],
-    ["minipass", ["3.3.4", "7.1.1"]],
+    ["minimatch", ["3.1.2", "5.1.1", "9.0.5", "10.0.1"]],
+    ["minipass", ["3.3.4", "7.1.2"]],
     ["ms", ["2.0.0", "2.1.2", "2.1.3"]],
     ["no-case", ["2.3.2", "3.0.4"]],
     ["nopt", ["5.0.0", "6.0.0"]],
@@ -199,13 +212,13 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["pump", ["2.0.1", "3.0.0"]],
     ["punycode", ["1.3.2", "2.3.1"]],
     ["react-is", ["16.13.1", "17.0.2", "18.2.0"]],
-    ["readable-stream", ["2.3.7", "3.6.0"]],
+    ["readable-stream", ["2.3.7", "3.6.0", "4.7.0"]],
     ["regenerator-runtime", ["0.10.5", "0.13.11"]],
     ["resolve-from", ["4.0.0", "5.0.0"]],
     ["resolve", ["1.22.8", "2.0.0-next.5"]],
     ["safe-buffer", ["5.1.2", "5.2.1"]],
     ["scheduler", ["0.20.2", "0.23.0"]],
-    ["semver", ["5.7.2", "6.3.1", "7.6.3"]],
+    ["semver", ["5.7.2", "6.3.1", "7.7.1"]],
     ["signal-exit", ["3.0.7", "4.1.0"]],
     ["slash", ["3.0.0", "4.0.0"]],
     ["source-map-support", ["0.5.13", "0.5.21"]],
@@ -231,7 +244,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["unist-util-visit", ["4.1.1", "5.0.0"]],
     ["universalify", ["0.1.2", "0.2.0", "2.0.0"]],
     ["upper-case", ["1.1.3", "2.0.2"]],
-    ["uuid", ["8.0.0", "8.3.2", "9.0.1"]],
+    ["uuid", ["8.0.0", "8.3.2", "9.0.1", "11.1.0"]],
     ["validate-npm-package-name", ["4.0.0", "5.0.1"]],
     ["webidl-conversions", ["3.0.1", "7.0.0"]],
     ["whatwg-url", ["5.0.0", "11.0.0"]],
@@ -240,7 +253,7 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["ws", ["7.5.9", "8.18.0"]],
     ["yallist", ["2.1.2", "3.1.1", "4.0.0"]],
     ["yargs-parser", ["20.2.9", "21.1.1"]],
-    ["yargs", ["16.2.0", "17.6.2"]],
+    ["yargs", ["16.2.0", "17.7.2"]],
     ["youch", ["2.2.2", "3.2.3"]],
 ]);
 
