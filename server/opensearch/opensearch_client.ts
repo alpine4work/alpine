@@ -573,6 +573,7 @@ export abstract class OpensearchBulkCommandBase<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > {
     public abstract readonly index: Index;
+    public abstract readonly isNonSearchServerlessCollectionTypeSafe: boolean;
     public abstract readonly routing: OpensearchIndexRoutingType<Index>;
     public abstract readonly id: OpensearchIndexDocIdType<Index> | null;
 
@@ -588,6 +589,7 @@ export class OpensearchIndexDocIfVersionCommand<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > extends OpensearchBulkCommandBase<Index> {
     public readonly index: Index;
+    public readonly isNonSearchServerlessCollectionTypeSafe: boolean = false;
     public readonly routing: OpensearchIndexRoutingType<Index>;
     public readonly id: OpensearchIndexDocIdType<Index>;
     public readonly doc: OpensearchClientDocWithIdAndVersion<
@@ -624,6 +626,7 @@ export class OpensearchIndexDocWithoutIdCommand<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > extends OpensearchBulkCommandBase<Index> {
     public readonly index: Index;
+    public readonly isNonSearchServerlessCollectionTypeSafe: boolean = true;
     public readonly routing: OpensearchIndexRoutingType<Index>;
     public readonly id: null;
     public readonly doc: OpensearchIndexDocType<Index>;
@@ -652,6 +655,7 @@ export class OpensearchDeleteDocCommand<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > extends OpensearchBulkCommandBase<Index> {
     public readonly index: Index;
+    public readonly isNonSearchServerlessCollectionTypeSafe: boolean = true;
     public readonly routing: OpensearchIndexRoutingType<Index>;
     public readonly id: OpensearchIndexDocIdType<Index>;
 
@@ -1700,7 +1704,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             // OpenSearch serverless time series and vector search collections don't
             // support indexing by custom document ID. Ban it in our client so developers
             // don't accidentally add a call that works in development and in tests.
-            if (command.id !== null && command.index.serverlessCollectionType !== "Search") {
+            if (
+                !command.isNonSearchServerlessCollectionTypeSafe &&
+                command.index.serverlessCollectionType !== "Search"
+            ) {
                 throw new InternalError(
                     quote`Can't use custom document IDs in OpenSearch index ${command.index.name} because its serverless collection type is ${command.index.serverlessCollectionType}`,
                 );
