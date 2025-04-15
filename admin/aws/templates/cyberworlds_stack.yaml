@@ -4781,20 +4781,6 @@ Outputs:
                 - Arn
         Export:
             Name: CyberworldsStack:DeployTableArn
-    OpensearchArnExport:
-        Value:
-            Fn::GetAtt:
-                - OpensearchDomainCED7C974
-                - Arn
-        Export:
-            Name: CyberworldsStack:OpensearchArn
-    OpensearchHostExport:
-        Value:
-            Fn::GetAtt:
-                - OpensearchDomainCED7C974
-                - DomainEndpoint
-        Export:
-            Name: CyberworldsStack:OpensearchHost
     JobQueueArnExport:
         Value:
             Fn::GetAtt:
