@@ -107,6 +107,9 @@ patchedDependencies:
   '@web3-storage/multipart-parser@1.0.0':
     hash: ayyfgljgypwwq3tsszvlpoikva
     path: admin/patches/@web3-storage__multipart-parser@1.0.0.patch
+  aws-cdk@2.1007.0:
+    hash: zouwzmdygfqgbpnva3tznldfly
+    path: admin/patches/aws-cdk@2.1007.0.patch
   aws4fetch@1.0.17:
     hash: brhmadvobndkkryeoeeq5ezl4u
     path: admin/patches/aws4fetch@1.0.17.patch
@@ -169,6 +172,9 @@ importers:
 
   .:
     dependencies:
+      '@aws-sdk/client-cloudformation':
+        specifier: 3.787.0
+        version: 3.787.0
       '@aws-sdk/client-dynamodb':
         specifier: 3.787.0
         version: 3.787.0
@@ -588,7 +594,7 @@ importers:
         version: 10.4.15(postcss@8.4.41)
       aws-cdk:
         specifier: 2.1007.0
-        version: 2.1007.0
+        version: 2.1007.0(patch_hash=zouwzmdygfqgbpnva3tznldfly)
       aws-cdk-lib:
         specifier: 2.189.1
         version: 2.189.1(constructs@10.1.143)
@@ -1049,6 +1055,10 @@ packages:
 
   '@aws-crypto/util@5.2.0':
     resolution: {integrity: sha512-4RkU9EsI6ZpBve5fseQlGNUWKMa1RLPQ1dnjnQoe07ldfIzcsGb5hC5W0Dm7u423KWzawlrpbjXBrXCEv9zazQ==}
+
+  '@aws-sdk/client-cloudformation@3.787.0':
+    resolution: {integrity: sha512-M+v9Sm/aosKKDvJYiegxb5KIvH3TUrXVBHsk1xRWtMxIbnNwUrSzFCafFpV2FFetGa/Ie4r8hMrBATYnbohO6A==}
+    engines: {node: '>=18.0.0'}
 
   '@aws-sdk/client-cognito-identity@3.787.0':
     resolution: {integrity: sha512-7v6nywZ5wcQxX7qdZ5M1ld15QdkzLU6fAKiEqbvJKu4dM8cFW6As+DbS990Mg46pp1xM/yvme+51xZDTfTfJZA==}
@@ -8766,6 +8776,53 @@ snapshots:
       '@smithy/util-utf8': 2.3.0
       tslib: 2.6.3
 
+  '@aws-sdk/client-cloudformation@3.787.0':
+    dependencies:
+      '@aws-crypto/sha256-browser': 5.2.0
+      '@aws-crypto/sha256-js': 5.2.0
+      '@aws-sdk/core': 3.775.0
+      '@aws-sdk/credential-provider-node': 3.787.0
+      '@aws-sdk/middleware-host-header': 3.775.0
+      '@aws-sdk/middleware-logger': 3.775.0
+      '@aws-sdk/middleware-recursion-detection': 3.775.0
+      '@aws-sdk/middleware-user-agent': 3.787.0
+      '@aws-sdk/region-config-resolver': 3.775.0
+      '@aws-sdk/types': 3.775.0
+      '@aws-sdk/util-endpoints': 3.787.0
+      '@aws-sdk/util-user-agent-browser': 3.775.0
+      '@aws-sdk/util-user-agent-node': 3.787.0
+      '@smithy/config-resolver': 4.1.0
+      '@smithy/core': 3.2.0
+      '@smithy/fetch-http-handler': 5.0.2
+      '@smithy/hash-node': 4.0.2
+      '@smithy/invalid-dependency': 4.0.2
+      '@smithy/middleware-content-length': 4.0.2
+      '@smithy/middleware-endpoint': 4.1.0
+      '@smithy/middleware-retry': 4.1.0
+      '@smithy/middleware-serde': 4.0.3
+      '@smithy/middleware-stack': 4.0.2
+      '@smithy/node-config-provider': 4.0.2
+      '@smithy/node-http-handler': 4.0.4
+      '@smithy/protocol-http': 5.1.0
+      '@smithy/smithy-client': 4.2.0
+      '@smithy/types': 4.2.0
+      '@smithy/url-parser': 4.0.2
+      '@smithy/util-base64': 4.0.0
+      '@smithy/util-body-length-browser': 4.0.0
+      '@smithy/util-body-length-node': 4.0.0
+      '@smithy/util-defaults-mode-browser': 4.0.8
+      '@smithy/util-defaults-mode-node': 4.0.8
+      '@smithy/util-endpoints': 3.0.2
+      '@smithy/util-middleware': 4.0.2
+      '@smithy/util-retry': 4.0.2
+      '@smithy/util-utf8': 4.0.0
+      '@smithy/util-waiter': 4.0.3
+      '@types/uuid': 9.0.8
+      tslib: 2.6.3
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - aws-crt
+
   '@aws-sdk/client-cognito-identity@3.787.0':
     dependencies:
       '@aws-crypto/sha256-browser': 5.2.0
@@ -13456,7 +13513,7 @@ snapshots:
       '@aws-cdk/cloud-assembly-schema': 41.2.0
       constructs: 10.1.143
 
-  aws-cdk@2.1007.0:
+  aws-cdk@2.1007.0(patch_hash=zouwzmdygfqgbpnva3tznldfly):
     dependencies:
       '@aws-cdk/cloud-assembly-schema': 41.2.0
       '@aws-cdk/cloudformation-diff': 2.180.0

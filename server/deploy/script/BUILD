@@ -16,6 +16,7 @@ ts_project(
         "//server/edge:wrangler",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/client-cloudformation",
         "//:node_modules/@aws-sdk/client-s3",
         "//:node_modules/@octokit/auth-action",
         "//:node_modules/@types/fs-extra",

@@ -29,6 +29,7 @@ ts_project(
         "//app/static:static_manifest",
         "//server/helpers/node",
         "//server/node",
+        "//server/opensearch",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

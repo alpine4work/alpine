@@ -16,6 +16,7 @@ ts_project(
         ":opensearch_visibility",
         "//:node_modules/fast-glob",
         "//server/dynamo/core",
+        "//server/dynamo/core/general_realtime",
         "//server/helpers/node",
         "//server/opensearch",
         "//shared/helpers",

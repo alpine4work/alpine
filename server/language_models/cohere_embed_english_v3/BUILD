@@ -12,6 +12,7 @@ ts_project(
         ":cohere_embed_english_v3_data",
         "//:node_modules/@types/node",
         "//:node_modules/@xenova/transformers",
+        "//server/helpers/node",
         "//server/language_models/core",
         "//shared/error",
         "//shared/helpers",

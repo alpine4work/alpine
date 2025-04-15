@@ -9,6 +9,7 @@ ts_project(
     ] + [
         "//admin/crawl:__pkg__",
         "//admin/opensearch:__subpackages__",
+        "//app:__pkg__",
         "//server/dynamo/test_helpers:__pkg__",
     ],
     deps = [

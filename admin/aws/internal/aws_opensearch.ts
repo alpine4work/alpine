@@ -11,17 +11,12 @@ import {Domain, EngineVersion, IDomain} from "aws-cdk-lib/aws-opensearchservice"
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
-import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {crawlOpensearchIndexes} from "~/admin/crawl/crawl.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {
-    OpensearchIndex,
-    OpensearchServerlessCollectionType,
-} from "~/server/opensearch/opensearch_index.js";
+import {OpensearchServerlessCollectionType} from "~/server/opensearch/opensearch_index.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {convertSnakeCaseToPascalCase} from "~/shared/helpers/string/convert_snake_case_to_pascal_case.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
@@ -35,16 +30,10 @@ const opensearchDeployScriptLambdaPath = joinPath(
 
 const opensearchDeployScriptLambdaHandler = `${opensearchDeployScriptLambdaRelativePath}.handler`;
 
-const opensearchDeployScriptLambdaHash = await getFileSha256Hash(opensearchDeployScriptLambdaPath);
-
-async function getFileSha256Hash(path: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const hash = crypto.createHash("sha256");
-        const stream = fs.createReadStream(path);
-        stream.on("error", reject);
-        stream.on("data", chunk => hash.update(chunk));
-        stream.on("end", () => resolve(hash.digest("hex")));
-    });
+function getSha256Hash(string: string): string {
+    const hash = crypto.createHash("sha256");
+    hash.update(string);
+    return hash.digest("hex");
 }
 
 export class AwsOpensearch {
@@ -85,6 +74,8 @@ export class AwsOpensearch {
             },
         });
 
+        // NOCOMMIT:
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const collectionByServerlessCollectionType: Record<
             OpensearchServerlessCollectionType,
             AwsOpensearchServerlessCollection
@@ -103,14 +94,10 @@ export class AwsOpensearch {
             ),
         };
 
-        for (const index of await crawlOpensearchIndexes()) {
-            const collection = collectionByServerlessCollectionType[index.serverlessCollectionType];
-            collection.addIndex(`${convertSnakeCaseToPascalCase(index.name)}Index`, index);
-        }
+        const indexes = await crawlOpensearchIndexes();
+        const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
 
         // OpenSearch deploy script:
-        //
-        // NOCOMMIT: Delete this
         {
             // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
             // `NodejsLambda` since we bundle the code ourselves.
@@ -146,13 +133,10 @@ export class AwsOpensearch {
             const deployScriptResource = new CustomResource(construct, "DeployScriptResource", {
                 serviceToken: deployScriptProvider.serviceToken,
                 properties: {
-                    // Re-run our deploy script whenever the script file itself changes. This means
-                    // the script will run more often than it needs to, but that's fine the script
-                    // should be idempotent.
-                    //
-                    // We could instead build some other hash of index settings and mappings and
-                    // only re-run when that changes as an optimization.
-                    deployScriptLambdaIndexHash: opensearchDeployScriptLambdaHash,
+                    // Re-run our deploy script whenever the config for an OpenSearch index changes.
+                    // The script should be idempotent so will not change any previously deployed
+                    // OpenSearch indexes.
+                    indexesHash,
                 },
             });
 
@@ -300,19 +284,5 @@ class AwsOpensearchServerlessCollection extends Construct {
         assert(networkSecurityPolicy.name.length <= 32);
         assert(encryptionSecurityPolicy.name.length <= 32);
         assert(this._collection.name.length <= 32);
-    }
-
-    /**
-     * Add an index to the OpenSearch collection.
-     */
-    public addIndex(id: string, index: OpensearchIndex<any, any, any, any, any>) {
-        const actualIndex = new opensearchserverless.CfnIndex(this, id, {
-            collectionEndpoint: this._collection.attrCollectionEndpoint,
-            indexName: index.name,
-            settings: index.config.settings,
-            mappings: index.config.mappings,
-        });
-
-        actualIndex.addDependency(this._collection);
     }
 }

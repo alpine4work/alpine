@@ -10,6 +10,7 @@
         }
     },
     "dependencies": {
+        "@aws-sdk/client-cloudformation": "3.787.0",
         "@aws-sdk/client-dynamodb": "3.787.0",
         "@aws-sdk/client-ec2": "3.787.0",
         "@aws-sdk/client-ecr": "3.787.0",
@@ -370,7 +371,8 @@
             "@cloudflare/workers-types@4.20241112.0": "admin/patches/@cloudflare__workers-types@4.20241112.0.patch",
             "@miniflare/shared@2.14.4": "admin/patches/@miniflare__shared@2.14.4.patch",
             "yjs@13.6.6": "admin/patches/yjs@13.6.6.patch",
-            "@dnd-kit/sortable@7.0.2": "admin/patches/@dnd-kit__sortable@7.0.2.patch"
+            "@dnd-kit/sortable@7.0.2": "admin/patches/@dnd-kit__sortable@7.0.2.patch",
+            "aws-cdk@2.1007.0": "admin/patches/aws-cdk@2.1007.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

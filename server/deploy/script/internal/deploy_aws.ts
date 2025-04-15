@@ -1,14 +1,19 @@
-import {
-    IActivityPrinter,
-    StackActivity,
-    StackActivityMonitor,
-} from "aws-cdk/lib/api/util/cloudformation/stack-activity-monitor.js";
-import {exec} from "aws-cdk/lib/cli.js";
+import type {StackEvent} from "@aws-sdk/client-cloudformation";
+import {HistoryActivityPrinter} from "aws-cdk/lib/cli/activity-printer/history.js";
+import {exec} from "aws-cdk/lib/cli/cli.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
 import {TraceSpanId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+// Derived from:
+// https://github.com/aws/aws-cdk-cli/blob/4bd61490bf8d65b952f260bc99af93b9f70befe2/packages/%40aws-cdk/tmp-toolkit-helpers/src/payloads/stack-activity.ts#L36-L61
+type StackActivity = {
+    readonly deployment: string;
+    readonly event: StackEvent;
+};
 
 /**
  * This function runs `bazel run //admin/aws:cdk -- deploy --all`.
@@ -22,39 +27,43 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * files. This allows us to hook into `aws-cdk`'s internals to add custom
  * tracing.
  */
-export async function deployAws(span: TracerSpan) {
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    const originalWithDefaultPrinter = StackActivityMonitor.withDefaultPrinter;
+export async function deployAws(parentSpan: TracerSpan) {
+    const resourceById = new Map<
+        string,
+        {
+            startTime: number;
+            startStatus?: string;
+            startStatusReason?: string;
+            errorStatus?: string;
+            errorStatusReason?: string;
+            error?: ErrorBase;
+            otherErrors?: Array<ErrorBase>;
+        }
+    >();
 
-    // The `StackActivityMonitor` class is what's responsible for printing updates
-    // to stdout during a deploy. We hook into this class so we can log updates to
-    // our tracing provider.
+    const originalActivity = assertExists(HistoryActivityPrinter.prototype.activity);
+
+    // The `HistoryActivityPrinter` class is what's responsible for printing
+    // updates to stdout during a deploy. We hook into this class so we can log
+    // updates to our tracing provider.
     //
-    // https://github.com/aws/aws-cdk/blob/c8e5924bbc83b91b929838518f4955dd3bbb884f/packages/aws-cdk/lib/api/util/cloudformation/stack-activity-monitor.ts#L86
-    const overrideWithDefaultPrinter: typeof originalWithDefaultPrinter = function (
-        this: typeof StackActivityMonitor,
-        ...args
+    // https://github.com/aws/aws-cdk-cli/blob/4bd61490bf8d65b952f260bc99af93b9f70befe2/packages/%40aws-cdk/tmp-toolkit-helpers/src/private/activity-printer/history.ts#L14
+    const overrideActivity: typeof originalActivity = function (
+        this: typeof HistoryActivityPrinter,
+        ...args: [StackActivity]
     ) {
-        const monitor = originalWithDefaultPrinter.call(this, ...args);
-
-        let printer: IActivityPrinter =
-            // @ts-expect-error: We're accessing a private property.
-            monitor.printer;
-
-        // Wrap the selected printer with our printer class...
-        printer = new TracerActivityPrinter(span, printer);
-
-        // @ts-expect-error: We're accessing a private property.
-        monitor.printer = printer;
-
-        return monitor;
+        addActivityForTracer(args[0]);
+        return originalActivity.call(this, ...args);
     };
 
     try {
-        StackActivityMonitor.withDefaultPrinter = overrideWithDefaultPrinter;
+        HistoryActivityPrinter.prototype.activity = overrideActivity;
         await exec([
             "deploy",
             "--all",
+            // Make sure `HistoryActivityPrinter` is used which we override with custom
+            // logging.
+            "--progress=events",
             // Never ask for approval in CI for IAM or security group related changes.
             // Instead of requiring approval when `cdk deploy` is run we have a separate
             // mechanism to get approval.
@@ -76,64 +85,20 @@ export async function deployAws(span: TracerSpan) {
             "--require-approval=never",
         ]);
     } finally {
-        StackActivityMonitor.withDefaultPrinter = originalWithDefaultPrinter;
-    }
-}
-
-class TracerActivityPrinter implements IActivityPrinter {
-    private readonly _span: TracerSpan;
-    private readonly _printer: IActivityPrinter;
-
-    private readonly _resourceById = new Map<
-        string,
-        {
-            startTime: number;
-            startStatus?: string;
-            startStatusReason?: string;
-            errorStatus?: string;
-            errorStatusReason?: string;
-            error?: ErrorBase;
-            otherErrors?: Array<ErrorBase>;
-        }
-    >();
-
-    constructor(span: TracerSpan, printer: IActivityPrinter) {
-        this._span = span;
-        this._printer = printer;
-    }
-
-    public get updateSleep() {
-        return this._printer.updateSleep;
-    }
-
-    public addActivity(activity: StackActivity) {
-        this._printer.addActivity(activity);
-        this._addActivityForTracer(activity);
-    }
-
-    public print() {
-        this._printer.print();
-    }
-
-    public start() {
-        this._printer.start();
-    }
-
-    public stop() {
-        this._printer.stop();
+        HistoryActivityPrinter.prototype.activity = originalActivity;
     }
 
     // Derived from `ActivityPrinterBase.addActivity()`:
     // https://github.com/aws/aws-cdk/blob/c8e5924bbc83b91b929838518f4955dd3bbb884f/packages/aws-cdk/lib/api/util/cloudformation/stack-activity-monitor.ts#L439-L495
-    private _addActivityForTracer(activity: StackActivity) {
+    function addActivityForTracer(activity: StackActivity) {
         const status = activity.event.ResourceStatus;
         const logicalResourceId = activity.event.LogicalResourceId;
         if (!status || !logicalResourceId) return;
 
-        const eventTime = activity.event.Timestamp.getTime();
+        const eventTime = activity.event.Timestamp!.getTime();
 
         if (status.endsWith("_IN_PROGRESS")) {
-            const resource = getOrSetDefaultMapValue(this._resourceById, logicalResourceId, () => ({
+            const resource = getOrSetDefaultMapValue(resourceById, logicalResourceId, () => ({
                 startTime: eventTime,
             }));
 
@@ -143,7 +108,7 @@ class TracerActivityPrinter implements IActivityPrinter {
         }
 
         if (isErrorStackEventResourceStatus(status)) {
-            const resource = getOrSetDefaultMapValue(this._resourceById, logicalResourceId, () => ({
+            const resource = getOrSetDefaultMapValue(resourceById, logicalResourceId, () => ({
                 startTime: eventTime,
             }));
 
@@ -166,22 +131,22 @@ class TracerActivityPrinter implements IActivityPrinter {
         }
 
         if (status.endsWith("_COMPLETE") || status.endsWith("_FAILED")) {
-            const resource = getOrSetDefaultMapValue(this._resourceById, logicalResourceId, () => ({
+            const resource = getOrSetDefaultMapValue(resourceById, logicalResourceId, () => ({
                 startTime: eventTime,
             }));
 
             resource.startTime = Math.min(resource.startTime, eventTime);
-            this._resourceById.delete(logicalResourceId);
+            resourceById.delete(logicalResourceId);
 
             const {span, finishSpan} = TracerSpan._startWithEndTime(
-                this._span.getRoot(),
-                this._span.clock,
+                parentSpan.getRoot(),
+                parentSpan.clock,
                 `CloudFormation ${logicalResourceId}`,
                 {
-                    traceId: this._span.traceId,
-                    parentId: this._span._getSpanId(),
-                    propagatedEventData: this._span._getPropagatedEventData(),
-                    propagatedEventFlatData: this._span._getPropagatedEventFlatData(),
+                    traceId: parentSpan.traceId,
+                    parentId: parentSpan._getSpanId(),
+                    propagatedEventData: parentSpan._getPropagatedEventData(),
+                    propagatedEventFlatData: parentSpan._getPropagatedEventFlatData(),
                 },
                 generateId<TraceSpanId>(),
                 resource.startTime,
