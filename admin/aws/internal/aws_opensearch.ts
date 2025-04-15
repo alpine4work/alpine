@@ -2,7 +2,7 @@
 // NOCOMMIT: Delete the above comment ^
 
 import {CfnOutput, CustomResource, Duration, Fn, Stack} from "aws-cdk-lib";
-import {IConnectable, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
+import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {IGrantable, IRole} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
@@ -95,6 +95,17 @@ export class AwsOpensearch {
             ),
         };
 
+        const vpcEndpointSecurityGroup = new SecurityGroup(construct, "VpcEndpointSecurityGroup", {
+            vpc,
+        });
+
+        new opensearchserverless.CfnVpcEndpoint(construct, "VpcEndpoint", {
+            name: "vpc",
+            vpcId: vpc.vpcId,
+            subnetIds: vpc.selectSubnets().subnetIds,
+            securityGroupIds: [vpcEndpointSecurityGroup.securityGroupId],
+        });
+
         const indexes = await crawlOpensearchIndexes();
         const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
 
@@ -128,6 +139,8 @@ export class AwsOpensearch {
                 // Don't retain deploy script logs forever.
                 logRetention: RetentionDays.ONE_MONTH,
             });
+
+            vpcEndpointSecurityGroup.connections.allowFrom(deployScript, Port.tcp(443));
 
             for (const collection of Object.values(collectionByServerlessCollectionType)) {
                 collection.addDeployScriptAccessPolicy(
@@ -237,8 +250,6 @@ class AwsOpensearchServerlessCollection extends Construct {
     ) {
         super(parentConstruct, id);
 
-        // NOCOMMIT: Make sure administrator group gets dashboard access. Do we need a
-        // data access policy for this?
         const networkSecurityPolicy = new opensearchserverless.CfnSecurityPolicy(
             this,
             "NetworkSecurityPolicy",

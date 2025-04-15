@@ -9,6 +9,13 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
+const urlByServerlessCollectionType: Record<OpensearchServerlessCollectionType, string> = {
+    Search: assertExists(process.env.OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT),
+    VectorSearch: assertExists(
+        process.env.OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT,
+    ),
+};
+
 /**
  * Our OpenSearch deploy script is called by the AWS CDK as a [CloudFormation
  * custom resource][1]. It runs in [AWS Lambda][2].
@@ -17,13 +24,6 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
  * [2]: https://aws.amazon.com/lambda/
  */
 export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomResourceResponse> {
-    const urlByServerlessCollectionType: Record<OpensearchServerlessCollectionType, string> = {
-        Search: assertExists(process.env.OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT),
-        VectorSearch: assertExists(
-            process.env.OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT,
-        ),
-    };
-
     if (event.RequestType === "Delete") {
         return {
             StackId: event.StackId,
@@ -31,8 +31,6 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
             LogicalResourceId: event.LogicalResourceId,
         };
     }
-
-    let waitUntilPromises = new Set<Promise<unknown>>();
 
     const tracer = TracerRoot.new({
         serviceName: "Adhoc",
@@ -71,13 +69,6 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
         deployTaskIndexes(tracer, client),
         deploySearchEntityIndexes(tracer, client),
     ]);
-
-    // Wait for any promises passed into `waitUntil()` to resolve before returning.
-    while (waitUntilPromises.size > 0) {
-        const promises = waitUntilPromises;
-        waitUntilPromises = new Set();
-        await runAllPromises(promises);
-    }
 
     return {
         StackId: event.StackId,

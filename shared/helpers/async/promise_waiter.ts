@@ -22,7 +22,9 @@ export class PromiseWaiter {
      * When `wait()` is called it won't resolve until the provided promise
      * resolves.
      */
-    public waitUntil(action: PromiseLike<unknown> | (() => PromiseLike<unknown>)): void {
+    public readonly waitUntil = (
+        action: PromiseLike<unknown> | (() => PromiseLike<unknown>),
+    ): void => {
         const promise = typeof action === "function" ? action() : action;
 
         // No unhandled promise exception warnings. Exceptions will be handled when
@@ -37,7 +39,7 @@ export class PromiseWaiter {
         );
 
         this._promises.add(promise);
-    }
+    };
 
     /**
      * Wait for all promises added with `waitUntil()` to resolve. If any of the

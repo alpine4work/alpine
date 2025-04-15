@@ -56,6 +56,7 @@ export type TracerServiceName =
     | "Test"
     | "MigrationService"
     | "DeployService"
+    | "OpensearchDeployScript"
     | "AppClient"
     | "AppService"
     | "EdgeService"

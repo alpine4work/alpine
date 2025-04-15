@@ -547,6 +547,51 @@ Resources:
             - OpensearchVectorSearchCollection70A16089
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/DeployScriptAccessPolicy
+    OpensearchVpcEndpointSecurityGroup1152B57F:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup/Resource
+    OpensearchVpcEndpointSecurityGroupfromCyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E443DA48B85F:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchVpcEndpointSecurityGroup1152B57F
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - OpensearchDeployScriptSecurityGroup318E660E
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup/from
+                CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
+    OpensearchVpcEndpoint63C5C990:
+        Type: AWS::OpenSearchServerless::VpcEndpoint
+        Properties:
+            Name: vpc
+            SecurityGroupIds:
+                - Fn::GetAtt:
+                      - OpensearchVpcEndpointSecurityGroup1152B57F
+                      - GroupId
+            SubnetIds:
+                - Ref: VpcIsolatedSubnet1SubnetE48C5737
+                - Ref: VpcIsolatedSubnet2Subnet16364B91
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpoint
     OpensearchDeployScriptServiceRoleFC0ECCBE:
         Type: AWS::IAM::Role
         Properties:
