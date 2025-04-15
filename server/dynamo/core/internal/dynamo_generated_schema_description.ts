@@ -7973,29 +7973,6 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "scheduledJobs": {
-                                        "valueSchema": {
-                                            "type": "Array",
-                                            "itemSchema": {
-                                                "type": "Object",
-                                                "propertySchemaByKey": {
-                                                    "id": {
-                                                        "valueSchema": {
-                                                            "type": "Id"
-                                                        },
-                                                        "optional": false
-                                                    },
-                                                    "startTime": {
-                                                        "valueSchema": {
-                                                            "type": "Date"
-                                                        },
-                                                        "optional": false
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        "optional": false
-                                    },
                                     "activeJob": {
                                         "valueSchema": {
                                             "type": "Nullable",
@@ -8015,6 +7992,29 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "optional": false
                                                     },
                                                     "expirationTime": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": false
+                                    },
+                                    "scheduledJobs": {
+                                        "valueSchema": {
+                                            "type": "Array",
+                                            "itemSchema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "id": {
+                                                        "valueSchema": {
+                                                            "type": "Id"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "startTime": {
                                                         "valueSchema": {
                                                             "type": "Date"
                                                         },
