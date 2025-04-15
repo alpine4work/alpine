@@ -18,7 +18,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsOpensearchWithConnections} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
@@ -42,7 +42,7 @@ export class AwsTaskRealtimeService extends Construct {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
-            opensearch: AwsOpensearchWithConnections;
+            opensearch: AwsOpensearch;
             sqs: AwsSqs;
         },
     ) {

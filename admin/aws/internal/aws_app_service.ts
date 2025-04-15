@@ -19,7 +19,7 @@ import {Construct} from "constructs";
 import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
-import {AwsOpensearchWithConnections} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {awsServiceInstanceClass} from "~/admin/aws/internal/aws_service_instance_class.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
@@ -41,7 +41,7 @@ export class AwsAppService extends Construct {
             ecsCluster: AwsEcsCluster;
             cloudflareAccountId: string;
             dynamo: AwsDynamo;
-            opensearch: AwsOpensearchWithConnections;
+            opensearch: AwsOpensearch;
             sqs: AwsSqs;
             taskRealtimeService: AwsTaskRealtimeService;
         },

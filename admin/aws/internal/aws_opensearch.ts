@@ -1,13 +1,13 @@
 /* eslint-disable no-commit-blockers */
 // NOCOMMIT: Delete the above comment ^
 
-import {CfnOutput, CustomResource, Duration, Fn, Stack} from "aws-cdk-lib";
+import {CustomResource, Duration} from "aws-cdk-lib";
 import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {IGrantable, IRole} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import * as opensearchserverless from "aws-cdk-lib/aws-opensearchserverless";
-import {Domain, EngineVersion, IDomain} from "aws-cdk-lib/aws-opensearchservice";
+import {Domain, EngineVersion} from "aws-cdk-lib/aws-opensearchservice";
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
@@ -40,9 +40,9 @@ function getSha256Hash(string: string): string {
 }
 
 export class AwsOpensearch {
-    protected readonly _domain: IDomain;
+    private readonly _domain: Domain;
 
-    protected constructor(domain: IDomain) {
+    private constructor(domain: Domain) {
         this._domain = domain;
     }
 
@@ -167,11 +167,15 @@ export class AwsOpensearch {
             deployScriptResource.node.addDependency(domain);
         }
 
-        return AwsOpensearchWithConnections._new(domain);
+        return new AwsOpensearch(domain);
     }
 
     public get opensearchHost() {
         return this._domain.domainEndpoint;
+    }
+
+    public allowConnectionsFrom(other: IConnectable) {
+        this._domain.connections.allowFrom(other, Port.tcp(443));
     }
 
     public grantReadWriteData(grantee: IGrantable) {
@@ -185,45 +189,6 @@ export class AwsOpensearch {
         // careful when adding indexes to this domain.
         this._domain.grantPathReadWrite("_bulk", grantee);
         this._domain.grantPathReadWrite("_mget", grantee);
-    }
-
-    public export() {
-        new CfnOutput(this._domain.stack, "OpensearchArnExport", {
-            value: this._domain.domainArn,
-            exportName: `${this._domain.stack.stackName}:OpensearchArn`,
-        });
-
-        new CfnOutput(this._domain.stack, "OpensearchHostExport", {
-            value: this._domain.domainEndpoint,
-            exportName: `${this._domain.stack.stackName}:OpensearchHost`,
-        });
-
-        return (importStack: Stack) =>
-            new AwsOpensearch(
-                Domain.fromDomainAttributes(importStack, "OpensearchImport", {
-                    domainArn: Fn.importValue(`${this._domain.stack.stackName}:OpensearchArn`),
-                    domainEndpoint: Fn.importValue(
-                        `${this._domain.stack.stackName}:OpensearchHost`,
-                    ),
-                }),
-            );
-    }
-}
-
-export class AwsOpensearchWithConnections extends AwsOpensearch {
-    protected override readonly _domain: Domain;
-
-    private constructor(domain: Domain) {
-        super(domain);
-        this._domain = domain;
-    }
-
-    public static _new(domain: Domain) {
-        return new AwsOpensearchWithConnections(domain);
-    }
-
-    public allowConnectionsFrom(other: IConnectable) {
-        this._domain.connections.allowFrom(other, Port.tcp(443));
     }
 }
 

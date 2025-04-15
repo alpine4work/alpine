@@ -43,7 +43,6 @@ async function addAwsResources(
 ): Promise<{
     importVpc: (stack: Stack) => AwsVpc;
     importDynamo: (stack: Stack) => AwsDynamo;
-    importOpensearch: (stack: Stack) => AwsOpensearch;
     importSqs: (stack: Stack) => AwsSqs;
 }> {
     const vpc = new AwsVpc(stack);
@@ -116,7 +115,6 @@ async function addAwsResources(
     return {
         importVpc: vpc.export(),
         importDynamo: dynamo.export(["Deploy"]),
-        importOpensearch: opensearch.export(),
         importSqs: sqs.export(),
     };
 }
