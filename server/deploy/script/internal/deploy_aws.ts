@@ -1,6 +1,5 @@
 import type {StackEvent} from "@aws-sdk/client-cloudformation";
-import {HistoryActivityPrinter} from "aws-cdk/lib/cli/activity-printer/history.js";
-import {exec} from "aws-cdk/lib/cli/cli.js";
+import {exec, HistoryActivityPrinter} from "aws-cdk/lib";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -41,7 +40,8 @@ export async function deployAws(parentSpan: TracerSpan) {
         }
     >();
 
-    const originalActivity = assertExists((HistoryActivityPrinter as any).prototype.activity);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const originalActivity = assertExists(HistoryActivityPrinter.prototype.activity);
 
     // The `HistoryActivityPrinter` class is what's responsible for printing
     // updates to stdout during a deploy. We hook into this class so we can log

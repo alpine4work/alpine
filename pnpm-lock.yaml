@@ -108,7 +108,7 @@ patchedDependencies:
     hash: ayyfgljgypwwq3tsszvlpoikva
     path: admin/patches/@web3-storage__multipart-parser@1.0.0.patch
   aws-cdk@2.1007.0:
-    hash: zouwzmdygfqgbpnva3tznldfly
+    hash: pqyi7qxrm5bngccxhjirw6shme
     path: admin/patches/aws-cdk@2.1007.0.patch
   aws4fetch@1.0.17:
     hash: brhmadvobndkkryeoeeq5ezl4u
@@ -594,7 +594,7 @@ importers:
         version: 10.4.15(postcss@8.4.41)
       aws-cdk:
         specifier: 2.1007.0
-        version: 2.1007.0(patch_hash=zouwzmdygfqgbpnva3tznldfly)
+        version: 2.1007.0(patch_hash=pqyi7qxrm5bngccxhjirw6shme)
       aws-cdk-lib:
         specifier: 2.189.1
         version: 2.189.1(constructs@10.1.143)
@@ -13513,7 +13513,7 @@ snapshots:
       '@aws-cdk/cloud-assembly-schema': 41.2.0
       constructs: 10.1.143
 
-  aws-cdk@2.1007.0(patch_hash=zouwzmdygfqgbpnva3tznldfly):
+  aws-cdk@2.1007.0(patch_hash=pqyi7qxrm5bngccxhjirw6shme):
     dependencies:
       '@aws-cdk/cloud-assembly-schema': 41.2.0
       '@aws-cdk/cloudformation-diff': 2.180.0
