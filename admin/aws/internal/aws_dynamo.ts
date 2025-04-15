@@ -47,8 +47,8 @@ export class AwsDynamo {
                 deletionProtection: true,
                 // Enable point-in-time recovery as insurance against disaster. This
                 // effectively doubles our storage costs. As our costs increase we should
-                // consider only turning this on when we absolutely need it.
-                pointInTimeRecovery: true,
+                // consider only turning this on for tables that absolutely need it.
+                pointInTimeRecoverySpecification: {pointInTimeRecoveryEnabled: true},
 
                 // If we have predictable traffic patterns then provisioned billing mode may be
                 // cheaper. If we're consistently utilizing 100% provisioned capacity (very
