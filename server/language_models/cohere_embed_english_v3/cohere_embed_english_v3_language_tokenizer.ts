@@ -1,10 +1,5 @@
 // Only import types from `@xenova/transformers`. We dynamically import it at
 // runtime to avoid bundling the module in an `aws_lambda()`.
-//
-// NOTE(calebmer, 2025-04-15): I've deleted the OpenSearch deploy lambda so
-// currently there's no `aws_lambda()` rule which needs to import this file.
-// This funky import syntax, at this time, can be removed without breaking
-// anything.
 import type {BertTokenizer} from "@xenova/transformers";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";

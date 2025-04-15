@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/@types/node",
         "//:node_modules/@xenova/transformers",
         "//server/helpers",
+        "//server/helpers/node",
         "//server/language_models/core",
         "//shared/error",
         "//shared/helpers",

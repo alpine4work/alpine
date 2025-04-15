@@ -3,7 +3,7 @@
 
 import {CfnOutput, CustomResource, Duration, Fn, Stack} from "aws-cdk-lib";
 import {IConnectable, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
-import {Effect, IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {IGrantable, IRole} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import * as opensearchserverless from "aws-cdk-lib/aws-opensearchserverless";
@@ -17,6 +17,9 @@ import {crawlOpensearchIndexes} from "~/admin/crawl/crawl.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {OpensearchServerlessCollectionType} from "~/server/opensearch/opensearch_index.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
@@ -74,8 +77,6 @@ export class AwsOpensearch {
             },
         });
 
-        // NOCOMMIT:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const collectionByServerlessCollectionType: Record<
             OpensearchServerlessCollectionType,
             AwsOpensearchServerlessCollection
@@ -98,6 +99,13 @@ export class AwsOpensearch {
         const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
 
         // OpenSearch deploy script:
+        //
+        // NOTE(calebmer): We doesn't use the [CloudFormation
+        // `AWS::OpenSearchServerless::Index` resource][1] because that resource
+        // provides very little mappings/settings configuration options. Instead we
+        // have a custom CloudFormation resource that runs an AWS lambda deploy script.
+        //
+        // [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-opensearchserverless-index.html
         {
             // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
             // `NodejsLambda` since we bundle the code ourselves.
@@ -111,20 +119,22 @@ export class AwsOpensearch {
                 // runtime.
                 // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
                 runtime: Runtime.NODEJS_18_X,
-                environment: {OPENSEARCH_HOST: domain.domainEndpoint},
+                environment: {
+                    OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
+                        collectionByServerlessCollectionType.Search.collectionEndpoint,
+                    OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
+                        collectionByServerlessCollectionType.VectorSearch.collectionEndpoint,
+                },
                 // Don't retain deploy script logs forever.
                 logRetention: RetentionDays.ONE_MONTH,
             });
 
-            domain.connections.allowFrom(deployScript, Port.tcp(443));
-
-            deployScript.addToRolePolicy(
-                new PolicyStatement({
-                    effect: Effect.ALLOW,
-                    actions: ["es:*"],
-                    resources: [`${domain.domainArn}/*`],
-                }),
-            );
+            for (const collection of Object.values(collectionByServerlessCollectionType)) {
+                collection.addDeployScriptAccessPolicy(
+                    "DeployScriptAccessPolicy",
+                    assertExists(deployScript.role),
+                );
+            }
 
             const deployScriptProvider = new Provider(construct, "DeployScriptProvider", {
                 onEventHandler: deployScript,
@@ -283,6 +293,43 @@ class AwsOpensearchServerlessCollection extends Construct {
         // Make sure our names don't exceed the maximum length.
         assert(networkSecurityPolicy.name.length <= 32);
         assert(encryptionSecurityPolicy.name.length <= 32);
-        assert(this._collection.name.length <= 32);
+        assert(3 <= this._collection.name.length && this._collection.name.length <= 32);
+    }
+
+    public get collectionEndpoint() {
+        return this._collection.attrCollectionEndpoint;
+    }
+
+    public addDeployScriptAccessPolicy(id: string, role: IRole) {
+        const accessPolicy = new opensearchserverless.CfnAccessPolicy(this, id, {
+            name: convertPascalCaseToKebabCase(
+                id.endsWith("AccessPolicy") ? id.slice(0, -"AccessPolicy".length) : id,
+            ),
+            type: "data",
+            policy: JSON.stringify({
+                Description: quote`Access for ${role.roleName}`,
+                Principal: [role.roleArn],
+                Rules: [
+                    {
+                        ResourceType: "index",
+                        Resource: [`index/${this._collection.name}/*`],
+                        Permission: [
+                            "aoss:CreateIndex",
+                            "aoss:UpdateIndex",
+                            "aoss:DescribeIndex",
+                            "aoss:ReadDocument",
+                            "aoss:WriteDocument",
+
+                            // Intentionally don't allow `aoss:DeleteIndex`. Our deploy script doesn't
+                            // currently delete indexes so let's prevent accidental issues.
+                        ],
+                    },
+                ],
+            }),
+        });
+
+        accessPolicy.addDependency(this._collection);
+
+        assert(3 <= accessPolicy.name.length && accessPolicy.name.length <= 32);
     }
 }

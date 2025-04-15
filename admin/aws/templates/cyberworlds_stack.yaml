@@ -239,24 +239,6 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/Resource
-    OpensearchDomainSecurityGroupfromCyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E443C3C732FE:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
-            FromPort: 443
-            GroupId:
-                Fn::GetAtt:
-                    - OpensearchDomainSecurityGroup046A436D
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - OpensearchDeployScriptSecurityGroup318E660E
-                    - GroupId
-            ToPort: 443
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
     OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443E8DC0D69:
         Type: AWS::EC2::SecurityGroupIngress
         Properties:
@@ -500,6 +482,25 @@ Resources:
             - OpensearchSearchCollectionNetworkSecurityPolicy912BB5EF
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/Collection
+    OpensearchSearchCollectionDeployScriptAccessPolicy3BA88598:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: deploy-script
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '{"Description":"Access for \"'
+                      - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
+                      - \"","Principal":["
+                      - Fn::GetAtt:
+                            - OpensearchDeployScriptServiceRoleFC0ECCBE
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}'
+            Type: data
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/DeployScriptAccessPolicy
     OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
@@ -527,6 +528,25 @@ Resources:
             - OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/Collection
+    OpensearchVectorSearchCollectionDeployScriptAccessPolicy9B374C8D:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: deploy-script
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '{"Description":"Access for \"'
+                      - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
+                      - \"","Principal":["
+                      - Fn::GetAtt:
+                            - OpensearchDeployScriptServiceRoleFC0ECCBE
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}'
+            Type: data
+        DependsOn:
+            - OpensearchVectorSearchCollection70A16089
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/DeployScriptAccessPolicy
     OpensearchDeployScriptServiceRoleFC0ECCBE:
         Type: AWS::IAM::Role
         Properties:
@@ -553,29 +573,6 @@ Resources:
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/DeployScript/ServiceRole/Resource
-    OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D:
-        Type: AWS::IAM::Policy
-        Properties:
-            PolicyDocument:
-                Statement:
-                    - Action: es:*
-                      Effect: Allow
-                      Resource:
-                          Fn::Join:
-                              - ""
-                              - - Fn::GetAtt:
-                                      - OpensearchDomainCED7C974
-                                      - Arn
-                                - /*
-                Version: 2012-10-17
-            PolicyName: OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D
-            Roles:
-                - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/DeployScript/ServiceRole/DefaultPolicy/Resource
     OpensearchDeployScriptSecurityGroup318E660E:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -601,10 +598,14 @@ Resources:
                 S3Key: caebe64a01df3a35781eb90c8304940d9d437c81251de89eb46cdb713fd3d31e.zip
             Environment:
                 Variables:
-                    OPENSEARCH_HOST:
+                    OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
                         Fn::GetAtt:
-                            - OpensearchDomainCED7C974
-                            - DomainEndpoint
+                            - OpensearchSearchCollection9C677E01
+                            - CollectionEndpoint
+                    OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
+                        Fn::GetAtt:
+                            - OpensearchVectorSearchCollection70A16089
+                            - CollectionEndpoint
             Handler: cyberworlds/admin/aws/empty_lambda.handler
             Role:
                 Fn::GetAtt:
@@ -621,7 +622,6 @@ Resources:
                     - Ref: VpcIsolatedSubnet1SubnetE48C5737
                     - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
-            - OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D
             - OpensearchDeployScriptServiceRoleFC0ECCBE
             - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
@@ -741,7 +741,6 @@ Resources:
             - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443FA2B2481
             - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F
             - OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C
-            - OpensearchDomainSecurityGroupfromCyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E443C3C732FE
             - OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443E8DC0D69
             - OpensearchDomainSecurityGroup046A436D
             - OpensearchDomainSlowIndexLogs76621B18

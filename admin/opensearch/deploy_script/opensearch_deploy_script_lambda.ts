@@ -1,6 +1,7 @@
 import {CdkCustomResourceEvent, CdkCustomResourceResponse} from "aws-lambda";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {OpensearchServerlessCollectionType} from "~/server/opensearch/opensearch_index.js";
 import {deploySearchEntityIndexes} from "~/server/search/data/index/search_entity_index.js";
 import {deployTaskIndexes} from "~/server/tasks/data/task_index.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -16,7 +17,12 @@ import {TracerRoot} from "~/shared/tracer/tracer_root.js";
  * [2]: https://aws.amazon.com/lambda/
  */
 export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomResourceResponse> {
-    const opensearchUrl = `https://${assertExists(process.env.OPENSEARCH_HOST)}`;
+    const urlByServerlessCollectionType: Record<OpensearchServerlessCollectionType, string> = {
+        Search: assertExists(process.env.OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT),
+        VectorSearch: assertExists(
+            process.env.OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT,
+        ),
+    };
 
     if (event.RequestType === "Delete") {
         return {
@@ -56,10 +62,7 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
 
     const signer = new AwsRequestSigner();
     const client = new OpensearchClient({
-        urlByServerlessCollectionType: {
-            Search: opensearchUrl,
-            VectorSearch: opensearchUrl,
-        },
+        urlByServerlessCollectionType,
         signer,
         ensureLocalCachePath: null,
     });
