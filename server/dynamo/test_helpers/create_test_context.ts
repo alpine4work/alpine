@@ -517,7 +517,6 @@ export function createTestContext({
             opensearchContextModule.initialize(
                 new OpensearchClient({
                     urlByServerlessCollectionType: {
-                        TimeSeries: url,
                         Search: url,
                         VectorSearch: url,
                     },

@@ -34,7 +34,6 @@ export function createServiceOpensearchContextModule(
     return OpensearchContextModule.new(
         new OpensearchClient({
             urlByServerlessCollectionType: {
-                TimeSeries: url,
                 Search: url,
                 VectorSearch: url,
             },

@@ -75,7 +75,7 @@ import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
  * [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
  * [2]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-genref.html#serverless-operations
  */
-export type OpensearchServerlessCollectionType = "TimeSeries" | "Search" | "VectorSearch";
+export type OpensearchServerlessCollectionType = "Search" | "VectorSearch";
 
 export type OpensearchIndexConfig<FlattenedKeys extends string> = {
     readonly settings: {
@@ -324,7 +324,6 @@ export class OpensearchIndex<
         {
             let expectedRefreshInterval: string;
             switch (this.serverlessCollectionType) {
-                case "TimeSeries":
                 case "Search":
                     expectedRefreshInterval = "10s";
                     break;

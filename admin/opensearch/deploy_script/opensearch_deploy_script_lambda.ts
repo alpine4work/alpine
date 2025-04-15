@@ -57,7 +57,6 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
     const signer = new AwsRequestSigner();
     const client = new OpensearchClient({
         urlByServerlessCollectionType: {
-            TimeSeries: opensearchUrl,
             Search: opensearchUrl,
             VectorSearch: opensearchUrl,
         },
