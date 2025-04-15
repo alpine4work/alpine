@@ -41,7 +41,7 @@ export async function deployAws(parentSpan: TracerSpan) {
         }
     >();
 
-    const originalActivity = assertExists(HistoryActivityPrinter.prototype.activity);
+    const originalActivity = assertExists((HistoryActivityPrinter as any).prototype.activity);
 
     // The `HistoryActivityPrinter` class is what's responsible for printing
     // updates to stdout during a deploy. We hook into this class so we can log

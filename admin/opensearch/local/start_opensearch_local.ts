@@ -235,6 +235,24 @@ grant {
                     // [1]: https://docs.oracle.com/javase/8/docs/technotes/guides/security/PolicyFiles.html
                     `-Djava.security.manager -Djava.security.policy=${securityPolicyPath}`,
                 ].join(" "),
+
+                // Needed on Linux for Java to be able to correctly load the compiled Faiss
+                // library. Without this we get the following error:
+                //
+                // ```
+                // java.lang.UnsatisfiedLinkError: no opensearchknn_faiss in java.library.path: /usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib
+                // ```
+                //
+                // Resources:
+                //
+                // - [Example in `opensearch-tar-install.sh` startup script](https://github.com/opensearch-project/opensearch-build/blob/e8479607316e0e00b624e4a87782213d7ccd170b/scripts/startup/tar/linux/opensearch-tar-install.sh#L37-L52)
+                // - [Forum post discussing the error we were seeing](https://forum.opensearch.org/t/issue-with-opensearch-knn/12633/2)
+                LD_LIBRARY_PATH:
+                    process.platform !== "darwin"
+                        ? process.env.LD_LIBRARY_PATH
+                            ? `${process.env.LD_LIBRARY_PATH}:${homePath}/plugins/opensearch-knn/lib`
+                            : `${homePath}/plugins/opensearch-knn/lib`
+                        : undefined,
             },
             stdio: ["ignore", "pipe", "pipe"],
         },
