@@ -3,15 +3,79 @@ import {
     OpensearchIndexAnalysisCustomFilter,
 } from "~/server/opensearch/opensearch_index_analysis.js";
 import {OpensearchIndexObjectType} from "~/server/opensearch/opensearch_index_type.js";
+import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+
+/**
+ * In production we use AWS OpenSearch Serverless which adds additional
+ * limitations on top of OpenSearch to facilitate auto scaling. There are
+ * different collection types for AWS OpenSearch Serverless that impose
+ * different sets of limitations. From "[What is Amazon OpenSearch
+ * Serverless?][1]"
+ *
+ * > OpenSearch Serverless supports three primary collection types:
+ * >
+ * > Time series – The log analytics segment that analyzes large volumes of
+ * > semi-structured, machine-generated data in real-time, providing insights
+ * > into operations, security, user behavior, and business performance.
+ * >
+ * > Search – Full-text search that enables applications within internal
+ * > networks, such as content management systems and legal document
+ * > repositories, as well as internet-facing applications like e-commerce site
+ * > search and content discovery.
+ * >
+ * > Vector search – Semantic search on vector embeddings simplifies vector
+ * > data management and enables machine learning (ML)-augmented search
+ * > experiences. It supports generative AI applications such as chatbots,
+ * > personal assistants, and fraud detection.
+ * >
+ * > ...
+ * >
+ * > The collection types have the following notable differences:
+ * >
+ * > - For search and vector search collections, all data is stored in hot
+ * >   storage to ensure fast query response times. Time series collections use
+ * >   a combination of hot and warm storage, where the most recent data is
+ * >   kept in hot storage to optimize query response times for more frequently
+ * >   accessed data.
+ * >
+ * > - For time series and vector search collections, you can't index by custom
+ * >   document ID or update by upsert requests. This operation is reserved for
+ * >   search use cases. You can update by document ID instead. For more
+ * >   information, see [Supported OpenSearch API operations and
+ * >   permissions][2].
+ * >
+ * > - For search and time series collections, you can't use k-NN type indexes.
+ * >
+ * > ...
+ * >
+ * > ## Limitations
+ * >
+ * > ...
+ * >
+ * > - The refresh interval for indexes in vector search collections is
+ * >   approximately 60 seconds. The refresh interval for indexes in search and
+ * >   time series collections is approximately 10 seconds.
+ * >
+ * > ...
+ *
+ * Throughout our OpenSearch client code we make runtime assertions based on
+ * what's available for the collection type.
+ *
+ * [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-overview.html
+ * [2]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-genref.html#serverless-operations
+ */
+export type OpensearchServerlessCollectionType = "TimeSeries" | "Search" | "VectorSearch";
 
 export type OpensearchIndexConfig<FlattenedKeys extends string> = {
     readonly settings: {
@@ -116,6 +180,7 @@ export class OpensearchIndex<
     public readonly type: OpensearchIndexObjectType<Doc, FlattenedKeys, StoredFields>;
     public readonly name: string;
     public readonly config: OpensearchIndexConfig<FlattenedKeys>;
+    public readonly serverlessCollectionType: OpensearchServerlessCollectionType;
 
     // These properties do nothing but make sure the associated generic parameters
     // are used.
@@ -126,6 +191,7 @@ export class OpensearchIndex<
         type: OpensearchIndexObjectType<Doc, FlattenedKeys, StoredFields>,
         {
             name,
+            serverlessCollectionType,
             numberOfShards,
             numberOfRoutingShards,
             sort,
@@ -133,6 +199,7 @@ export class OpensearchIndex<
             disableSourceField = false,
         }: {
             name: string;
+            serverlessCollectionType: OpensearchServerlessCollectionType;
 
             /**
              * The number of physical shards for this index in our cluster. Each shard
@@ -250,6 +317,30 @@ export class OpensearchIndex<
 
         this.type = type;
         this.name = name;
+        this.serverlessCollectionType = serverlessCollectionType;
+
+        // Make sure we use the same refresh interval in development that OpenSearch
+        // serverless uses in production.
+        {
+            let expectedRefreshInterval: string;
+            switch (this.serverlessCollectionType) {
+                case "TimeSeries":
+                case "Search":
+                    expectedRefreshInterval = "10s";
+                    break;
+                case "VectorSearch":
+                    expectedRefreshInterval = "60s";
+                    break;
+                default:
+                    throw exhaustive(this.serverlessCollectionType);
+            }
+
+            if (refreshInterval !== expectedRefreshInterval) {
+                throw new InternalError(
+                    quote`Expected refresh interval for OpenSearch index ${this.name} to be ${expectedRefreshInterval} because its serverless collection type is ${this.serverlessCollectionType}`,
+                );
+            }
+        }
 
         const customAnalyzerByName = new Map<string, OpensearchIndexAnalysisCustomAnalyzer>();
         const customFilterByName = new Map<string, OpensearchIndexAnalysisCustomFilter>();
@@ -258,6 +349,15 @@ export class OpensearchIndex<
 
         const builder: OpensearchIndexConfigBuilder = {
             enableKnn: () => {
+                // OpenSearch serverless only supports k-NN indexes in the vector search
+                // collection type.
+                const expectedServerlessCollectionType = "VectorSearch";
+                if (this.serverlessCollectionType !== expectedServerlessCollectionType) {
+                    throw new InternalError(
+                        quote`Can't use k-NN in OpenSearch index ${this.name} because its serverless collection type is ${this.serverlessCollectionType}, not ${expectedServerlessCollectionType}`,
+                    );
+                }
+
                 shouldEnableKnn = true;
             },
             addCustomAnalyzer: analyzer => {

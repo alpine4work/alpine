@@ -1,5 +1,10 @@
 // Only import types from `@xenova/transformers`. We dynamically import it at
 // runtime to avoid bundling the module in an `aws_lambda()`.
+//
+// NOTE(calebmer, 2025-04-15): I've deleted the OpenSearch deploy lambda so
+// currently there's no `aws_lambda()` rule which needs to import this file.
+// This funky import syntax, at this time, can be removed without breaking
+// anything.
 import type {FeatureExtractionPipeline} from "@xenova/transformers";
 import fsSync from "fs";
 import {join as joinPath} from "path";
@@ -99,6 +104,11 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
         //
         // We do the funky `string + cast(string)` syntax so the import path can't
         // be statically analyzed by esbuild.
+        //
+        // NOTE(calebmer, 2025-04-15): I've deleted the OpenSearch deploy lambda so
+        // currently there's no `aws_lambda()` rule which needs to import this file.
+        // This funky import syntax, at this time, can be removed without breaking
+        // anything.
         const {FeatureExtractionPipeline}: typeof import("@xenova/transformers") = await import(
             /* @vite-ignore */ "@xenova/" + cast("transformers")
         );

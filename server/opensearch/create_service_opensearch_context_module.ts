@@ -17,21 +17,27 @@ export function createServiceOpensearchContextModule(
         ensureLocalCachePath?: string;
     },
 ) {
+    const url =
+        process.env.NODE_ENV === "production"
+            ? `https://${assertExists(
+                  options.opensearchHost,
+                  "`opensearchHost` option is required in production",
+              )}`
+            : `http://localhost:${parseInt(
+                  assertExists(
+                      options.opensearchLocalPort,
+                      "`opensearchLocalPort` option is required in development",
+                  ),
+                  10,
+              )}`;
+
     return OpensearchContextModule.new(
         new OpensearchClient({
-            url:
-                process.env.NODE_ENV === "production"
-                    ? `https://${assertExists(
-                          options.opensearchHost,
-                          "`opensearchHost` option is required in production",
-                      )}`
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              options.opensearchLocalPort,
-                              "`opensearchLocalPort` option is required in development",
-                          ),
-                          10,
-                      )}`,
+            urlByServerlessCollectionType: {
+                TimeSeries: url,
+                Search: url,
+                VectorSearch: url,
+            },
             signer,
             ensureLocalCachePath:
                 process.env.NODE_ENV !== "production"

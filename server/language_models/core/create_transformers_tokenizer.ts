@@ -15,6 +15,11 @@ export async function createTransformersTokenizer(basePath: string) {
     //
     // We do the funky `string + cast(string)` syntax so the import path can't
     // be statically analyzed by esbuild.
+    //
+    // NOTE(calebmer, 2025-04-15): I've deleted the OpenSearch deploy lambda so
+    // currently there's no `aws_lambda()` rule which needs to import this file.
+    // This funky import syntax, at this time, can be removed without breaking
+    // anything.
     const {BertTokenizer}: typeof import("@xenova/transformers") = await import(
         /* @vite-ignore */ "@xenova/" + cast("transformers")
     );

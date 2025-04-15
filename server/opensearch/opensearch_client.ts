@@ -14,6 +14,7 @@ import {
     OpensearchIndexFlattenedKeysType,
     OpensearchIndexRoutingType,
     OpensearchIndexStoredFieldsType,
+    OpensearchServerlessCollectionType,
     omitOpensearchStaticIndexConfig,
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
@@ -716,20 +717,26 @@ type OpensearchSearchHit = {
  * - In development, makes sure indexes are created
  */
 export class OpensearchClient implements OpensearchClientInterface {
-    private readonly _url: URL;
+    private readonly _urlByServerlessCollectionType: Record<
+        OpensearchServerlessCollectionType,
+        URL
+    >;
     private readonly _signer: AwsRequestSigner;
     private readonly _ensureLocalCachePath: string | null;
 
     constructor({
-        url,
+        urlByServerlessCollectionType,
         signer,
         ensureLocalCachePath,
     }: {
-        url: string;
+        urlByServerlessCollectionType: Record<OpensearchServerlessCollectionType, string>;
         signer: AwsRequestSigner;
         ensureLocalCachePath: string | null;
     }) {
-        this._url = new URL(url);
+        this._urlByServerlessCollectionType = mapObjectValues(
+            urlByServerlessCollectionType,
+            url => new URL(url),
+        );
         this._signer = signer;
         this._ensureLocalCachePath = ensureLocalCachePath;
     }
@@ -841,11 +848,13 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys, StoredFields>,
     ) {
         return tracer.withSpan("Deploy OpenSearch index", async tracer => {
+            const url = this._urlByServerlessCollectionType[index.serverlessCollectionType];
+
             // We don't wait for OpenSearch to start before executing code in our dev
             // server and tests. That's because OpenSearch takes ~7s to start. That means
             // we need to wait for it here before we can use it.
-            if (this._url.hostname === "localhost") {
-                const port = parseInt(this._url.port, 10);
+            if (url.hostname === "localhost") {
+                const port = parseInt(url.port, 10);
                 assert(Number.isInteger(port));
                 await waitForHttpServer(port);
             }
@@ -855,7 +864,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             // returns weird partial health errors.
             await fetchWithTracer(
                 tracer,
-                new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", this._url),
+                new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", url),
                 {
                     sign: this._signer.sign,
                     serviceName: "OpenSearch",
@@ -880,7 +889,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             await retryWithExponentialBackoff(async retry => {
                 const getBody = await fetchWithTracer(
                     tracer,
-                    new URL(`/${index.name}/_settings`, this._url),
+                    new URL(`/${index.name}/_settings`, url),
                     {
                         sign: this._signer.sign,
                         serviceName: "OpenSearch",
@@ -915,7 +924,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     try {
                         await fetchWithTracer(
                             tracer,
-                            new URL(`/${index.name}`, this._url),
+                            new URL(`/${index.name}`, url),
                             {
                                 sign: this._signer.sign,
                                 serviceName: "OpenSearch",
@@ -1037,7 +1046,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                             tracer,
                             new URL(
                                 `/_cluster/state?filter_path=metadata.indices.${index.name}.routing_num_shards`,
-                                this._url,
+                                url,
                             ),
                             {
                                 sign: this._signer.sign,
@@ -1089,7 +1098,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                         async () => {
                             await fetchWithTracer(
                                 tracer,
-                                new URL(`/${index.name}/_settings`, this._url),
+                                new URL(`/${index.name}/_settings`, url),
                                 {
                                     sign: this._signer.sign,
                                     serviceName: "OpenSearch",
@@ -1124,7 +1133,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                         async () => {
                             await fetchWithTracer(
                                 tracer,
-                                new URL(`/${index.name}/_mappings`, this._url),
+                                new URL(`/${index.name}/_mappings`, url),
                                 {
                                     sign: this._signer.sign,
                                     serviceName: "OpenSearch",
@@ -1182,7 +1191,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(`/${index.name}/_doc/${encodeURIComponent(id)}`, this._url);
+        const url = new URL(
+            `/${index.name}/_doc/${encodeURIComponent(id)}`,
+            this._urlByServerlessCollectionType[index.serverlessCollectionType],
+        );
         url.searchParams.set("routing", routing);
         url.searchParams.set("realtime", String(realtime));
 
@@ -1195,6 +1207,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                 route: `/${index.name}/_doc/:docId`,
             },
             async (response, span) => {
+                span.addData({
+                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                });
+
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
@@ -1267,7 +1283,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(`/${index.name}/_doc/${encodeURIComponent(id)}`, this._url);
+        const url = new URL(
+            `/${index.name}/_doc/${encodeURIComponent(id)}`,
+            this._urlByServerlessCollectionType[index.serverlessCollectionType],
+        );
         url.searchParams.set("routing", routing);
         url.searchParams.set("realtime", String(realtime));
         url.searchParams.set("_source", "false");
@@ -1285,6 +1304,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                 route: `/${index.name}/_doc/:docId`,
             },
             async (response, span) => {
+                span.addData({
+                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                });
+
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
@@ -1366,7 +1389,20 @@ export class OpensearchClient implements OpensearchClientInterface {
         tracer: TracerBase,
         commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
     ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>> {
-        if (commands.length === 0) return emptyMap as any;
+        // Make sure all command indexes have the same collection type.
+        let serverlessCollectionType: OpensearchServerlessCollectionType | null = null;
+        for (const command of commands) {
+            if (serverlessCollectionType === null) {
+                serverlessCollectionType = command.index.serverlessCollectionType;
+            } else if (serverlessCollectionType !== command.index.serverlessCollectionType) {
+                throw new InternalError(
+                    quote`Can't make multi-get documents request across indexes with different OpenSearch serverless collection types, expected all command indexes to be in the ${serverlessCollectionType} OpenSearch collection type but one command index was ${command.index.serverlessCollectionType}`,
+                );
+            }
+        }
+
+        // No commands, noop.
+        if (serverlessCollectionType === null) return emptyMap as any;
 
         const indexByName = new Map<string, OpensearchIndex<any, any, any, any, any>>();
         const commandByIdByIndex = new Map<
@@ -1401,7 +1437,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         const singularRouting =
             singularIndex && routings.size === 1 ? iterableFirst(routings)! : null;
 
-        const url = new URL(singularIndex ? `/${singularIndex.name}/_mget` : "/_mget", this._url);
+        const url = new URL(
+            singularIndex ? `/${singularIndex.name}/_mget` : "/_mget",
+            this._urlByServerlessCollectionType[serverlessCollectionType],
+        );
 
         if (singularRouting) {
             url.searchParams.set("routing", singularRouting);
@@ -1428,7 +1467,12 @@ export class OpensearchClient implements OpensearchClientInterface {
                 }),
             },
             async (response, span) => {
-                span.addData({opensearch: {mget: {count: commands.length}}});
+                span.addData({
+                    opensearch: {
+                        serverlessCollectionType: serverlessCollectionType!,
+                        mget: {count: commands.length},
+                    },
+                });
 
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
@@ -1525,13 +1569,31 @@ export class OpensearchClient implements OpensearchClientInterface {
         >,
         {retryVersionConflictError}: OpensearchClientIndexDocIfVersionOptions = {},
     ): Promise<void> {
+        // OpenSearch serverless time series and vector search collections don't
+        // support indexing by custom document ID. Ban it in our client so developers
+        // don't accidentally add a call that works in development and in tests.
+        //
+        // TODO(calebmer): We need a `indexDocWithoutId()` variant of this method. We
+        // have a bulk command like this.
+        if (index.serverlessCollectionType !== "Search") {
+            throw new InternalError(
+                quote`Can't use custom document IDs in OpenSearch index ${index.name} because its serverless collection type is ${index.serverlessCollectionType}`,
+            );
+        }
+
         if (process.env.NODE_ENV !== "production") {
             await this.ensureLocalIndex(tracer, index);
         }
 
         const url = !doc.version
-            ? new URL(`/${index.name}/_create/${encodeURIComponent(doc.id)}`, this._url)
-            : new URL(`/${index.name}/_doc/${encodeURIComponent(doc.id)}`, this._url);
+            ? new URL(
+                  `/${index.name}/_create/${encodeURIComponent(doc.id)}`,
+                  this._urlByServerlessCollectionType[index.serverlessCollectionType],
+              )
+            : new URL(
+                  `/${index.name}/_doc/${encodeURIComponent(doc.id)}`,
+                  this._urlByServerlessCollectionType[index.serverlessCollectionType],
+              );
 
         url.searchParams.set("routing", routing);
 
@@ -1557,7 +1619,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // `long`s will be strings and we know how to handle those strings.
                 body: JSON.stringify(index.type.serialize(doc)),
             },
-            async response => {
+            async (response, span) => {
+                span.addData({
+                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                });
+
                 // NOTE(#opensearch-important-json-disclaimer): This response only contains
                 // errors and the error numbers fit in 64-bit floats.
                 const body:
@@ -1598,11 +1664,33 @@ export class OpensearchClient implements OpensearchClientInterface {
         commands: Commands,
         {retryPartialVersionConflictError}: OpensearchClientBulkOptions = {},
     ): Promise<void> {
-        if (commands.length === 0) return;
+        // Make sure all command indexes have the same collection type.
+        let serverlessCollectionType: OpensearchServerlessCollectionType | null = null;
+        for (const command of commands) {
+            if (serverlessCollectionType === null) {
+                serverlessCollectionType = command.index.serverlessCollectionType;
+            } else if (serverlessCollectionType !== command.index.serverlessCollectionType) {
+                throw new InternalError(
+                    quote`Can't make multi-get documents request across indexes with different OpenSearch serverless collection types, expected all command indexes to be in the ${serverlessCollectionType} OpenSearch collection type but one command index was ${command.index.serverlessCollectionType}`,
+                );
+            }
+        }
+
+        // No commands, noop.
+        if (serverlessCollectionType === null) return;
 
         const indexes = new Set<OpensearchIndex<any, any, any, any, any>>();
         const routings = new Set<string>();
         for (const command of commands) {
+            // OpenSearch serverless time series and vector search collections don't
+            // support indexing by custom document ID. Ban it in our client so developers
+            // don't accidentally add a call that works in development and in tests.
+            if (command.id !== null && command.index.serverlessCollectionType !== "Search") {
+                throw new InternalError(
+                    quote`Can't use custom document IDs in OpenSearch index ${command.index.name} because its serverless collection type is ${command.index.serverlessCollectionType}`,
+                );
+            }
+
             indexes.add(command.index);
             routings.add(command.routing);
         }
@@ -1617,7 +1705,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         const singularRouting =
             singularIndex && routings.size === 1 ? Array.from(routings)[0]! : null;
 
-        const url = new URL(singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk", this._url);
+        const url = new URL(
+            singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk",
+            this._urlByServerlessCollectionType[serverlessCollectionType],
+        );
 
         if (singularRouting) {
             url.searchParams.set("routing", singularRouting);
@@ -1659,7 +1750,12 @@ export class OpensearchClient implements OpensearchClientInterface {
                 body: bulkBody.map(object => `${JSON.stringify(object)}\n`).join(""),
             },
             async (response, span) => {
-                span.addData({opensearch: {bulk: {count: bulkBody.length}}});
+                span.addData({
+                    opensearch: {
+                        serverlessCollectionType: serverlessCollectionType!,
+                        bulk: {count: bulkBody.length},
+                    },
+                });
 
                 // NOTE(#opensearch-important-json-disclaimer): This response only contains
                 // errors and the error numbers fit in 64-bit floats.
@@ -1759,7 +1855,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(`/${index.name}/_search`, this._url);
+        const url = new URL(
+            `/${index.name}/_search`,
+            this._urlByServerlessCollectionType[index.serverlessCollectionType],
+        );
         url.searchParams.set("routing", routing);
         url.searchParams.set("size", String(size));
 
@@ -1818,6 +1917,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             async (response, span) => {
                 span.addData({
                     opensearch: {
+                        serverlessCollectionType: index.serverlessCollectionType,
                         query: getOpensearchQueryClauseDescription(query),
                         sort: JSON.stringify(sort),
                     },
@@ -2132,14 +2232,21 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         await fetchWithTracer(
             tracer,
-            new URL(`/${index.name}/_refresh`, this._url),
+            new URL(
+                `/${index.name}/_refresh`,
+                this._urlByServerlessCollectionType[index.serverlessCollectionType],
+            ),
             {
                 sign: this._signer.sign,
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_refresh`,
                 method: "POST",
             },
-            async response => {
+            async (response, span) => {
+                span.addData({
+                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                });
+
                 await response.json();
 
                 if (!response.ok) {
@@ -2174,7 +2281,10 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         return fetchWithTracer(
             tracer,
-            new URL(`/${index.name}/_analyze`, this._url),
+            new URL(
+                `/${index.name}/_analyze`,
+                this._urlByServerlessCollectionType[index.serverlessCollectionType],
+            ),
             {
                 sign: this._signer.sign,
                 serviceName: "OpenSearch",
@@ -2187,7 +2297,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                     text,
                 }),
             },
-            async response => {
+            async (response, span) => {
+                span.addData({
+                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                });
+
                 // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
                 // should safely fit into JavaScript float-64 numbers so we don't need to use
                 // bigint parsing.

@@ -151,6 +151,7 @@ const TaskIndex = new OpensearchIndex<
     OpensearchIndexTypeStoredFieldsType<typeof TaskIndexDocType>
 >(TaskIndexDocType, {
     name: "tasks",
+    serverlessCollectionType: "Search",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(taskIndexRefreshIntervalMs / 1000)}s`,
@@ -179,6 +180,7 @@ const TaskCollectionIndex = new OpensearchIndex<
     OpensearchIndexTypeStoredFieldsType<typeof TaskCollectionIndexDocType>
 >(TaskCollectionIndexDocType, {
     name: "task_collections",
+    serverlessCollectionType: "Search",
     numberOfShards: 3,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(taskIndexRefreshIntervalMs / 1000)}s`,

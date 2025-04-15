@@ -181,6 +181,7 @@ const SearchEntityKeywordIndex = new OpensearchIndex<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>
 >(SearchEntityKeywordIndexDocType, {
     name: "search_entity_keywords",
+    serverlessCollectionType: "Search",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(searchEntityKeywordIndexRefreshIntervalMs / 1000)}s`,
@@ -237,6 +238,7 @@ const SearchEntityEmbeddingChunkIndex = new OpensearchIndex<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntityEmbeddingChunkIndexDocType>
 >(SearchEntityEmbeddingChunkIndexDocType, {
     name: "search_entity_embedding_chunks",
+    serverlessCollectionType: "VectorSearch",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
     refreshInterval: `${assertInteger(searchEntityEmbeddingChunkIndexRefreshIntervalMs / 1000)}s`,

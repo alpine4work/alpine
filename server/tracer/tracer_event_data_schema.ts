@@ -339,6 +339,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         actionHistorySegmentCount: Schema.integer,
     },
     opensearch: {
+        serverlessCollectionType: IdentifierStringSchema,
         query: Schema.string,
         sort: Schema.string,
         get: {
