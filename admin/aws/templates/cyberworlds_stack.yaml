@@ -467,7 +467,7 @@ Resources:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
             Name: search-encryption
-            Policy: '[{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/search"]}]}]'
+            Policy: '{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/search"]}]}'
             Type: encryption
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/EncryptionSecurityPolicy
@@ -513,7 +513,7 @@ Resources:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
             Name: vector-search-encryption
-            Policy: '[{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"]}]}]'
+            Policy: '{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"]}]}'
             Type: encryption
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/EncryptionSecurityPolicy

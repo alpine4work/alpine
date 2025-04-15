@@ -247,17 +247,15 @@ class AwsOpensearchServerlessCollection extends Construct {
             {
                 name: `${name}-encryption`,
                 type: "encryption",
-                policy: JSON.stringify([
-                    {
-                        AWSOwnedKey: true,
-                        Rules: [
-                            {
-                                ResourceType: "collection",
-                                Resource: [`collection/${name}`],
-                            },
-                        ],
-                    },
-                ]),
+                policy: JSON.stringify({
+                    AWSOwnedKey: true,
+                    Rules: [
+                        {
+                            ResourceType: "collection",
+                            Resource: [`collection/${name}`],
+                        },
+                    ],
+                }),
             },
         );
 
