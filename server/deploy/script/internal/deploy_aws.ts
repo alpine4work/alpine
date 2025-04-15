@@ -1,5 +1,5 @@
 import type {StackEvent} from "@aws-sdk/client-cloudformation";
-import {exec, HistoryActivityPrinter} from "aws-cdk/lib";
+import {HistoryActivityPrinter, exec} from "aws-cdk/lib";
 import {ErrorBase, InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
