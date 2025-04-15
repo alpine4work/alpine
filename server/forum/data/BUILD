@@ -20,7 +20,7 @@ ts_project(
         "//server/spaces/add_account",
     ],
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server/alpha:__pkg__",
         "//server/migration:__pkg__",

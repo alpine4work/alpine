@@ -319,6 +319,12 @@ export class OpensearchIndex<
         this.name = name;
         this.serverlessCollectionType = serverlessCollectionType;
 
+        constructedOpensearchIndexCount++;
+        if (recording) {
+            assert(!recording.indexes.has(this.name), "Index names in recording must be unique");
+            recording.indexes.set(this.name, this);
+        }
+
         // Make sure we use the same refresh interval in development that OpenSearch
         // serverless uses in production.
         {
@@ -470,4 +476,52 @@ export class OpensearchIndex<
             },
         };
     }
+}
+
+let constructedOpensearchIndexCount = 0;
+
+/**
+ * How many OpenSearch indexes have been created? Can be used with
+ * `recordConstructedOpensearchIndexes()` to make sure you've recorded all
+ * constructed OpenSearch indexes.
+ *
+ * We can't add every OpenSearch index ever constructed to an array since the
+ * array would grow indefinitely in our Vite dev server which re-evaluates
+ * modules whenever they update.
+ */
+export function getConstructedOpensearchIndexCount() {
+    return constructedOpensearchIndexCount;
+}
+
+let recording: {
+    indexes: Map<string, OpensearchIndex<any, any, any, any, any>>;
+} | null = null;
+
+/**
+ * Record all OpenSearch indexes constructed during the provided action.
+ * Doesn't record any OpenSearch indexes constructed before or after this.
+ */
+export async function recordConstructedOpensearchIndexes<Value>(
+    action: () => Promise<Value>,
+): Promise<
+    [
+        {
+            indexes: Map<string, OpensearchIndex<any, any, any, any, any>>;
+        },
+        Value,
+    ]
+> {
+    assert(recording === null);
+
+    const indexes = new Map<string, OpensearchIndex<any, any, any, any, any>>();
+
+    let value: Value;
+    recording = {indexes};
+    try {
+        value = await action();
+    } finally {
+        recording = null;
+    }
+
+    return [{indexes}, value];
 }

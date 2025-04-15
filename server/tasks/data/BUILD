@@ -40,7 +40,7 @@ ts_project(
         },
     },
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//admin/opensearch/deploy_script:__pkg__",
         "//app:__pkg__",
         "//server/accounts/update_name:__pkg__",

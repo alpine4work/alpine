@@ -13,7 +13,7 @@ ts_project(
         "documents_table_slow_test": {"size": "medium"},
     },
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server/documents/test_helpers:__pkg__",
         "//server/migration:__pkg__",

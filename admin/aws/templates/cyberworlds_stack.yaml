@@ -473,6 +473,519 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/Resource
+    OpensearchSearchCollectionNetworkSecurityPolicy912BB5EF:
+        Type: AWS::OpenSearchServerless::SecurityPolicy
+        Properties:
+            Name: search-network
+            Policy: '{"AllowFromPublic":true,"Rules":[{"ResourceType":"dashboard","Resource":["collection/search"]},{"ResourceType":"collection","Resource":["collection/search"]}]}'
+            Type: network
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/NetworkSecurityPolicy
+    OpensearchSearchCollectionEncryptionSecurityPolicyBFFDFE71:
+        Type: AWS::OpenSearchServerless::SecurityPolicy
+        Properties:
+            Name: search-encryption
+            Policy: '{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/search"]}]}'
+            Type: encryption
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/EncryptionSecurityPolicy
+    OpensearchSearchCollection9C677E01:
+        Type: AWS::OpenSearchServerless::Collection
+        Properties:
+            Name: search
+            StandbyReplicas: ENABLED
+            Type: SEARCH
+        DependsOn:
+            - OpensearchSearchCollectionEncryptionSecurityPolicyBFFDFE71
+            - OpensearchSearchCollectionNetworkSecurityPolicy912BB5EF
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/Collection
+    OpensearchSearchCollectionSearchEntityKeywordsIndex360AD619:
+        Type: AWS::OpenSearchServerless::Index
+        Properties:
+            CollectionEndpoint:
+                Fn::GetAtt:
+                    - OpensearchSearchCollection9C677E01
+                    - CollectionEndpoint
+            IndexName: search_entity_keywords
+            Mappings:
+                Properties:
+                    spaceId:
+                        Index: true
+                        Type: keyword
+                    type:
+                        Index: true
+                        Type: keyword
+                    createdTime:
+                        Index: true
+                        Type: date
+                    lastUpdatedTime:
+                        Index: true
+                        Type: date
+                    lastReadStartTime:
+                        Index: false
+                        Type: date
+                    hasEmbeddingChunks:
+                        Index: false
+                        Type: boolean
+                    accessPolicy:
+                        Properties:
+                            accountGrantAccountIds:
+                                Index: true
+                                Type: keyword
+                            defaultGrantType:
+                                Index: true
+                                Type: byte
+                        Type: object
+                    dependencyIds:
+                        Index: true
+                        Type: keyword
+                    title:
+                        Index: true
+                        Type: search_as_you_type
+                    body:
+                        Index: true
+                        Type: text
+                    media:
+                        Index: false
+                        Type: keyword
+                    creatorId:
+                        Index: true
+                        Type: keyword
+                    majorContributorIds:
+                        Index: true
+                        Type: keyword
+                    anyContributorIds:
+                        Index: true
+                        Type: keyword
+            Settings:
+                Index: {}
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/SearchEntityKeywordsIndex
+    OpensearchSearchCollectionTaskCollectionsIndex0D66D58F:
+        Type: AWS::OpenSearchServerless::Index
+        Properties:
+            CollectionEndpoint:
+                Fn::GetAtt:
+                    - OpensearchSearchCollection9C677E01
+                    - CollectionEndpoint
+            IndexName: task_collections
+            Mappings:
+                Properties:
+                    spaceId:
+                        Index: true
+                        Type: keyword
+                    createdTime:
+                        Index: false
+                        Type: long
+                    creatorId:
+                        Index: false
+                        Type: keyword
+                    rawDeletedTime:
+                        Index: false
+                        Type: long
+                    rawUndeletedTime:
+                        Index: false
+                        Type: long
+                    name:
+                        Properties:
+                            value:
+                                Index: true
+                                Type: search_as_you_type
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    color:
+                        Properties:
+                            value:
+                                Index: false
+                                Type: keyword
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    accessPolicy:
+                        Properties:
+                            value:
+                                Type: object
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    isDeleted:
+                        Index: true
+                        Type: boolean
+                    accessPolicyAccountGrantIds:
+                        Index: true
+                        Type: keyword
+                    accessPolicyDefaultGrantType:
+                        Index: true
+                        Type: keyword
+            Settings:
+                Index: {}
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/TaskCollectionsIndex
+    OpensearchSearchCollectionTasksIndex19EEFBA6:
+        Type: AWS::OpenSearchServerless::Index
+        Properties:
+            CollectionEndpoint:
+                Fn::GetAtt:
+                    - OpensearchSearchCollection9C677E01
+                    - CollectionEndpoint
+            IndexName: tasks
+            Mappings:
+                Properties:
+                    spaceId:
+                        Index: true
+                        Type: keyword
+                    creator:
+                        Properties:
+                            accountId:
+                                Index: true
+                                Type: keyword
+                            workingAccountName:
+                                Index: false
+                                Type: keyword
+                            workingAccountNameVersion:
+                                Index: true
+                                Type: integer
+                        Type: object
+                    createdTime:
+                        Properties:
+                            absoluteTime:
+                                Index: false
+                                Type: long
+                            setterTimeZone:
+                                Index: false
+                                Type: keyword
+                            setterDate:
+                                Index: true
+                                Type: date
+                        Type: object
+                    rawDeletedTime:
+                        Index: false
+                        Type: long
+                    rawUndeletedTime:
+                        Index: false
+                        Type: long
+                    parent:
+                        Properties:
+                            taskId:
+                                Properties:
+                                    value:
+                                        Index: true
+                                        Type: keyword
+                                    version:
+                                        Index: false
+                                        Type: long
+                                Type: object
+                            rawPosition:
+                                Type: object
+                            position:
+                                Properties:
+                                    value:
+                                        Properties:
+                                            orderTime:
+                                                Index: false
+                                                Type: long
+                                            orderKey:
+                                                Index: false
+                                                Type: keyword
+                                        Type: object
+                                    version:
+                                        Index: false
+                                        Type: long
+                                Type: object
+                        Type: object
+                    addedChildTaskCount:
+                        Index: false
+                        Type: integer
+                    removedChildTaskCount:
+                        Index: false
+                        Type: integer
+                    addedClosedChildTaskCount:
+                        Index: false
+                        Type: integer
+                    removedClosedChildTaskCount:
+                        Index: false
+                        Type: integer
+                    collections:
+                        Properties:
+                            raw:
+                                Type: object
+                            ids:
+                                Index: true
+                                Type: keyword
+                            positions:
+                                Index: false
+                                Type: keyword
+                        Type: object
+                    status:
+                        Properties:
+                            value:
+                                Properties:
+                                    type:
+                                        Index: true
+                                        Type: byte
+                                    closer:
+                                        Properties:
+                                            accountId:
+                                                Index: true
+                                                Type: keyword
+                                            workingAccountName:
+                                                Index: false
+                                                Type: keyword
+                                            workingAccountNameVersion:
+                                                Index: true
+                                                Type: integer
+                                        Type: object
+                                    closedTime:
+                                        Properties:
+                                            absoluteTime:
+                                                Index: false
+                                                Type: long
+                                            setterTimeZone:
+                                                Index: false
+                                                Type: keyword
+                                            setterDate:
+                                                Index: true
+                                                Type: date
+                                        Type: object
+                                Type: object
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    assignee:
+                        Properties:
+                            value:
+                                Properties:
+                                    assignee:
+                                        Properties:
+                                            accountId:
+                                                Index: true
+                                                Type: keyword
+                                            workingAccountName:
+                                                Index: false
+                                                Type: keyword
+                                            workingAccountNameVersion:
+                                                Index: true
+                                                Type: integer
+                                        Type: object
+                                    assigner:
+                                        Properties:
+                                            accountId:
+                                                Index: true
+                                                Type: keyword
+                                            workingAccountName:
+                                                Index: false
+                                                Type: keyword
+                                            workingAccountNameVersion:
+                                                Index: true
+                                                Type: integer
+                                        Type: object
+                                    assignedTime:
+                                        Properties:
+                                            absoluteTime:
+                                                Index: false
+                                                Type: long
+                                            setterTimeZone:
+                                                Index: false
+                                                Type: keyword
+                                            setterDate:
+                                                Index: true
+                                                Type: date
+                                        Type: object
+                                Type: object
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    rawAssigneeStatus:
+                        Type: object
+                    rawAssigneePosition:
+                        Type: object
+                    title:
+                        Properties:
+                            raw:
+                                Type: binary
+                            text:
+                                Index: true
+                                Type: text
+                        Type: object
+                    dueDate:
+                        Properties:
+                            value:
+                                Index: true
+                                Type: date
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    priority:
+                        Properties:
+                            value:
+                                Index: true
+                                Type: byte
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    lastIndexSearchEntityJob:
+                        Type: object
+                    approximateActionCountByAccountId:
+                        Type: binary
+                    isDeleted:
+                        Index: true
+                        Type: boolean
+                    displayStatus:
+                        Index: true
+                        Type: byte
+                    assigneeStatus:
+                        Properties:
+                            value:
+                                Properties:
+                                    type:
+                                        Index: false
+                                        Type: byte
+                                    activatedTime:
+                                        Properties:
+                                            absoluteTime:
+                                                Index: false
+                                                Type: long
+                                            setterTimeZone:
+                                                Index: false
+                                                Type: keyword
+                                            setterDate:
+                                                Index: true
+                                                Type: date
+                                        Type: object
+                                Type: object
+                            version:
+                                Index: false
+                                Type: long
+                        Type: object
+                    assigneePosition:
+                        Properties:
+                            orderTime:
+                                Index: false
+                                Type: long
+                            orderKey:
+                                Index: false
+                                Type: keyword
+                        Type: object
+            Settings:
+                Index: {}
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/TasksIndex
+    OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00:
+        Type: AWS::OpenSearchServerless::SecurityPolicy
+        Properties:
+            Name: vector-search-network
+            Policy: '{"AllowFromPublic":true,"Rules":[{"ResourceType":"dashboard","Resource":["collection/vector-search"]},{"ResourceType":"collection","Resource":["collection/vector-search"]}]}'
+            Type: network
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/NetworkSecurityPolicy
+    OpensearchVectorSearchCollectionEncryptionSecurityPolicyECB92B64:
+        Type: AWS::OpenSearchServerless::SecurityPolicy
+        Properties:
+            Name: vector-search-encryption
+            Policy: '{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"]}]}'
+            Type: encryption
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/EncryptionSecurityPolicy
+    OpensearchVectorSearchCollection70A16089:
+        Type: AWS::OpenSearchServerless::Collection
+        Properties:
+            Name: vector-search
+            StandbyReplicas: ENABLED
+            Type: VECTORSEARCH
+        DependsOn:
+            - OpensearchVectorSearchCollectionEncryptionSecurityPolicyECB92B64
+            - OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/Collection
+    OpensearchVectorSearchCollectionSearchEntityEmbeddingChunksIndex318C691C:
+        Type: AWS::OpenSearchServerless::Index
+        Properties:
+            CollectionEndpoint:
+                Fn::GetAtt:
+                    - OpensearchVectorSearchCollection70A16089
+                    - CollectionEndpoint
+            IndexName: search_entity_embedding_chunks
+            Mappings:
+                Properties:
+                    spaceId:
+                        Index: true
+                        Type: keyword
+                    entity:
+                        Properties:
+                            type:
+                                Index: true
+                                Type: keyword
+                            id:
+                                Index: true
+                                Type: keyword
+                            accessPolicy:
+                                Properties:
+                                    accountGrantAccountIds:
+                                        Index: true
+                                        Type: keyword
+                                    defaultGrantType:
+                                        Index: true
+                                        Type: byte
+                                Type: object
+                            title:
+                                Index: false
+                                Type: keyword
+                            media:
+                                Index: false
+                                Type: keyword
+                        Type: object
+                    text:
+                        Index: false
+                        Type: keyword
+                    textHash:
+                        Index: false
+                        Type: integer
+                    preambleEndIndex:
+                        Index: false
+                        Type: integer
+                    vector:
+                        Properties:
+                            allMiniLmL6V2:
+                                Dimension: 384
+                                Index: true
+                                Method:
+                                    Engine: faiss
+                                    Name: hnsw
+                                    Parameters:
+                                        M: 16
+                                Type: knn_vector
+                            cohereEmbedEnglishV3:
+                                Dimension: 1024
+                                Index: true
+                                Method:
+                                    Engine: faiss
+                                    Name: hnsw
+                                    Parameters:
+                                        M: 16
+                                Type: knn_vector
+                        Type: object
+            Settings:
+                Index:
+                    Knn: true
+        DependsOn:
+            - OpensearchVectorSearchCollection70A16089
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/SearchEntityEmbeddingChunksIndex
     OpensearchDeployScriptServiceRoleFC0ECCBE:
         Type: AWS::IAM::Role
         Properties:

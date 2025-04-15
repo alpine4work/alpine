@@ -1,4 +1,3 @@
-import {OpensearchIndexKnnVectorTypeConfig} from "~/server/opensearch/opensearch_index_type.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
@@ -35,10 +34,10 @@ export interface LanguageModelBaseClass {
     readonly dimensionDataType: "float" | "byte";
 
     /**
-     * See the documentation on the type below for what each of the space
-     * types mean.
+     * See the documentation on `OpensearchIndexKnnVectorTypeConfig` for more
+     * information.
      */
-    readonly opensearchSpaceType: OpensearchIndexKnnVectorTypeConfig["method"]["spaceType"];
+    readonly opensearchSpaceType: "l1" | "l2" | "linf" | "cosinesimil";
 }
 
 /**

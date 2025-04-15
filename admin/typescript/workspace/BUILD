@@ -47,6 +47,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//admin/adhoc",
     "//admin/aws:cdk",
     "//admin/dev",
+    "//admin/dynamo",
     "//admin/eslint",
     "//app/integration_tests:integration_tests_lib",
     # Can't use `//native/mobile/ios:app` since then we need to traverse
@@ -55,7 +56,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//native/mobile/ios/Resources/Assets.xcassets",
     "//server/deploy/script",
     "//server/edge",
-    "//server/files/processor",
+    "//server/files/processor/test_helpers",
     "//server/forum/realtime:post_realtime_connection_test",
     "//server/notifications/data:notifications_table_forum_test",
     "//server/tasks/realtime:task_realtime_connection_test",

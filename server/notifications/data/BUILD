@@ -17,7 +17,7 @@ ts_project(
         "notifications_table_forum_test": {"size": "medium"},
     },
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server/jobs/queue:__pkg__",
         "//server/migration:__pkg__",

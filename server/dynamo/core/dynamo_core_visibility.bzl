@@ -1,6 +1,7 @@
 """
-Packages that `//server/dynamo/core` is visible in. We also import all files in
-these packages to discover DynamoDB tables.
+Packages that `//server/dynamo/core` is visible in. We use this list to
+discover all DynamoDB table schemas when setting up our backend infrastructure
+`admin/aws`.
 """
 
 DYNAMO_CORE_VISIBILITY = [

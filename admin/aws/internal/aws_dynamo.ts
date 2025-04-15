@@ -1,7 +1,7 @@
 import {CfnOutput, Fn, Stack} from "aws-cdk-lib";
 import {AttributeType, BillingMode, ITable, ProjectionType, Table} from "aws-cdk-lib/aws-dynamodb";
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
-import {getAllDynamoTableSchemas} from "~/admin/dynamo/get_all_dynamo_table_schemas.js";
+import {crawlDynamoTableSchemas} from "~/admin/crawl/crawl.js";
 import {DynamoClientAction} from "~/server/dynamo/core/dynamo_client_action.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -23,7 +23,7 @@ export class AwsDynamo {
     public static async new(parentScope: Stack) {
         const tableByName = new Map<string, ITable>();
 
-        for (const tableSchema of await getAllDynamoTableSchemas()) {
+        for (const tableSchema of await crawlDynamoTableSchemas()) {
             const tableName = tableSchema.getName();
             const tableDescription = tableSchema.getDescription();
 

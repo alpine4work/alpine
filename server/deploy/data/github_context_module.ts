@@ -11,9 +11,9 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {convertSnakeCaseToCamelCase} from "~/shared/helpers/string/convert_snake_case_to_camel_case.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {getHeadersTracerData} from "~/shared/tracer/fetch_with_tracer.js";
-import {convertSnakeCaseToCamelCase} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
 
 export type GithubContextModuleAuth = (
     request: RequestInterface,

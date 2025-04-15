@@ -6,7 +6,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "add_account",
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server:__subpackages__",
     ],

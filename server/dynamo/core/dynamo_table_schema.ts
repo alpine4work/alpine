@@ -465,8 +465,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         constructedDynamoTableSchemaCount++;
         if (recording) {
-            assert(!recording.schemas.has(this._name), "Table names in recording must be unique");
-            recording.schemas.set(this._name, this);
+            assert(
+                !recording.tableSchemas.has(this._name),
+                "Table names in recording must be unique",
+            );
+            recording.tableSchemas.set(this._name, this);
         }
 
         // DynamoDB table schemas finish initializing a microtask after they're
@@ -4739,7 +4742,7 @@ export function getConstructedDynamoTableSchemaCount() {
 }
 
 let recording: {
-    schemas: Map<
+    tableSchemas: Map<
         string,
         DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
     >;
@@ -4751,24 +4754,38 @@ let recording: {
  * action. Doesn't record any DynamoDB table schemas constructed before or
  * after this.
  */
-export async function recordConstructedDynamoTableSchemas(action: () => Promise<void>) {
+export async function recordConstructedDynamoTableSchemas<Value>(
+    action: () => Promise<Value>,
+): Promise<
+    [
+        {
+            tableSchemas: Map<
+                string,
+                DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
+            >;
+            indexNamesByTableName: Map<string, Set<string>>;
+        },
+        Value,
+    ]
+> {
     assert(recording === null);
 
-    const schemas = new Map<
+    const tableSchemas = new Map<
         string,
         DynamoTableSchema<DynamoTableSchemaTypes.Types<DynamoTableSchemaTypes.ConfigBase>>
     >();
     const indexNamesByTableName = new Map<string, Set<string>>();
 
-    recording = {schemas, indexNamesByTableName};
+    let value: Value;
+    recording = {tableSchemas, indexNamesByTableName};
     try {
-        await action();
+        value = await action();
         finishInitializingDynamoTableSchemas();
     } finally {
         recording = null;
     }
 
-    return {schemas, indexNamesByTableName};
+    return [{tableSchemas, indexNamesByTableName}, value];
 }
 
 let dynamoTableSchemaInitializationCallbacks: Array<() => void> = [];

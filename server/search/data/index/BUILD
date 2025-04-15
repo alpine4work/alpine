@@ -26,6 +26,7 @@ ts_project(
         },
     },
     visibility = [
+        "//admin/crawl:__pkg__",
         "//admin/opensearch/deploy_script:__pkg__",
         "//server/jobs/queue:__pkg__",
         "//server/rpc:__pkg__",

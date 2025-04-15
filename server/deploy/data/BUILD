@@ -3,7 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "data",
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server/deploy:__subpackages__",
         "//server/jobs/queue:__pkg__",

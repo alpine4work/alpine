@@ -6,7 +6,6 @@ ts_project(
     deps = [
         "//:node_modules/@types/node",
         "//:node_modules/@xenova/transformers",
-        "//server/opensearch",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

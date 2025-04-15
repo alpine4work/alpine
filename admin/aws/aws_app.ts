@@ -49,7 +49,7 @@ async function addAwsResources(
     const vpc = new AwsVpc(stack);
 
     const ecsCluster = new AwsEcsCluster(stack, vpc);
-    const opensearch = AwsOpensearch.new(stack, vpc);
+    const opensearch = await AwsOpensearch.new(stack, vpc);
     const sqs = AwsSqs.new(stack);
 
     new AwsCronJobs(stack, sqs);

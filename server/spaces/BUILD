@@ -8,7 +8,7 @@ ts_project(
         "//server/spaces/test_helpers",
     ],
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server:__subpackages__",
     ],

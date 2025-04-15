@@ -1,9 +1,6 @@
 import fs from "fs-extra";
 import {parseArgs} from "util";
-import {
-    getAllDynamoTableSchemaIndexNames,
-    getAllDynamoTableSchemas,
-} from "~/admin/dynamo/get_all_dynamo_table_schemas.js";
+import {crawlDynamoTableSchemaIndexNames, crawlDynamoTableSchemas} from "~/admin/crawl/crawl.js";
 import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
@@ -24,7 +21,7 @@ async function main() {
     assert(dynamoSchemaDescriptionPath);
     assert(tracerEventDataDynamoPath);
 
-    const tableSchemas = await getAllDynamoTableSchemas();
+    const tableSchemas = await crawlDynamoTableSchemas();
 
     await runAllPromiseThunks(
         async () => {
@@ -84,7 +81,7 @@ ${Array.from(
     concatIterables(
         mapIterable(tableSchemas, tableSchema => tableSchema.getName()),
         mapIterable(
-            await getAllDynamoTableSchemaIndexNames(),
+            await crawlDynamoTableSchemaIndexNames(),
             ({tableName, indexName}) => `${tableName}_${indexName}`,
         ),
     ),

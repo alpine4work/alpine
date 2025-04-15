@@ -7,6 +7,7 @@ Every `ts_project()` rule in our codebase.
 WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//admin/adhoc:adhoc_lib",
     "//admin/aws:aws",
+    "//admin/crawl:crawl",
     "//admin/cron:cron",
     "//admin/dev:dev_lib",
     "//admin/dynamo:dynamo",
@@ -79,6 +80,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/emails:emails",
     "//server/files/data:data",
     "//server/files/processor:processor_lib",
+    "//server/files/processor/test_helpers:test_helpers",
     "//server/files/test_helpers:test_helpers",
     "//server/forum/data:data",
     "//server/forum/realtime:realtime",

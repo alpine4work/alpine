@@ -1,4 +1,5 @@
 import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
+import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.js";
 import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data.js";
 
 export type TracerEventFlatData = {
@@ -66,22 +67,4 @@ export function buildTracerEventFlatData(
     }
 
     return data;
-}
-
-/**
- * Convert a camelCase string into snake_case.
- */
-export function convertCamelCaseToSnakeCase(string: string): string {
-    return string
-        .replace(/([a-zA-Z0-9]?)([A-Z])/g, (substring, char1, char2) =>
-            char1.length > 0 ? `${char1}_${char2.toLowerCase()}` : char2.toLowerCase(),
-        )
-        .replace(/-/g, "_");
-}
-
-/**
- * Convert a snake_case string into camelCase.
- */
-export function convertSnakeCaseToCamelCase(string: string): string {
-    return string.replace(/_([a-zA-Z])?/g, (substring, char1) => char1.toUpperCase());
 }

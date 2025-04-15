@@ -4,7 +4,7 @@ ts_project(
     name = "context",
     test_deps = ["//server/dynamo/test_helpers"],
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server:__subpackages__",
     ],

@@ -33,7 +33,6 @@ ts_project(
         "//:node_modules/bintrees",
         "//:node_modules/fs-extra",
         "//server/node",
-        "//server/opensearch",
         "//server/tasks/data",
         "//server/tasks/router",
         "//server/tokens",

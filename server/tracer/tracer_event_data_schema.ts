@@ -5,6 +5,7 @@ import {
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
@@ -13,10 +14,7 @@ import {
     SchemaDeserializationError,
     SchemaWithOnlyDeserialization,
 } from "~/shared/schema/schema.js";
-import {
-    TracerEventFlatData,
-    convertCamelCaseToSnakeCase,
-} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
+import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
 import {
     TracerEventHttpHeaderName,
     tracerEventHttpHeaderNames,

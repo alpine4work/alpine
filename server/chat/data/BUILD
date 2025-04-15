@@ -21,7 +21,7 @@ ts_project(
         "chat_table_test": {"size": "medium"},
     },
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server/migration:__pkg__",
         "//server/notifications/data:__pkg__",

@@ -9,7 +9,7 @@ ts_project(
         "{}:__pkg__".format(label)
         for label in DYNAMO_CORE_VISIBILITY
     ] + [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//server/dynamo/core:__subpackages__",
         "//server/dynamo/test_helpers:__pkg__",
         "//server/spaces/test_helpers:__pkg__",

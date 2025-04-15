@@ -1,8 +1,12 @@
+/* eslint-disable no-commit-blockers */
+// NOCOMMIT: Delete the above comment ^
+
 import {CfnOutput, CustomResource, Duration, Fn, Stack} from "aws-cdk-lib";
 import {IConnectable, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
+import * as opensearchserverless from "aws-cdk-lib/aws-opensearchserverless";
 import {Domain, EngineVersion, IDomain} from "aws-cdk-lib/aws-opensearchservice";
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
@@ -10,7 +14,14 @@ import crypto from "crypto";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
+import {crawlOpensearchIndexes} from "~/admin/crawl/crawl.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {
+    OpensearchIndex,
+    OpensearchServerlessCollectionType,
+} from "~/server/opensearch/opensearch_index.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {convertSnakeCaseToPascalCase} from "~/shared/helpers/string/convert_snake_case_to_pascal_case.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
@@ -43,9 +54,10 @@ export class AwsOpensearch {
         this._domain = domain;
     }
 
-    public static new(parentConstruct: Construct, vpc: AwsVpc) {
+    public static async new(parentConstruct: Construct, vpc: AwsVpc) {
         const construct = new Construct(parentConstruct, "Opensearch");
 
+        // NOCOMMIT: Delete this???
         const domain = new Domain(construct, "Domain", {
             vpc,
             // Only allow traffic to/from OpenSearch within our subnet.
@@ -73,7 +85,32 @@ export class AwsOpensearch {
             },
         });
 
+        const collectionByServerlessCollectionType: Record<
+            OpensearchServerlessCollectionType,
+            AwsOpensearchServerlessCollection
+        > = {
+            Search: new AwsOpensearchServerlessCollection(construct, "SearchCollection", {
+                name: "search",
+                type: "SEARCH",
+            }),
+            VectorSearch: new AwsOpensearchServerlessCollection(
+                construct,
+                "VectorSearchCollection",
+                {
+                    name: "vector-search",
+                    type: "VECTORSEARCH",
+                },
+            ),
+        };
+
+        for (const index of await crawlOpensearchIndexes()) {
+            const collection = collectionByServerlessCollectionType[index.serverlessCollectionType];
+            collection.addIndex(`${convertSnakeCaseToPascalCase(index.name)}Index`, index);
+        }
+
         // OpenSearch deploy script:
+        //
+        // NOCOMMIT: Delete this
         {
             // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
             // `NodejsLambda` since we bundle the code ourselves.
@@ -180,5 +217,102 @@ export class AwsOpensearchWithConnections extends AwsOpensearch {
 
     public allowConnectionsFrom(other: IConnectable) {
         this._domain.connections.allowFrom(other, Port.tcp(443));
+    }
+}
+
+/**
+ * There are [no official OpenSearch serverless L2 constructs][1]. This class
+ * is our own L2 construct using the low-level L1 OpenSearch serverless
+ * constructs. See the [AWS CloudFormation documentation for these
+ * constructs][2].
+ *
+ * This class is based on examples in the GitHub repo
+ * [`aws-samples/opensearch-serverless-common-usage-patterns`][3].
+ *
+ * [1]: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_opensearchserverless-readme.html
+ * [2]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-opensearchserverless-collection.html
+ * [3]: https://github.com/aws-samples/opensearch-serverless-common-usage-patterns
+ */
+class AwsOpensearchServerlessCollection extends Construct {
+    private readonly _collection: opensearchserverless.CfnCollection;
+
+    constructor(
+        parentConstruct: Construct,
+        id: string,
+        {name, type = "SEARCH"}: {name: string; type?: "SEARCH" | "VECTORSEARCH"},
+    ) {
+        super(parentConstruct, id);
+
+        // NOCOMMIT: Make sure administrator group gets dashboard access. Do we need a
+        // data access policy for this?
+        const networkSecurityPolicy = new opensearchserverless.CfnSecurityPolicy(
+            this,
+            "NetworkSecurityPolicy",
+            {
+                name: `${name}-network`,
+                type: "network",
+                policy: JSON.stringify({
+                    // We allow collections to be accessed from the public internet (similar to how
+                    // DynamoDB is accessible from the public internet). However, you still need
+                    // appropriate IAM roles to access data within OpenSearch.
+                    //
+                    // Public internet access is convenient for OpenSearch dashboard access by
+                    // system administrators when investigating a bug.
+                    //
+                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-network.html
+                    AllowFromPublic: true,
+                    Rules: [
+                        {ResourceType: "dashboard", Resource: [`collection/${name}`]},
+                        {ResourceType: "collection", Resource: [`collection/${name}`]},
+                    ],
+                }),
+            },
+        );
+
+        const encryptionSecurityPolicy = new opensearchserverless.CfnSecurityPolicy(
+            this,
+            "EncryptionSecurityPolicy",
+            {
+                name: `${name}-encryption`,
+                type: "encryption",
+                policy: JSON.stringify({
+                    AWSOwnedKey: true,
+                    Rules: [
+                        {
+                            ResourceType: "collection",
+                            Resource: [`collection/${name}`],
+                        },
+                    ],
+                }),
+            },
+        );
+
+        this._collection = new opensearchserverless.CfnCollection(this, "Collection", {
+            name,
+            type,
+            standbyReplicas: "ENABLED",
+        });
+
+        this._collection.addDependency(networkSecurityPolicy);
+        this._collection.addDependency(encryptionSecurityPolicy);
+
+        // Make sure our names don't exceed the maximum length.
+        assert(networkSecurityPolicy.name.length <= 32);
+        assert(encryptionSecurityPolicy.name.length <= 32);
+        assert(this._collection.name.length <= 32);
+    }
+
+    /**
+     * Add an index to the OpenSearch collection.
+     */
+    public addIndex(id: string, index: OpensearchIndex<any, any, any, any, any>) {
+        const actualIndex = new opensearchserverless.CfnIndex(this, id, {
+            collectionEndpoint: this._collection.attrCollectionEndpoint,
+            indexName: index.name,
+            settings: index.config.settings,
+            mappings: index.config.mappings,
+        });
+
+        actualIndex.addDependency(this._collection);
     }
 }

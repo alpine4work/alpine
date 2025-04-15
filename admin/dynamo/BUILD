@@ -1,18 +1,11 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("//admin/typescript:typescript.bzl", "ts_project")
-load("//server/dynamo/core:dynamo_core_visibility.bzl", "DYNAMO_CORE_VISIBILITY")
 
 ts_project(
     name = "dynamo",
-    data = DYNAMO_CORE_VISIBILITY,
-    visibility = ["//admin/aws:__pkg__"],
     deps = [
-        ":dynamo_core_visibility",
-        "//:node_modules/fast-glob",
+        "//admin/crawl",
         "//admin/helpers",
-        "//server/dynamo/core",
-        "//server/dynamo/core/general_realtime",
-        "//server/helpers/node",
         "//shared/helpers",
         "//shared/schema",
     ],
@@ -50,20 +43,4 @@ sh_binary(
         "//server/tracer:write_tracer_event_data_dynamo",
     ],
     deps = ["@bazel_tools//tools/bash/runfiles"],
-)
-
-genrule(
-    name = "dynamo_core_visibility_src",
-    outs = ["dynamo_core_visibility.js"],
-    cmd = "echo \"export const dynamoCoreVisibilityBazelPackagePaths = [\n{}];\" > \"$@\"".format(
-        "".join([
-            "    \\\"{}\\\",\n".format(label[2:])
-            for label in DYNAMO_CORE_VISIBILITY
-        ]),
-    ),
-)
-
-js_library(
-    name = "dynamo_core_visibility",
-    srcs = ["dynamo_core_visibility.js"],
 )

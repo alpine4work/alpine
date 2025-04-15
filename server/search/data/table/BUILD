@@ -12,7 +12,7 @@ ts_project(
         "search_entity_table_test": {"size": "medium"},
     },
     visibility = [
-        "//admin/dynamo:__pkg__",
+        "//admin/crawl:__pkg__",
         "//server:__subpackages__",
     ],
     deps = [

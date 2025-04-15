@@ -24,7 +24,6 @@ ts_project(
         "//server/context",
         "//server/dynamo/core",
         "//server/emails",
-        "//server/opensearch",
         "//server/tracer",
         "//server/web_socket",
         "//shared/context",

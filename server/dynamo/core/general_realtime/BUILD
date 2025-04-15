@@ -12,8 +12,6 @@ ts_project(
     visibility = [
         "{}:__pkg__".format(label)
         for label in DYNAMO_CORE_VISIBILITY
-    ] + [
-        "//admin/dynamo:__pkg__",
     ],
     deps = [
         "//:node_modules/date-fns",
