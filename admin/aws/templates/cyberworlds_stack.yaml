@@ -459,7 +459,7 @@ Resources:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
             Name: search-network
-            Policy: '{"AllowFromPublic":true,"Rules":[{"ResourceType":"dashboard","Resource":["collection/search"]},{"ResourceType":"collection","Resource":["collection/search"]}]}'
+            Policy: '[{"AllowFromPublic":true,"Rules":[{"ResourceType":"dashboard","Resource":["collection/search"]},{"ResourceType":"collection","Resource":["collection/search"]}]}]'
             Type: network
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/NetworkSecurityPolicy
@@ -467,7 +467,7 @@ Resources:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
             Name: search-encryption
-            Policy: '{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/search"]}]}'
+            Policy: '[{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/search"]}]}]'
             Type: encryption
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/EncryptionSecurityPolicy
@@ -489,13 +489,13 @@ Resources:
             Policy:
                 Fn::Join:
                     - ""
-                    - - '{"Description":"Access for \"'
+                    - - '[{"Description":"Access for \"'
                       - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
                       - \"","Principal":["
                       - Fn::GetAtt:
                             - OpensearchDeployScriptServiceRoleFC0ECCBE
                             - Arn
-                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}'
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
             Type: data
         DependsOn:
             - OpensearchSearchCollection9C677E01
@@ -505,7 +505,7 @@ Resources:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
             Name: vector-search-network
-            Policy: '{"AllowFromPublic":true,"Rules":[{"ResourceType":"dashboard","Resource":["collection/vector-search"]},{"ResourceType":"collection","Resource":["collection/vector-search"]}]}'
+            Policy: '[{"AllowFromPublic":true,"Rules":[{"ResourceType":"dashboard","Resource":["collection/vector-search"]},{"ResourceType":"collection","Resource":["collection/vector-search"]}]}]'
             Type: network
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/NetworkSecurityPolicy
@@ -513,7 +513,7 @@ Resources:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
             Name: vector-search-encryption
-            Policy: '{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"]}]}'
+            Policy: '[{"AWSOwnedKey":true,"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"]}]}]'
             Type: encryption
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/EncryptionSecurityPolicy
@@ -535,13 +535,13 @@ Resources:
             Policy:
                 Fn::Join:
                     - ""
-                    - - '{"Description":"Access for \"'
+                    - - '[{"Description":"Access for \"'
                       - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
                       - \"","Principal":["
                       - Fn::GetAtt:
                             - OpensearchDeployScriptServiceRoleFC0ECCBE
                             - Arn
-                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}'
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
             Type: data
         DependsOn:
             - OpensearchVectorSearchCollection70A16089

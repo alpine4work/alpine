@@ -221,21 +221,23 @@ class AwsOpensearchServerlessCollection extends Construct {
             {
                 name: `${name}-network`,
                 type: "network",
-                policy: JSON.stringify({
-                    // We allow collections to be accessed from the public internet (similar to how
-                    // DynamoDB is accessible from the public internet). However, you still need
-                    // appropriate IAM roles to access data within OpenSearch.
-                    //
-                    // Public internet access is convenient for OpenSearch dashboard access by
-                    // system administrators when investigating a bug.
-                    //
-                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-network.html
-                    AllowFromPublic: true,
-                    Rules: [
-                        {ResourceType: "dashboard", Resource: [`collection/${name}`]},
-                        {ResourceType: "collection", Resource: [`collection/${name}`]},
-                    ],
-                }),
+                policy: JSON.stringify([
+                    {
+                        // We allow collections to be accessed from the public internet (similar to how
+                        // DynamoDB is accessible from the public internet). However, you still need
+                        // appropriate IAM roles to access data within OpenSearch.
+                        //
+                        // Public internet access is convenient for OpenSearch dashboard access by
+                        // system administrators when investigating a bug.
+                        //
+                        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-network.html
+                        AllowFromPublic: true,
+                        Rules: [
+                            {ResourceType: "dashboard", Resource: [`collection/${name}`]},
+                            {ResourceType: "collection", Resource: [`collection/${name}`]},
+                        ],
+                    },
+                ]),
             },
         );
 
@@ -245,15 +247,17 @@ class AwsOpensearchServerlessCollection extends Construct {
             {
                 name: `${name}-encryption`,
                 type: "encryption",
-                policy: JSON.stringify({
-                    AWSOwnedKey: true,
-                    Rules: [
-                        {
-                            ResourceType: "collection",
-                            Resource: [`collection/${name}`],
-                        },
-                    ],
-                }),
+                policy: JSON.stringify([
+                    {
+                        AWSOwnedKey: true,
+                        Rules: [
+                            {
+                                ResourceType: "collection",
+                                Resource: [`collection/${name}`],
+                            },
+                        ],
+                    },
+                ]),
             },
         );
 
@@ -282,26 +286,28 @@ class AwsOpensearchServerlessCollection extends Construct {
                 id.endsWith("AccessPolicy") ? id.slice(0, -"AccessPolicy".length) : id,
             ),
             type: "data",
-            policy: JSON.stringify({
-                Description: quote`Access for ${role.roleName}`,
-                Principal: [role.roleArn],
-                Rules: [
-                    {
-                        ResourceType: "index",
-                        Resource: [`index/${this._collection.name}/*`],
-                        Permission: [
-                            "aoss:CreateIndex",
-                            "aoss:UpdateIndex",
-                            "aoss:DescribeIndex",
-                            "aoss:ReadDocument",
-                            "aoss:WriteDocument",
+            policy: JSON.stringify([
+                {
+                    Description: quote`Access for ${role.roleName}`,
+                    Principal: [role.roleArn],
+                    Rules: [
+                        {
+                            ResourceType: "index",
+                            Resource: [`index/${this._collection.name}/*`],
+                            Permission: [
+                                "aoss:CreateIndex",
+                                "aoss:UpdateIndex",
+                                "aoss:DescribeIndex",
+                                "aoss:ReadDocument",
+                                "aoss:WriteDocument",
 
-                            // Intentionally don't allow `aoss:DeleteIndex`. Our deploy script doesn't
-                            // currently delete indexes so let's prevent accidental issues.
-                        ],
-                    },
-                ],
-            }),
+                                // Intentionally don't allow `aoss:DeleteIndex`. Our deploy script doesn't
+                                // currently delete indexes so let's prevent accidental issues.
+                            ],
+                        },
+                    ],
+                },
+            ]),
         });
 
         accessPolicy.addDependency(this._collection);
