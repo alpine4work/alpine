@@ -949,6 +949,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 method: "PUT",
                                 headers: {
                                     "content-type": "application/json",
+                                    // `x-amz-content-sha256` header is required when signing a request for
+                                    // OpenSearch Serverless.
+                                    //
+                                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                                     "x-amz-content-sha256": sha256(requestBodyString),
                                 },
                                 body: requestBodyString,
@@ -1138,6 +1142,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     method: "PUT",
                                     headers: {
                                         "content-type": "application/json",
+                                        // `x-amz-content-sha256` header is required when signing a request for
+                                        // OpenSearch Serverless.
+                                        //
+                                        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                                         "x-amz-content-sha256": sha256(requestBodyString),
                                     },
                                     body: requestBodyString,
@@ -1176,6 +1184,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     method: "PUT",
                                     headers: {
                                         "content-type": "application/json",
+                                        // `x-amz-content-sha256` header is required when signing a request for
+                                        // OpenSearch Serverless.
+                                        //
+                                        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                                         "x-amz-content-sha256": sha256(requestBodyString),
                                     },
                                     body: requestBodyString,
@@ -1502,6 +1514,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
+                    // `x-amz-content-sha256` header is required when signing a request for
+                    // OpenSearch Serverless.
+                    //
+                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                     "x-amz-content-sha256": sha256(requestBodyString),
                 },
                 body: requestBodyString,
@@ -1660,6 +1676,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "PUT",
                 headers: {
                     "content-type": "application/json",
+                    // `x-amz-content-sha256` header is required when signing a request for
+                    // OpenSearch Serverless.
+                    //
+                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                     "x-amz-content-sha256": sha256(requestBodyString),
                 },
                 body: requestBodyString,
@@ -1798,6 +1818,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/x-ndjson",
+                    // `x-amz-content-sha256` header is required when signing a request for
+                    // OpenSearch Serverless.
+                    //
+                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                     "x-amz-content-sha256": sha256(requestBodyString),
                 },
                 body: requestBodyString,
@@ -1968,6 +1992,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
+                    // `x-amz-content-sha256` header is required when signing a request for
+                    // OpenSearch Serverless.
+                    //
+                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                     "x-amz-content-sha256": sha256(requestBodyString),
                 },
                 body: requestBodyString,
@@ -2299,7 +2327,13 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_refresh`,
                 method: "POST",
-                headers: {"x-amz-content-sha256": sha256("")},
+                headers: {
+                    // `x-amz-content-sha256` header is required when signing a request for
+                    // OpenSearch Serverless.
+                    //
+                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                    "x-amz-content-sha256": sha256(""),
+                },
                 body: "",
             },
             async (response, span) => {
@@ -2358,6 +2392,10 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
+                    // `x-amz-content-sha256` header is required when signing a request for
+                    // OpenSearch Serverless.
+                    //
+                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
                     "x-amz-content-sha256": sha256(requestBodyString),
                 },
                 body: requestBodyString,

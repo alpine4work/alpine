@@ -1,3 +1,67 @@
+diff --git a/dist/aws4fetch.cjs.js b/dist/aws4fetch.cjs.js
+index d3c4b0bd240d2d3945e5fe919c4352b76a93dd2f..d34e1c2ff5a202a2fdb0d8ede28df7dc1631464c 100644
+--- a/dist/aws4fetch.cjs.js
++++ b/dist/aws4fetch.cjs.js
+@@ -58,7 +58,10 @@ class AwsClient {
+     try {
+       return new Request(signed.url.toString(), signed)
+     } catch (e) {
+-      if (e instanceof TypeError) {
++      // NOTE(calebmer): For some reason, the error thrown is not an
++      // `instanceof TypeError` in tests. So also look for the "duplex option is
++      // required" error message.
++      if (e instanceof TypeError || e.message.includes("duplex option is required")) {
+         return new Request(signed.url.toString(), Object.assign({ duplex: 'half' }, signed))
+       }
+       throw e
+diff --git a/dist/aws4fetch.esm.js b/dist/aws4fetch.esm.js
+index 9a47c421432cb8dc9f92a07a49fd46d2c00c57f3..c6a0d0fe955a7e1137378df019cdaf6e8faeaf3e 100644
+--- a/dist/aws4fetch.esm.js
++++ b/dist/aws4fetch.esm.js
+@@ -54,7 +54,10 @@ class AwsClient {
+     try {
+       return new Request(signed.url.toString(), signed)
+     } catch (e) {
+-      if (e instanceof TypeError) {
++      // NOTE(calebmer): For some reason, the error thrown is not an
++      // `instanceof TypeError` in tests. So also look for the "duplex option is
++      // required" error message.
++      if (e instanceof TypeError || e.message.includes("duplex option is required")) {
+         return new Request(signed.url.toString(), Object.assign({ duplex: 'half' }, signed))
+       }
+       throw e
+diff --git a/dist/aws4fetch.esm.mjs b/dist/aws4fetch.esm.mjs
+index 9a47c421432cb8dc9f92a07a49fd46d2c00c57f3..c6a0d0fe955a7e1137378df019cdaf6e8faeaf3e 100644
+--- a/dist/aws4fetch.esm.mjs
++++ b/dist/aws4fetch.esm.mjs
+@@ -54,7 +54,10 @@ class AwsClient {
+     try {
+       return new Request(signed.url.toString(), signed)
+     } catch (e) {
+-      if (e instanceof TypeError) {
++      // NOTE(calebmer): For some reason, the error thrown is not an
++      // `instanceof TypeError` in tests. So also look for the "duplex option is
++      // required" error message.
++      if (e instanceof TypeError || e.message.includes("duplex option is required")) {
+         return new Request(signed.url.toString(), Object.assign({ duplex: 'half' }, signed))
+       }
+       throw e
+diff --git a/dist/aws4fetch.umd.js b/dist/aws4fetch.umd.js
+index 4bbbd410ab2dcff1edb4fab50849cf0c5a9a08ea..9a00decaecad7d1209a43ae6d4750cd04a062e33 100644
+--- a/dist/aws4fetch.umd.js
++++ b/dist/aws4fetch.umd.js
+@@ -60,7 +60,10 @@
+       try {
+         return new Request(signed.url.toString(), signed)
+       } catch (e) {
+-        if (e instanceof TypeError) {
++        // NOTE(calebmer): For some reason, the error thrown is not an
++        // `instanceof TypeError` in tests. So also look for the "duplex option is
++        // required" error message.
++        if (e instanceof TypeError || e.message.includes("duplex option is required")) {
+           return new Request(signed.url.toString(), Object.assign({ duplex: 'half' }, signed))
+         }
+         throw e
 diff --git a/package.json b/package.json
 index 4ea1e456ccb0ceb242fd7dca3873a736e802e35c..b4c0a0425bac28b14d3ebd84e842a60f0f56efa5 100644
 --- a/package.json

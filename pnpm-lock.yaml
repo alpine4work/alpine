@@ -111,7 +111,7 @@ patchedDependencies:
     hash: pqyi7qxrm5bngccxhjirw6shme
     path: admin/patches/aws-cdk@2.1007.0.patch
   aws4fetch@1.0.17:
-    hash: brhmadvobndkkryeoeeq5ezl4u
+    hash: 55lacbjb52izwxvrwvaobcu3iu
     path: admin/patches/aws4fetch@1.0.17.patch
   browserify-zlib@0.1.4:
     hash: lhhf4zowvg4ngxldsy5aala7hu
@@ -600,7 +600,7 @@ importers:
         version: 2.189.1(constructs@10.1.143)
       aws4fetch:
         specifier: 1.0.17
-        version: 1.0.17(patch_hash=brhmadvobndkkryeoeeq5ezl4u)
+        version: 1.0.17(patch_hash=55lacbjb52izwxvrwvaobcu3iu)
       axe-core:
         specifier: 4.4.3
         version: 4.4.3
@@ -13558,7 +13558,7 @@ snapshots:
       uuid: 8.0.0
       xml2js: 0.6.2
 
-  aws4fetch@1.0.17(patch_hash=brhmadvobndkkryeoeeq5ezl4u): {}
+  aws4fetch@1.0.17(patch_hash=55lacbjb52izwxvrwvaobcu3iu): {}
 
   axe-core@4.4.3: {}
 
