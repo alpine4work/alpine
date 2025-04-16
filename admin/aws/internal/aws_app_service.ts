@@ -106,10 +106,6 @@ export class AwsAppService extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
-        // OpenSearch is in our private VPC subnet. Allow connections from our
-        // EC2 instances.
-        opensearch.allowConnectionsFrom(autoScalingGroup);
-
         // Allow `AppService` to connect to any `TaskRealtimeService` port.
         taskRealtimeService.autoScalingGroup.connections.allowFrom(autoScalingGroup, Port.allTcp());
 
@@ -229,7 +225,8 @@ export class AwsAppService extends Construct {
                 `/var/www/app/app_production ${[
                     `--port=${port}`,
                     "--edgeServiceUrl=https://alpine.inc",
-                    `--opensearchHost=${opensearch.opensearchHost}`,
+                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
+                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
@@ -265,7 +262,7 @@ export class AwsAppService extends Construct {
         });
 
         dynamo.grantReadWriteData(taskDefinition.taskRole);
-        opensearch.grantReadWriteData(taskDefinition.taskRole);
+        opensearch.addReadWriteAccessPolicy("AppServiceAccessPolicy", taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
 
         // `AppService` sends transactional emails. Like a one-time-password sign

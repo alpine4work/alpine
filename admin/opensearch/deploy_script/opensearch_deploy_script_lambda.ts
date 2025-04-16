@@ -10,10 +10,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
 const urlByServerlessCollectionType: Record<OpensearchServerlessCollectionType, string> = {
-    Search: assertExists(process.env.OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT),
-    VectorSearch: assertExists(
-        process.env.OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT,
-    ),
+    Search: assertExists(process.env.OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_ENDPOINT),
+    VectorSearch: assertExists(process.env.OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_ENDPOINT),
 };
 
 /**

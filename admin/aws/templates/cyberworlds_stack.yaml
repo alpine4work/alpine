@@ -239,79 +239,6 @@ Resources:
                 Ref: Vpc8378EB38
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/Resource
-    OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443E8DC0D69:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from
-                CyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E:443
-            FromPort: 443
-            GroupId:
-                Fn::GetAtt:
-                    - OpensearchDomainSecurityGroup046A436D
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
-                    - GroupId
-            ToPort: 443
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E:443
-    OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443FA2B2481:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:443
-            FromPort: 443
-            GroupId:
-                Fn::GetAtt:
-                    - OpensearchDomainSecurityGroup046A436D
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
-                    - GroupId
-            ToPort: 443
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:443
-    OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:443
-            FromPort: 443
-            GroupId:
-                Fn::GetAtt:
-                    - OpensearchDomainSecurityGroup046A436D
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434
-                    - GroupId
-            ToPort: 443
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:443
-    OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C:
-        Type: AWS::EC2::SecurityGroupIngress
-        Properties:
-            Description: from CyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A:443
-            FromPort: 443
-            GroupId:
-                Fn::GetAtt:
-                    - OpensearchDomainSecurityGroup046A436D
-                    - GroupId
-            IpProtocol: tcp
-            SourceSecurityGroupId:
-                Fn::GetAtt:
-                    - MigrationServiceInstanceSecurityGroup8D73B232
-                    - GroupId
-            ToPort: 443
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/Domain/SecurityGroup/from
-                CyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A:443
     OpensearchDomainSlowSearchLogsCB6C5516:
         Type: AWS::Logs::LogGroup
         Properties:
@@ -499,6 +426,171 @@ Resources:
             - OpensearchSearchCollection9C677E01
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/DeployScriptSearchAccessPolicy
+    OpensearchSearchCollectionDeployScriptSearchAccessPolicyPolicyEF381216:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - aoss:APIAccessAll
+                          - aoss:DashboardsAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchSearchCollection9C677E01
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchSearchCollectionDeployScriptSearchAccessPolicyPolicyEF381216
+            Roles:
+                - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
+        DependsOn:
+            - OpensearchSearchCollectionDeployScriptSearchAccessPolicy48E04B7D
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/DeployScriptSearchAccessPolicyPolicy/Resource
+    OpensearchSearchCollectionTaskRealtimeServiceSearchAccessPolicy88ED93C9:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: task-realtime-service-search
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/search_entity_keywords","index/search/task_collections","index/search/tasks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/TaskRealtimeServiceSearchAccessPolicy
+    OpensearchSearchCollectionTaskRealtimeServiceSearchAccessPolicyPolicy51981F70:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchSearchCollection9C677E01
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchSearchCollectionTaskRealtimeServiceSearchAccessPolicyPolicy51981F70
+            Roles:
+                - Ref: TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+        DependsOn:
+            - OpensearchSearchCollectionTaskRealtimeServiceSearchAccessPolicy88ED93C9
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/TaskRealtimeServiceSearchAccessPolicyPolicy/Resource
+    OpensearchSearchCollectionAppServiceSearchAccessPolicy056BE6C9:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: app-service-search
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - AppServiceTaskDefinitionTaskRole4C9D7E3B
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/search_entity_keywords","index/search/task_collections","index/search/tasks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/AppServiceSearchAccessPolicy
+    OpensearchSearchCollectionAppServiceSearchAccessPolicyPolicy76AFB612:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchSearchCollection9C677E01
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchSearchCollectionAppServiceSearchAccessPolicyPolicy76AFB612
+            Roles:
+                - Ref: AppServiceTaskDefinitionTaskRole4C9D7E3B
+        DependsOn:
+            - OpensearchSearchCollectionAppServiceSearchAccessPolicy056BE6C9
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/AppServiceSearchAccessPolicyPolicy/Resource
+    OpensearchSearchCollectionJobQueueServiceSearchAccessPolicy02506CA2:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: job-queue-service-search
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - JobQueueServiceTaskDefinitionTaskRole2F9357F1
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/search_entity_keywords","index/search/task_collections","index/search/tasks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/JobQueueServiceSearchAccessPolicy
+    OpensearchSearchCollectionJobQueueServiceSearchAccessPolicyPolicy662DB6B2:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchSearchCollection9C677E01
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchSearchCollectionJobQueueServiceSearchAccessPolicyPolicy662DB6B2
+            Roles:
+                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
+        DependsOn:
+            - OpensearchSearchCollectionJobQueueServiceSearchAccessPolicy02506CA2
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/JobQueueServiceSearchAccessPolicyPolicy/Resource
+    OpensearchSearchCollectionMigrationServiceSearchAccessPolicy2332D4C1:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: migration-service-search
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - MigrationServiceTaskDefinitionTaskRole781D9E98
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/search_entity_keywords","index/search/task_collections","index/search/tasks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchSearchCollection9C677E01
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/MigrationServiceSearchAccessPolicy
+    OpensearchSearchCollectionMigrationServiceSearchAccessPolicyPolicyB9928F96:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchSearchCollection9C677E01
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchSearchCollectionMigrationServiceSearchAccessPolicyPolicyB9928F96
+            Roles:
+                - Ref: MigrationServiceTaskDefinitionTaskRole781D9E98
+        DependsOn:
+            - OpensearchSearchCollectionMigrationServiceSearchAccessPolicy2332D4C1
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/MigrationServiceSearchAccessPolicyPolicy/Resource
     OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
@@ -543,6 +635,171 @@ Resources:
             - OpensearchVectorSearchCollection70A16089
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/DeployScriptVectorSearchAccessPolicy
+    OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyPolicyE66CB6D2:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - aoss:APIAccessAll
+                          - aoss:DashboardsAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchVectorSearchCollection70A16089
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyPolicyE66CB6D2
+            Roles:
+                - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
+        DependsOn:
+            - OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyCA90B8D1
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/DeployScriptVectorSearchAccessPolicyPolicy/Resource
+    OpensearchVectorSearchCollectionTaskRealtimeServiceVectorSearchAccessPolicy81D2A84E:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: task-realtime-service-vector-sea
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/search_entity_embedding_chunks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchVectorSearchCollection70A16089
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/TaskRealtimeServiceVectorSearchAccessPolicy
+    OpensearchVectorSearchCollectionTaskRealtimeServiceVectorSearchAccessPolicyPolicyBB848424:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchVectorSearchCollection70A16089
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchVectorSearchCollectionTaskRealtimeServiceVectorSearchAccessPolicyPolicyBB848424
+            Roles:
+                - Ref: TaskRealtimeServiceTaskDefinitionTaskRole9DE12F01
+        DependsOn:
+            - OpensearchVectorSearchCollectionTaskRealtimeServiceVectorSearchAccessPolicy81D2A84E
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/TaskRealtimeServiceVectorSearchAccessPolicyPolicy/Resource
+    OpensearchVectorSearchCollectionAppServiceVectorSearchAccessPolicyA1F053BE:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: app-service-vector-search
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - AppServiceTaskDefinitionTaskRole4C9D7E3B
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/search_entity_embedding_chunks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchVectorSearchCollection70A16089
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/AppServiceVectorSearchAccessPolicy
+    OpensearchVectorSearchCollectionAppServiceVectorSearchAccessPolicyPolicyF1ABD399:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchVectorSearchCollection70A16089
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchVectorSearchCollectionAppServiceVectorSearchAccessPolicyPolicyF1ABD399
+            Roles:
+                - Ref: AppServiceTaskDefinitionTaskRole4C9D7E3B
+        DependsOn:
+            - OpensearchVectorSearchCollectionAppServiceVectorSearchAccessPolicyA1F053BE
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/AppServiceVectorSearchAccessPolicyPolicy/Resource
+    OpensearchVectorSearchCollectionJobQueueServiceVectorSearchAccessPolicy2605B950:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: job-queue-service-vector-search
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - JobQueueServiceTaskDefinitionTaskRole2F9357F1
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/search_entity_embedding_chunks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchVectorSearchCollection70A16089
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/JobQueueServiceVectorSearchAccessPolicy
+    OpensearchVectorSearchCollectionJobQueueServiceVectorSearchAccessPolicyPolicy01BC14B9:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchVectorSearchCollection70A16089
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchVectorSearchCollectionJobQueueServiceVectorSearchAccessPolicyPolicy01BC14B9
+            Roles:
+                - Ref: JobQueueServiceTaskDefinitionTaskRole2F9357F1
+        DependsOn:
+            - OpensearchVectorSearchCollectionJobQueueServiceVectorSearchAccessPolicy2605B950
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/JobQueueServiceVectorSearchAccessPolicyPolicy/Resource
+    OpensearchVectorSearchCollectionMigrationServiceVectorSearchAccessPolicy010EFEBB:
+        Type: AWS::OpenSearchServerless::AccessPolicy
+        Properties:
+            Name: migration-service-vector-search
+            Policy:
+                Fn::Join:
+                    - ""
+                    - - '[{"Principal":["'
+                      - Fn::GetAtt:
+                            - MigrationServiceTaskDefinitionTaskRole781D9E98
+                            - Arn
+                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/search_entity_embedding_chunks"],"Permission":["aoss:WriteDocument","aoss:ReadDocument"]}]}]'
+            Type: data
+        DependsOn:
+            - OpensearchVectorSearchCollection70A16089
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/MigrationServiceVectorSearchAccessPolicy
+    OpensearchVectorSearchCollectionMigrationServiceVectorSearchAccessPolicyPolicyD5D25631:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action: aoss:APIAccessAll
+                      Effect: Allow
+                      Resource:
+                          Fn::GetAtt:
+                              - OpensearchVectorSearchCollection70A16089
+                              - Arn
+                Version: 2012-10-17
+            PolicyName: OpensearchVectorSearchCollectionMigrationServiceVectorSearchAccessPolicyPolicyD5D25631
+            Roles:
+                - Ref: MigrationServiceTaskDefinitionTaskRole781D9E98
+        DependsOn:
+            - OpensearchVectorSearchCollectionMigrationServiceVectorSearchAccessPolicy010EFEBB
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/MigrationServiceVectorSearchAccessPolicyPolicy/Resource
     OpensearchVpcEndpointSecurityGroup1152B57F:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -614,31 +871,6 @@ Resources:
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/DeployScript/ServiceRole/Resource
-    OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D:
-        Type: AWS::IAM::Policy
-        Properties:
-            PolicyDocument:
-                Statement:
-                    - Action:
-                          - aoss:APIAccessAll
-                          - aoss:DashboardsAccessAll
-                      Effect: Allow
-                      Resource:
-                          - Fn::GetAtt:
-                                - OpensearchSearchCollection9C677E01
-                                - Arn
-                          - Fn::GetAtt:
-                                - OpensearchVectorSearchCollection70A16089
-                                - Arn
-                Version: 2012-10-17
-            PolicyName: OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D
-            Roles:
-                - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
-        DependsOn:
-            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
-            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
-        Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/DeployScript/ServiceRole/DefaultPolicy/Resource
     OpensearchDeployScriptSecurityGroup318E660E:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -664,11 +896,11 @@ Resources:
                 S3Key: caebe64a01df3a35781eb90c8304940d9d437c81251de89eb46cdb713fd3d31e.zip
             Environment:
                 Variables:
-                    OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
+                    OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_ENDPOINT:
                         Fn::GetAtt:
                             - OpensearchSearchCollection9C677E01
                             - CollectionEndpoint
-                    OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
+                    OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_ENDPOINT:
                         Fn::GetAtt:
                             - OpensearchVectorSearchCollection70A16089
                             - CollectionEndpoint
@@ -688,7 +920,6 @@ Resources:
                     - Ref: VpcIsolatedSubnet1SubnetE48C5737
                     - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
-            - OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D
             - OpensearchDeployScriptServiceRoleFC0ECCBE
             - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
@@ -801,14 +1032,32 @@ Resources:
                     - Arn
             indexesHash: 2a5ba13d2d05ee68772a90799586b7f97e53fff2455df84e14717ad0e8f154ca
         DependsOn:
+            - OpensearchSearchCollectionAppServiceSearchAccessPolicy056BE6C9
+            - OpensearchSearchCollectionAppServiceSearchAccessPolicyPolicy76AFB612
             - OpensearchSearchCollection9C677E01
             - OpensearchSearchCollectionDeployScriptSearchAccessPolicy48E04B7D
+            - OpensearchSearchCollectionDeployScriptSearchAccessPolicyPolicyEF381216
             - OpensearchSearchCollectionEncryptionSecurityPolicyBFFDFE71
+            - OpensearchSearchCollectionJobQueueServiceSearchAccessPolicy02506CA2
+            - OpensearchSearchCollectionJobQueueServiceSearchAccessPolicyPolicy662DB6B2
+            - OpensearchSearchCollectionMigrationServiceSearchAccessPolicy2332D4C1
+            - OpensearchSearchCollectionMigrationServiceSearchAccessPolicyPolicyB9928F96
             - OpensearchSearchCollectionNetworkSecurityPolicy912BB5EF
+            - OpensearchSearchCollectionTaskRealtimeServiceSearchAccessPolicy88ED93C9
+            - OpensearchSearchCollectionTaskRealtimeServiceSearchAccessPolicyPolicy51981F70
+            - OpensearchVectorSearchCollectionAppServiceVectorSearchAccessPolicyA1F053BE
+            - OpensearchVectorSearchCollectionAppServiceVectorSearchAccessPolicyPolicyF1ABD399
             - OpensearchVectorSearchCollection70A16089
             - OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyCA90B8D1
+            - OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyPolicyE66CB6D2
             - OpensearchVectorSearchCollectionEncryptionSecurityPolicyECB92B64
+            - OpensearchVectorSearchCollectionJobQueueServiceVectorSearchAccessPolicy2605B950
+            - OpensearchVectorSearchCollectionJobQueueServiceVectorSearchAccessPolicyPolicy01BC14B9
+            - OpensearchVectorSearchCollectionMigrationServiceVectorSearchAccessPolicy010EFEBB
+            - OpensearchVectorSearchCollectionMigrationServiceVectorSearchAccessPolicyPolicyD5D25631
             - OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00
+            - OpensearchVectorSearchCollectionTaskRealtimeServiceVectorSearchAccessPolicy81D2A84E
+            - OpensearchVectorSearchCollectionTaskRealtimeServiceVectorSearchAccessPolicyPolicyBB848424
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:
@@ -1891,75 +2140,6 @@ Resources:
                                         - TasksTable88911DC5
                                         - Arn
                                   - /index/*
-                    - Action:
-                          - es:ESHttpDelete
-                          - es:ESHttpGet
-                          - es:ESHttpHead
-                          - es:ESHttpPatch
-                          - es:ESHttpPost
-                          - es:ESHttpPut
-                      Effect: Allow
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_bulk
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_mget
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks/*
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -1985,10 +2165,14 @@ Resources:
                       - Fn::Join:
                             - ""
                             - - /var/www/server/tasks/realtime/realtime --portBase=4000
-                                --opensearchHost=
+                                --opensearchSearchServerlessCollectionEndpoint=
                               - Fn::GetAtt:
-                                    - OpensearchDomainCED7C974
-                                    - DomainEndpoint
+                                    - OpensearchSearchCollection9C677E01
+                                    - CollectionEndpoint
+                              - " --opensearchVectorSearchServerlessCollectionEndpoint="
+                              - Fn::GetAtt:
+                                    - OpensearchVectorSearchCollection70A16089
+                                    - CollectionEndpoint
                               - " --jobQueueUrl="
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
@@ -2588,75 +2772,6 @@ Resources:
                                         - TasksTable88911DC5
                                         - Arn
                                   - /index/*
-                    - Action:
-                          - es:ESHttpDelete
-                          - es:ESHttpGet
-                          - es:ESHttpHead
-                          - es:ESHttpPatch
-                          - es:ESHttpPost
-                          - es:ESHttpPut
-                      Effect: Allow
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_bulk
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_mget
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks/*
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -2692,10 +2807,15 @@ Resources:
                       - Fn::Join:
                             - ""
                             - - /var/www/app/app_production --port=4000
-                                --edgeServiceUrl=https://alpine.inc --opensearchHost=
+                                --edgeServiceUrl=https://alpine.inc
+                                --opensearchSearchServerlessCollectionEndpoint=
                               - Fn::GetAtt:
-                                    - OpensearchDomainCED7C974
-                                    - DomainEndpoint
+                                    - OpensearchSearchCollection9C677E01
+                                    - CollectionEndpoint
+                              - " --opensearchVectorSearchServerlessCollectionEndpoint="
+                              - Fn::GetAtt:
+                                    - OpensearchVectorSearchCollection70A16089
+                                    - CollectionEndpoint
                               - " --jobQueueUrl="
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
@@ -3368,75 +3488,6 @@ Resources:
                                         - Arn
                                   - /index/*
                     - Action:
-                          - es:ESHttpDelete
-                          - es:ESHttpGet
-                          - es:ESHttpHead
-                          - es:ESHttpPatch
-                          - es:ESHttpPost
-                          - es:ESHttpPut
-                      Effect: Allow
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_bulk
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_mget
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks/*
-                    - Action:
                           - sqs:ChangeMessageVisibility
                           - sqs:DeleteMessage
                           - sqs:ReceiveMessage
@@ -3471,10 +3522,15 @@ Resources:
                       - -c
                       - Fn::Join:
                             - ""
-                            - - /var/www/server/jobs/queue/queue --opensearchHost=
+                            - - /var/www/server/jobs/queue/queue
+                                --opensearchSearchServerlessCollectionEndpoint=
                               - Fn::GetAtt:
-                                    - OpensearchDomainCED7C974
-                                    - DomainEndpoint
+                                    - OpensearchSearchCollection9C677E01
+                                    - CollectionEndpoint
+                              - " --opensearchVectorSearchServerlessCollectionEndpoint="
+                              - Fn::GetAtt:
+                                    - OpensearchVectorSearchCollection70A16089
+                                    - CollectionEndpoint
                               - " --jobQueueUrl="
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
@@ -3949,75 +4005,6 @@ Resources:
                                         - TasksTable88911DC5
                                         - Arn
                                   - /index/*
-                    - Action:
-                          - es:ESHttpDelete
-                          - es:ESHttpGet
-                          - es:ESHttpHead
-                          - es:ESHttpPatch
-                          - es:ESHttpPost
-                          - es:ESHttpPut
-                      Effect: Allow
-                      Resource:
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_bulk
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /_mget
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_keywords/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /search_entity_semantics/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /task_collections/*
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks
-                          - Fn::Join:
-                                - ""
-                                - - Fn::GetAtt:
-                                        - OpensearchDomainCED7C974
-                                        - Arn
-                                  - /tasks/*
                     - Action: sqs:SendMessage
                       Effect: Allow
                       Resource:
@@ -4046,10 +4033,15 @@ Resources:
                               - Ref: SqsJobQueue62388F96
                               - " --fileProcessorJobQueueUrl="
                               - Ref: SqsFileProcessorJobQueue551DBCF8
-                              - " --honeycombApiKey=$HONEYCOMB_API_KEY --opensearchHost="
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
+                                --opensearchSearchServerlessCollectionEndpoint="
                               - Fn::GetAtt:
-                                    - OpensearchDomainCED7C974
-                                    - DomainEndpoint
+                                    - OpensearchSearchCollection9C677E01
+                                    - CollectionEndpoint
+                              - " --opensearchVectorSearchServerlessCollectionEndpoint="
+                              - Fn::GetAtt:
+                                    - OpensearchVectorSearchCollection70A16089
+                                    - CollectionEndpoint
                               - " --migration=$MIGRATION --segmentIndex=$SEGMENT_INDEX
                                 --totalSegmentCount=$TOTAL_SEGMENT_COUNT"
                   Environment:

@@ -111,10 +111,6 @@ export class AwsTaskRealtimeService extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
-        // OpenSearch is in our private VPC subnet. Allow connections from our
-        // EC2 instances.
-        opensearch.allowConnectionsFrom(this.autoScalingGroup);
-
         // Allow Cloudflare to access `TaskRealtimeService` port 80 from the public
         // internet. No one else on the public internet should be able to access
         // `TaskRealtimeService` instances directly.
@@ -255,7 +251,8 @@ export class AwsTaskRealtimeService extends Construct {
                 "-c",
                 `/var/www/server/tasks/realtime/realtime ${[
                     `--portBase=${portBase}`,
-                    `--opensearchHost=${opensearch.opensearchHost}`,
+                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
+                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
@@ -330,7 +327,10 @@ export class AwsTaskRealtimeService extends Construct {
         });
 
         dynamo.grantReadWriteData(this.taskDefinition.taskRole);
-        opensearch.grantReadWriteData(this.taskDefinition.taskRole);
+        opensearch.addReadWriteAccessPolicy(
+            "TaskRealtimeServiceAccessPolicy",
+            this.taskDefinition.taskRole,
+        );
         sqs.grantSendJobQueueMessages(this.taskDefinition.taskRole);
 
         for (let partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {

@@ -2,8 +2,8 @@
 // NOCOMMIT: Delete the above comment ^
 
 import {CustomResource, Duration} from "aws-cdk-lib";
-import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
-import {Effect, IGrantable, IRole, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
+import {Effect, IRole, Policy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import * as opensearchserverless from "aws-cdk-lib/aws-opensearchserverless";
@@ -16,10 +16,12 @@ import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 import {crawlOpensearchIndexes} from "~/admin/crawl/crawl.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {OpensearchServerlessCollectionType} from "~/server/opensearch/opensearch_index.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {convertKebabCaseToPascalCase} from "~/shared/helpers/string/convert_kebab_case_to_pascal_case.js";
 import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
@@ -41,9 +43,30 @@ function getSha256Hash(string: string): string {
 
 export class AwsOpensearch {
     private readonly _domain: Domain;
+    private readonly _collectionByServerlessCollectionType: Readonly<
+        Record<
+            OpensearchServerlessCollectionType,
+            {
+                readonly collection: AwsOpensearchServerlessCollection;
+                readonly indexNames: ReadonlyArray<string>;
+            }
+        >
+    >;
 
-    private constructor(domain: Domain) {
+    private constructor(
+        domain: Domain,
+        collectionByServerlessCollectionType: Readonly<
+            Record<
+                OpensearchServerlessCollectionType,
+                {
+                    readonly collection: AwsOpensearchServerlessCollection;
+                    readonly indexNames: ReadonlyArray<string>;
+                }
+            >
+        >,
+    ) {
         this._domain = domain;
+        this._collectionByServerlessCollectionType = collectionByServerlessCollectionType;
     }
 
     public static async new(parentConstruct: Construct, vpc: AwsVpc) {
@@ -77,22 +100,38 @@ export class AwsOpensearch {
             },
         });
 
+        const indexes = await crawlOpensearchIndexes();
+        const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
+
         const collectionByServerlessCollectionType: Record<
             OpensearchServerlessCollectionType,
-            AwsOpensearchServerlessCollection
+            {
+                readonly collection: AwsOpensearchServerlessCollection;
+                readonly indexNames: ReadonlyArray<string>;
+            }
         > = {
-            Search: new AwsOpensearchServerlessCollection(construct, "SearchCollection", {
-                name: "search",
-                type: "SEARCH",
-            }),
-            VectorSearch: new AwsOpensearchServerlessCollection(
-                construct,
-                "VectorSearchCollection",
-                {
-                    name: "vector-search",
-                    type: "VECTORSEARCH",
-                },
-            ),
+            Search: {
+                collection: new AwsOpensearchServerlessCollection(construct, "SearchCollection", {
+                    name: "search",
+                    type: "SEARCH",
+                }),
+                indexNames: filterMapArray(indexes, index =>
+                    index.serverlessCollectionType === "Search" ? index.name : undefined,
+                ),
+            },
+            VectorSearch: {
+                collection: new AwsOpensearchServerlessCollection(
+                    construct,
+                    "VectorSearchCollection",
+                    {
+                        name: "vector-search",
+                        type: "VECTORSEARCH",
+                    },
+                ),
+                indexNames: filterMapArray(indexes, index =>
+                    index.serverlessCollectionType === "VectorSearch" ? index.name : undefined,
+                ),
+            },
         };
 
         const vpcEndpointSecurityGroup = new SecurityGroup(construct, "VpcEndpointSecurityGroup", {
@@ -105,9 +144,6 @@ export class AwsOpensearch {
             subnetIds: vpc.selectSubnets().subnetIds,
             securityGroupIds: [vpcEndpointSecurityGroup.securityGroupId],
         });
-
-        const indexes = await crawlOpensearchIndexes();
-        const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
 
         // OpenSearch deploy script:
         //
@@ -131,10 +167,11 @@ export class AwsOpensearch {
                 // https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
                 runtime: Runtime.NODEJS_18_X,
                 environment: {
-                    OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
-                        collectionByServerlessCollectionType.Search.collectionEndpoint,
-                    OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_TYPE_ENDPOINT:
-                        collectionByServerlessCollectionType.VectorSearch.collectionEndpoint,
+                    OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_ENDPOINT:
+                        collectionByServerlessCollectionType.Search.collection.collectionEndpoint,
+                    OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_ENDPOINT:
+                        collectionByServerlessCollectionType.VectorSearch.collection
+                            .collectionEndpoint,
                 },
                 // Don't retain deploy script logs forever.
                 logRetention: RetentionDays.ONE_MONTH,
@@ -156,43 +193,52 @@ export class AwsOpensearch {
                 },
             });
 
-            for (const collection of Object.values(collectionByServerlessCollectionType)) {
-                const accessPolicy = collection.addDeployScriptAccessPolicy(
+            for (const {collection} of Object.values(collectionByServerlessCollectionType)) {
+                collection.addDeployScriptAccessPolicy(
                     `DeployScript${convertKebabCaseToPascalCase(
                         collection.collectionName,
                     )}AccessPolicy`,
                     assertExists(deployScript.role),
                 );
 
-                // The `collection` and `accessPolicy` must be created before the
-                // resource runs.
+                // The `collection` must be created before the resource runs.
                 deployScriptResource.node.addDependency(collection);
-                deployScriptResource.node.addDependency(accessPolicy);
             }
         }
 
-        return new AwsOpensearch(domain);
+        return new AwsOpensearch(domain, collectionByServerlessCollectionType);
     }
 
-    public get opensearchHost() {
-        return this._domain.domainEndpoint;
+    public get searchServerlessCollectionEndpoint() {
+        return this._collectionByServerlessCollectionType.Search.collection.collectionEndpoint;
     }
 
-    public allowConnectionsFrom(other: IConnectable) {
-        this._domain.connections.allowFrom(other, Port.tcp(443));
+    public get vectorSearchServerlessCollectionEndpoint() {
+        return this._collectionByServerlessCollectionType.VectorSearch.collection
+            .collectionEndpoint;
     }
 
-    public grantReadWriteData(grantee: IGrantable) {
-        this._domain.grantIndexReadWrite("tasks", grantee);
-        this._domain.grantIndexReadWrite("task_collections", grantee);
-        this._domain.grantIndexReadWrite("search_entity_keywords", grantee);
-        this._domain.grantIndexReadWrite("search_entity_semantics", grantee);
+    /**
+     * Add an access policy granting read/write access to all OpenSearch indexes.
+     * OpenSearch Serverless needs to create non-IAM data access policy rules which
+     * is why this needs an `id` for a new construct instead of following a
+     * `grant()` pattern that only adds to an IAM policy.
+     */
+    public addReadWriteAccessPolicy(id: string, role: IRole) {
+        // Enforce convention that all access policy `id`s end with `AccessPolicy`.
+        assert(id.endsWith("AccessPolicy"));
 
-        // Allow bulk writing documents or bulk reading documents. This could allow you
-        // to bulk read/write documents outside of the indexes specified above! Be
-        // careful when adding indexes to this domain.
-        this._domain.grantPathReadWrite("_bulk", grantee);
-        this._domain.grantPathReadWrite("_mget", grantee);
+        for (const {collection, indexNames} of Object.values(
+            this._collectionByServerlessCollectionType,
+        )) {
+            collection.addIndexReadWriteAccessPolicy(
+                `${id.slice(0, -"AccessPolicy".length)}${convertKebabCaseToPascalCase(
+                    collection.collectionName,
+                )}AccessPolicy`,
+                role,
+                indexNames,
+            );
+        }
     }
 }
 
@@ -211,6 +257,7 @@ export class AwsOpensearch {
  */
 class AwsOpensearchServerlessCollection extends Construct {
     private readonly _collection: opensearchserverless.CfnCollection;
+    private readonly _accessPolicyNames = new Set<string>();
 
     constructor(
         parentConstruct: Construct,
@@ -286,11 +333,20 @@ class AwsOpensearchServerlessCollection extends Construct {
         return this._collection.attrCollectionEndpoint;
     }
 
+    /**
+     * Add an access policy for our deploy script. The deploy script gets full
+     * access to OpenSearch so it can write and update indexes as needed.
+     */
     public addDeployScriptAccessPolicy(id: string, role: IRole) {
+        const name = convertPascalCaseToKebabCase(
+            id.endsWith("AccessPolicy") ? id.slice(0, -"AccessPolicy".length) : id,
+        ).slice(0, 32);
+
+        assert(!this._accessPolicyNames.has(name));
+        this._accessPolicyNames.add(name);
+
         const accessPolicy = new opensearchserverless.CfnAccessPolicy(this, id, {
-            name: convertPascalCaseToKebabCase(
-                id.endsWith("AccessPolicy") ? id.slice(0, -"AccessPolicy".length) : id,
-            ),
+            name,
             type: "data",
             policy: JSON.stringify([
                 {
@@ -313,7 +369,75 @@ class AwsOpensearchServerlessCollection extends Construct {
 
         accessPolicy.addDependency(this._collection);
 
-        assert(3 <= accessPolicy.name.length && accessPolicy.name.length <= 32);
+        // It's not enough to add data access policies. We must also grant API access
+        // through IAM or else the user will get 403 forbidden errors.
+        //
+        // > Being granted permissions within a data access policy is not sufficient to
+        // > access data in your OpenSearch Serverless collection. An associated
+        // > principal must also be granted access to the IAM permissions
+        // > `aoss:APIAccessAll` and `aoss:DashboardsAccessAll`. Both permissions grant
+        // > full access to collection resources, while the Dashboards permission also
+        // > provides access to OpenSearch Dashboards. If a principal doesn't have both
+        // > of these IAM permissions, they will receive 403 errors when attempting to
+        // > send requests to the collection.
+        //
+        // ([Source][1])
+        //
+        // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-data-access.html
+        const accessPolicyPolicy = new Policy(this, `${id}Policy`, {
+            statements: [
+                new PolicyStatement({
+                    effect: Effect.ALLOW,
+                    resources: [this._collection.attrArn],
+                    actions: ["aoss:APIAccessAll", "aoss:DashboardsAccessAll"],
+                }),
+            ],
+        });
+
+        accessPolicyPolicy.node.addDependency(accessPolicy);
+        role.attachInlinePolicy(accessPolicyPolicy);
+    }
+
+    /**
+     * Add an access policy that gives read/write access to the documents in the
+     * provided indexes. Doesn't give access to reading/writing settings on the
+     * index itself. Only documents within the index.
+     */
+    public addIndexReadWriteAccessPolicy(
+        id: string,
+        role: IRole,
+        indexNames: ReadonlyArray<string>,
+    ) {
+        const name = convertPascalCaseToKebabCase(
+            id.endsWith("AccessPolicy") ? id.slice(0, -"AccessPolicy".length) : id,
+        ).slice(0, 32);
+
+        assert(!this._accessPolicyNames.has(name));
+        this._accessPolicyNames.add(name);
+
+        const accessPolicy = new opensearchserverless.CfnAccessPolicy(this, id, {
+            name,
+            type: "data",
+            policy: JSON.stringify([
+                {
+                    Principal: [role.roleArn],
+                    Rules: [
+                        {
+                            ResourceType: "index",
+                            Resource: indexNames.map(indexName => {
+                                // Don't allow wildcard in `indexName`.
+                                assert(isIdentifier(indexName));
+
+                                return `index/${this._collection.name}/${indexName}`;
+                            }),
+                            Permission: ["aoss:WriteDocument", "aoss:ReadDocument"],
+                        },
+                    ],
+                },
+            ]),
+        });
+
+        accessPolicy.addDependency(this._collection);
 
         // It's not enough to add data access policies. We must also grant API access
         // through IAM or else the user will get 403 forbidden errors.
@@ -330,14 +454,17 @@ class AwsOpensearchServerlessCollection extends Construct {
         // ([Source][1])
         //
         // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-data-access.html
-        role.addToPrincipalPolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                resources: [this._collection.attrArn],
-                actions: ["aoss:APIAccessAll", "aoss:DashboardsAccessAll"],
-            }),
-        );
+        const accessPolicyPolicy = new Policy(this, `${id}Policy`, {
+            statements: [
+                new PolicyStatement({
+                    effect: Effect.ALLOW,
+                    resources: [this._collection.attrArn],
+                    actions: ["aoss:APIAccessAll"],
+                }),
+            ],
+        });
 
-        return accessPolicy;
+        accessPolicyPolicy.node.addDependency(accessPolicy);
+        role.attachInlinePolicy(accessPolicyPolicy);
     }
 }

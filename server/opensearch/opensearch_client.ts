@@ -937,7 +937,21 @@ export class OpensearchClient implements OpensearchClientInterface {
                         // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                         // float-64 size in settings. Ok to use native JSON stringifier instead of
                         // `json-bigint`.
-                        const requestBodyString = JSON.stringify(index.config);
+                        const requestBody = JSON.stringify(index.config);
+
+                        const requestHeaders: {[key: string]: string} = {
+                            "content-type": "application/json",
+                        };
+
+                        // `x-amz-content-sha256` header is required when signing a request for
+                        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+                        // a request to a non-serverless AWS OpenSearch domain because the content
+                        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+                        //
+                        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+                            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+                        }
 
                         await fetchWithTracer(
                             tracer,
@@ -947,22 +961,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 serviceName: "OpenSearch",
                                 route: `/${index.name}`,
                                 method: "PUT",
-                                headers: {
-                                    "content-type": "application/json",
-                                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                                    // error if `x-amz-content-sha256` is included since the signature is wrong.
-                                    // Remove this once we finish upgrading to OpenSearch serverless.
-                                    ...(url.hostname.endsWith(".es.amazonaws.com")
-                                        ? {}
-                                        : {
-                                              // `x-amz-content-sha256` header is required when signing a request for
-                                              // OpenSearch Serverless.
-                                              //
-                                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                                              "x-amz-content-sha256": sha256(requestBodyString),
-                                          }),
-                                },
-                                body: requestBodyString,
+                                headers: requestHeaders,
+                                body: requestBody,
                             },
                             async response => {
                                 // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1135,9 +1135,23 @@ export class OpensearchClient implements OpensearchClientInterface {
                             // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                             // float-64 size in settings. Ok to use native JSON stringifier instead of
                             // `json-bigint`.
-                            const requestBodyString = JSON.stringify(
+                            const requestBody = JSON.stringify(
                                 omitOpensearchStaticIndexConfig(index.config).settings,
                             );
+
+                            const requestHeaders: {[key: string]: string} = {
+                                "content-type": "application/json",
+                            };
+
+                            // `x-amz-content-sha256` header is required when signing a request for
+                            // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+                            // a request to a non-serverless AWS OpenSearch domain because the content
+                            // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+                            //
+                            // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                            if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+                                requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+                            }
 
                             await fetchWithTracer(
                                 tracer,
@@ -1147,22 +1161,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     serviceName: "OpenSearch",
                                     route: `/${index.name}/_settings`,
                                     method: "PUT",
-                                    headers: {
-                                        "content-type": "application/json",
-                                        // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                                        // error if `x-amz-content-sha256` is included since the signature is wrong.
-                                        // Remove this once we finish upgrading to OpenSearch serverless.
-                                        ...(url.hostname.endsWith(".es.amazonaws.com")
-                                            ? {}
-                                            : {
-                                                  // `x-amz-content-sha256` header is required when signing a request for
-                                                  // OpenSearch Serverless.
-                                                  //
-                                                  // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                                                  "x-amz-content-sha256": sha256(requestBodyString),
-                                              }),
-                                    },
-                                    body: requestBodyString,
+                                    headers: requestHeaders,
+                                    body: requestBody,
                                 },
                                 async response => {
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1186,7 +1186,21 @@ export class OpensearchClient implements OpensearchClientInterface {
                             // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                             // float-64 size in settings. Ok to use native JSON stringifier instead of
                             // `json-bigint`.
-                            const requestBodyString = JSON.stringify(index.config.mappings);
+                            const requestBody = JSON.stringify(index.config.mappings);
+
+                            const requestHeaders: {[key: string]: string} = {
+                                "content-type": "application/json",
+                            };
+
+                            // `x-amz-content-sha256` header is required when signing a request for
+                            // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+                            // a request to a non-serverless AWS OpenSearch domain because the content
+                            // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+                            //
+                            // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                            if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+                                requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+                            }
 
                             await fetchWithTracer(
                                 tracer,
@@ -1196,22 +1210,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     serviceName: "OpenSearch",
                                     route: `/${index.name}/_mappings`,
                                     method: "PUT",
-                                    headers: {
-                                        "content-type": "application/json",
-                                        // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                                        // error if `x-amz-content-sha256` is included since the signature is wrong.
-                                        // Remove this once we finish upgrading to OpenSearch serverless.
-                                        ...(url.hostname.endsWith(".es.amazonaws.com")
-                                            ? {}
-                                            : {
-                                                  // `x-amz-content-sha256` header is required when signing a request for
-                                                  // OpenSearch Serverless.
-                                                  //
-                                                  // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                                                  "x-amz-content-sha256": sha256(requestBodyString),
-                                              }),
-                                    },
-                                    body: requestBodyString,
+                                    headers: requestHeaders,
+                                    body: requestBody,
                                 },
                                 async response => {
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1516,7 +1516,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
         // strings and so JSON safe. Stringify is fine here.
-        const requestBodyString = JSON.stringify({
+        const requestBody = JSON.stringify({
             docs: commands.map(command => ({
                 _index: !singularIndex ? command.index.name : undefined,
                 routing: !singularRouting ? command.routing : undefined,
@@ -1525,7 +1525,21 @@ export class OpensearchClient implements OpensearchClientInterface {
             })),
         });
 
-        const body = await fetchWithTracer(
+        const requestHeaders: {[key: string]: string} = {
+            "content-type": "application/json",
+        };
+
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
+
+        const responseBody = await fetchWithTracer(
             tracer,
             url,
             {
@@ -1533,22 +1547,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: singularIndex ? `/${singularIndex.name}/_mget` : "/_mget",
                 method: "POST",
-                headers: {
-                    "content-type": "application/json",
-                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                    // error if `x-amz-content-sha256` is included since the signature is wrong.
-                    // Remove this once we finish upgrading to OpenSearch serverless.
-                    ...(url.hostname.endsWith(".es.amazonaws.com")
-                        ? {}
-                        : {
-                              // `x-amz-content-sha256` header is required when signing a request for
-                              // OpenSearch Serverless.
-                              //
-                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                              "x-amz-content-sha256": sha256(requestBodyString),
-                          }),
-                },
-                body: requestBodyString,
+                headers: requestHeaders,
+                body: requestBody,
             },
             async (response, span) => {
                 span.addData({
@@ -1618,15 +1618,15 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         const docByIdByIndex = new Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>();
 
-        for (const bodyDoc of body.docs) {
-            if (!bodyDoc.found) continue;
+        for (const doc of responseBody.docs) {
+            if (!doc.found) continue;
 
-            const index = assertExists(indexByName.get(bodyDoc._index));
-            const command = assertExists(commandByIdByIndex.get(index)?.get(bodyDoc._id));
+            const index = assertExists(indexByName.get(doc._index));
+            const command = assertExists(commandByIdByIndex.get(index)?.get(doc._id));
 
             getOrSetDefaultMapValue(docByIdByIndex, index as Index, () => new Map()).set(
-                bodyDoc._id as OpensearchIndexDocIdType<Index>,
-                command.deserialize(bodyDoc),
+                doc._id as OpensearchIndexDocIdType<Index>,
+                command.deserialize(doc),
             );
         }
 
@@ -1690,7 +1690,21 @@ export class OpensearchClient implements OpensearchClientInterface {
         // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
         // to strings to maintain precision. Ok to use native JSON stringifier since
         // `long`s will be strings and we know how to handle those strings.
-        const requestBodyString = JSON.stringify(index.type.serialize(doc));
+        const requestBody = JSON.stringify(index.type.serialize(doc));
+
+        const requestHeaders: {[key: string]: string} = {
+            "content-type": "application/json",
+        };
+
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         await fetchWithTracer(
             tracer,
@@ -1702,22 +1716,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                     ? `/${index.name}/_create/:docId`
                     : `/${index.name}/_doc/:docId`,
                 method: "PUT",
-                headers: {
-                    "content-type": "application/json",
-                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                    // error if `x-amz-content-sha256` is included since the signature is wrong.
-                    // Remove this once we finish upgrading to OpenSearch serverless.
-                    ...(url.hostname.endsWith(".es.amazonaws.com")
-                        ? {}
-                        : {
-                              // `x-amz-content-sha256` header is required when signing a request for
-                              // OpenSearch Serverless.
-                              //
-                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                              "x-amz-content-sha256": sha256(requestBodyString),
-                          }),
-                },
-                body: requestBodyString,
+                headers: requestHeaders,
+                body: requestBody,
             },
             async (response, span) => {
                 span.addData({
@@ -1841,7 +1841,21 @@ export class OpensearchClient implements OpensearchClientInterface {
         // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
         // to strings to maintain precision. Ok to use native JSON stringifier since
         // `long`s will be strings and we know how to handle those strings.
-        const requestBodyString = bulkBody.map(object => `${JSON.stringify(object)}\n`).join("");
+        const requestBody = bulkBody.map(object => `${JSON.stringify(object)}\n`).join("");
+
+        const requestHeaders: {[key: string]: string} = {
+            "content-type": "application/x-ndjson",
+        };
+
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         const versionConflictError: FailedPreconditionError | null = await fetchWithTracer(
             tracer,
@@ -1851,22 +1865,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk",
                 method: "POST",
-                headers: {
-                    "content-type": "application/x-ndjson",
-                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                    // error if `x-amz-content-sha256` is included since the signature is wrong.
-                    // Remove this once we finish upgrading to OpenSearch serverless.
-                    ...(url.hostname.endsWith(".es.amazonaws.com")
-                        ? {}
-                        : {
-                              // `x-amz-content-sha256` header is required when signing a request for
-                              // OpenSearch Serverless.
-                              //
-                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                              "x-amz-content-sha256": sha256(requestBodyString),
-                          }),
-                },
-                body: requestBodyString,
+                headers: requestHeaders,
+                body: requestBody,
             },
             async (response, span) => {
                 span.addData({
@@ -2016,13 +2016,27 @@ export class OpensearchClient implements OpensearchClientInterface {
         // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
         // bigints we want to stringify as JSON integer literals so we need to use
         // `json-bigint`.
-        const requestBodyString = JsonBigInt.stringify({
+        const requestBody = JsonBigInt.stringify({
             query,
             sort,
             search_after: afterCursor,
             _source: !withoutSource,
             highlight,
         });
+
+        const requestHeaders: {[key: string]: string} = {
+            "content-type": "application/json",
+        };
+
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         const body = await fetchWithTracer(
             tracer,
@@ -2032,22 +2046,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_search`,
                 method: "POST",
-                headers: {
-                    "content-type": "application/json",
-                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                    // error if `x-amz-content-sha256` is included since the signature is wrong.
-                    // Remove this once we finish upgrading to OpenSearch serverless.
-                    ...(url.hostname.endsWith(".es.amazonaws.com")
-                        ? {}
-                        : {
-                              // `x-amz-content-sha256` header is required when signing a request for
-                              // OpenSearch Serverless.
-                              //
-                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                              "x-amz-content-sha256": sha256(requestBodyString),
-                          }),
-                },
-                body: requestBodyString,
+                headers: requestHeaders,
+                body: requestBody,
             },
             async (response, span) => {
                 span.addData({
@@ -2370,6 +2370,20 @@ export class OpensearchClient implements OpensearchClientInterface {
             this._urlByServerlessCollectionType[index.serverlessCollectionType],
         );
 
+        const requestBody = "";
+
+        const requestHeaders: {[key: string]: string} = {};
+
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
+
         await fetchWithTracer(
             tracer,
             url,
@@ -2378,21 +2392,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_refresh`,
                 method: "POST",
-                headers: {
-                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                    // error if `x-amz-content-sha256` is included since the signature is wrong.
-                    // Remove this once we finish upgrading to OpenSearch serverless.
-                    ...(url.hostname.endsWith(".es.amazonaws.com")
-                        ? {}
-                        : {
-                              // `x-amz-content-sha256` header is required when signing a request for
-                              // OpenSearch Serverless.
-                              //
-                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                              "x-amz-content-sha256": sha256(""),
-                          }),
-                },
-                body: "",
+                headers: requestHeaders,
+                body: requestBody,
             },
             async (response, span) => {
                 span.addData({
@@ -2437,10 +2438,24 @@ export class OpensearchClient implements OpensearchClientInterface {
         );
 
         // NOTE(#opensearch-important-json-disclaimer): No numbers in this body.
-        const requestBodyString = JSON.stringify({
+        const requestBody = JSON.stringify({
             analyzer: typeof analyzer === "string" ? analyzer : analyzer.name,
             text,
         });
+
+        const requestHeaders: {[key: string]: string} = {
+            "content-type": "application/json",
+        };
+
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         return fetchWithTracer(
             tracer,
@@ -2450,22 +2465,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_analyze`,
                 method: "POST",
-                headers: {
-                    "content-type": "application/json",
-                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
-                    // error if `x-amz-content-sha256` is included since the signature is wrong.
-                    // Remove this once we finish upgrading to OpenSearch serverless.
-                    ...(url.hostname.endsWith(".es.amazonaws.com")
-                        ? {}
-                        : {
-                              // `x-amz-content-sha256` header is required when signing a request for
-                              // OpenSearch Serverless.
-                              //
-                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                              "x-amz-content-sha256": sha256(requestBodyString),
-                          }),
-                },
-                body: requestBodyString,
+                headers: requestHeaders,
+                body: requestBody,
             },
             async (response, span) => {
                 span.addData({

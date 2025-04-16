@@ -77,7 +77,8 @@ export class AwsMigrationService extends Construct {
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
-                    `--opensearchHost=${opensearch.opensearchHost}`,
+                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
+                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
                     // When you execute the ECS `RunTask` action to start migration service, you
                     // must provide these environment variables in `containerOverrides`. Each run of
                     // the migration service may be for a different task.
@@ -93,7 +94,10 @@ export class AwsMigrationService extends Construct {
             allowExpensiveScan: true,
         });
 
-        opensearch.grantReadWriteData(taskDefinition.taskRole);
+        opensearch.addReadWriteAccessPolicy(
+            "MigrationServiceAccessPolicy",
+            taskDefinition.taskRole,
+        );
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
 
         // Create a security group for migration service. This security group's ID must
@@ -105,11 +109,9 @@ export class AwsMigrationService extends Construct {
         //
         // [1]: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_RunTask.html
         // [2]: https://github.com/aws/aws-cdk/blob/b93b7e3fe30aead82d9cb6458036c62541c493ff/packages/aws-cdk-lib/aws-autoscaling/lib/auto-scaling-group.ts#L1410-L1413
-        const securityGroup = new SecurityGroup(this, "InstanceSecurityGroup", {
+        new SecurityGroup(this, "InstanceSecurityGroup", {
             vpc,
             allowAllOutbound: true,
         });
-
-        opensearch.allowConnectionsFrom(securityGroup);
     }
 }

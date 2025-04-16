@@ -72,10 +72,6 @@ export class AwsJobQueueService extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
-        // OpenSearch is in our private VPC subnet. Allow connections from our
-        // EC2 instances.
-        opensearch.allowConnectionsFrom(autoScalingGroup);
-
         // Allow `JobQueueService` to connect to any `TaskRealtimeService` port.
         taskRealtimeService.autoScalingGroup.connections.allowFrom(autoScalingGroup, Port.allTcp());
 
@@ -240,7 +236,8 @@ export class AwsJobQueueService extends Construct {
                 "sh",
                 "-c",
                 `/var/www/server/jobs/queue/queue ${[
-                    `--opensearchHost=${opensearch.opensearchHost}`,
+                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
+                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--jobQueueArn=${sqs.getJobQueueArn()}`,
@@ -284,7 +281,7 @@ export class AwsJobQueueService extends Construct {
         });
 
         dynamo.grantReadWriteData(taskDefinition.taskRole);
-        opensearch.grantReadWriteData(taskDefinition.taskRole);
+        opensearch.addReadWriteAccessPolicy("JobQueueServiceAccessPolicy", taskDefinition.taskRole);
         sqs.grantSendAndReceiveJobQueueMessages(taskDefinition.taskRole);
 
         // `JobQueueService` needs to check what tasks ECS is running to appropriately
