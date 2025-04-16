@@ -628,16 +628,12 @@ Resources:
                           - aoss:DashboardsAccessAll
                       Effect: Allow
                       Resource:
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:aoss:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :collection/search
-                          - Fn::Join:
-                                - ""
-                                - - "arn:aws:aoss:us-east-1:"
-                                  - Ref: AWS::AccountId
-                                  - :collection/vector-search
+                          - Fn::GetAtt:
+                                - OpensearchSearchCollection9C677E01
+                                - Arn
+                          - Fn::GetAtt:
+                                - OpensearchVectorSearchCollection70A16089
+                                - Arn
                 Version: 2012-10-17
             PolicyName: OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D
             Roles:

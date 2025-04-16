@@ -1,7 +1,7 @@
 /* eslint-disable no-commit-blockers */
 // NOCOMMIT: Delete the above comment ^
 
-import {ArnFormat, CustomResource, Duration, Stack} from "aws-cdk-lib";
+import {CustomResource, Duration} from "aws-cdk-lib";
 import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IGrantable, IRole, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
@@ -328,8 +328,6 @@ class AwsOpensearchServerlessCollection extends Construct {
 
         assert(3 <= accessPolicy.name.length && accessPolicy.name.length <= 32);
 
-        const stack = Stack.of(this);
-
         // It's not enough to add data access policies. We must also grant API access
         // through IAM or else the user will get 403 forbidden errors.
         //
@@ -348,16 +346,7 @@ class AwsOpensearchServerlessCollection extends Construct {
         role.addToPrincipalPolicy(
             new PolicyStatement({
                 effect: Effect.ALLOW,
-                resources: [
-                    stack.formatArn({
-                        arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
-                        service: "aoss",
-                        region: stack.region,
-                        account: stack.account,
-                        resource: "collection",
-                        resourceName: this._collection.name,
-                    }),
-                ],
+                resources: [this._collection.attrArn],
                 actions: ["aoss:APIAccessAll", "aoss:DashboardsAccessAll"],
             }),
         );
