@@ -65,6 +65,14 @@ type TracerEventHttpHeaderNameMap = {
     "x-powered-by": true;
     "x-ua-compatible": true;
     "x-xss-protection": true;
+    // AWS headers
+    // https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonRequestHeaders.html
+    // https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonResponseHeaders.html
+    "content-md5": true;
+    "x-amz-date": true;
+    "x-amz-content-sha256": true;
+    "x-amz-id-2": true;
+    "x-amz-request-id": true;
     // Cloudflare headers
     // https://developers.cloudflare.com/fundamentals/get-started/reference/http-request-headers/
     "cf-connecting-ip": true;
@@ -144,6 +152,11 @@ const tracerEventHttpHeaderNameMap: TracerEventHttpHeaderNameMap = {
     "x-powered-by": true,
     "x-ua-compatible": true,
     "x-xss-protection": true,
+    "content-md5": true,
+    "x-amz-date": true,
+    "x-amz-content-sha256": true,
+    "x-amz-id-2": true,
+    "x-amz-request-id": true,
     "cf-connecting-ip": true,
     "cf-connecting-ipv6": true,
     "cf-ew-via": true,
