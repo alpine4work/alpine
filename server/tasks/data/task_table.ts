@@ -1067,9 +1067,10 @@ export async function runIndexEveryTaskActionStep2Of2(
     assert(unknownServiceName === "MigrationService");
     const serviceName = unknownServiceName;
 
-    let i = 0;
     const promiseWaiter = new PromiseWaiter();
-    const mutexes = createArrayWithLength(10, () => new Mutex());
+    let concurrencyMutexSequence = 0;
+    const concurrencyMutexes = createArrayWithLength(10, () => new Mutex());
+    const mutexByTaskId = new Map<TaskId, Mutex>();
 
     for await (const item of TaskActionTable.expensiveScan(context, {
         segmentIndex,
@@ -1082,19 +1083,39 @@ export async function runIndexEveryTaskActionStep2Of2(
         );
         if (updateActions.length === 0) continue;
 
+        // We only want one transaction per task to be running at a time. Otherwise the
+        // transactions will conflict creating a lot of retries. So we have a mutex per
+        // `TaskId` and will only start indexing once all task mutexes unlock.
+        //
+        // NOTE(calebmer): In practice, I've found this migration has a 50% failure
+        // rate since we're constantly retrying updates due to conflicts when we don't
+        // index one action per task at a time.
+        const taskMutexes = filterMapArray(item.actions, action => {
+            if (action.type !== "UpdateTask") return;
+            return getOrSetDefaultMapValue(mutexByTaskId, action.taskId, () => new Mutex());
+        });
+
         promiseWaiter.waitUntil(
-            mutexes[i++ % mutexes.length]!.withLock(() =>
-                indexTaskActionTransactionAssumingItsCommitted(
-                    context.clone({
-                        cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
-                        actor: DynamoSystemActorContextModule.dangerouslyNew(
-                            serviceName,
-                            item.spaceId,
+            taskMutexes.reduce(
+                (action, mutex) => () => mutex.withLock(action),
+                () =>
+                    // Once all our task mutexes unlock, now we wait for a concurrency mutex to
+                    // unlock before indexing the task.
+                    concurrencyMutexes[
+                        concurrencyMutexSequence++ % concurrencyMutexes.length
+                    ]!.withLock(() =>
+                        indexTaskActionTransactionAssumingItsCommitted(
+                            context.clone({
+                                cache: new CacheContextModule(),
+                                dynamoBatchContext: new DynamoBatchContextModule(),
+                                actor: DynamoSystemActorContextModule.dangerouslyNew(
+                                    serviceName,
+                                    item.spaceId,
+                                ),
+                            }),
+                            {...item, actions: updateActions},
                         ),
-                    }),
-                    {...item, actions: updateActions},
-                ),
+                    ),
             ),
         );
     }
