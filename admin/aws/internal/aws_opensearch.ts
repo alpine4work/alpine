@@ -1,13 +1,9 @@
-/* eslint-disable no-commit-blockers */
-// NOCOMMIT: Delete the above comment ^
-
 import {CustomResource, Duration} from "aws-cdk-lib";
 import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IRole, Policy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import * as opensearchserverless from "aws-cdk-lib/aws-opensearchserverless";
-import {Domain, EngineVersion} from "aws-cdk-lib/aws-opensearchservice";
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
@@ -42,7 +38,6 @@ function getSha256Hash(string: string): string {
 }
 
 export class AwsOpensearch {
-    private readonly _domain: Domain;
     private readonly _vpcEndpointSecurityGroup: SecurityGroup;
     private readonly _collectionByServerlessCollectionType: Readonly<
         Record<
@@ -55,7 +50,6 @@ export class AwsOpensearch {
     >;
 
     private constructor(
-        domain: Domain,
         vpcEndpointSecurityGroup: SecurityGroup,
         collectionByServerlessCollectionType: Readonly<
             Record<
@@ -67,41 +61,12 @@ export class AwsOpensearch {
             >
         >,
     ) {
-        this._domain = domain;
         this._vpcEndpointSecurityGroup = vpcEndpointSecurityGroup;
         this._collectionByServerlessCollectionType = collectionByServerlessCollectionType;
     }
 
     public static async new(parentConstruct: Construct, vpc: AwsVpc) {
         const construct = new Construct(parentConstruct, "Opensearch");
-
-        // NOCOMMIT: Delete this???
-        const domain = new Domain(construct, "Domain", {
-            vpc,
-            // Only allow traffic to/from OpenSearch within our subnet.
-            vpcSubnets: [{subnetType: SubnetType.PRIVATE_ISOLATED}],
-
-            version: EngineVersion.OPENSEARCH_2_13,
-
-            // Free tier OpenSearch instances. Should upgrade as we get real traffic.
-            //
-            // TODO(calebmer): Should also maybe add `masterNodes` when we upgrade
-            // these nodes.
-            capacity: {
-                dataNodes: 2,
-                dataNodeInstanceType: "t3.small.search",
-            },
-            zoneAwareness: {
-                enabled: true,
-                availabilityZoneCount: 2,
-            },
-
-            logging: {
-                appLogEnabled: true,
-                slowSearchLogEnabled: true,
-                slowIndexLogEnabled: true,
-            },
-        });
 
         const indexes = await crawlOpensearchIndexes();
         const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
@@ -209,11 +174,7 @@ export class AwsOpensearch {
             }
         }
 
-        return new AwsOpensearch(
-            domain,
-            vpcEndpointSecurityGroup,
-            collectionByServerlessCollectionType,
-        );
+        return new AwsOpensearch(vpcEndpointSecurityGroup, collectionByServerlessCollectionType);
     }
 
     public get searchServerlessCollectionEndpoint() {
