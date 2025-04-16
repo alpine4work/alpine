@@ -117,7 +117,7 @@ export class AwsOpensearch {
         // have a custom CloudFormation resource that runs an AWS lambda deploy script.
         //
         // [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-opensearchserverless-index.html
-        {
+        if (false) {
             // NOTE(calebmer): We instantiate a `LambdaFunction` directly instead of using
             // `NodejsLambda` since we bundle the code ourselves.
             const deployScript = new LambdaFunction(construct, "DeployScript", {
