@@ -799,7 +799,7 @@ Resources:
                 Fn::GetAtt:
                     - OpensearchDeployScriptProviderframeworkonEvent8257EBC2
                     - Arn
-            indexesHash: 66f4f71986f73ab7512c3f6f9bd650311562d205d7708dbed3f88d3d539bb503
+            indexesHash: 2a5ba13d2d05ee68772a90799586b7f97e53fff2455df84e14717ad0e8f154ca
         DependsOn:
             - OpensearchSearchCollection9C677E01
             - OpensearchSearchCollectionDeployScriptSearchAccessPolicy48E04B7D
