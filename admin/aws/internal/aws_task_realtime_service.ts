@@ -111,6 +111,8 @@ export class AwsTaskRealtimeService extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
+        opensearch.allowConnectionsFrom(this.autoScalingGroup);
+
         // Allow Cloudflare to access `TaskRealtimeService` port 80 from the public
         // internet. No one else on the public internet should be able to access
         // `TaskRealtimeService` instances directly.

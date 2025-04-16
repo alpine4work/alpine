@@ -72,6 +72,8 @@ export class AwsJobQueueService extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
+        opensearch.allowConnectionsFrom(autoScalingGroup);
+
         // Allow `JobQueueService` to connect to any `TaskRealtimeService` port.
         taskRealtimeService.autoScalingGroup.connections.allowFrom(autoScalingGroup, Port.allTcp());
 

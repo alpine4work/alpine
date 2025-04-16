@@ -2,7 +2,7 @@
 // NOCOMMIT: Delete the above comment ^
 
 import {CustomResource, Duration} from "aws-cdk-lib";
-import {Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
+import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IRole, Policy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
@@ -43,6 +43,7 @@ function getSha256Hash(string: string): string {
 
 export class AwsOpensearch {
     private readonly _domain: Domain;
+    private readonly _vpcEndpointSecurityGroup: SecurityGroup;
     private readonly _collectionByServerlessCollectionType: Readonly<
         Record<
             OpensearchServerlessCollectionType,
@@ -55,6 +56,7 @@ export class AwsOpensearch {
 
     private constructor(
         domain: Domain,
+        vpcEndpointSecurityGroup: SecurityGroup,
         collectionByServerlessCollectionType: Readonly<
             Record<
                 OpensearchServerlessCollectionType,
@@ -66,6 +68,7 @@ export class AwsOpensearch {
         >,
     ) {
         this._domain = domain;
+        this._vpcEndpointSecurityGroup = vpcEndpointSecurityGroup;
         this._collectionByServerlessCollectionType = collectionByServerlessCollectionType;
     }
 
@@ -206,7 +209,11 @@ export class AwsOpensearch {
             }
         }
 
-        return new AwsOpensearch(domain, collectionByServerlessCollectionType);
+        return new AwsOpensearch(
+            domain,
+            vpcEndpointSecurityGroup,
+            collectionByServerlessCollectionType,
+        );
     }
 
     public get searchServerlessCollectionEndpoint() {
@@ -216,6 +223,10 @@ export class AwsOpensearch {
     public get vectorSearchServerlessCollectionEndpoint() {
         return this._collectionByServerlessCollectionType.VectorSearch.collection
             .collectionEndpoint;
+    }
+
+    public allowConnectionsFrom(other: IConnectable) {
+        this._vpcEndpointSecurityGroup.connections.allowFrom(other, Port.tcp(443));
     }
 
     /**

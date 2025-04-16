@@ -106,6 +106,8 @@ export class AwsAppService extends Construct {
             ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
         );
 
+        opensearch.allowConnectionsFrom(autoScalingGroup);
+
         // Allow `AppService` to connect to any `TaskRealtimeService` port.
         taskRealtimeService.autoScalingGroup.connections.allowFrom(autoScalingGroup, Port.allTcp());
 

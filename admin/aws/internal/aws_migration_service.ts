@@ -109,9 +109,11 @@ export class AwsMigrationService extends Construct {
         //
         // [1]: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_RunTask.html
         // [2]: https://github.com/aws/aws-cdk/blob/b93b7e3fe30aead82d9cb6458036c62541c493ff/packages/aws-cdk-lib/aws-autoscaling/lib/auto-scaling-group.ts#L1410-L1413
-        new SecurityGroup(this, "InstanceSecurityGroup", {
+        const securityGroup = new SecurityGroup(this, "InstanceSecurityGroup", {
             vpc,
             allowAllOutbound: true,
         });
+
+        opensearch.allowConnectionsFrom(securityGroup);
     }
 }

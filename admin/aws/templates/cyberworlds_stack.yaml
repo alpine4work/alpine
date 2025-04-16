@@ -830,6 +830,79 @@ Resources:
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup/from
                 CyberworldsStackOpensearchDeployScriptSecurityGroup1B79613E:443
+    OpensearchVpcEndpointSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443777DFA07:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from
+                CyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchVpcEndpointSecurityGroup1152B57F
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup/from
+                CyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E:443
+    OpensearchVpcEndpointSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443A9D2CBB0:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchVpcEndpointSecurityGroup1152B57F
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - AppServiceAutoScalingGroupInstanceSecurityGroup80C4C0B8
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup/from
+                CyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8:443
+    OpensearchVpcEndpointSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443F375F493:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchVpcEndpointSecurityGroup1152B57F
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - JobQueueServiceAutoScalingGroupInstanceSecurityGroup0E847434
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup/from
+                CyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99:443
+    OpensearchVpcEndpointSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A44390CEB05F:
+        Type: AWS::EC2::SecurityGroupIngress
+        Properties:
+            Description: from CyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A:443
+            FromPort: 443
+            GroupId:
+                Fn::GetAtt:
+                    - OpensearchVpcEndpointSecurityGroup1152B57F
+                    - GroupId
+            IpProtocol: tcp
+            SourceSecurityGroupId:
+                Fn::GetAtt:
+                    - MigrationServiceInstanceSecurityGroup8D73B232
+                    - GroupId
+            ToPort: 443
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/VpcEndpointSecurityGroup/from
+                CyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A:443
     OpensearchVpcEndpoint63C5C990:
         Type: AWS::OpenSearchServerless::VpcEndpoint
         Properties:
