@@ -482,10 +482,10 @@ Resources:
             - OpensearchSearchCollectionNetworkSecurityPolicy912BB5EF
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/Collection
-    OpensearchSearchCollectionDeployScriptAccessPolicy3BA88598:
+    OpensearchSearchCollectionDeployScriptSearchAccessPolicy48E04B7D:
         Type: AWS::OpenSearchServerless::AccessPolicy
         Properties:
-            Name: deploy-script
+            Name: deploy-script-search
             Policy:
                 Fn::Join:
                     - ""
@@ -500,7 +500,7 @@ Resources:
         DependsOn:
             - OpensearchSearchCollection9C677E01
         Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/DeployScriptAccessPolicy
+            aws:cdk:path: CyberworldsStack/Opensearch/SearchCollection/DeployScriptSearchAccessPolicy
     OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00:
         Type: AWS::OpenSearchServerless::SecurityPolicy
         Properties:
@@ -528,10 +528,10 @@ Resources:
             - OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/Collection
-    OpensearchVectorSearchCollectionDeployScriptAccessPolicy9B374C8D:
+    OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyCA90B8D1:
         Type: AWS::OpenSearchServerless::AccessPolicy
         Properties:
-            Name: deploy-script
+            Name: deploy-script-vector-search
             Policy:
                 Fn::Join:
                     - ""
@@ -546,7 +546,7 @@ Resources:
         DependsOn:
             - OpensearchVectorSearchCollection70A16089
         Metadata:
-            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/DeployScriptAccessPolicy
+            aws:cdk:path: CyberworldsStack/Opensearch/VectorSearchCollection/DeployScriptVectorSearchAccessPolicy
     OpensearchVpcEndpointSecurityGroup1152B57F:
         Type: AWS::EC2::SecurityGroup
         Properties:

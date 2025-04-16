@@ -18,6 +18,7 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {OpensearchServerlessCollectionType} from "~/server/opensearch/opensearch_index.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {convertKebabCaseToPascalCase} from "~/shared/helpers/string/convert_kebab_case_to_pascal_case.js";
 import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -144,7 +145,9 @@ export class AwsOpensearch {
 
             for (const collection of Object.values(collectionByServerlessCollectionType)) {
                 collection.addDeployScriptAccessPolicy(
-                    "DeployScriptAccessPolicy",
+                    `DeployScript${convertKebabCaseToPascalCase(
+                        collection.collectionName,
+                    )}AccessPolicy`,
                     assertExists(deployScript.role),
                 );
             }
@@ -272,6 +275,10 @@ class AwsOpensearchServerlessCollection extends Construct {
         assert(networkSecurityPolicy.name.length <= 32);
         assert(encryptionSecurityPolicy.name.length <= 32);
         assert(3 <= this._collection.name.length && this._collection.name.length <= 32);
+    }
+
+    public get collectionName() {
+        return this._collection.name;
     }
 
     public get collectionEndpoint() {
