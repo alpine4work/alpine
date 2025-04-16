@@ -489,13 +489,11 @@ Resources:
             Policy:
                 Fn::Join:
                     - ""
-                    - - '[{"Description":"Access for \"'
-                      - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
-                      - \"","Principal":["
+                    - - '[{"Principal":["'
                       - Fn::GetAtt:
                             - OpensearchDeployScriptServiceRoleFC0ECCBE
                             - Arn
-                      - '"],"Rules":[{"ResourceType":"collection","Resource":["collection/search"],"Permission":["aoss:CreateCollectionItems","aoss:DeleteCollectionItems","aoss:UpdateCollectionItems","aoss:DescribeCollectionItems"]},{"ResourceType":"index","Resource":["index/search/*"],"Permission":["aoss:CreateIndex","aoss:DeleteIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
+                      - '"],"Rules":[{"ResourceType":"collection","Resource":["collection/search"],"Permission":["aoss:*"]},{"ResourceType":"index","Resource":["index/search/*"],"Permission":["aoss:*"]}]}]'
             Type: data
         DependsOn:
             - OpensearchSearchCollection9C677E01
@@ -535,13 +533,11 @@ Resources:
             Policy:
                 Fn::Join:
                     - ""
-                    - - '[{"Description":"Access for \"'
-                      - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
-                      - \"","Principal":["
+                    - - '[{"Principal":["'
                       - Fn::GetAtt:
                             - OpensearchDeployScriptServiceRoleFC0ECCBE
                             - Arn
-                      - '"],"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"],"Permission":["aoss:CreateCollectionItems","aoss:DeleteCollectionItems","aoss:UpdateCollectionItems","aoss:DescribeCollectionItems"]},{"ResourceType":"index","Resource":["index/vector-search/*"],"Permission":["aoss:CreateIndex","aoss:DeleteIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
+                      - '"],"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"],"Permission":["aoss:*"]},{"ResourceType":"index","Resource":["index/vector-search/*"],"Permission":["aoss:*"]}]}]'
             Type: data
         DependsOn:
             - OpensearchVectorSearchCollection70A16089
@@ -805,8 +801,14 @@ Resources:
                     - Arn
             indexesHash: 66f4f71986f73ab7512c3f6f9bd650311562d205d7708dbed3f88d3d539bb503
         DependsOn:
+            - OpensearchSearchCollection9C677E01
             - OpensearchSearchCollectionDeployScriptSearchAccessPolicy48E04B7D
+            - OpensearchSearchCollectionEncryptionSecurityPolicyBFFDFE71
+            - OpensearchSearchCollectionNetworkSecurityPolicy912BB5EF
+            - OpensearchVectorSearchCollection70A16089
             - OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyCA90B8D1
+            - OpensearchVectorSearchCollectionEncryptionSecurityPolicyECB92B64
+            - OpensearchVectorSearchCollectionNetworkSecurityPolicy2165DF00
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:

@@ -20,7 +20,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {convertKebabCaseToPascalCase} from "~/shared/helpers/string/convert_kebab_case_to_pascal_case.js";
 import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 
 const opensearchDeployScriptLambdaRelativePath =
     process.env.CDK_LITE === "true"
@@ -165,8 +164,9 @@ export class AwsOpensearch {
                     assertExists(deployScript.role),
                 );
 
-                // `accessPolicy` (and transitively, the collection the access policy is for)
-                // must be created before the resource runs.
+                // The `collection` and `accessPolicy` must be created before the
+                // resource runs.
+                deployScriptResource.node.addDependency(collection);
                 deployScriptResource.node.addDependency(accessPolicy);
             }
         }
@@ -294,30 +294,17 @@ class AwsOpensearchServerlessCollection extends Construct {
             type: "data",
             policy: JSON.stringify([
                 {
-                    Description: quote`Access for ${role.roleName}`,
                     Principal: [role.roleArn],
                     Rules: [
                         {
                             ResourceType: "collection",
                             Resource: [`collection/${this._collection.name}`],
-                            Permission: [
-                                "aoss:CreateCollectionItems",
-                                "aoss:DeleteCollectionItems",
-                                "aoss:UpdateCollectionItems",
-                                "aoss:DescribeCollectionItems",
-                            ],
+                            Permission: ["aoss:*"],
                         },
                         {
                             ResourceType: "index",
                             Resource: [`index/${this._collection.name}/*`],
-                            Permission: [
-                                "aoss:CreateIndex",
-                                "aoss:DeleteIndex",
-                                "aoss:UpdateIndex",
-                                "aoss:DescribeIndex",
-                                "aoss:ReadDocument",
-                                "aoss:WriteDocument",
-                            ],
+                            Permission: ["aoss:*"],
                         },
                     ],
                 },
