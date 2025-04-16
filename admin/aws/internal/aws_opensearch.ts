@@ -1,9 +1,9 @@
 /* eslint-disable no-commit-blockers */
 // NOCOMMIT: Delete the above comment ^
 
-import {CustomResource, Duration} from "aws-cdk-lib";
+import {ArnFormat, CustomResource, Duration, Stack} from "aws-cdk-lib";
 import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
-import {IGrantable, IRole} from "aws-cdk-lib/aws-iam";
+import {Effect, IGrantable, IRole, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import * as opensearchserverless from "aws-cdk-lib/aws-opensearchserverless";
@@ -143,15 +143,6 @@ export class AwsOpensearch {
 
             vpcEndpointSecurityGroup.connections.allowFrom(deployScript, Port.tcp(443));
 
-            for (const collection of Object.values(collectionByServerlessCollectionType)) {
-                collection.addDeployScriptAccessPolicy(
-                    `DeployScript${convertKebabCaseToPascalCase(
-                        collection.collectionName,
-                    )}AccessPolicy`,
-                    assertExists(deployScript.role),
-                );
-            }
-
             const deployScriptProvider = new Provider(construct, "DeployScriptProvider", {
                 onEventHandler: deployScript,
             });
@@ -166,8 +157,18 @@ export class AwsOpensearch {
                 },
             });
 
-            // Run our deploy script whenever the OpenSearch domain is created/updated.
-            deployScriptResource.node.addDependency(domain);
+            for (const collection of Object.values(collectionByServerlessCollectionType)) {
+                const accessPolicy = collection.addDeployScriptAccessPolicy(
+                    `DeployScript${convertKebabCaseToPascalCase(
+                        collection.collectionName,
+                    )}AccessPolicy`,
+                    assertExists(deployScript.role),
+                );
+
+                // `accessPolicy` (and transitively, the collection the access policy is for)
+                // must be created before the resource runs.
+                deployScriptResource.node.addDependency(accessPolicy);
+            }
         }
 
         return new AwsOpensearch(domain);
@@ -297,17 +298,25 @@ class AwsOpensearchServerlessCollection extends Construct {
                     Principal: [role.roleArn],
                     Rules: [
                         {
+                            ResourceType: "collection",
+                            Resource: [`collection/${this._collection.name}`],
+                            Permission: [
+                                "aoss:CreateCollectionItems",
+                                "aoss:DeleteCollectionItems",
+                                "aoss:UpdateCollectionItems",
+                                "aoss:DescribeCollectionItems",
+                            ],
+                        },
+                        {
                             ResourceType: "index",
                             Resource: [`index/${this._collection.name}/*`],
                             Permission: [
                                 "aoss:CreateIndex",
+                                "aoss:DeleteIndex",
                                 "aoss:UpdateIndex",
                                 "aoss:DescribeIndex",
                                 "aoss:ReadDocument",
                                 "aoss:WriteDocument",
-
-                                // Intentionally don't allow `aoss:DeleteIndex`. Our deploy script doesn't
-                                // currently delete indexes so let's prevent accidental issues.
                             ],
                         },
                     ],
@@ -318,5 +327,41 @@ class AwsOpensearchServerlessCollection extends Construct {
         accessPolicy.addDependency(this._collection);
 
         assert(3 <= accessPolicy.name.length && accessPolicy.name.length <= 32);
+
+        const stack = Stack.of(this);
+
+        // It's not enough to add data access policies. We must also grant API access
+        // through IAM or else the user will get 403 forbidden errors.
+        //
+        // > Being granted permissions within a data access policy is not sufficient to
+        // > access data in your OpenSearch Serverless collection. An associated
+        // > principal must also be granted access to the IAM permissions
+        // > `aoss:APIAccessAll` and `aoss:DashboardsAccessAll`. Both permissions grant
+        // > full access to collection resources, while the Dashboards permission also
+        // > provides access to OpenSearch Dashboards. If a principal doesn't have both
+        // > of these IAM permissions, they will receive 403 errors when attempting to
+        // > send requests to the collection.
+        //
+        // ([Source][1])
+        //
+        // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-data-access.html
+        role.addToPrincipalPolicy(
+            new PolicyStatement({
+                effect: Effect.ALLOW,
+                resources: [
+                    stack.formatArn({
+                        arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+                        service: "aoss",
+                        region: stack.region,
+                        account: stack.account,
+                        resource: "collection",
+                        resourceName: this._collection.name,
+                    }),
+                ],
+                actions: ["aoss:APIAccessAll", "aoss:DashboardsAccessAll"],
+            }),
+        );
+
+        return accessPolicy;
     }
 }

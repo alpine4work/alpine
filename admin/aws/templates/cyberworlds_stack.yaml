@@ -495,7 +495,7 @@ Resources:
                       - Fn::GetAtt:
                             - OpensearchDeployScriptServiceRoleFC0ECCBE
                             - Arn
-                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
+                      - '"],"Rules":[{"ResourceType":"collection","Resource":["collection/search"],"Permission":["aoss:CreateCollectionItems","aoss:DeleteCollectionItems","aoss:UpdateCollectionItems","aoss:DescribeCollectionItems"]},{"ResourceType":"index","Resource":["index/search/*"],"Permission":["aoss:CreateIndex","aoss:DeleteIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
             Type: data
         DependsOn:
             - OpensearchSearchCollection9C677E01
@@ -541,7 +541,7 @@ Resources:
                       - Fn::GetAtt:
                             - OpensearchDeployScriptServiceRoleFC0ECCBE
                             - Arn
-                      - '"],"Rules":[{"ResourceType":"index","Resource":["index/vector-search/*"],"Permission":["aoss:CreateIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
+                      - '"],"Rules":[{"ResourceType":"collection","Resource":["collection/vector-search"],"Permission":["aoss:CreateCollectionItems","aoss:DeleteCollectionItems","aoss:UpdateCollectionItems","aoss:DescribeCollectionItems"]},{"ResourceType":"index","Resource":["index/vector-search/*"],"Permission":["aoss:CreateIndex","aoss:DeleteIndex","aoss:UpdateIndex","aoss:DescribeIndex","aoss:ReadDocument","aoss:WriteDocument"]}]}]'
             Type: data
         DependsOn:
             - OpensearchVectorSearchCollection70A16089
@@ -618,6 +618,35 @@ Resources:
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/DeployScript/ServiceRole/Resource
+    OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyDocument:
+                Statement:
+                    - Action:
+                          - aoss:APIAccessAll
+                          - aoss:DashboardsAccessAll
+                      Effect: Allow
+                      Resource:
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:aoss:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :collection/search
+                          - Fn::Join:
+                                - ""
+                                - - "arn:aws:aoss:us-east-1:"
+                                  - Ref: AWS::AccountId
+                                  - :collection/vector-search
+                Version: 2012-10-17
+            PolicyName: OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D
+            Roles:
+                - Ref: OpensearchDeployScriptServiceRoleFC0ECCBE
+        DependsOn:
+            - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
+            - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Opensearch/DeployScript/ServiceRole/DefaultPolicy/Resource
     OpensearchDeployScriptSecurityGroup318E660E:
         Type: AWS::EC2::SecurityGroup
         Properties:
@@ -667,6 +696,7 @@ Resources:
                     - Ref: VpcIsolatedSubnet1SubnetE48C5737
                     - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
+            - OpensearchDeployScriptServiceRoleDefaultPolicyBF8A4F5D
             - OpensearchDeployScriptServiceRoleFC0ECCBE
             - VpcIsolatedSubnet1RouteTableAssociationD300FCBB
             - VpcIsolatedSubnet2RouteTableAssociationF7B18CCA
@@ -779,17 +809,8 @@ Resources:
                     - Arn
             indexesHash: 66f4f71986f73ab7512c3f6f9bd650311562d205d7708dbed3f88d3d539bb503
         DependsOn:
-            - OpensearchDomainAppLogs191CCADD
-            - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33eCustomResourcePolicy5F7B356F
-            - OpensearchDomainESLogGroupPolicyc8109b02a9a97266b1b183d2e5b83f2e69fabfd33e576C5C1B
-            - OpensearchDomainCED7C974
-            - OpensearchDomainSecurityGroupfromCyberworldsStackAppServiceAutoScalingGroupInstanceSecurityGroupFABBCDF8443FA2B2481
-            - OpensearchDomainSecurityGroupfromCyberworldsStackJobQueueServiceAutoScalingGroupInstanceSecurityGroup9A995B99443AA73F37F
-            - OpensearchDomainSecurityGroupfromCyberworldsStackMigrationServiceInstanceSecurityGroup7A1C196A4430010912C
-            - OpensearchDomainSecurityGroupfromCyberworldsStackTaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupF50D110E443E8DC0D69
-            - OpensearchDomainSecurityGroup046A436D
-            - OpensearchDomainSlowIndexLogs76621B18
-            - OpensearchDomainSlowSearchLogsCB6C5516
+            - OpensearchSearchCollectionDeployScriptSearchAccessPolicy48E04B7D
+            - OpensearchVectorSearchCollectionDeployScriptVectorSearchAccessPolicyCA90B8D1
         UpdateReplacePolicy: Delete
         DeletionPolicy: Delete
         Metadata:

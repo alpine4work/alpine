@@ -1,4 +1,4 @@
-import {Duration, Stack} from "aws-cdk-lib";
+import {ArnFormat, Duration, Stack} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
 import {InstanceSize, InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
@@ -11,7 +11,7 @@ import {
     Secret as EcsSecret,
     NetworkMode,
 } from "aws-cdk-lib/aws-ecs";
-import {ManagedPolicy, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
+import {Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -120,9 +120,17 @@ export class AwsJobQueueService extends Construct {
 
             taskDefinition.addToTaskRolePolicy(
                 new PolicyStatement({
+                    effect: Effect.ALLOW,
                     actions: ["scheduler:CreateSchedule"],
                     resources: [
-                        `arn:aws:scheduler:${stack.region}:${stack.account}:schedule/default/ScheduleDeployMaintenanceJob`,
+                        stack.formatArn({
+                            arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+                            service: "scheduler",
+                            region: stack.region,
+                            account: stack.account,
+                            resource: "schedule",
+                            resourceName: "default/ScheduleDeployMaintenanceJob",
+                        }),
                     ],
                 }),
             );
