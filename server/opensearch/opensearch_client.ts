@@ -1529,16 +1529,15 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
-        // NOTE(calebmer): The OpenSearch Serverless documentation says the
-        // `x-amz-content-sha256` header is required when making an HTTP request and
-        // indeed we've found OpenSearch 403s when we try to index data without the
-        // `x-amz-content-sha256` header. However, this read endpoint fails with
-        // "Request Content Checksum Verification Failed" when `x-amz-content-sha256`
-        // is provided and succeeds when `x-amz-content-sha256` is not provided.
-        // I really wish the documentation was more clear on this requirement. In
-        // practice it seems like you need the header for writes but not reads.
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
         //
         // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         const responseBody = await fetchWithTracer(
             tracer,
@@ -2029,16 +2028,15 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
-        // NOTE(calebmer): The OpenSearch Serverless documentation says the
-        // `x-amz-content-sha256` header is required when making an HTTP request and
-        // indeed we've found OpenSearch 403s when we try to index data without the
-        // `x-amz-content-sha256` header. However, this read endpoint fails with
-        // "Request Content Checksum Verification Failed" when `x-amz-content-sha256`
-        // is provided and succeeds when `x-amz-content-sha256` is not provided.
-        // I really wish the documentation was more clear on this requirement. In
-        // practice it seems like you need the header for writes but not reads.
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
         //
         // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         const body = await fetchWithTracer(
             tracer,
@@ -2363,18 +2361,28 @@ export class OpensearchClient implements OpensearchClientInterface {
         tracer: TracerBase,
         index: Index,
     ): Promise<void> {
-        assert(process.env.NODE_ENV !== "production");
-
-        await this.ensureLocalIndex(tracer, index);
+        if (process.env.NODE_ENV !== "production") {
+            await this.ensureLocalIndex(tracer, index);
+        }
 
         const url = new URL(
             `/${index.name}/_refresh`,
             this._urlByServerlessCollectionType[index.serverlessCollectionType],
         );
 
-        // This method shouldn't run in production so we don't have to worry about
-        // whether or not we need to set the `x-amz-content-sha256` header.
-        assert(!url.hostname.endsWith(".aoss.amazonaws.com"));
+        const requestBody = "";
+
+        const requestHeaders: {[key: string]: string} = {};
+
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         await fetchWithTracer(
             tracer,
@@ -2384,7 +2392,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_refresh`,
                 method: "POST",
-                headers: {},
+                headers: requestHeaders,
+                body: requestBody,
             },
             async (response, span) => {
                 span.addData({
@@ -2419,9 +2428,9 @@ export class OpensearchClient implements OpensearchClientInterface {
             position: number;
         }>
     > {
-        assert(process.env.NODE_ENV !== "production");
-
-        await this.ensureLocalIndex(tracer, index);
+        if (process.env.NODE_ENV !== "production") {
+            await this.ensureLocalIndex(tracer, index);
+        }
 
         const url = new URL(
             `/${index.name}/_analyze`,
@@ -2438,9 +2447,15 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
-        // This method shouldn't run in production so we don't have to worry about
-        // whether or not we need to set the `x-amz-content-sha256` header.
-        assert(!url.hostname.endsWith(".aoss.amazonaws.com"));
+        // `x-amz-content-sha256` header is required when signing a request for
+        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
+        // a request to a non-serverless AWS OpenSearch domain because the content
+        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
+        //
+        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
+            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
+        }
 
         return fetchWithTracer(
             tracer,
@@ -2566,5 +2581,5 @@ function formatOpensearchError(error: OpensearchError): string {
 }
 
 function sha256(string: string) {
-    return createHash("sha256").update(string).digest("base64");
+    return createHash("sha256").update(string).digest("hex");
 }
