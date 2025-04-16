@@ -937,6 +937,13 @@ export type OpensearchIndexKnnVectorTypeConfigMethodParametersEncoder =
           readonly name: "pq";
           readonly m: number;
           readonly code_size: number;
+      }
+    | {
+          readonly name: "sq";
+          readonly parameters: {
+              readonly type: "fp16";
+              readonly clip: boolean;
+          };
       };
 
 /**

@@ -489,7 +489,23 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
                                           ef_search: 100,
                                           ef_construction: 100,
                                           m: 16,
-                                          encoder: {name: "flat"},
+                                          // Halve the size of our index by compressing dimensions to 16-bit floats.
+                                          // This technique has been shown to provide significant storage savings without
+                                          // sacrificing query accuracy.
+                                          //
+                                          // See a comparison of quantization techniques here:
+                                          // https://aws.amazon.com/blogs/big-data/cost-optimized-vector-database-introduction-to-amazon-opensearch-service-quantization-techniques/
+                                          //
+                                          // See the documentation for fp16 scalar quantization here:
+                                          // https://docs.opensearch.org/docs/latest/vector-search/optimizing-storage/faiss-16-bit-quantization/
+                                          // https://opensearch.org/blog/optimizing-opensearch-with-fp16-quantization/
+                                          encoder: {
+                                              name: "sq",
+                                              parameters: {
+                                                  type: "fp16",
+                                                  clip: true,
+                                              },
+                                          },
                                       },
                                   }),
                         },
