@@ -949,11 +949,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 method: "PUT",
                                 headers: {
                                     "content-type": "application/json",
-                                    // `x-amz-content-sha256` header is required when signing a request for
-                                    // OpenSearch Serverless.
-                                    //
-                                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                                    "x-amz-content-sha256": sha256(requestBodyString),
+                                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                                    // error if `x-amz-content-sha256` is included since the signature is wrong.
+                                    // Remove this once we finish upgrading to OpenSearch serverless.
+                                    ...(url.hostname.endsWith(".es.amazonaws.com")
+                                        ? {}
+                                        : {
+                                              // `x-amz-content-sha256` header is required when signing a request for
+                                              // OpenSearch Serverless.
+                                              //
+                                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                                              "x-amz-content-sha256": sha256(requestBodyString),
+                                          }),
                                 },
                                 body: requestBodyString,
                             },
@@ -1142,11 +1149,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     method: "PUT",
                                     headers: {
                                         "content-type": "application/json",
-                                        // `x-amz-content-sha256` header is required when signing a request for
-                                        // OpenSearch Serverless.
-                                        //
-                                        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                                        "x-amz-content-sha256": sha256(requestBodyString),
+                                        // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                                        // error if `x-amz-content-sha256` is included since the signature is wrong.
+                                        // Remove this once we finish upgrading to OpenSearch serverless.
+                                        ...(url.hostname.endsWith(".es.amazonaws.com")
+                                            ? {}
+                                            : {
+                                                  // `x-amz-content-sha256` header is required when signing a request for
+                                                  // OpenSearch Serverless.
+                                                  //
+                                                  // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                                                  "x-amz-content-sha256": sha256(requestBodyString),
+                                              }),
                                     },
                                     body: requestBodyString,
                                 },
@@ -1184,11 +1198,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     method: "PUT",
                                     headers: {
                                         "content-type": "application/json",
-                                        // `x-amz-content-sha256` header is required when signing a request for
-                                        // OpenSearch Serverless.
-                                        //
-                                        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                                        "x-amz-content-sha256": sha256(requestBodyString),
+                                        // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                                        // error if `x-amz-content-sha256` is included since the signature is wrong.
+                                        // Remove this once we finish upgrading to OpenSearch serverless.
+                                        ...(url.hostname.endsWith(".es.amazonaws.com")
+                                            ? {}
+                                            : {
+                                                  // `x-amz-content-sha256` header is required when signing a request for
+                                                  // OpenSearch Serverless.
+                                                  //
+                                                  // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                                                  "x-amz-content-sha256": sha256(requestBodyString),
+                                              }),
                                     },
                                     body: requestBodyString,
                                 },
@@ -1514,11 +1535,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
-                    // `x-amz-content-sha256` header is required when signing a request for
-                    // OpenSearch Serverless.
-                    //
-                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                    "x-amz-content-sha256": sha256(requestBodyString),
+                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                    // error if `x-amz-content-sha256` is included since the signature is wrong.
+                    // Remove this once we finish upgrading to OpenSearch serverless.
+                    ...(url.hostname.endsWith(".es.amazonaws.com")
+                        ? {}
+                        : {
+                              // `x-amz-content-sha256` header is required when signing a request for
+                              // OpenSearch Serverless.
+                              //
+                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                              "x-amz-content-sha256": sha256(requestBodyString),
+                          }),
                 },
                 body: requestBodyString,
             },
@@ -1676,11 +1704,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "PUT",
                 headers: {
                     "content-type": "application/json",
-                    // `x-amz-content-sha256` header is required when signing a request for
-                    // OpenSearch Serverless.
-                    //
-                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                    "x-amz-content-sha256": sha256(requestBodyString),
+                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                    // error if `x-amz-content-sha256` is included since the signature is wrong.
+                    // Remove this once we finish upgrading to OpenSearch serverless.
+                    ...(url.hostname.endsWith(".es.amazonaws.com")
+                        ? {}
+                        : {
+                              // `x-amz-content-sha256` header is required when signing a request for
+                              // OpenSearch Serverless.
+                              //
+                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                              "x-amz-content-sha256": sha256(requestBodyString),
+                          }),
                 },
                 body: requestBodyString,
             },
@@ -1818,11 +1853,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/x-ndjson",
-                    // `x-amz-content-sha256` header is required when signing a request for
-                    // OpenSearch Serverless.
-                    //
-                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                    "x-amz-content-sha256": sha256(requestBodyString),
+                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                    // error if `x-amz-content-sha256` is included since the signature is wrong.
+                    // Remove this once we finish upgrading to OpenSearch serverless.
+                    ...(url.hostname.endsWith(".es.amazonaws.com")
+                        ? {}
+                        : {
+                              // `x-amz-content-sha256` header is required when signing a request for
+                              // OpenSearch Serverless.
+                              //
+                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                              "x-amz-content-sha256": sha256(requestBodyString),
+                          }),
                 },
                 body: requestBodyString,
             },
@@ -1992,11 +2034,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
-                    // `x-amz-content-sha256` header is required when signing a request for
-                    // OpenSearch Serverless.
-                    //
-                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                    "x-amz-content-sha256": sha256(requestBodyString),
+                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                    // error if `x-amz-content-sha256` is included since the signature is wrong.
+                    // Remove this once we finish upgrading to OpenSearch serverless.
+                    ...(url.hostname.endsWith(".es.amazonaws.com")
+                        ? {}
+                        : {
+                              // `x-amz-content-sha256` header is required when signing a request for
+                              // OpenSearch Serverless.
+                              //
+                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                              "x-amz-content-sha256": sha256(requestBodyString),
+                          }),
                 },
                 body: requestBodyString,
             },
@@ -2316,23 +2365,32 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
+        const url = new URL(
+            `/${index.name}/_refresh`,
+            this._urlByServerlessCollectionType[index.serverlessCollectionType],
+        );
+
         await fetchWithTracer(
             tracer,
-            new URL(
-                `/${index.name}/_refresh`,
-                this._urlByServerlessCollectionType[index.serverlessCollectionType],
-            ),
+            url,
             {
                 sign: this._signer.sign,
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_refresh`,
                 method: "POST",
                 headers: {
-                    // `x-amz-content-sha256` header is required when signing a request for
-                    // OpenSearch Serverless.
-                    //
-                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                    "x-amz-content-sha256": sha256(""),
+                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                    // error if `x-amz-content-sha256` is included since the signature is wrong.
+                    // Remove this once we finish upgrading to OpenSearch serverless.
+                    ...(url.hostname.endsWith(".es.amazonaws.com")
+                        ? {}
+                        : {
+                              // `x-amz-content-sha256` header is required when signing a request for
+                              // OpenSearch Serverless.
+                              //
+                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                              "x-amz-content-sha256": sha256(""),
+                          }),
                 },
                 body: "",
             },
@@ -2373,6 +2431,11 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
+        const url = new URL(
+            `/${index.name}/_analyze`,
+            this._urlByServerlessCollectionType[index.serverlessCollectionType],
+        );
+
         // NOTE(#opensearch-important-json-disclaimer): No numbers in this body.
         const requestBodyString = JSON.stringify({
             analyzer: typeof analyzer === "string" ? analyzer : analyzer.name,
@@ -2381,10 +2444,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         return fetchWithTracer(
             tracer,
-            new URL(
-                `/${index.name}/_analyze`,
-                this._urlByServerlessCollectionType[index.serverlessCollectionType],
-            ),
+            url,
             {
                 sign: this._signer.sign,
                 serviceName: "OpenSearch",
@@ -2392,11 +2452,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
-                    // `x-amz-content-sha256` header is required when signing a request for
-                    // OpenSearch Serverless.
-                    //
-                    // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                    "x-amz-content-sha256": sha256(requestBodyString),
+                    // TODO(calebmer): When we use the regular OpenSearch AWS service, it throws an
+                    // error if `x-amz-content-sha256` is included since the signature is wrong.
+                    // Remove this once we finish upgrading to OpenSearch serverless.
+                    ...(url.hostname.endsWith(".es.amazonaws.com")
+                        ? {}
+                        : {
+                              // `x-amz-content-sha256` header is required when signing a request for
+                              // OpenSearch Serverless.
+                              //
+                              // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
+                              "x-amz-content-sha256": sha256(requestBodyString),
+                          }),
                 },
                 body: requestBodyString,
             },
