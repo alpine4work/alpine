@@ -1,3 +1,4 @@
+import {createHash} from "crypto";
 import fs from "fs/promises";
 import createJsonBigInt from "json-bigint";
 import jsonStableStringify from "json-stable-stringify";
@@ -933,6 +934,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // If the index does not already exists then create a new one.
                 if (getBody.error) {
                     try {
+                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                        // float-64 size in settings. Ok to use native JSON stringifier instead of
+                        // `json-bigint`.
+                        const requestBodyString = JSON.stringify(index.config);
+
                         await fetchWithTracer(
                             tracer,
                             new URL(`/${index.name}`, url),
@@ -941,11 +947,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 serviceName: "OpenSearch",
                                 route: `/${index.name}`,
                                 method: "PUT",
-                                headers: {"content-type": "application/json"},
-                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                // float-64 size in settings. Ok to use native JSON stringifier instead of
-                                // `json-bigint`.
-                                body: JSON.stringify(index.config),
+                                headers: {
+                                    "content-type": "application/json",
+                                    "x-amz-content-sha256": sha256(requestBodyString),
+                                },
+                                body: requestBodyString,
                             },
                             async response => {
                                 // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1115,6 +1121,13 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                     await runAllPromiseThunks(
                         async () => {
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON stringifier instead of
+                            // `json-bigint`.
+                            const requestBodyString = JSON.stringify(
+                                omitOpensearchStaticIndexConfig(index.config).settings,
+                            );
+
                             await fetchWithTracer(
                                 tracer,
                                 new URL(`/${index.name}/_settings`, url),
@@ -1123,13 +1136,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     serviceName: "OpenSearch",
                                     route: `/${index.name}/_settings`,
                                     method: "PUT",
-                                    headers: {"content-type": "application/json"},
-                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                    // float-64 size in settings. Ok to use native JSON stringifier instead of
-                                    // `json-bigint`.
-                                    body: JSON.stringify(
-                                        omitOpensearchStaticIndexConfig(index.config).settings,
-                                    ),
+                                    headers: {
+                                        "content-type": "application/json",
+                                        "x-amz-content-sha256": sha256(requestBodyString),
+                                    },
+                                    body: requestBodyString,
                                 },
                                 async response => {
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1150,6 +1161,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                             );
                         },
                         async () => {
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON stringifier instead of
+                            // `json-bigint`.
+                            const requestBodyString = JSON.stringify(index.config.mappings);
+
                             await fetchWithTracer(
                                 tracer,
                                 new URL(`/${index.name}/_mappings`, url),
@@ -1158,11 +1174,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                                     serviceName: "OpenSearch",
                                     route: `/${index.name}/_mappings`,
                                     method: "PUT",
-                                    headers: {"content-type": "application/json"},
-                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                    // float-64 size in settings. Ok to use native JSON stringifier instead of
-                                    // `json-bigint`.
-                                    body: JSON.stringify(index.config.mappings),
+                                    headers: {
+                                        "content-type": "application/json",
+                                        "x-amz-content-sha256": sha256(requestBodyString),
+                                    },
+                                    body: requestBodyString,
                                 },
                                 async response => {
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -1465,6 +1481,17 @@ export class OpensearchClient implements OpensearchClientInterface {
             url.searchParams.set("routing", singularRouting);
         }
 
+        // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
+        // strings and so JSON safe. Stringify is fine here.
+        const requestBodyString = JSON.stringify({
+            docs: commands.map(command => ({
+                _index: !singularIndex ? command.index.name : undefined,
+                routing: !singularRouting ? command.routing : undefined,
+                _id: command.id,
+                ...command.serialize(),
+            })),
+        });
+
         const body = await fetchWithTracer(
             tracer,
             url,
@@ -1473,17 +1500,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: singularIndex ? `/${singularIndex.name}/_mget` : "/_mget",
                 method: "POST",
-                headers: {"content-type": "application/json"},
-                // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
-                // strings and so JSON safe. Stringify is fine here.
-                body: JSON.stringify({
-                    docs: commands.map(command => ({
-                        _index: !singularIndex ? command.index.name : undefined,
-                        routing: !singularRouting ? command.routing : undefined,
-                        _id: command.id,
-                        ...command.serialize(),
-                    })),
-                }),
+                headers: {
+                    "content-type": "application/json",
+                    "x-amz-content-sha256": sha256(requestBodyString),
+                },
+                body: requestBodyString,
             },
             async (response, span) => {
                 span.addData({
@@ -1621,6 +1642,12 @@ export class OpensearchClient implements OpensearchClientInterface {
             url.searchParams.set("if_primary_term", doc.version.primaryTerm);
         }
 
+        // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
+        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
+        // to strings to maintain precision. Ok to use native JSON stringifier since
+        // `long`s will be strings and we know how to handle those strings.
+        const requestBodyString = JSON.stringify(index.type.serialize(doc));
+
         await fetchWithTracer(
             tracer,
             url,
@@ -1631,12 +1658,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                     ? `/${index.name}/_create/:docId`
                     : `/${index.name}/_doc/:docId`,
                 method: "PUT",
-                headers: {"content-type": "application/json"},
-                // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-                // to strings to maintain precision. Ok to use native JSON stringifier since
-                // `long`s will be strings and we know how to handle those strings.
-                body: JSON.stringify(index.type.serialize(doc)),
+                headers: {
+                    "content-type": "application/json",
+                    "x-amz-content-sha256": sha256(requestBodyString),
+                },
+                body: requestBodyString,
             },
             async (response, span) => {
                 span.addData({
@@ -1756,6 +1782,12 @@ export class OpensearchClient implements OpensearchClientInterface {
             }
         }
 
+        // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
+        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
+        // to strings to maintain precision. Ok to use native JSON stringifier since
+        // `long`s will be strings and we know how to handle those strings.
+        const requestBodyString = bulkBody.map(object => `${JSON.stringify(object)}\n`).join("");
+
         const versionConflictError: FailedPreconditionError | null = await fetchWithTracer(
             tracer,
             url,
@@ -1764,12 +1796,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk",
                 method: "POST",
-                headers: {"content-type": "application/x-ndjson"},
-                // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-                // to strings to maintain precision. Ok to use native JSON stringifier since
-                // `long`s will be strings and we know how to handle those strings.
-                body: bulkBody.map(object => `${JSON.stringify(object)}\n`).join(""),
+                headers: {
+                    "content-type": "application/x-ndjson",
+                    "x-amz-content-sha256": sha256(requestBodyString),
+                },
+                body: requestBodyString,
             },
             async (response, span) => {
                 span.addData({
@@ -1916,6 +1947,17 @@ export class OpensearchClient implements OpensearchClientInterface {
             url.searchParams.set("explain", "true");
         }
 
+        // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
+        // bigints we want to stringify as JSON integer literals so we need to use
+        // `json-bigint`.
+        const requestBodyString = JsonBigInt.stringify({
+            query,
+            sort,
+            search_after: afterCursor,
+            _source: !withoutSource,
+            highlight,
+        });
+
         const body = await fetchWithTracer(
             tracer,
             url,
@@ -1924,17 +1966,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_search`,
                 method: "POST",
-                headers: {"content-type": "application/json"},
-                // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
-                // bigints we want to stringify as JSON integer literals so we need to use
-                // `json-bigint`.
-                body: JsonBigInt.stringify({
-                    query,
-                    sort,
-                    search_after: afterCursor,
-                    _source: !withoutSource,
-                    highlight,
-                }),
+                headers: {
+                    "content-type": "application/json",
+                    "x-amz-content-sha256": sha256(requestBodyString),
+                },
+                body: requestBodyString,
             },
             async (response, span) => {
                 span.addData({
@@ -2263,6 +2299,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_refresh`,
                 method: "POST",
+                headers: {"x-amz-content-sha256": sha256("")},
+                body: "",
             },
             async (response, span) => {
                 span.addData({
@@ -2301,6 +2339,12 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
+        // NOTE(#opensearch-important-json-disclaimer): No numbers in this body.
+        const requestBodyString = JSON.stringify({
+            analyzer: typeof analyzer === "string" ? analyzer : analyzer.name,
+            text,
+        });
+
         return fetchWithTracer(
             tracer,
             new URL(
@@ -2312,12 +2356,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                 serviceName: "OpenSearch",
                 route: `/${index.name}/_analyze`,
                 method: "POST",
-                headers: {"content-type": "application/json"},
-                // NOTE(#opensearch-important-json-disclaimer): No numbers in this body.
-                body: JSON.stringify({
-                    analyzer: typeof analyzer === "string" ? analyzer : analyzer.name,
-                    text,
-                }),
+                headers: {
+                    "content-type": "application/json",
+                    "x-amz-content-sha256": sha256(requestBodyString),
+                },
+                body: requestBodyString,
             },
             async (response, span) => {
                 span.addData({
@@ -2429,4 +2472,8 @@ function formatOpensearchError(error: OpensearchError): string {
         string += `. Root cause ${formatOpensearchError(error.root_cause[0])}`;
 
     return string;
+}
+
+function sha256(string: string) {
+    return createHash("sha256").update(string).digest("base64");
 }
