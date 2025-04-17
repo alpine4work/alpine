@@ -88,6 +88,7 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {defaultMaxRetryAttemptCount} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {
@@ -110,6 +111,7 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
@@ -1072,125 +1074,83 @@ export async function runIndexEveryTaskActionStep2Of2(
     const concurrencyMutexes = createArrayWithLength(10, () => new Mutex());
     const mutexByTaskId = new Map<TaskId, Mutex>();
 
-    let count = 0;
-
     for await (const item of TaskActionTable.expensiveScan(context, {
         segmentIndex,
         totalSegmentCount,
     })) {
-        count++;
+        const updateActions = item.actions.filter(
+            action =>
+                !(action.type === "UpdateTask" && action.taskAction.type === "Create") &&
+                !(action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
+        );
+        if (updateActions.length === 0) continue;
 
-        const updateActions = item.actions;
-
-        // TODO(calebmer, #task-action-indexing): Add this back after I get a more
-        // accurate count
-        // const updateActions = item.actions.filter(
-        //     action =>
-        //         !(action.type === "UpdateTask" && action.taskAction.type === "Create") &&
-        //         !(action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
-        // );
-        // if (updateActions.length === 0) continue;
+        let action = () =>
+            // Once all our task mutexes unlock, now we wait for a concurrency mutex to
+            // unlock before indexing the task.
+            concurrencyMutexes[concurrencyMutexSequence++ % concurrencyMutexes.length]!.withLock(
+                async () => {
+                    await indexTaskActionTransactionAssumingItsCommitted(
+                        context.clone({
+                            cache: new CacheContextModule(),
+                            dynamoBatchContext: new DynamoBatchContextModule(),
+                            actor: DynamoSystemActorContextModule.dangerouslyNew(
+                                serviceName,
+                                item.spaceId,
+                            ),
+                        }),
+                        {...item, actions: updateActions},
+                        {
+                            // Perform more retries while indexing during this migration. Since we may have
+                            // a lot of update contention while trying to reindex all past actions at once.
+                            maxRetryAttemptCount: defaultMaxRetryAttemptCount * 2,
+                        },
+                    );
+                },
+            );
 
         // We only want one transaction per task to be running at a time. Otherwise the
         // transactions will conflict creating a lot of retries. So we have a mutex per
-        // `TaskId` and will only start indexing once all task mutexes unlock.
+        // `TaskId` and will only start indexing once the mutex for the first task in
+        // the transaction unlocks.
         //
-        // NOTE(calebmer): In practice, I've found this migration has a 50% failure
-        // rate since we're constantly retrying updates due to conflicts when we don't
-        // index one action per task at a time.
-        const taskMutexes = filterMapArray(updateActions, action => {
-            if (action.type !== "UpdateTask") return;
-            return {
-                taskId: action.taskId,
-                mutex: getOrSetDefaultMapValue(mutexByTaskId, action.taskId, () => new Mutex()),
-            };
-        });
-
-        // TODO(calebmer, #task-action-indexing): Remove this log
-        // eslint-disable-next-line no-console
-        console.log(
-            `Found task actions from ${item.actionTransactionId}: ${updateActions
-                .map(
-                    action =>
-                        `${getTaskActionLabel(action)}${
-                            action.type === "UpdateTask" ? ` (${action.taskId})` : ""
-                        }`,
-                )
-                .join(",")}. Task mutex count: ${taskMutexes.length} `,
+        // This is purely an optimization, it's not necessary for correctness. We could
+        // run all actions at the same time and accept retries for tasks trying to
+        // update the same data. In practice, I've found this migration has a 50%
+        // failure rate since we'll often be updating 20+ `UpdateTitle` actions on the
+        // same task at once which are constantly conflicting with each other causing
+        // failures.
+        //
+        // We only use the mutex for the first task in the transaction because
+        // otherwise we're at risk of deadlocks. For example, transaction A that
+        // updates `task1` then `task2` and another transaction B that updates
+        // `task2` then `task1`. If we're not careful, transaction A will lock the
+        // mutex for `task1` while transaction B locks the mutex for `task2`. Then
+        // transaction A tries to lock the mutex for `task2` as well at the same time
+        // transaction B tries to lock the mutex for `task1`. Boom, deadlock!
+        //
+        // Since we use mutexes mostly as an optimization for when we're indexing many
+        // `UpdateTitle` actions at once we think it's acceptable to let conflicting
+        // multi-task transactions run (they're rarer and usually not near each other
+        // in the database).
+        const taskIdForMutex = findMapIterable(updateActions, action =>
+            action.type === "UpdateTask" ? action.taskId : undefined,
         );
+        if (taskIdForMutex !== undefined) {
+            const taskMutex = getOrSetDefaultMapValue(
+                mutexByTaskId,
+                taskIdForMutex,
+                () => new Mutex(),
+            );
 
-        promiseWaiter.waitUntil(
-            taskMutexes.reduce(
-                (action, {taskId, mutex}) =>
-                    () => {
-                        // TODO(calebmer, #task-action-indexing): Remove this log
-                        // eslint-disable-next-line no-console
-                        console.log(
-                            `Waiting for task mutex to unlock  (taskId = ${taskId}, actionTransactionId = ${item.actionTransactionId})`,
-                        );
+            const originalAction = action;
+            action = () => taskMutex.withLock(originalAction);
+        }
 
-                        return mutex.withLock(() => {
-                            // TODO(calebmer, #task-action-indexing): Remove this log
-                            // eslint-disable-next-line no-console
-                            console.log(
-                                `Task mutex unlocked! (taskId = ${taskId}, actionTransactionId = ${item.actionTransactionId})`,
-                            );
-
-                            return action();
-                        });
-                    },
-                () =>
-                    // Once all our task mutexes unlock, now we wait for a concurrency mutex to
-                    // unlock before indexing the task.
-                    concurrencyMutexes[
-                        concurrencyMutexSequence++ % concurrencyMutexes.length
-                    ]!.withLock(async () => {
-                        // TODO(calebmer, #task-action-indexing): Remove this comment
-                        // eslint-disable-next-line no-console
-                        console.log(
-                            `Indexing task actions from ${item.actionTransactionId}: ${updateActions
-                                .map(
-                                    action =>
-                                        `${getTaskActionLabel(action)}${
-                                            action.type === "UpdateTask"
-                                                ? ` (${action.taskId})`
-                                                : ""
-                                        }`,
-                                )
-                                .join(",")}`,
-                        );
-
-                        await indexTaskActionTransactionAssumingItsCommitted(
-                            context.clone({
-                                cache: new CacheContextModule(),
-                                dynamoBatchContext: new DynamoBatchContextModule(),
-                                actor: DynamoSystemActorContextModule.dangerouslyNew(
-                                    serviceName,
-                                    item.spaceId,
-                                ),
-                            }),
-                            {...item, actions: updateActions},
-                        );
-                    }),
-            ),
-        );
+        promiseWaiter.waitUntil(action);
     }
 
-    // TODO(calebmer, #task-action-indexing): Remove this log
-    // eslint-disable-next-line no-console
-    console.log(`SCANNED ${count} ITEMS, NOW WAITING`);
-
-    try {
-        await promiseWaiter.wait();
-
-        // TODO(calebmer, #task-action-indexing): Remove this log
-        // eslint-disable-next-line no-console
-        console.log("DONE WAITING");
-    } catch (error) {
-        // TODO(calebmer, #task-action-indexing): Remove this log
-        // eslint-disable-next-line no-console
-        console.log("DONE WAITING WITH ERROR:", error);
-    }
+    await promiseWaiter.wait();
 }
 
 /**

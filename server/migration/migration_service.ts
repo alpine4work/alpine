@@ -1,4 +1,3 @@
-import exitHook from "exit-hook";
 import {finishInitializingDynamoTableSchemas} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {allMigrations} from "~/server/migration/all_migrations.js";
@@ -17,13 +16,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-
-// TODO(calebmer, #task-action-indexing): Remove this exit hook
-exitHook(signal => {
-    // TODO(calebmer, #task-action-indexing): Remove this log
-    // eslint-disable-next-line no-console
-    console.log(`PROCESS IS EXITING: ${signal}`);
-});
 
 // NOTE(calebmer): My vision for `MigrationService`:
 //
@@ -110,10 +102,6 @@ export async function run({
         opensearch: opensearchContextModule,
     });
 
-    // TODO(calebmer, #task-action-indexing): Remove this log
-    // eslint-disable-next-line no-console
-    console.log(`Starting migration ${migrationString}`);
-
     try {
         await processContext.tracer.withSpan(
             `Run migration ${migrationString}`,
@@ -128,15 +116,7 @@ export async function run({
                 await migration(context, {segmentIndex, totalSegmentCount});
             },
         );
-
-        // TODO(calebmer, #task-action-indexing): Remove this log
-        // eslint-disable-next-line no-console
-        console.log(`Finished migration ${migrationString}`);
     } catch (error) {
-        // TODO(calebmer, #task-action-indexing): Remove this log
-        // eslint-disable-next-line no-console
-        console.error(`Finished migration ${migrationString} with error:`, error);
-
         throw error;
     }
 }

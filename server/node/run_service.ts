@@ -246,9 +246,65 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         }
     }
 
-    main().catch(error => {
+    const handleBeforeExitDuringMainCall = () => {
+        // Node.js does not wait for promises to resolve before exiting. There needs to
+        // be some IO to keep the Node.js event loop active. You can think of [promises
+        // in Node.js as a timeout you've called `timeout.unref()` on][1]. There's an
+        // issue in the Node.js repo "[Nodejs does not wait for promise resolution -
+        // exits instead][2]" where the community complains about this behavior.
+        //
+        // When the Node.js event loop is emptied [`beforeExit` is emitted][3] and
+        // Node.js exits with an exit code of 0. This makes accidentally awaiting a
+        // promise that never resolves infuriating to debug. It looks likes the program
+        // exits normally without throwing an error or running any `finally` cleanups.
+        //
+        // So if `beforeExit` is emit before `main()` finishes running we assume the
+        // service hasn't actually finished the work it wants to do. We set the exit
+        // code to 1 to more clearly communicate the process failed and log this
+        // message to help the developer debug the issue.
+        //
+        // We found this Node.js behavior due to a deadlock in our promise-based
+        // `Mutex` implementation, reproduction:
+        //
+        // ```ts
+        // const mutex = new Mutex();
+        //
+        // await mutex.withLock(async () => {
+        //     await mutex.withLock(async () => {
+        //         console.log("Hello, world!");
+        //     });
+        // });
+        // ```
+        //
+        // [1]: https://nodejs.org/api/timers.html#timeoutunref
+        // [2]: https://github.com/nodejs/node/issues/22088
+        // [3]: https://nodejs.org/api/process.html#event-beforeexit
+        //
         // eslint-disable-next-line no-console
-        console.error(error);
+        console.error(
+            "Event loop has emptied before service finished running. This is likely due to awaiting a promise that never resolves. The simplest example of this is: `await new Promise(() => {})`. Another cause we've seen is a deadlock in our promise-based mutex implementation (`shared/helpers/async/mutex.ts`).",
+        );
+
         process.exitCode = 1;
-    });
+    };
+
+    process.on("beforeExit", handleBeforeExitDuringMainCall);
+
+    main().then(
+        () => {
+            process.off("beforeExit", handleBeforeExitDuringMainCall);
+            process.exitCode = 0;
+
+            // Don't actually call `process.exit()` at this point. For services that start
+            // HTTP servers the service will need to keep running until a shutdown signal
+            // is received (see `shutdownManager`).
+        },
+        error => {
+            process.off("beforeExit", handleBeforeExitDuringMainCall);
+            process.exitCode = 1;
+
+            // eslint-disable-next-line no-console
+            console.error(error);
+        },
+    );
 }

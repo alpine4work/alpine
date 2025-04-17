@@ -68,6 +68,7 @@ import {
     NotFoundError,
 } from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -549,6 +550,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
         actions: ReadonlyArray<TaskAction>;
         actorId: AccountId | null;
     },
+    {maxRetryAttemptCount}: {maxRetryAttemptCount?: number} = emptyObject,
 ) {
     return context.tracer.withSpan("Index task action transaction", async (context, span) => {
         span.addData({
@@ -565,6 +567,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
                 actionTransaction.spaceId,
                 actionTransaction.actorId,
                 actionTransaction.actions,
+                {maxRetryAttemptCount},
             );
         } catch (error) {
             // Escalate task indexing errors to `DataLossError` since it means we
@@ -601,7 +604,7 @@ function actuallyIndexTaskActionTransactionAssumingItsCommitted(
     spaceId: SpaceId,
     actorId: AccountId | null,
     actions: ReadonlyArray<TaskAction>,
-    options?: {onRetry?: () => void},
+    options?: {maxRetryAttemptCount?: number; onRetry?: () => void},
 ) {
     const updateAccountNameAction = actions.find(
         (action): action is TaskUpdateAccountNameAction => action.type === "UpdateAccountName",
@@ -689,7 +692,7 @@ class TaskActionTransactionIndexState {
         spaceId: SpaceId,
         actorId: AccountId | null,
         actions: ReadonlyArray<TaskAction>,
-        {onRetry}: {onRetry?: () => void} = {},
+        {maxRetryAttemptCount, onRetry}: {maxRetryAttemptCount?: number; onRetry?: () => void} = {},
     ) {
         const referencedAccountIds = new Set<AccountId>();
         for (const action of actions) {
@@ -705,7 +708,9 @@ class TaskActionTransactionIndexState {
 
         let hasAlreadyAttempted = false;
 
-        return retryWithExponentialBackoff(async _retry => {
+        return retryWithExponentialBackoff(run, {maxAttemptCount: maxRetryAttemptCount});
+
+        async function run(_retry: (error?: unknown) => never) {
             const isInitialAttempt = !hasAlreadyAttempted;
             hasAlreadyAttempted = true;
 
@@ -1223,7 +1228,7 @@ class TaskActionTransactionIndexState {
             }
 
             await indexTaskActionTransactionAfterUpdateTestCheckpoint.waitForTest(spaceId);
-        });
+        }
     }
 
     /**

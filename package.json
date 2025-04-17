@@ -192,7 +192,6 @@
         "eslint-plugin-react-refresh": "^0.4.13",
         "eslint-plugin-testing-library": "^5.11.0",
         "etag": "^1.8.1",
-        "exit-hook": "^4.0.0",
         "expect-type": "^0.14.2",
         "express": "^4.18.2",
         "fast-glob": "^3.3.1",

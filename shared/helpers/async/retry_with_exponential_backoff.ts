@@ -1,4 +1,11 @@
 import {CancelledError, DeadlineExceededError} from "~/shared/error/error.js";
+import {emptyObject} from "~/shared/helpers/array/empty_object.js";
+
+/**
+ * The default number of times we'll retry in `retryWithExponentialBackoff()`.
+ * The delay between attempts maxes out at 10s.
+ */
+export const defaultMaxRetryAttemptCount = 15;
 
 const originalSetTimeout = setTimeout;
 
@@ -45,6 +52,7 @@ export function isRetryError(error: unknown): error is CancelledError {
  */
 export function retryWithExponentialBackoff<Value>(
     action: (retry: (error?: unknown) => never) => Promise<Value>,
+    {maxAttemptCount = defaultMaxRetryAttemptCount}: {maxAttemptCount?: number} = emptyObject,
 ): Promise<Value> {
     // Important that this retry symbol is local to this function call. That way
     // when you have nested `retryWithExponentialBackoff()`s we correctly retry the
@@ -77,9 +85,9 @@ export function retryWithExponentialBackoff<Value>(
                 throw error;
             }
 
-            const delayMs = 2 ** attemptNumber;
+            const delayMs = Math.max(2 ** attemptNumber, 1000 * 10);
 
-            if (delayMs > 1000 * 20) {
+            if (attemptNumber >= maxAttemptCount) {
                 throw new DeadlineExceededError(
                     `Retry with exponential backoff failed after ${attemptNumber} attempts`,
                     {cause: (error as Error).cause},
