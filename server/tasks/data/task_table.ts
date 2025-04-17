@@ -1042,6 +1042,12 @@ export async function runIndexEveryTaskActionStep1Of2(
                         ),
                     }),
                     {...item, actions: createActions},
+                    {
+                        // Don't record search affinity interactions when backfilling OpenSearch.
+                        // Search affinity interactions should only be recorded immediately after the
+                        // action is commit.
+                        withoutSearchAffinityEntityInteraction: true,
+                    },
                 ),
             ),
         );
@@ -1089,8 +1095,8 @@ export async function runIndexEveryTaskActionStep2Of2(
             // Once all our task mutexes unlock, now we wait for a concurrency mutex to
             // unlock before indexing the task.
             concurrencyMutexes[concurrencyMutexSequence++ % concurrencyMutexes.length]!.withLock(
-                async () => {
-                    await indexTaskActionTransactionAssumingItsCommitted(
+                () =>
+                    indexTaskActionTransactionAssumingItsCommitted(
                         context.clone({
                             cache: new CacheContextModule(),
                             dynamoBatchContext: new DynamoBatchContextModule(),
@@ -1101,12 +1107,15 @@ export async function runIndexEveryTaskActionStep2Of2(
                         }),
                         {...item, actions: updateActions},
                         {
+                            // Don't record search affinity interactions when backfilling OpenSearch.
+                            // Search affinity interactions should only be recorded immediately after the
+                            // action is commit.
+                            withoutSearchAffinityEntityInteraction: true,
                             // Perform more retries while indexing during this migration. Since we may have
                             // a lot of update contention while trying to reindex all past actions at once.
                             maxRetryAttemptCount: defaultMaxRetryAttemptCount * 2,
                         },
-                    );
-                },
+                    ),
             );
 
         // We only want one transaction per task to be running at a time. Otherwise the

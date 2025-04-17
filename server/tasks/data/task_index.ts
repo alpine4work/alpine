@@ -68,7 +68,6 @@ import {
     NotFoundError,
 } from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -550,7 +549,10 @@ export function indexTaskActionTransactionAssumingItsCommitted(
         actions: ReadonlyArray<TaskAction>;
         actorId: AccountId | null;
     },
-    {maxRetryAttemptCount}: {maxRetryAttemptCount?: number} = emptyObject,
+    options?: {
+        withoutSearchAffinityEntityInteraction?: boolean;
+        maxRetryAttemptCount?: number;
+    },
 ) {
     return context.tracer.withSpan("Index task action transaction", async (context, span) => {
         span.addData({
@@ -567,7 +569,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
                 actionTransaction.spaceId,
                 actionTransaction.actorId,
                 actionTransaction.actions,
-                {maxRetryAttemptCount},
+                options,
             );
         } catch (error) {
             // Escalate task indexing errors to `DataLossError` since it means we
@@ -692,7 +694,15 @@ class TaskActionTransactionIndexState {
         spaceId: SpaceId,
         actorId: AccountId | null,
         actions: ReadonlyArray<TaskAction>,
-        {maxRetryAttemptCount, onRetry}: {maxRetryAttemptCount?: number; onRetry?: () => void} = {},
+        {
+            withoutSearchAffinityEntityInteraction = false,
+            maxRetryAttemptCount,
+            onRetry,
+        }: {
+            withoutSearchAffinityEntityInteraction?: boolean;
+            maxRetryAttemptCount?: number;
+            onRetry?: () => void;
+        } = {},
     ) {
         const referencedAccountIds = new Set<AccountId>();
         for (const action of actions) {
@@ -1001,13 +1011,7 @@ class TaskActionTransactionIndexState {
                     // that collection. Whenever the user chooses a collection from the collections
                     // dropdown we want the collection to rank higher for the next time the user
                     // opens the collections dropdown.
-                    //
-                    // TODO(calebmer): What happens if we need to reindex OpenSearch from scratch?
-                    // Or there's an OpenSearch durability issue and we need to reindex some
-                    // actions? Since marking search affinity interactions isn't idempotent we may
-                    // end up adding more points than expected. Consider adding a flag to disable
-                    // affinity updates when reindexing OpenSearch from scratch.
-                    if (actorId !== null) {
+                    if (!withoutSearchAffinityEntityInteraction && actorId !== null) {
                         for (const [
                             collectionId,
                         ] of newTask.collections.raw.collections.entries()) {
