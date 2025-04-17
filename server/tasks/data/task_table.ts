@@ -1125,18 +1125,16 @@ export async function runIndexEveryTaskActionStep2Of2(
                     () => {
                         // TODO(calebmer, #task-action-indexing): Remove this log
                         // eslint-disable-next-line no-console
-                        console.log("Waiting for task mutex to unlock", {
-                            taskId,
-                            actionTransactionId: item.actionTransactionId,
-                        });
+                        console.log(
+                            `Waiting for task mutex to unlock  (taskId = ${taskId}, actionTransactionId = ${item.actionTransactionId})`,
+                        );
 
                         return mutex.withLock(() => {
                             // TODO(calebmer, #task-action-indexing): Remove this log
                             // eslint-disable-next-line no-console
-                            console.log("Task mutex unlocked!", {
-                                taskId,
-                                actionTransactionId: item.actionTransactionId,
-                            });
+                            console.log(
+                                `Task mutex unlocked! (taskId = ${taskId}, actionTransactionId = ${item.actionTransactionId})`,
+                            );
 
                             return action();
                         });
