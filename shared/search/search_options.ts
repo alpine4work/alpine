@@ -283,7 +283,7 @@ export const standardSearchOptions: SearchOptions = {
                     ? // We got this score when searching (with Cohere in production) "second quarter roadmap" and
                       // getting a passage from my update email after the notification cycle talking about the plan for
                       // next cycle (which started in ~June) and the plan for the next couple years. Great match.
-                      0.55
+                      465450.1
                     : // This is the score from the `all-MiniLM-L6-v2` model for "british currency
                       // history" vs a passage from the first section of the "[Penny (British decimal
                       // coin)][1]" Wikipedia article which is an excellent match.
@@ -305,12 +305,14 @@ export const standardSearchOptions: SearchOptions = {
                 // production. Is that a coincidence or can we consolidate on the same values
                 // for development and production?
                 process.env.NODE_ENV === "production"
-                    ? // We got a score of 0.46864082 when searching (with Cohere in production)
-                      // "business conference" and getting a passage from "product vision and strategy" with the word
-                      // "business". It does use business lingo you might see at a business conference?
+                    ? // We got this score when searching (with Cohere in production) "business
+                      // conference" and getting a passage from the dummy document "PureStream
+                      // Project Brief: Trade Show Participation" which starts with "Showcase our
+                      // eco-friendly water boiler product at a major industry trade show".
                       //
-                      // This passage kinda works but not super well. Maybe this value should be a bit higher even.
-                      0.47
+                      // While an industry trade show isn't exactly a business conference, it is
+                      // pretty close.
+                      441937.03
                     : // This is the score from the `all-MiniLM-L6-v2` model for "marketing result"
                       // vs a passage from the "[Big King][1]" Wikipedia article's [double supreme
                       // advertising][2] section.
