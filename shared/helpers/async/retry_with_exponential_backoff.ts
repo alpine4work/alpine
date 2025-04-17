@@ -85,7 +85,7 @@ export function retryWithExponentialBackoff<Value>(
                 throw error;
             }
 
-            const delayMs = Math.max(2 ** attemptNumber, 1000 * 10);
+            const delayMs = Math.min(2 ** attemptNumber, 1000 * 10);
 
             if (attemptNumber >= maxAttemptCount) {
                 throw new DeadlineExceededError(
