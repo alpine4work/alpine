@@ -935,95 +935,105 @@ class TaskActionTransactionIndexState {
                         }
                     }
 
-                    const oldIsActiveForAffinity =
-                        oldTask && !isTaskIndexDocDeleted(oldTask)
-                            ? getTaskIndexDocDisplayStatus(oldTask) === "OpenActive"
+                    // Record some affinity points (if allowed) based on the task update. We disable
+                    // search affinity interactions when backfilling task actions into OpenSearch.
+                    if (!withoutSearchAffinityEntityInteraction) {
+                        const oldIsActiveForAffinity =
+                            oldTask && !isTaskIndexDocDeleted(oldTask)
+                                ? getTaskIndexDocDisplayStatus(oldTask) === "OpenActive"
+                                : false;
+                        const newIsActiveForAffinity = !isTaskIndexDocDeleted(newTask)
+                            ? getTaskIndexDocDisplayStatus(newTask) === "OpenActive"
                             : false;
-                    const newIsActiveForAffinity = !isTaskIndexDocDeleted(newTask)
-                        ? getTaskIndexDocDisplayStatus(newTask) === "OpenActive"
-                        : false;
 
-                    // If the active status of the task changes then we want to add/remove affinity
-                    // points. Setting a task as active will boost the task to the top of the
-                    // account's affinity list. Removing the active status from the task will remove
-                    // that boost and take it out of the top of the affinity list.
-                    if (
-                        oldTask?.assignee.value?.assignee.accountId !==
-                            newTask.assignee.value?.assignee.accountId ||
-                        oldIsActiveForAffinity !== newIsActiveForAffinity
-                    ) {
+                        // If the active status of the task changes then we want to add/remove affinity
+                        // points. Setting a task as active will boost the task to the top of the
+                        // account's affinity list. Removing the active status from the task will remove
+                        // that boost and take it out of the top of the affinity list.
                         if (
-                            oldTask?.assignee.value?.assignee.accountId ===
-                            newTask?.assignee.value?.assignee.accountId
+                            oldTask?.assignee.value?.assignee.accountId !==
+                                newTask.assignee.value?.assignee.accountId ||
+                            oldIsActiveForAffinity !== newIsActiveForAffinity
                         ) {
-                            const assigneeId = oldTask?.assignee.value?.assignee.accountId;
-                            if (assigneeId) {
-                                if (oldIsActiveForAffinity && !newIsActiveForAffinity) {
+                            if (
+                                oldTask?.assignee.value?.assignee.accountId ===
+                                newTask?.assignee.value?.assignee.accountId
+                            ) {
+                                const assigneeId = oldTask?.assignee.value?.assignee.accountId;
+                                if (assigneeId) {
+                                    if (oldIsActiveForAffinity && !newIsActiveForAffinity) {
+                                        afterWriteCallbacks.push(() =>
+                                            removeSearchAffinityEntityActiveTaskAssigneePoints(
+                                                context,
+                                                {
+                                                    spaceId,
+                                                    assigneeId,
+                                                    taskId: newTask.id,
+                                                },
+                                            ),
+                                        );
+                                    }
+
+                                    if (!oldIsActiveForAffinity && newIsActiveForAffinity) {
+                                        afterWriteCallbacks.push(() =>
+                                            addSearchAffinityEntityActiveTaskAssigneePoints(
+                                                context,
+                                                {
+                                                    spaceId,
+                                                    assigneeId,
+                                                    taskId: newTask.id,
+                                                },
+                                            ),
+                                        );
+                                    }
+                                }
+                            } else {
+                                const oldAssigneeId = oldTask?.assignee.value?.assignee.accountId;
+                                const newAssigneeId = newTask?.assignee.value?.assignee.accountId;
+
+                                if (oldAssigneeId && oldIsActiveForAffinity) {
                                     afterWriteCallbacks.push(() =>
                                         removeSearchAffinityEntityActiveTaskAssigneePoints(
                                             context,
                                             {
                                                 spaceId,
-                                                assigneeId,
+                                                assigneeId: oldAssigneeId,
                                                 taskId: newTask.id,
                                             },
                                         ),
                                     );
                                 }
 
-                                if (!oldIsActiveForAffinity && newIsActiveForAffinity) {
+                                if (newAssigneeId && newIsActiveForAffinity) {
                                     afterWriteCallbacks.push(() =>
                                         addSearchAffinityEntityActiveTaskAssigneePoints(context, {
                                             spaceId,
-                                            assigneeId,
+                                            assigneeId: newAssigneeId,
                                             taskId: newTask.id,
                                         }),
                                     );
                                 }
                             }
-                        } else {
-                            const oldAssigneeId = oldTask?.assignee.value?.assignee.accountId;
-                            const newAssigneeId = newTask?.assignee.value?.assignee.accountId;
-
-                            if (oldAssigneeId && oldIsActiveForAffinity) {
-                                afterWriteCallbacks.push(() =>
-                                    removeSearchAffinityEntityActiveTaskAssigneePoints(context, {
-                                        spaceId,
-                                        assigneeId: oldAssigneeId,
-                                        taskId: newTask.id,
-                                    }),
-                                );
-                            }
-
-                            if (newAssigneeId && newIsActiveForAffinity) {
-                                afterWriteCallbacks.push(() =>
-                                    addSearchAffinityEntityActiveTaskAssigneePoints(context, {
-                                        spaceId,
-                                        assigneeId: newAssigneeId,
-                                        taskId: newTask.id,
-                                    }),
-                                );
-                            }
                         }
-                    }
 
-                    // Record an affinity interaction whenever the task is added to a collection for
-                    // that collection. Whenever the user chooses a collection from the collections
-                    // dropdown we want the collection to rank higher for the next time the user
-                    // opens the collections dropdown.
-                    if (!withoutSearchAffinityEntityInteraction && actorId !== null) {
-                        for (const [
-                            collectionId,
-                        ] of newTask.collections.raw.collections.entries()) {
-                            if (!oldTask?.collections.raw.collections.has(collectionId)) {
-                                afterWriteCallbacks.push(() =>
-                                    markSearchAffinityEntityInteractionForAccount(context, {
-                                        spaceId,
-                                        accountId: actorId,
-                                        entityId: `TaskCollection:${collectionId}`,
-                                        interaction: {type: "LowIntentUpdate"},
-                                    }),
-                                );
+                        // Record an affinity interaction whenever the task is added to a collection for
+                        // that collection. Whenever the user chooses a collection from the collections
+                        // dropdown we want the collection to rank higher for the next time the user
+                        // opens the collections dropdown.
+                        if (actorId !== null) {
+                            for (const [
+                                collectionId,
+                            ] of newTask.collections.raw.collections.entries()) {
+                                if (!oldTask?.collections.raw.collections.has(collectionId)) {
+                                    afterWriteCallbacks.push(() =>
+                                        markSearchAffinityEntityInteractionForAccount(context, {
+                                            spaceId,
+                                            accountId: actorId,
+                                            entityId: `TaskCollection:${collectionId}`,
+                                            interaction: {type: "LowIntentUpdate"},
+                                        }),
+                                    );
+                                }
                             }
                         }
                     }
