@@ -1072,10 +1072,14 @@ export async function runIndexEveryTaskActionStep2Of2(
     const concurrencyMutexes = createArrayWithLength(10, () => new Mutex());
     const mutexByTaskId = new Map<TaskId, Mutex>();
 
+    let count = 0;
+
     for await (const item of TaskActionTable.expensiveScan(context, {
         segmentIndex,
         totalSegmentCount,
     })) {
+        count++;
+
         const updateActions = item.actions;
 
         // TODO(calebmer, #task-action-indexing): Add this back after I get a more
@@ -1096,12 +1100,47 @@ export async function runIndexEveryTaskActionStep2Of2(
         // index one action per task at a time.
         const taskMutexes = filterMapArray(updateActions, action => {
             if (action.type !== "UpdateTask") return;
-            return getOrSetDefaultMapValue(mutexByTaskId, action.taskId, () => new Mutex());
+            return {
+                taskId: action.taskId,
+                mutex: getOrSetDefaultMapValue(mutexByTaskId, action.taskId, () => new Mutex()),
+            };
         });
+
+        // TODO(calebmer, #task-action-indexing): Remove this log
+        // eslint-disable-next-line no-console
+        console.log(
+            `Found task actions from ${item.actionTransactionId}: ${updateActions
+                .map(
+                    action =>
+                        `${getTaskActionLabel(action)}${
+                            action.type === "UpdateTask" ? ` (${action.taskId})` : ""
+                        }`,
+                )
+                .join(",")}. Task mutex count: ${taskMutexes.length} `,
+        );
 
         promiseWaiter.waitUntil(
             taskMutexes.reduce(
-                (action, mutex) => () => mutex.withLock(action),
+                (action, {taskId, mutex}) =>
+                    () => {
+                        // TODO(calebmer, #task-action-indexing): Remove this log
+                        // eslint-disable-next-line no-console
+                        console.log("Waiting for task mutex to unlock", {
+                            taskId,
+                            actionTransactionId: item.actionTransactionId,
+                        });
+
+                        return mutex.withLock(() => {
+                            // TODO(calebmer, #task-action-indexing): Remove this log
+                            // eslint-disable-next-line no-console
+                            console.log("Task mutex unlocked!", {
+                                taskId,
+                                actionTransactionId: item.actionTransactionId,
+                            });
+
+                            return action();
+                        });
+                    },
                 () =>
                     // Once all our task mutexes unlock, now we wait for a concurrency mutex to
                     // unlock before indexing the task.
@@ -1111,7 +1150,7 @@ export async function runIndexEveryTaskActionStep2Of2(
                         // TODO(calebmer, #task-action-indexing): Remove this comment
                         // eslint-disable-next-line no-console
                         console.log(
-                            `Indexing task actions: ${updateActions
+                            `Indexing task actions from ${item.actionTransactionId}: ${updateActions
                                 .map(
                                     action =>
                                         `${getTaskActionLabel(action)}${
@@ -1139,7 +1178,21 @@ export async function runIndexEveryTaskActionStep2Of2(
         );
     }
 
-    await promiseWaiter.wait();
+    // TODO(calebmer, #task-action-indexing): Remove this log
+    // eslint-disable-next-line no-console
+    console.log(`SCANNED ${count} ITEMS, NOW WAITING`);
+
+    try {
+        await promiseWaiter.wait();
+
+        // TODO(calebmer, #task-action-indexing): Remove this log
+        // eslint-disable-next-line no-console
+        console.log("DONE WAITING");
+    } catch (error) {
+        // TODO(calebmer, #task-action-indexing): Remove this log
+        // eslint-disable-next-line no-console
+        console.log("DONE WAITING WITH ERROR:", error);
+    }
 }
 
 /**
