@@ -1076,12 +1076,16 @@ export async function runIndexEveryTaskActionStep2Of2(
         segmentIndex,
         totalSegmentCount,
     })) {
-        const updateActions = item.actions.filter(
-            action =>
-                !(action.type === "UpdateTask" && action.taskAction.type === "Create") &&
-                !(action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
-        );
-        if (updateActions.length === 0) continue;
+        const updateActions = item.actions;
+
+        // TODO(calebmer, #task-action-indexing): Add this back after I get a more
+        // accurate count
+        // const updateActions = item.actions.filter(
+        //     action =>
+        //         !(action.type === "UpdateTask" && action.taskAction.type === "Create") &&
+        //         !(action.type === "UpdateCollection" && action.collectionAction.type === "Create"),
+        // );
+        // if (updateActions.length === 0) continue;
 
         // We only want one transaction per task to be running at a time. Otherwise the
         // transactions will conflict creating a lot of retries. So we have a mutex per
@@ -1090,7 +1094,7 @@ export async function runIndexEveryTaskActionStep2Of2(
         // NOTE(calebmer): In practice, I've found this migration has a 50% failure
         // rate since we're constantly retrying updates due to conflicts when we don't
         // index one action per task at a time.
-        const taskMutexes = filterMapArray(item.actions, action => {
+        const taskMutexes = filterMapArray(updateActions, action => {
             if (action.type !== "UpdateTask") return;
             return getOrSetDefaultMapValue(mutexByTaskId, action.taskId, () => new Mutex());
         });
@@ -1103,8 +1107,23 @@ export async function runIndexEveryTaskActionStep2Of2(
                     // unlock before indexing the task.
                     concurrencyMutexes[
                         concurrencyMutexSequence++ % concurrencyMutexes.length
-                    ]!.withLock(() =>
-                        indexTaskActionTransactionAssumingItsCommitted(
+                    ]!.withLock(async () => {
+                        // TODO(calebmer, #task-action-indexing): Remove this comment
+                        // eslint-disable-next-line no-console
+                        console.log(
+                            `Indexing task actions: ${updateActions
+                                .map(
+                                    action =>
+                                        `${getTaskActionLabel(action)}${
+                                            action.type === "UpdateTask"
+                                                ? ` (${action.taskId})`
+                                                : ""
+                                        }`,
+                                )
+                                .join(",")}`,
+                        );
+
+                        await indexTaskActionTransactionAssumingItsCommitted(
                             context.clone({
                                 cache: new CacheContextModule(),
                                 dynamoBatchContext: new DynamoBatchContextModule(),
@@ -1114,8 +1133,8 @@ export async function runIndexEveryTaskActionStep2Of2(
                                 ),
                             }),
                             {...item, actions: updateActions},
-                        ),
-                    ),
+                        );
+                    }),
             ),
         );
     }

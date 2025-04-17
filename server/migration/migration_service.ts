@@ -102,17 +102,33 @@ export async function run({
         opensearch: opensearchContextModule,
     });
 
-    await processContext.tracer.withSpan(
-        `Run migration ${migrationString}`,
-        async (context, span) => {
-            span.addPropagatedData({context: {migration: migrationString}});
-            span.addData({migration: {segmentIndex, totalSegmentCount}});
+    // TODO(calebmer, #task-action-indexing): Remove this comment
+    // eslint-disable-next-line no-console
+    console.log(`Starting migration ${migrationString}`);
 
-            // Make sure to finish initializing all DynamoDB table schemas before we start
-            // our migration.
-            finishInitializingDynamoTableSchemas();
+    try {
+        await processContext.tracer.withSpan(
+            `Run migration ${migrationString}`,
+            async (context, span) => {
+                span.addPropagatedData({context: {migration: migrationString}});
+                span.addData({migration: {segmentIndex, totalSegmentCount}});
 
-            await migration(context, {segmentIndex, totalSegmentCount});
-        },
-    );
+                // Make sure to finish initializing all DynamoDB table schemas before we start
+                // our migration.
+                finishInitializingDynamoTableSchemas();
+
+                await migration(context, {segmentIndex, totalSegmentCount});
+            },
+        );
+
+        // TODO(calebmer, #task-action-indexing): Remove this comment
+        // eslint-disable-next-line no-console
+        console.log(`Finished migration ${migrationString}`);
+    } catch (error) {
+        // TODO(calebmer, #task-action-indexing): Remove this comment
+        // eslint-disable-next-line no-console
+        console.error(`Finished migration ${migrationString} with error:`, error);
+
+        throw error;
+    }
 }
