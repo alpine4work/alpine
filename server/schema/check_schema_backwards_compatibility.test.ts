@@ -1541,3 +1541,64 @@ test("object with properties can become union with custom key", () => {
         ],
     });
 });
+
+test("object can become union with default type", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({foo: Schema.integer}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.string}),
+        }).defaultVariant("a"),
+        sampleValues: [{foo: 1}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({foo: Schema.integer}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.string}),
+        }).defaultVariant("b"),
+        sampleValues: [{foo: 1}],
+    });
+});
+
+test("object can become union with default type when there's a type value", () => {
+    testCase({
+        isBackwardsCompatible: true,
+        lastSchema: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.string}),
+        }).defaultVariant("a"),
+        sampleValues: [{type: "a", foo: 1}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({type: Schema.value("b"), foo: Schema.integer}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.string}),
+        }).defaultVariant("a"),
+        sampleValues: [{type: "b", foo: 1}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({type: Schema.value("b"), foo: Schema.string}),
+        nextSchema: Schema.object({type: Schema.value("a").optional(), foo: Schema.integer}),
+        sampleValues: [{type: "b", foo: "yo"}],
+    });
+
+    testCase({
+        isBackwardsCompatible: false,
+        lastSchema: Schema.object({type: Schema.value("b"), foo: Schema.string}),
+        nextSchema: Schema.union({
+            a: Schema.object({type: Schema.value("a"), foo: Schema.integer}),
+            b: Schema.object({type: Schema.value("b"), foo: Schema.string}),
+        }).defaultVariant("a"),
+        sampleValues: [],
+    });
+});

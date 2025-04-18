@@ -1,4 +1,5 @@
 import {InternalError} from "~/shared/error/error.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -212,53 +213,98 @@ export function checkSchemaBackwardsCompatibility(
                 return;
             }
             case "Union": {
-                // Allow evolution from objects to unions. In this case:
+                // Allow evolution from objects to unions. There are two modes:
                 //
-                // 1. The new union's type property is turned into an `Enum` and which has to
-                //    be compatible with a property of the same name in the old object.
+                // - If `defaultTypeValue` is set then old objects need to be backwards
+                //   compatible with the new union variant of that type.
                 //
-                // 2. The old object type (minus the type property) must be compatible with
-                //    every new union variant.
+                // - If `defaultTypeValue` is not set then old objects need to be backwards
+                //   compatible with ALL new union variants. (It's probably ok to loosen this.
+                //   I think in reality we only need to be compatible with one union variant.)
                 if (lastSchema.type === "Object") {
-                    checkSchemaBackwardsCompatibility(lastSchema, {
-                        type: "Object",
-                        propertySchemaByKey: {
-                            [nextSchema.typeKey]: {
-                                optional: false,
-                                valueSchema: {
-                                    type: "Enum",
-                                    values: Object.keys(nextSchema.variantSchemaByTypeValue),
-                                },
-                            },
-                        },
-                    });
+                    if (nextSchema.defaultTypeValue !== undefined) {
+                        const nextVariantSchema = assertExists(
+                            nextSchema.variantSchemaByTypeValue[nextSchema.defaultTypeValue],
+                        );
 
-                    for (const [type, nextVariantSchema] of Object.entries(
-                        nextSchema.variantSchemaByTypeValue,
-                    )) {
                         withSchemaSerializedValueDescriptionStackFrame(
-                            {type: "UnionVariant", typeKey: nextSchema.typeKey, typeValue: type},
+                            {
+                                type: "UnionVariant",
+                                typeKey: nextSchema.typeKey,
+                                typeValue: nextSchema.defaultTypeValue,
+                            },
                             () => {
                                 checkSchemaBackwardsCompatibility(
                                     {
                                         type: "Object",
-                                        propertySchemaByKey: omitObject(
-                                            lastSchema.propertySchemaByKey,
-                                            [nextSchema.typeKey],
-                                        ),
+                                        propertySchemaByKey: lastSchema.propertySchemaByKey,
                                     },
                                     nextVariantSchema.type === "Object"
                                         ? {
                                               type: "Object",
-                                              propertySchemaByKey: omitObject(
-                                                  nextVariantSchema.propertySchemaByKey,
-                                                  [nextSchema.typeKey],
-                                              ),
+                                              propertySchemaByKey: {
+                                                  ...nextVariantSchema.propertySchemaByKey,
+                                                  [nextSchema.typeKey]: {
+                                                      ...assertExists(
+                                                          nextVariantSchema.propertySchemaByKey[
+                                                              nextSchema.typeKey
+                                                          ],
+                                                      ),
+                                                      // If `defaultTypeValue` is set then the type key on the old object is
+                                                      // optional. It's fine if it exists but the value must match.
+                                                      optional: true,
+                                                  },
+                                              },
                                           }
                                         : nextVariantSchema,
                                 );
                             },
                         );
+                    } else {
+                        checkSchemaBackwardsCompatibility(lastSchema, {
+                            type: "Object",
+                            propertySchemaByKey: {
+                                [nextSchema.typeKey]: {
+                                    optional: false,
+                                    valueSchema: {
+                                        type: "Enum",
+                                        values: Object.keys(nextSchema.variantSchemaByTypeValue),
+                                    },
+                                },
+                            },
+                        });
+
+                        for (const [type, nextVariantSchema] of Object.entries(
+                            nextSchema.variantSchemaByTypeValue,
+                        )) {
+                            withSchemaSerializedValueDescriptionStackFrame(
+                                {
+                                    type: "UnionVariant",
+                                    typeKey: nextSchema.typeKey,
+                                    typeValue: type,
+                                },
+                                () => {
+                                    checkSchemaBackwardsCompatibility(
+                                        {
+                                            type: "Object",
+                                            propertySchemaByKey: omitObject(
+                                                lastSchema.propertySchemaByKey,
+                                                [nextSchema.typeKey],
+                                            ),
+                                        },
+                                        nextVariantSchema.type === "Object"
+                                            ? {
+                                                  type: "Object",
+                                                  propertySchemaByKey: omitObject(
+                                                      nextVariantSchema.propertySchemaByKey,
+                                                      [nextSchema.typeKey],
+                                                  ),
+                                              }
+                                            : nextVariantSchema,
+                                    );
+                                },
+                            );
+                        }
                     }
                     return;
                 }

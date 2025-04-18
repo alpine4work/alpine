@@ -6,6 +6,7 @@ import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_ty
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -1535,18 +1536,26 @@ export class UnionSchema<Value> extends Schema<Value> {
     public readonly variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<Value>>;
 
     /**
+     * The key for determining what union type we're looking at in the serialized
+     * object. Defaults to `type`.
+     */
+    private readonly _serializedTypeKey: string;
+
+    /**
      * Serialize the value. Will always serialize into an object value.
      */
     public declare readonly serialize: (value: Value) => SchemaSerializedObjectValue;
 
     private constructor({
         variantSchemaByType,
+        serializedTypeKey,
         getDescription,
         serialize,
         deserialize,
         validate,
     }: {
         variantSchemaByType: ReadonlyMap<string, UnionSchemaVariant<Value>>;
+        serializedTypeKey: string;
         getDescription: () => SchemaSerializedValueDescription;
         serialize: (value: Value) => SchemaSerializedValue;
         deserialize: (serializedValue: SchemaSerializedValue) => Value;
@@ -1559,6 +1568,7 @@ export class UnionSchema<Value> extends Schema<Value> {
             validate,
         });
         this.variantSchemaByType = variantSchemaByType;
+        this._serializedTypeKey = serializedTypeKey;
     }
 
     /**
@@ -1660,6 +1670,7 @@ export class UnionSchema<Value> extends Schema<Value> {
 
         return new UnionSchema<SchemaType<Config[keyof Config]>>({
             variantSchemaByType: schemaByType,
+            serializedTypeKey,
             getDescription: () => ({
                 type: "Union",
                 typeKey: serializedTypeKey,
@@ -1678,8 +1689,14 @@ export class UnionSchema<Value> extends Schema<Value> {
                 return schema.serialize(value);
             },
             deserialize: value => {
-                if (typeof value !== "object" || value === null)
+                if (
+                    typeof value !== "object" ||
+                    value === null ||
+                    isReadonlyArray(value) ||
+                    value instanceof Uint8Array
+                ) {
                     throw new SchemaDeserializationError("Expected an object");
+                }
 
                 if (
                     !hasOwnProperty(value, serializedTypeKey) ||
@@ -1717,6 +1734,48 @@ export class UnionSchema<Value> extends Schema<Value> {
                           validate?.(value);
                       }
                     : null,
+        });
+    }
+
+    /**
+     * Set the default variant for the union. You use this when you're converting
+     * an object schema (`Schema.object()`) to a union schema (`Schema.union()`).
+     * Any old objects we're deserializing that don't have a type property will be
+     * interpreted as a union variant with the provided type.
+     */
+    public defaultVariant(type: string): UnionSchema<Value> {
+        assert(this.variantSchemaByType.has(type));
+
+        return new UnionSchema<Value>({
+            variantSchemaByType: this.variantSchemaByType,
+            serializedTypeKey: this._serializedTypeKey,
+            getDescription: () => ({
+                ...this.getDescription(),
+                defaultTypeValue: type,
+            }),
+            serialize: this.serialize,
+            deserialize: value => {
+                if (
+                    typeof value !== "object" ||
+                    value === null ||
+                    isReadonlyArray(value) ||
+                    value instanceof Uint8Array
+                ) {
+                    throw new SchemaDeserializationError("Expected an object");
+                }
+
+                // If the serialized object doesn't have a type property then create a new
+                // object with the default type and continue deserialization.
+                if (
+                    !hasOwnProperty(value, this._serializedTypeKey) ||
+                    typeof value[this._serializedTypeKey] !== "string"
+                ) {
+                    return this.deserialize({...value, [this._serializedTypeKey]: type});
+                }
+
+                return this.deserialize(value);
+            },
+            validate: this.validate,
         });
     }
 }

@@ -65,6 +65,7 @@ export type SchemaSerializedObjectValuePropertyDescription = {
 export type SchemaSerializedUnionValueDescription = {
     readonly type: "Union";
     readonly typeKey: string;
+    readonly defaultTypeValue?: string;
     readonly variantSchemaByTypeValue: {
         readonly [type: string]: SchemaSerializedValueDescription;
     };
