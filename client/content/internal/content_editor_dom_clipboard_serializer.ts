@@ -8,6 +8,7 @@ import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
@@ -391,10 +392,23 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
         if (node.type.name === "table") {
             const tableDom = document.createElement("table");
-            const tbodyDom = document.createElement("tbody");
-            tableDom.appendChild(tbodyDom);
+            const tableMap = ContentTableMap.get(node);
 
-            this.serializeFragment(node.content, options, tbodyDom);
+            // Add the data attributes with JSON stringified values
+            tableDom.setAttribute("data-cy-width", JSON.stringify(tableMap.tableWidth));
+            tableDom.setAttribute(
+                "data-cy-column-widths",
+                tableMap.columnWidths.map(columnWidth => JSON.stringify(columnWidth)).join(", "),
+            );
+            if (node.attrs.hasHeaderRow) tableDom.setAttribute("data-cy-header-row", "");
+            if (node.attrs.hasHeaderColumn) tableDom.setAttribute("data-cy-header-column", "");
+
+            // Create tbody element
+            const tbody = document.createElement("tbody");
+            tableDom.appendChild(tbody);
+
+            // Serialize table content directly into tbody
+            this.serializeFragment(node.content, options, tbody);
 
             return tableDom;
         }

@@ -44,6 +44,8 @@ import {
     deleteContentTable,
     deleteContentTableColumn,
     deleteContentTableRow,
+    toggleContentTableHeaderColumn,
+    toggleContentTableHeaderRow,
 } from "~/client/content/internal/table/content_table_commands.js";
 import {
     ContentEditorTableLayout,
@@ -113,7 +115,13 @@ export function createContentEditorTableNodeView({
 
         const tableElement = document.createElement("table");
         tableWrapper3Element.appendChild(tableElement);
+        if (node.attrs.hasHeaderRow) {
+            tableElement.classList.add(contentStyles.tableWithHeaderRowClassName);
+        }
 
+        if (node.attrs.hasHeaderColumn) {
+            tableElement.classList.add(contentStyles.tableWithHeaderColumnClassName);
+        }
         const tableBodyElement = document.createElement("tbody");
         tableElement.appendChild(tableBodyElement);
 
@@ -173,6 +181,23 @@ export function createContentEditorTableNodeView({
 
             update: newNode => {
                 if (newNode.type != node.type) return false;
+
+                if (newNode.attrs.hasHeaderRow !== node.attrs.hasHeaderRow) {
+                    if (newNode.attrs.hasHeaderRow) {
+                        tableElement.classList.add(contentStyles.tableWithHeaderRowClassName);
+                    } else {
+                        tableElement.classList.remove(contentStyles.tableWithHeaderRowClassName);
+                    }
+                }
+
+                // Check if the hasHeaderColumn attribute has changed
+                if (newNode.attrs.hasHeaderColumn !== node.attrs.hasHeaderColumn) {
+                    if (newNode.attrs.hasHeaderColumn) {
+                        tableElement.classList.add(contentStyles.tableWithHeaderColumnClassName);
+                    } else {
+                        tableElement.classList.remove(contentStyles.tableWithHeaderColumnClassName);
+                    }
+                }
 
                 const hasLayoutChanged =
                     node.attrs.columnWidths !== newNode.attrs.columnWidths ||
@@ -372,6 +397,28 @@ export function createContentEditorTableNodeView({
                         icon: <Trash />,
                         onPress: () => {
                             deleteContentTable(view.state, view.dispatch);
+                        },
+                    },
+                ],
+                [
+                    {
+                        label: node.attrs.hasHeaderRow ? "Remove header row" : "Add header row",
+                        iconPlacement: "end",
+                        // TODO: Replace with better icons when table header design is implemented
+                        icon: <RowsPlusTopIcon />,
+                        onPress: () => {
+                            toggleContentTableHeaderRow(getPos())(view.state, view.dispatch);
+                        },
+                    },
+                    {
+                        label: node.attrs.hasHeaderColumn
+                            ? "Remove header column"
+                            : "Add header column",
+                        iconPlacement: "end",
+                        // TODO: Replace with better icons when table header design is implemented
+                        icon: <RowsPlusTopIcon />,
+                        onPress: () => {
+                            toggleContentTableHeaderColumn(getPos())(view.state, view.dispatch);
                         },
                     },
                 ],

@@ -129,7 +129,7 @@ const blockTestCases: Array<{
     {
         name: "2x2 table (1st row has content) ",
         build: content =>
-            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("table", {columnWidths: [1, 1], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
@@ -143,7 +143,7 @@ const blockTestCases: Array<{
     {
         name: "2x2 table (1st row has content) ",
         build: content =>
-            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("table", {columnWidths: [1, 1], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
@@ -157,7 +157,7 @@ const blockTestCases: Array<{
     {
         name: "3x3 table (1st row has content) ",
         build: content =>
-            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("table", {columnWidths: [1, 1, 1], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, content)]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
@@ -178,7 +178,7 @@ const blockTestCases: Array<{
     {
         name: "3x3 table (2nd row has content) ",
         build: content =>
-            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("table", {columnWidths: [1, 1, 1], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
@@ -199,7 +199,7 @@ const blockTestCases: Array<{
     {
         name: "3x3 table (3rd row has content) ",
         build: content =>
-            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("table", {columnWidths: [1, 1, 1], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
                     schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
@@ -220,7 +220,7 @@ const blockTestCases: Array<{
     {
         name: "table with multiple blocks in cells (1st cell with content, 2nd cell empty)",
         build: content =>
-            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("table", {columnWidths: [1, 1], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [
                         schema.node("paragraph", {}, content),
@@ -236,7 +236,7 @@ const blockTestCases: Array<{
     {
         name: "table with multiple blocks in cells (1st cell empty, 2nd cell with content)",
         build: content =>
-            schema.node("table", {columnWidths: [], tableWidth: 1}, [
+            schema.node("table", {columnWidths: [1, 1], tableWidth: 1}, [
                 schema.node("tableRow", {}, [
                     schema.node("tableCell", {}, [
                         schema.node("paragraph", {}, []),
@@ -1939,7 +1939,7 @@ test("file float (right direction)", async () => {
 
 test("table with fileRowTable (one file)", async () => {
     const content = schema.node("doc", {}, [
-        schema.node("table", {columnWidths: [], tableWidth: 1}, [
+        schema.node("table", {columnWidths: [1, 1, 1], tableWidth: 1}, [
             schema.node("tableRow", {}, [
                 schema.node("tableCell", {}, [
                     schema.node("fileRowTable", {}, [
@@ -2000,7 +2000,7 @@ test("table with fileRowTable (one file)", async () => {
 
 test("table with fileRowTable (mixed content)", async () => {
     const content = schema.node("doc", {}, [
-        schema.node("table", {columnWidths: [], tableWidth: 1}, [
+        schema.node("table", {columnWidths: [1, 1], tableWidth: 1}, [
             schema.node("tableRow", {}, [
                 schema.node("tableCell", {}, [
                     schema.node("paragraph", {}, [schema.text("Before")]),
@@ -2120,9 +2120,9 @@ test("table with fileRowTable (mixed content)", async () => {
     await expectClipboardRoundtripToWork();
 });
 
-test("table with fileRowTable (null reference)", async () => {
+test("table(2x2) with fileRowTable (null reference)", async () => {
     const content = schema.node("doc", {}, [
-        schema.node("table", {columnWidths: [], tableWidth: 1}, [
+        schema.node("table", {columnWidths: [1, 1], tableWidth: 1}, [
             schema.node("tableRow", {}, [
                 schema.node("tableCell", {}, [
                     schema.node("fileRowTable", {}, [schema.node("file", {fileId: null})]),
@@ -2130,6 +2130,294 @@ test("table with fileRowTable (null reference)", async () => {
                 schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("Test")])]),
             ]),
         ]),
+    ]);
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+/**
+ *  +------------------+------------------------+------------------+
+ *  | Header 1 (0,0)   | Header 2 (0,1)         | Header 3 (0,2)   |
+ *  +------------------+------------------------+------------------+
+ *  | Cell 1 (1,0)     | Cell 2 (1,1)           | Cell 3 (1,2)     |
+ *  +------------------+------------------------+------------------+
+ *  | Cell 4 (2,0)     | Cell 5 (2,1)           | Cell 6 (2,2)     |
+ *  +------------------+------------------------+------------------+
+ */
+test("table(3x3) with header row only", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node(
+            "table",
+            {columnWidths: [1, 2, 1], tableWidth: 1.2, hasHeaderRow: true, hasHeaderColumn: false},
+            [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 1 (0,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 2 (0,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 3 (0,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 1 (1,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 2 (1,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 3 (1,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 4 (2,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 5 (2,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 6 (2,2)")]),
+                    ]),
+                ]),
+            ],
+        ),
+    ]);
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+/**
+ *  +------------------+------------------------+------------------+
+ *  | Header 1 (0,0)   | Cell 1 (0,1)           | Cell 2 (0,2)     |
+ *  +------------------+------------------------+------------------+
+ *  | Header 2 (1,0)   | Cell 3 (1,1)           | Cell 4 (1,2)     |
+ *  +------------------+------------------------+------------------+
+ *  | Header 3 (2,0)   | Cell 5 (2,1)           | Cell 6 (2,2)     |
+ *  +------------------+------------------------+------------------+
+ */
+test("table(3x3) with header column only", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node(
+            "table",
+            {columnWidths: [1, 2, 1], tableWidth: 1.2, hasHeaderRow: false, hasHeaderColumn: true},
+            [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 1 (0,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 1 (0,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 2 (0,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 2 (1,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 3 (1,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 4 (1,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 3 (2,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 5 (2,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 6 (2,2)")]),
+                    ]),
+                ]),
+            ],
+        ),
+    ]);
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+/**
+ *  +------------------+------------------------+------------------+
+ *  | Header 1 (0,0)   | Header 2 (0,1)         | Header 3 (0,2)   |
+ *  +------------------+------------------------+------------------+
+ *  | Header 4 (1,0)   | Cell 1 (1,1)           | Cell 2 (1,2)     |
+ *  +------------------+------------------------+------------------+
+ *  | Header 5 (2,0)   | Cell 3 (2,1)           | Cell 4 (2,2)     |
+ *  +------------------+------------------------+------------------+
+ */
+test("table(3x3) with both header row and column", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node(
+            "table",
+            {columnWidths: [1, 2, 1], tableWidth: 1.2, hasHeaderRow: true, hasHeaderColumn: true},
+            [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 1 (0,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 2 (0,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 3 (0,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 4 (1,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 1 (1,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 2 (1,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Header 5 (2,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 3 (2,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 4 (2,2)")]),
+                    ]),
+                ]),
+            ],
+        ),
+    ]);
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({
+                    doc: content,
+                    references: emptyContentReferences,
+                })}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+/**
+ *  +------------------+------------------------+------------------+
+ *  | Header 1 (0,0)   | Header 2 (0,1)         | Header 3 (0,2)   |
+ *  +------------------+------------------------+------------------+
+ *  | Header 4 (1,0)   | Cell 1 (1,1)           | Cell 2 (1,2)     |
+ *  +------------------+------------------------+------------------+
+ *  | Header 5 (2,0)   | Cell 3 (2,1)           | Cell 4 (2,2)     |
+ *  +------------------+------------------------+------------------+
+ */
+test("will serialize table(3x3) with no headers", async () => {
+    const content = schema.node("doc", {}, [
+        schema.node(
+            "table",
+            {columnWidths: [1, 2, 1], tableWidth: 1.2, hasHeaderRow: false, hasHeaderColumn: false},
+            [
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 1 (0,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 2 (0,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 3 (0,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 4 (1,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 5 (1,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 6 (1,2)")]),
+                    ]),
+                ]),
+                schema.node("tableRow", {}, [
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 7 (2,0)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 8 (2,1)")]),
+                    ]),
+                    schema.node("tableCell", {}, [
+                        schema.node("paragraph", {}, [schema.text("Cell 9 (2,2)")]),
+                    ]),
+                ]),
+            ],
+        ),
     ]);
 
     render(

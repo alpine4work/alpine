@@ -2,7 +2,10 @@
 
 exports[`2x2 table (1st row has content)  bold: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -33,7 +36,10 @@ exports[`2x2 table (1st row has content)  bold: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  bold: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -84,7 +90,10 @@ Hello world!"
 
 exports[`2x2 table (1st row has content)  code: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -115,7 +124,10 @@ exports[`2x2 table (1st row has content)  code: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  code: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -166,7 +178,10 @@ Hello world!"
 
 exports[`2x2 table (1st row has content)  empty: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -191,7 +206,10 @@ exports[`2x2 table (1st row has content)  empty: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  empty: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -236,7 +254,10 @@ exports[`2x2 table (1st row has content)  empty: clipboard text 2`] = `
 
 exports[`2x2 table (1st row has content)  highlight: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -269,7 +290,10 @@ exports[`2x2 table (1st row has content)  highlight: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  highlight: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -322,7 +346,10 @@ Hello world!"
 
 exports[`2x2 table (1st row has content)  italic: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -353,7 +380,10 @@ exports[`2x2 table (1st row has content)  italic: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  italic: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -404,7 +434,10 @@ Hello world!"
 
 exports[`2x2 table (1st row has content)  link: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -439,7 +472,10 @@ exports[`2x2 table (1st row has content)  link: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  link: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -622,7 +658,10 @@ exports[`2x2 table (1st row has content)  plain 2`] = `
 
 exports[`2x2 table (1st row has content)  plain: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -649,7 +688,10 @@ exports[`2x2 table (1st row has content)  plain: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  plain: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -696,7 +738,10 @@ Hello world!"
 
 exports[`2x2 table (1st row has content)  strike: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -727,7 +772,10 @@ exports[`2x2 table (1st row has content)  strike: clipboard 1`] = `
 
 exports[`2x2 table (1st row has content)  strike: clipboard 2`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -778,7 +826,10 @@ Hello world!"
 
 exports[`3x3 table (1st row has content)  bold: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -846,7 +897,10 @@ exports[`3x3 table (1st row has content)  bold: clipboard text 1`] = `
 
 exports[`3x3 table (1st row has content)  code: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -914,7 +968,10 @@ exports[`3x3 table (1st row has content)  code: clipboard text 1`] = `
 
 exports[`3x3 table (1st row has content)  empty: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -976,7 +1033,10 @@ exports[`3x3 table (1st row has content)  empty: clipboard text 1`] = `
 
 exports[`3x3 table (1st row has content)  highlight: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1046,7 +1106,10 @@ exports[`3x3 table (1st row has content)  highlight: clipboard text 1`] = `
 
 exports[`3x3 table (1st row has content)  italic: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1114,7 +1177,10 @@ exports[`3x3 table (1st row has content)  italic: clipboard text 1`] = `
 
 exports[`3x3 table (1st row has content)  link: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1287,7 +1353,10 @@ exports[`3x3 table (1st row has content)  plain 1`] = `
 
 exports[`3x3 table (1st row has content)  plain: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1351,7 +1420,10 @@ exports[`3x3 table (1st row has content)  plain: clipboard text 1`] = `
 
 exports[`3x3 table (1st row has content)  strike: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1419,7 +1491,10 @@ exports[`3x3 table (1st row has content)  strike: clipboard text 1`] = `
 
 exports[`3x3 table (2nd row has content)  bold: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1487,7 +1562,10 @@ Hello world!
 
 exports[`3x3 table (2nd row has content)  code: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1555,7 +1633,10 @@ Hello world!
 
 exports[`3x3 table (2nd row has content)  empty: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1617,7 +1698,10 @@ exports[`3x3 table (2nd row has content)  empty: clipboard text 1`] = `
 
 exports[`3x3 table (2nd row has content)  highlight: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1687,7 +1771,10 @@ Hello world!
 
 exports[`3x3 table (2nd row has content)  italic: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1755,7 +1842,10 @@ Hello world!
 
 exports[`3x3 table (2nd row has content)  link: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1928,7 +2018,10 @@ exports[`3x3 table (2nd row has content)  plain 1`] = `
 
 exports[`3x3 table (2nd row has content)  plain: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -1992,7 +2085,10 @@ Hello world!
 
 exports[`3x3 table (2nd row has content)  strike: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2060,7 +2156,10 @@ Hello world!
 
 exports[`3x3 table (3rd row has content)  bold: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2128,7 +2227,10 @@ Hello world!"
 
 exports[`3x3 table (3rd row has content)  code: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2196,7 +2298,10 @@ Hello world!"
 
 exports[`3x3 table (3rd row has content)  empty: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2258,7 +2363,10 @@ exports[`3x3 table (3rd row has content)  empty: clipboard text 1`] = `
 
 exports[`3x3 table (3rd row has content)  highlight: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2328,7 +2436,10 @@ Hello world!"
 
 exports[`3x3 table (3rd row has content)  italic: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2396,7 +2507,10 @@ Hello world!"
 
 exports[`3x3 table (3rd row has content)  link: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2569,7 +2683,10 @@ exports[`3x3 table (3rd row has content)  plain 1`] = `
 
 exports[`3x3 table (3rd row has content)  plain: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -2633,7 +2750,10 @@ Hello world!"
 
 exports[`3x3 table (3rd row has content)  strike: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -6794,7 +6914,10 @@ exports[`table with fileRowTable (mixed content) 1`] = `
 
 exports[`table with fileRowTable (mixed content): clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -6869,98 +6992,6 @@ Test
 End"
 `;
 
-exports[`table with fileRowTable (null reference) 1`] = `
-<div
-  aria-label="Test"
-  aria-multiline="true"
-  contenteditable="true"
-  role="textbox"
-  spellcheck="false"
-  translate="no"
->
-  <div
-    class="content_tableWrapper"
-  >
-    <div
-      class="content_tableWrapper2"
-      data-scrollbar="false"
-    >
-      <div
-        class="content_tableWrapper3"
-        style="width: 640px; max-width: none;"
-      >
-        <table
-          style="grid-template-columns: 300px 300px;"
-        >
-          <tbody>
-            <tr>
-              <td>
-                <div
-                  class="content_fileRowLike"
-                  style="height: 133.333px; grid-template-columns: 0.724638fr;"
-                >
-                  <div
-                    class="content_file"
-                  >
-                    <span
-                      style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
-                    >
-                       
-                    </span>
-                    <div>
-                      <img
-                        aria-hidden="true"
-                        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
-                      />
-                    </div>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <p
-                  class="content_paragraph"
-                >
-                  Test
-                </p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-`;
-
-exports[`table with fileRowTable (null reference): clipboard 1`] = `
-<div>
-  <table>
-    <tbody>
-      <tr>
-        <td>
-          <div
-            style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
-          >
-            <object
-              height="133"
-              style="display: block;"
-              width="200"
-            />
-          </div>
-        </td>
-        <td>
-          <p>
-            Test
-          </p>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-`;
-
-exports[`table with fileRowTable (null reference): clipboard text 1`] = `"Test"`;
-
 exports[`table with fileRowTable (one file) 1`] = `
 <div
   aria-label="Test"
@@ -7033,7 +7064,10 @@ exports[`table with fileRowTable (one file) 1`] = `
 
 exports[`table with fileRowTable (one file): clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7073,7 +7107,10 @@ col3-test"
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) bold: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7114,7 +7151,10 @@ Hello world!"
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) code: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7155,7 +7195,10 @@ Hello world!"
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) empty: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7184,7 +7227,10 @@ exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with cont
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) highlight: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7229,7 +7275,10 @@ Hello world!"
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) italic: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7270,7 +7319,10 @@ Hello world!"
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) link: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7377,7 +7429,10 @@ exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with cont
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) plain: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7410,7 +7465,10 @@ Hello world!"
 
 exports[`table with multiple blocks in cells (1st cell empty, 2nd cell with content) strike: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7451,7 +7509,10 @@ Hello world!"
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) bold: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7492,7 +7553,10 @@ Hello world!
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) code: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7533,7 +7597,10 @@ Hello world!
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) empty: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7562,7 +7629,10 @@ exports[`table with multiple blocks in cells (1st cell with content, 2nd cell em
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) highlight: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7607,7 +7677,10 @@ Hello world!
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) italic: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7648,7 +7721,10 @@ Hello world!
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) link: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7755,7 +7831,10 @@ exports[`table with multiple blocks in cells (1st cell with content, 2nd cell em
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) plain: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7788,7 +7867,10 @@ Hello world!
 
 exports[`table with multiple blocks in cells (1st cell with content, 2nd cell empty) strike: clipboard 1`] = `
 <div>
-  <table>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
     <tbody>
       <tr>
         <td>
@@ -7825,6 +7907,657 @@ Hello world!
 
 
 "
+`;
+
+exports[`table(2x2) with fileRowTable (null reference) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 640px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 300px 300px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <div
+                  class="content_fileRowLike"
+                  style="height: 133.333px; grid-template-columns: 0.724638fr;"
+                >
+                  <div
+                    class="content_file"
+                  >
+                    <span
+                      style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+                    >
+                       
+                    </span>
+                    <div>
+                      <img
+                        aria-hidden="true"
+                        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+                      />
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Test
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table(2x2) with fileRowTable (null reference): clipboard 1`] = `
+<div>
+  <table
+    data-cy-column-widths="1, 1"
+    data-cy-width="1"
+  >
+    <tbody>
+      <tr>
+        <td>
+          <div
+            style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+          >
+            <object
+              height="133"
+              style="display: block;"
+              width="200"
+            />
+          </div>
+        </td>
+        <td>
+          <p>
+            Test
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table(2x2) with fileRowTable (null reference): clipboard text 1`] = `"Test"`;
+
+exports[`table(3x3) with both header row and column 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 760px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 180px 360px 180px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 1 (0,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 2 (0,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 3 (0,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 4 (1,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 1 (1,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 2 (1,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 5 (2,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 3 (2,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 4 (2,2)
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table(3x3) with both header row and column: clipboard 1`] = `
+<div>
+  <table
+    data-cy-column-widths="1, 2, 1"
+    data-cy-header-column=""
+    data-cy-header-row=""
+    data-cy-width="1.2"
+  >
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Header 1 (0,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Header 2 (0,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Header 3 (0,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Header 4 (1,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 1 (1,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 2 (1,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Header 5 (2,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 3 (2,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 4 (2,2)
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table(3x3) with both header row and column: clipboard text 1`] = `
+"Header 1 (0,0)
+
+Header 2 (0,1)
+
+Header 3 (0,2)
+
+Header 4 (1,0)
+
+Cell 1 (1,1)
+
+Cell 2 (1,2)
+
+Header 5 (2,0)
+
+Cell 3 (2,1)
+
+Cell 4 (2,2)"
+`;
+
+exports[`table(3x3) with header column only 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 760px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 180px 360px 180px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 1 (0,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 1 (0,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 2 (0,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 2 (1,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 3 (1,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 4 (1,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 3 (2,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 5 (2,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 6 (2,2)
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table(3x3) with header column only: clipboard 1`] = `
+<div>
+  <table
+    data-cy-column-widths="1, 2, 1"
+    data-cy-header-column=""
+    data-cy-width="1.2"
+  >
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Header 1 (0,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 1 (0,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 2 (0,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Header 2 (1,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 3 (1,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 4 (1,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Header 3 (2,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 5 (2,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 6 (2,2)
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table(3x3) with header column only: clipboard text 1`] = `
+"Header 1 (0,0)
+
+Cell 1 (0,1)
+
+Cell 2 (0,2)
+
+Header 2 (1,0)
+
+Cell 3 (1,1)
+
+Cell 4 (1,2)
+
+Header 3 (2,0)
+
+Cell 5 (2,1)
+
+Cell 6 (2,2)"
+`;
+
+exports[`table(3x3) with header row only 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 760px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 180px 360px 180px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 1 (0,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 2 (0,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Header 3 (0,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 1 (1,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 2 (1,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 3 (1,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 4 (2,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 5 (2,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 6 (2,2)
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`table(3x3) with header row only: clipboard 1`] = `
+<div>
+  <table
+    data-cy-column-widths="1, 2, 1"
+    data-cy-header-row=""
+    data-cy-width="1.2"
+  >
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Header 1 (0,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Header 2 (0,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Header 3 (0,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Cell 1 (1,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 2 (1,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 3 (1,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Cell 4 (2,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 5 (2,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 6 (2,2)
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`table(3x3) with header row only: clipboard text 1`] = `
+"Header 1 (0,0)
+
+Header 2 (0,1)
+
+Header 3 (0,2)
+
+Cell 1 (1,0)
+
+Cell 2 (1,1)
+
+Cell 3 (1,2)
+
+Cell 4 (2,0)
+
+Cell 5 (2,1)
+
+Cell 6 (2,2)"
 `;
 
 exports[`unknown account mention 1`] = `
@@ -7871,3 +8604,187 @@ exports[`unknown account mention: clipboard 1`] = `
 `;
 
 exports[`unknown account mention: clipboard text 1`] = `"@Unknown"`;
+
+exports[`will serialize table(3x3) with no headers 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_tableWrapper"
+  >
+    <div
+      class="content_tableWrapper2"
+      data-scrollbar="false"
+    >
+      <div
+        class="content_tableWrapper3"
+        style="width: 760px; max-width: none;"
+      >
+        <table
+          style="grid-template-columns: 180px 360px 180px;"
+        >
+          <tbody>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 1 (0,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 2 (0,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 3 (0,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 4 (1,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 5 (1,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 6 (1,2)
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 7 (2,0)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 8 (2,1)
+                </p>
+              </td>
+              <td>
+                <p
+                  class="content_paragraph"
+                >
+                  Cell 9 (2,2)
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`will serialize table(3x3) with no headers: clipboard 1`] = `
+<div>
+  <table
+    data-cy-column-widths="1, 2, 1"
+    data-cy-width="1.2"
+  >
+    <tbody>
+      <tr>
+        <td>
+          <p>
+            Cell 1 (0,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 2 (0,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 3 (0,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Cell 4 (1,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 5 (1,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 6 (1,2)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <p>
+            Cell 7 (2,0)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 8 (2,1)
+          </p>
+        </td>
+        <td>
+          <p>
+            Cell 9 (2,2)
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`will serialize table(3x3) with no headers: clipboard text 1`] = `
+"Cell 1 (0,0)
+
+Cell 2 (0,1)
+
+Cell 3 (0,2)
+
+Cell 4 (1,0)
+
+Cell 5 (1,1)
+
+Cell 6 (1,2)
+
+Cell 7 (2,0)
+
+Cell 8 (2,1)
+
+Cell 9 (2,2)"
+`;

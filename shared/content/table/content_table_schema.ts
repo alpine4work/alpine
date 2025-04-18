@@ -81,11 +81,67 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     default: 1,
                     schema: Schema.float,
                 },
+                hasHeaderRow: {
+                    default: false,
+                    schema: Schema.boolean,
+                },
+                hasHeaderColumn: {
+                    default: false,
+                    schema: Schema.boolean,
+                },
             },
             copyable: true,
             selectable: true,
             isolating: true,
-            parseDOM: [{tag: "table"}],
+            parseDOM: [
+                {
+                    tag: "table",
+                    getAttrs: (dom: HTMLElement) => {
+                        const columnWidthsAttributeString =
+                            dom.getAttribute("data-cy-column-widths") || "";
+                        const columnWidths = columnWidthsAttributeString
+                            .split(",")
+                            .map(columnWidthAttributeString => columnWidthAttributeString.trim())
+                            .filter(Boolean)
+                            .map(columnWidthAttributeString => {
+                                let columnWidthAttribute;
+                                try {
+                                    columnWidthAttribute = JSON.parse(columnWidthAttributeString);
+                                } catch {
+                                    return 1;
+                                }
+                                const columnWidth =
+                                    !isNaN(columnWidthAttribute) &&
+                                    typeof columnWidthAttribute === "number"
+                                        ? columnWidthAttribute
+                                        : 1;
+                                return columnWidth;
+                            });
+
+                        const tableWidthAttributeString = dom.getAttribute("data-cy-width") || "1";
+                        let tableWidthAttribute;
+                        try {
+                            tableWidthAttribute = JSON.parse(tableWidthAttributeString);
+                        } catch {
+                            tableWidthAttribute = 1;
+                        }
+                        const tableWidth =
+                            !isNaN(tableWidthAttribute) && typeof tableWidthAttribute === "number"
+                                ? tableWidthAttribute
+                                : 1;
+
+                        const hasHeaderRow = dom.hasAttribute("data-cy-header-row");
+                        const hasHeaderColumn = dom.hasAttribute("data-cy-header-column");
+
+                        return {
+                            columnWidths,
+                            tableWidth,
+                            hasHeaderRow,
+                            hasHeaderColumn,
+                        };
+                    },
+                },
+            ],
             toDOM() {
                 return [
                     "div",

@@ -997,6 +997,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                         "type": "Float"
                                                                                                                     },
                                                                                                                     "optional": true
+                                                                                                                },
+                                                                                                                "hasHeaderRow": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Boolean"
+                                                                                                                    },
+                                                                                                                    "optional": true
+                                                                                                                },
+                                                                                                                "hasHeaderColumn": {
+                                                                                                                    "valueSchema": {
+                                                                                                                        "type": "Boolean"
+                                                                                                                    },
+                                                                                                                    "optional": true
                                                                                                                 }
                                                                                                             }
                                                                                                         }
@@ -1853,6 +1865,42 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 }
                                                                             }
                                                                         },
+                                                                        "hasHeaderRow": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "hasHeaderRow"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Boolean"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "hasHeaderColumn": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "hasHeaderColumn"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Boolean"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
                                                                         "level": {
                                                                             "type": "Object",
                                                                             "propertySchemaByKey": {
@@ -2609,6 +2657,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                                     "tableWidth": {
                                                                                                                                                         "valueSchema": {
                                                                                                                                                             "type": "Float"
+                                                                                                                                                        },
+                                                                                                                                                        "optional": true
+                                                                                                                                                    },
+                                                                                                                                                    "hasHeaderRow": {
+                                                                                                                                                        "valueSchema": {
+                                                                                                                                                            "type": "Boolean"
+                                                                                                                                                        },
+                                                                                                                                                        "optional": true
+                                                                                                                                                    },
+                                                                                                                                                    "hasHeaderColumn": {
+                                                                                                                                                        "valueSchema": {
+                                                                                                                                                            "type": "Boolean"
                                                                                                                                                         },
                                                                                                                                                         "optional": true
                                                                                                                                                     }
@@ -3705,6 +3765,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "tableWidth": {
                                                                                                                 "valueSchema": {
                                                                                                                     "type": "Float"
+                                                                                                                },
+                                                                                                                "optional": true
+                                                                                                            },
+                                                                                                            "hasHeaderRow": {
+                                                                                                                "valueSchema": {
+                                                                                                                    "type": "Boolean"
+                                                                                                                },
+                                                                                                                "optional": true
+                                                                                                            },
+                                                                                                            "hasHeaderColumn": {
+                                                                                                                "valueSchema": {
+                                                                                                                    "type": "Boolean"
                                                                                                                 },
                                                                                                                 "optional": true
                                                                                                             }
@@ -5924,6 +5996,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "tableWidth": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Float"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "hasHeaderRow": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "hasHeaderColumn": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -10114,6 +10198,18 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                             "tableWidth": {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Float"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "hasHeaderRow": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
+                                                                                                },
+                                                                                                "optional": true
+                                                                                            },
+                                                                                            "hasHeaderColumn": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Boolean"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }

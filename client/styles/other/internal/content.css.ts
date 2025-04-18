@@ -2171,6 +2171,32 @@ globalStyle(`${tableWrapperClassName} td:last-of-type`, {
     boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
+export const tableWithHeaderRowClassName = style({});
+
+// this targets the cells in the header row
+globalStyle(`${tableWithHeaderRowClassName} tr:first-of-type td`, {
+    color: colorSchemeVars["blue-70"],
+    fontWeight: fontStyles["bold"].fontWeight,
+    backgroundColor: colorSchemeVars["grey-5"],
+});
+
+globalStyle(`${tableWithHeaderRowClassName} tr:first-of-type td ${paragraphClassName}`, {
+    fontWeight: fontStyles["bold"].fontWeight,
+});
+
+export const tableWithHeaderColumnClassName = style({});
+
+// this targets the cells in the header column (first column in each row)
+globalStyle(`${tableWithHeaderColumnClassName} tr td:first-of-type`, {
+    color: colorSchemeVars["blue-70"],
+    fontWeight: fontStyles["bold"].fontWeight,
+    backgroundColor: colorSchemeVars["grey-5"],
+});
+
+globalStyle(`${tableWithHeaderColumnClassName} tr td:first-of-type ${paragraphClassName}`, {
+    fontWeight: fontStyles["bold"].fontWeight,
+});
+
 export const tableCellSelectionClassName = style({
     pointerEvents: "none",
     zIndex: "30",

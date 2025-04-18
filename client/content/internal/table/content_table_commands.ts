@@ -330,6 +330,36 @@ export function addContentTableRowAtIndex(tablePos: number, rowIndex: number): C
     };
 }
 
+export function toggleContentTableHeaderRow(tablePos: number): Command {
+    return (state, dispatch) => {
+        const table = state.doc.nodeAt(tablePos);
+        if (!table || table.type.name !== "table") return false;
+
+        if (dispatch) {
+            const transaction = state.tr;
+            transaction.setNodeAttribute(tablePos, "hasHeaderRow", !table.attrs.hasHeaderRow);
+            dispatch(transaction);
+        }
+
+        return true;
+    };
+}
+
+export function toggleContentTableHeaderColumn(tablePos: number): Command {
+    return (state, dispatch) => {
+        const table = state.doc.nodeAt(tablePos);
+        if (!table || table.type.name !== "table") return false;
+
+        if (dispatch) {
+            const transaction = state.tr;
+            transaction.setNodeAttribute(tablePos, "hasHeaderColumn", !table.attrs.hasHeaderColumn);
+            dispatch(transaction);
+        }
+
+        return true;
+    };
+}
+
 function removeContentTableRow(
     tr: Transaction,
     {table, tablePos: tableStart}: ContentTableMapRectWithTable,
@@ -573,6 +603,8 @@ export function moveContentTableRow(
         ) {
             const tableRow = oldTable.content.content[deleteRowIndex]!;
 
+            // we need exact one cell, not more than one not less than one. if we don't get
+            // exactly one cell, throw.
             const cells = oldTableMap.cellsInRect({
                 left: 0,
                 right: 1,
@@ -598,6 +630,7 @@ export function moveContentTableRow(
                 top: newRowIndex,
                 bottom: newRowIndex + 1,
             });
+
             assert(cells.length === 1);
 
             insertPos = tablePos + cells[0]! - 1;
@@ -613,8 +646,13 @@ export function moveContentTableRow(
             const tableRow = oldTable.content.content[insertRowIndex]!;
 
             if (newRowIndex < startRowIndex) {
+                // case 1: moving rows up in the table. therefore `insertPos` doesn't have to be
+                // mapped since the deletion happens below `insertPos`
                 transaction.insert(insertPos, tableRow);
             } else {
+                // case 2: moving rows down in the table so first we update
+                // our insertPos by removing the size of the deleted nodes
+                // from calculated insertPos
                 transaction.insert(insertPos - deletedNodeSize, tableRow);
             }
         }
@@ -693,6 +731,7 @@ export function moveContentTableColumn(
 
         const transaction = state.tr;
 
+        // separation of moved columns
         const [movedColumnWidths, newColumnWidths] = partitionArray(
             oldTableMap.columnWidths,
             (oldColumnWidth, columnIndex) =>
@@ -700,8 +739,12 @@ export function moveContentTableColumn(
         );
 
         if (newColumnIndex < startColumnIndex) {
+            // Insert moved columns before the target position
+            // moving to the left
             newColumnWidths.splice(newColumnIndex, 0, ...movedColumnWidths);
         } else {
+            // moving to the right!
+            // Insert moved columns after accounting for the removal
             newColumnWidths.splice(
                 newColumnIndex - (endColumnIndex - startColumnIndex),
                 0,
@@ -717,9 +760,14 @@ export function moveContentTableColumn(
             const oldTableRow = oldTable.content.content[rowIndex]!;
 
             let insertPos: number;
+
+            // this if- else branch is for calculating the insertPos wrt the doc
             if (newColumnIndex === oldTableMap.width) {
+                // if the newColumnIndex is the last column index then this branch will calculate the insertPos
                 insertPos = tablePos + tableRowNodeSize + oldTableRow.nodeSize - 1;
             } else {
+                // get the first cell of the newColumnIndex column and calculate
+                //  and then calculate the insertPos by getting the position of this cell
                 const cells = oldTableMap.cellsInRect({
                     left: newColumnIndex,
                     right: newColumnIndex + 1,

@@ -9,6 +9,7 @@ import {
 } from "~/client/content/internal/content_file_layout.js";
 import {renderContentFilePreview} from "~/client/content/internal/content_file_preview.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
@@ -18,9 +19,16 @@ import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_con
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {
+    tableWrapper2ClassName,
+    tableWrapper3ClassName,
+    tableWrapperClassName,
+} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -443,6 +451,75 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     });
 
                     return {html};
+                },
+                table: node => {
+                    const tableWrapperElement = new HtmlElementGenerator("div");
+                    tableWrapperElement.setAttribute("class", tableWrapperClassName);
+
+                    const tableWrapper2Element = new HtmlElementGenerator("div");
+                    tableWrapperElement.appendChild(tableWrapper2Element);
+                    tableWrapper2Element.setAttribute("class", tableWrapper2ClassName);
+                    tableWrapper2Element.setAttribute("data-scrollbar", "false");
+
+                    const tableWrapper3Element = new HtmlElementGenerator("div");
+                    tableWrapper2Element.appendChild(tableWrapper3Element);
+                    tableWrapper3Element.setAttribute("class", tableWrapper3ClassName);
+
+                    const tableElement = new HtmlElementGenerator("table");
+                    tableWrapper3Element.appendChild(tableElement);
+
+                    const tableClasses = classNames({
+                        [contentStyles.tableWithHeaderRowClassName]: node.attrs.hasHeaderRow,
+                        [contentStyles.tableWithHeaderColumnClassName]: node.attrs.hasHeaderColumn,
+                    });
+
+                    if (tableClasses) {
+                        tableElement.setAttribute("class", tableClasses);
+                    }
+
+                    const tableMap = ContentTableMap.get(node);
+                    const tableWidth = tableMap.tableWidth;
+                    const columnWidths = tableMap.columnWidths;
+                    const totalColumnWidth = tableMap.totalColumnWidth;
+
+                    const tableOverflowGradientWidthPx = convertRemLengthToPx(
+                        contentStyles.tableOverflowGradientWidth,
+                        spacingScale,
+                    );
+
+                    const resolvedColumnWidthPxs = resolveContentTableColumnWidthPx(
+                        spacingScale,
+                        blockWidth,
+                        {
+                            columnWidths,
+                            tableWidth,
+                            totalColumnWidth,
+                        },
+                    );
+
+                    const totalColumnWidthPx = resolvedColumnWidthPxs.reduce(
+                        (totalWidthPx, columnWidthPx) => totalWidthPx + columnWidthPx,
+                        0,
+                    );
+
+                    tableWrapper3Element.setAttribute(
+                        "style",
+                        `width: ${
+                            totalColumnWidthPx + tableOverflowGradientWidthPx * 2
+                        }px; max-width: none`,
+                    );
+
+                    tableElement.setAttribute(
+                        "style",
+                        `grid-template-columns: ${resolvedColumnWidthPxs
+                            .map(columnWidthPx => `${columnWidthPx}px`)
+                            .join(" ")}`,
+                    );
+
+                    const tableBodyElement = new HtmlElementGenerator("tbody");
+                    tableElement.appendChild(tableBodyElement);
+
+                    return {html: tableWrapperElement, contentHtml: tableBodyElement};
                 },
 
                 // Add custom renderers which add the `data-placeholder` attribute when our
