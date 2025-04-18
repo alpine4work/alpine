@@ -948,7 +948,11 @@ async function getChatSearchEntity(
         //
         // Otherwise when you search for an account's name you'll see both your 1:1
         // chat with them and their account which is a little weird.
-        accountIds.length === 2
+        //
+        // Also don't index the chat if it only has one account (so it's a private,
+        // personal, chat). Again if you search for your account name it'll show you
+        // the chat.
+        accountIds.length <= 2
     ) {
         return {
             id: `Chat:${chatId}`,
