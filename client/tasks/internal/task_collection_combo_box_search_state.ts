@@ -8,7 +8,7 @@ import {TaskCollectionComboBoxItem} from "~/client/tasks/internal/task_collectio
 import {useSearchTaskCollectionsByAffinity} from "~/client/tasks/internal/use_search_task_collections_by_affinity.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {searchTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {searchTaskCollectionsByKeywords} from "~/shared/rpc/search_rpc_definitions.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {taskCollectionSearchResultLimit} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
@@ -36,12 +36,12 @@ export function useTaskCollectionComboBoxSearchState({
         useState<string>(trimmedInputValue);
 
     const {isLoading: originalIsSearchLoading, output: searchCollectionsOutput} = useLazyLoadRpc(
-        searchTaskCollections,
+        searchTaskCollectionsByKeywords,
         !shouldLoadItems || currentlyLoadingInputValue.length === 0
             ? null
             : {
                   spaceId: space.id,
-                  nameQuery: currentlyLoadingInputValue,
+                  queryText: currentlyLoadingInputValue,
                   limit: taskCollectionSearchResultLimit,
               },
         {keepPreviousData: true},
@@ -80,7 +80,7 @@ export function useTaskCollectionComboBoxSearchState({
                         ),
                     );
 
-                    for (const collectionResult of searchCollectionsOutput.collectionResults) {
+                    for (const collectionResult of searchCollectionsOutput.results) {
                         if (excludeCollectionIds?.has(collectionResult.collection.id)) {
                             continue;
                         }
@@ -193,7 +193,7 @@ export function useTaskCollectionComboBoxSearchState({
         shouldShowSearchLoadingIndicator,
         items: items
             ? Object.assign(items, {
-                  nameQuery: searchCollectionsOutput?.input.nameQuery ?? currentlyLoadingInputValue,
+                  nameQuery: searchCollectionsOutput?.input.queryText ?? currentlyLoadingInputValue,
               })
             : null,
     };

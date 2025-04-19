@@ -124,24 +124,6 @@ export const authorizeTaskAccess = defineRpc({
     },
 });
 
-export const searchTaskCollections = defineRpc({
-    name: "searchTaskCollections",
-    input: {
-        spaceId: Schema.id<SpaceId>(),
-        nameQuery: Schema.string,
-        limit: Schema.integer,
-    },
-    output: {
-        collectionResults: Schema.array(
-            TaskCollectionModelSearchResultSchema.merge(
-                Schema.object({
-                    score: Schema.float,
-                }),
-            ),
-        ),
-    },
-});
-
 export const getTaskCommentsFromStart = defineRpc({
     name: "getTaskCommentsFromStart",
     input: {

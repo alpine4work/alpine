@@ -2225,6 +2225,120 @@ export async function searchChannelsByAffinity(
 }
 
 /**
+ * Search all the task collections in our space by name. This search is capable
+ * of fuzzy matching when there's a typo and prefix matching the last word.
+ *
+ * On the client we boost collections an account has an affinity for.
+ */
+export async function searchTaskCollectionsByKeywords(
+    context: Context<
+        ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
+    >,
+    {
+        spaceId,
+        queryText,
+        limit,
+    }: {
+        spaceId: SpaceId;
+        queryText: string;
+        limit: number;
+    },
+): Promise<Array<TaskCollectionModelSearchResult & {readonly score: number}>> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
+        size: limit,
+        sort: [
+            "_score",
+            // If score is tied, put the newer collections first.
+            {createdTime: {order: "desc", missing: "_last"}},
+        ],
+        query: {
+            bool: {
+                minimum_should_match: 1,
+                should: [
+                    {
+                        multi_match: {
+                            query: new OpensearchQueryValue(queryText),
+                            type: "bool_prefix",
+                            fields: ["title", "title._2gram", "title._3gram"],
+                            fuzziness: 0,
+                        },
+                    },
+                    // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
+                    // matched. So if there's only one term or the last term is the critical term we
+                    // won't be able to fix mispellings.
+                    //
+                    // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
+                    // where, because we're fuzzy matching two words, we end up matching a two word
+                    // pair which means something completely different.
+                    {
+                        match: {
+                            title: {
+                                query: new OpensearchQueryValue(queryText),
+                                fuzziness: "AUTO",
+                                // Reduce the number of fuzzy expansions.
+                                prefix_length: 1,
+                                // Misspellings should rank lower than proper spellings.
+                                boost: 0.5,
+                            },
+                        },
+                    },
+                ],
+
+                // Use filter context to only match content the user is allowed to see. The
+                // content must be in our space and must grant access to the account. Either
+                // directly or through a default grant.
+                //
+                // Query clauses in a filter context may be cached.
+                // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
+                filter: [
+                    {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                    {term: {type: new OpensearchQueryValue("TaskCollection")}},
+                    {
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                {
+                                    term: {
+                                        "accessPolicy.accountGrantAccountIds":
+                                            new OpensearchQueryValue(context.actor.getAccountId()),
+                                    },
+                                },
+                                {
+                                    term: {
+                                        "accessPolicy.defaultGrantType": new OpensearchQueryValue(
+                                            SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                "Space",
+                                            ),
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+    });
+
+    const collections = await runAllPromises(
+        hits.map(async hit => {
+            // Could be an assert since we should filter out non-collections in our search.
+            if (!hit.id.startsWith("TaskCollection:")) return null;
+
+            const collectionId = hit.id.slice(15) as TaskCollectionId;
+
+            const result = await getTaskCollectionSearchResultIfExists(context, collectionId);
+            if (!result) return null;
+            return {...result, score: hit.score};
+        }),
+    );
+
+    return collections.filter(isNonNullable);
+}
+
+/**
  * Get a list of task collections relevant to the session account. First we
  * look at collections the account has interacted with. If the user hasn't
  * personally interacted with enough collections to fill `limit` then we'll

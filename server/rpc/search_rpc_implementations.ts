@@ -6,6 +6,7 @@ import {
     searchChannelsByAffinity,
     searchChannelsByKeywords,
     searchTaskCollectionsByAffinity,
+    searchTaskCollectionsByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {
     clearSearchEntityAffinity,
@@ -66,6 +67,17 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const results = await searchChannelsByAffinity(context.actor.authorizeSession(), input);
+            return {results};
+        },
+    },
+
+    searchTaskCollectionsByKeywords: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const results = await searchTaskCollectionsByKeywords(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {results};
         },
     },

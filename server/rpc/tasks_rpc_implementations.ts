@@ -5,7 +5,6 @@ import {
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
-import {searchTaskCollections} from "~/server/tasks/data/task_index.js";
 import {
     FileTaskAuthorizer,
     authorizeTaskAccess,
@@ -131,17 +130,6 @@ export default implementRpcs(definitions, {
             ]);
 
             return {spaceId, editResult};
-        },
-    },
-
-    searchTaskCollections: {
-        visibility: ["AppClient"],
-        execute: async (_context, input) => {
-            const context = _context.actor.authorizeSession();
-
-            const collectionResults = await searchTaskCollections(context, input);
-
-            return {collectionResults};
         },
     },
 

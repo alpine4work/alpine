@@ -28,9 +28,10 @@ import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.
 
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
     LabelStringRegister,
-    // TODO(calebmer): When we replace task collection searching with our search
-    // system, we won't need to analyze collection names anymore. We can switch
-    // this to an un-indexed `keyword` type.
+    // TODO(calebmer): Switch this to an un-indexed `keyword` type. This will
+    // improve indexing performance. We set collection names up like this before we
+    // implemented the general purpose search entity index. Which we now use to
+    // serve requests so the extra indexing work we do here is completely unused.
     new OpensearchIndexSearchAsYouTypeType({
         // NOTE(calebmer): This analyzer is the same as
         // `opensearchIndexEnglishWithWordDelimiterGraphAnalyzer` except stop words

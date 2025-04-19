@@ -109,6 +109,24 @@ export const searchChannelsByAffinity = defineRpc({
     },
 });
 
+export const searchTaskCollectionsByKeywords = defineRpc({
+    name: "searchTaskCollectionsByKeywords",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        queryText: Schema.string,
+        limit: Schema.integer,
+    },
+    output: {
+        results: Schema.array(
+            TaskCollectionModelSearchResultSchema.merge(
+                Schema.object({
+                    score: Schema.float,
+                }),
+            ),
+        ),
+    },
+});
+
 export const searchTaskCollectionsByAffinity = defineRpc({
     name: "searchTaskCollectionsByAffinity",
     input: {

@@ -36,6 +36,7 @@ export type OpensearchQueryClause<FlattenedKeys extends string> =
     | OpensearchExistsQueryClause<FlattenedKeys>
     | OpensearchRangeQueryClause<FlattenedKeys>
     | OpensearchMatchQueryClause<FlattenedKeys>
+    | OpensearchMatchBooleanPrefixQueryClause<FlattenedKeys>
     | OpensearchMatchPhraseQueryClause<FlattenedKeys>
     | OpensearchMultiMatchQueryClause<FlattenedKeys>
     | OpensearchKnnQueryClause<FlattenedKeys>
@@ -104,6 +105,26 @@ export type OpensearchRangeQueryClause<FlattenedKeys extends string> = {
  */
 export type OpensearchMatchQueryClause<FlattenedKeys extends string> = {
     match: OpensearchQueryClauseField<
+        FlattenedKeys,
+        {
+            query: OpensearchQueryValue<string>;
+            analyzer?: string;
+            fuzziness?: "AUTO" | number;
+            prefix_length?: number;
+            boost?: number;
+        }
+    >;
+};
+
+/**
+ * Analyzes the provided search string and creates a boolean query from the
+ * string’s terms. It uses every term except the last term as a whole word for
+ * matching. The last term is used as a prefix.
+ *
+ * https://docs.opensearch.org/docs/latest/query-dsl/full-text/match-bool-prefix/
+ */
+export type OpensearchMatchBooleanPrefixQueryClause<FlattenedKeys extends string> = {
+    match_bool_prefix: OpensearchQueryClauseField<
         FlattenedKeys,
         {
             query: OpensearchQueryValue<string>;

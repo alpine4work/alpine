@@ -56,7 +56,6 @@ import {
     getTaskIndexDocDisplayStatus,
     isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
-import {getTaskCollectionSearchResultIfExists} from "~/server/tasks/data/task_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -78,7 +77,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
@@ -102,7 +100,6 @@ import {
     getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
-import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
@@ -1910,139 +1907,6 @@ export async function queryTaskIndex(
     });
 
     return tasks;
-}
-
-/**
- * Searches our task collection index for collections matching the provided
- * name query.
- */
-// TODO(calebmer): We should use the search index for searching task
-// collections by name. Not the task collection index.
-export async function searchTaskCollections(
-    context: TaskSessionActionContext,
-    {spaceId, nameQuery, limit}: {spaceId: SpaceId; nameQuery: string; limit: number},
-): Promise<Array<TaskCollectionModelSearchResult & {readonly score: number}>> {
-    await authorizeSpaceAccess(context, spaceId);
-
-    const {hits} = await context.opensearch.searchWithoutSource(TaskCollectionIndex, spaceId, {
-        size: limit,
-        sort: [
-            "_score",
-            // If score is tied, put the newer collections first.
-            {createdTime: {order: "desc", missing: "_last"}},
-        ],
-        query: {
-            bool: {
-                // Components of our task collection name search implementation:
-                //
-                // 1. We use the [OpenSearch search-as-you-type field type][1]. This gives us an
-                //    extra 2-gram field, 3-gram field, and prefix search optimized field.
-                //    2-grams and 3-grams are used to improve search ranking when you use a
-                //    sequence of words in the right order. The prefix search optimized field
-                //    improves the performance of otherwise slow prefix queries.
-                //
-                // 2. We use [`match_bool_prefix`][2] as the search operator (as opposed to
-                //    [`match_phrase_prefix`][3] or a plain [`match`][4]). This allows us to
-                //    match words in any order (`match_phrase_prefix` requires words to be in
-                //    order) while letting the last word act as a prefix search. Our 2-gram and
-                //    3-gram fields boosts the score when words are in the right order so
-                //    they'll show first but correct order is not required. (Actually we use
-                //    `multi_match` + `bool_prefix` which performs `match_bool_prefix` on
-                //    multiple fields.)
-                //
-                // 3. In addition to a `match_bool_prefix` we have a plain [`match`][4] with
-                //    `fuzziness: "AUTO"`. This allows us to search single word typos since
-                //    `match_bool_prefix` doesn't support `fuzziness`. (I'm not sure of the
-                //    implementation reason for this.) We downrank this match so typo matches
-                //    appear below full text matches.
-                //
-                // 4. We use a custom analyzer built from the `english` language analyzer plus
-                //    the [`word_delimiter_graph`][5] token filter. This filter takes strings
-                //    like `"FY2024Q3"` and turns it into the tokens `["FY", "2024", "Q", "3"]`.
-                //    Businesses have plenty of identifiers (like this one), by tokenizing
-                //    identifiers we allow searches like `"Q3"` to match any identifier
-                //    containing that substring.
-                //
-                // [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/search-as-you-type/
-                // [2]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-boolean-prefix
-                // [3]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-phrase-prefix
-                // [4]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match
-                // [5]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-word-delimiter-graph-tokenfilter.html
-                minimum_should_match: 1,
-                should: [
-                    {
-                        multi_match: {
-                            query: new OpensearchQueryValue(nameQuery),
-                            type: "bool_prefix",
-                            fields: ["name.value", "name.value._2gram", "name.value._3gram"],
-                            fuzziness: 0,
-                        },
-                    },
-                    // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
-                    // matched. So if there's only one term or the last term is the critical term we
-                    // won't be able to fix mispellings.
-                    //
-                    // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
-                    // where, because we're fuzzy matching two words, we end up matching a two word
-                    // pair which means something completely different.
-                    {
-                        match: {
-                            "name.value": {
-                                query: new OpensearchQueryValue(nameQuery),
-                                fuzziness: "AUTO",
-                                // Reduce the number of fuzzy expansions.
-                                prefix_length: 1,
-                                // Misspellings should rank lower than proper spellings.
-                                boost: 0.5,
-                            },
-                        },
-                    },
-                ],
-
-                // Enter a filter context. Query clauses in a filter context may be cached.
-                // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
-                filter: {
-                    bool: {
-                        must: [
-                            // Always filter for non-deleted collections in our space. These filters should
-                            // be pretty fast thanks to our OpenSearch index sort.
-                            {term: {spaceId: new OpensearchQueryValue(spaceId)}},
-                            {term: {isDeleted: new OpensearchQueryValue(false)}},
-                        ],
-
-                        minimum_should_match: 1,
-                        // Can only search collections the account has access to. So that's collections
-                        // where we have an account grant and collections where there's a default grant
-                        // of type `Space`.
-                        should: [
-                            {
-                                term: {
-                                    accessPolicyDefaultGrantType: new OpensearchQueryValue("Space"),
-                                },
-                            },
-                            {
-                                term: {
-                                    accessPolicyAccountGrantIds: new OpensearchQueryValue(
-                                        context.actor.getAccountId(),
-                                    ),
-                                },
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-    });
-
-    const results = await runAllPromises(
-        hits.map(async hit => {
-            const result = await getTaskCollectionSearchResultIfExists(context, hit.id);
-            if (!result) return null;
-            return {...result, score: hit.score};
-        }),
-    );
-
-    return results.filter(isNonNullable);
 }
 
 /**
