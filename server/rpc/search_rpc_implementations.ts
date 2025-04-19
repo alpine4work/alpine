@@ -21,14 +21,16 @@ export default implementRpcs(definitions, {
     searchByKeywords: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return searchByKeywords(context.actor.authorizeSession(), input);
+            const results = await searchByKeywords(context.actor.authorizeSession(), input);
+            return {results};
         },
     },
 
     searchBySemantics: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return searchBySemantics(context.actor.authorizeSession(), input);
+            const results = await searchBySemantics(context.actor.authorizeSession(), input);
+            return {results};
         },
     },
 

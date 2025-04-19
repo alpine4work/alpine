@@ -82,7 +82,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
@@ -104,7 +104,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chat.id}`]);
@@ -126,7 +126,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chat.id}`]);
@@ -148,7 +148,7 @@ test("will not index chat until first message is sent", async () => {
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chat.id}`]);
@@ -177,7 +177,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
@@ -212,7 +212,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([]);
@@ -234,7 +234,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chat.id}`]);
@@ -256,7 +256,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chat.id}`]);
@@ -278,7 +278,7 @@ test("will not make chat searchable even if manually indexed until first message
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .filter(resultId => !resultId.startsWith("Account:")),
     ).toEqual([`Chat:${chat.id}`]);

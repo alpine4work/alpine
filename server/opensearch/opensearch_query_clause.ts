@@ -161,6 +161,7 @@ export type OpensearchMultiMatchQueryClause<FlattenedKeys extends string> = {
         fields: Array<FlattenedKeys | `${FlattenedKeys}^${number}`>;
         fuzziness?: "AUTO" | number;
         prefix_length?: number;
+        boost?: number;
     };
 };
 

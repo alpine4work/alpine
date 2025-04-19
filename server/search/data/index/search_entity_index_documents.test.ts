@@ -783,7 +783,7 @@ test("document access policies are enforced in search", async () => {
     const getSearchEntityIds = async (session: TestSpaceSession) => {
         await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-        const {results} = await searchByKeywords(session.action(), {
+        const results = await searchByKeywords(session.action(), {
             spaceId: space.id,
             queryText: "test",
             limit: 100,

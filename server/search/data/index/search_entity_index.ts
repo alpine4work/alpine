@@ -991,9 +991,7 @@ export async function searchByKeywords(
         currentTime: Date;
         debugOptions?: SearchOptions;
     },
-): Promise<{
-    results: Array<SearchEntityResult>;
-}> {
+): Promise<Array<SearchEntityResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
     assertSearchQueryTextLength(queryText);
@@ -1028,80 +1026,106 @@ export async function searchByKeywords(
         boost: number,
         queryTexts: ReadonlyArray<string>,
     ): QueryClause | null => {
-        const clauses = queryTexts.map(
-            (queryText): QueryClause => ({
+        const clauses = queryTexts.map((queryText): QueryClause => {
+            const queryTextValue = new OpensearchQueryValue(queryText);
+
+            return {
                 bool: {
                     minimum_should_match: 1,
 
-                    // If multiple clauses match then should will add together their scores.
+                    // If multiple clauses match then we will add together their scores.
                     //
                     // The more fields matched, the better!
                     //
                     // - If you match a shingle it will also implicitly match the main field.
-                    //   So we get limited phrase matching.
+                    //   Which effectively provides a 2x boost to the phrase match.
                     // - Matches in title fields are boosted above matches in body fields.
                     should: [
                         {
                             multi_match: {
                                 query: new OpensearchQueryValue(queryText),
-                                type: "most_fields",
-                                fields:
-                                    boost === 1
-                                        ? [`title^${options.titleBoost}`, "body"]
-                                        : [`title^${options.titleBoost * boost}`, `body^${boost}`],
-
-                                ...(queryText.length < 100
-                                    ? {
-                                          // Still match even if the query text has typos.
-                                          //
-                                          // We only fuzzy match short queries. For longer queries we run into the
-                                          // OpenSearch max clause limit error.
-                                          //
-                                          // We only fuzzy match when searching the individual word index. This is
-                                          // because fuzziness works by expanding a query to include valid terms within
-                                          // edit distance. This risks running into the max clause count OpenSearch limit
-                                          // when used excessively. So only allow exact matches when searching the 2gram
-                                          // and 3gram fields. This also has the effect of a 2gram match + 1gram match
-                                          // beating a rare typo (which would have a high score due to low document
-                                          // frequency).
-                                          fuzziness: "AUTO",
-                                          // Require the first character to be correct for a fuzzy query to match. This
-                                          // reduces the amount of fuzzy searching we need to do and also discards some
-                                          // ridiculous fuzzy matches. For example, we see "my documents" get matched to
-                                          // the 2gram "30 documents". For a 1gram "my" doesn't match "30" since
-                                          // `fuzziness: "AUTO"` requires an exact match for two character strings.
-                                          // However the 2gram "my documents" can have two edits which makes
-                                          // "30 documents" a valid match. Also "be documents" or "of documents". A prefix
-                                          // length of 1 prevents these from being valid matches.
-                                          prefix_length: 1,
-                                      }
-                                    : {}),
+                                // Perform prefix matching when searching titles. Body searching should match
+                                // entire words.
+                                type: "bool_prefix",
+                                fields: ["title", "title._2gram", "title._3gram"],
+                                fuzziness: 0,
+                                boost: options.titleBoost * boost,
                             },
                         },
                         {
                             multi_match: {
                                 query: new OpensearchQueryValue(queryText),
+                                // Sum the score from matches instead of picking the one best score.
+                                // `type: "bool_prefix"` has the same behavior but also does prefix matching on
+                                // the last word.
                                 type: "most_fields",
-                                fields:
-                                    boost === 1
-                                        ? [
-                                              `title._2gram^${options.titleBoost}`,
-                                              `title._3gram^${options.titleBoost}`,
-                                              "body._2gram",
-                                              "body._3gram",
-                                          ]
-                                        : [
-                                              `title._2gram^${options.titleBoost * boost}`,
-                                              `title._3gram^${options.titleBoost * boost}`,
-                                              `body._2gram^${boost}`,
-                                              `body._3gram^${boost}`,
-                                          ],
+                                fields: ["body", "body._2gram", "body._3gram"],
+                                fuzziness: 0,
+                                boost,
                             },
                         },
+
+                        // Still match even if the query text has typos.
+                        //
+                        // We only fuzzy match short queries. For longer queries we run into the
+                        // OpenSearch max clause limit error.
+                        //
+                        // We only fuzzy match when searching the individual word index. This is
+                        // because fuzziness works by expanding a query to include valid terms within
+                        // edit distance. This risks running into the max clause count OpenSearch limit
+                        // when used excessively. So only allow exact matches when searching the 2gram
+                        // and 3gram fields. This also has the effect of a 2gram match + 1gram match
+                        // beating a rare typo (which would have a high score due to low document
+                        // frequency).
+                        //
+                        // While `match_bool_prefix` (which we use above) supports fuzzy search the
+                        // final term will not be fuzzy matched. So if there's only one term or the
+                        // last term is the critical term we won't be able to fix mispellings.
+                        //
+                        // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
+                        // where, because we're fuzzy matching two words, we end up matching a two word
+                        // pair which means something completely different.
+                        //
+                        // With `prefix_length: 1` we require the first character to be correct for a
+                        // fuzzy query to match. This reduces the amount of fuzzy searching we need to
+                        // do and also discards some ridiculous fuzzy matches. For example, we see "my
+                        // documents" get matched to the 2gram "30 documents". For a 1gram "my" doesn't
+                        // match "30" since `fuzziness: "AUTO"` requires an exact match for two
+                        // character strings. However the 2gram "my documents" can have two edits which
+                        // makes "30 documents" a valid match. Also "be documents" or "of documents". A
+                        // prefix length of 1 prevents these from being valid matches.
+                        ...(queryText.length < 100
+                            ? ([
+                                  {
+                                      match: {
+                                          title: {
+                                              query: queryTextValue,
+                                              fuzziness: "AUTO",
+                                              // Reduce the number of fuzzy expansions.
+                                              prefix_length: 1,
+                                              // Misspellings should rank lower than proper spellings.
+                                              boost: options.titleBoost * boost * 0.25,
+                                          },
+                                      },
+                                  },
+                                  {
+                                      match: {
+                                          body: {
+                                              query: queryTextValue,
+                                              fuzziness: "AUTO",
+                                              // Reduce the number of fuzzy expansions.
+                                              prefix_length: 1,
+                                              // Misspellings should rank lower than proper spellings.
+                                              boost: boost * 0.25,
+                                          },
+                                      },
+                                  },
+                              ] as const)
+                            : []),
                     ],
                 },
-            }),
-        );
+            };
+        });
 
         if (clauses.length === 0) return null;
 
@@ -1385,7 +1409,7 @@ export async function searchByKeywords(
         }),
     );
 
-    return {results};
+    return results;
 }
 
 function enrichOpensearchSearchHitExplanation(
@@ -1471,9 +1495,7 @@ export async function searchBySemantics(
         currentTime: Date;
         debugOptions?: SearchOptions;
     },
-): Promise<{
-    results: Array<SearchEntityResult>;
-}> {
+): Promise<Array<SearchEntityResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
     assertSearchQueryTextLength(queryText);
@@ -1495,7 +1517,7 @@ export async function searchBySemantics(
     // If we have high confidence natural language filters then don't perform
     // semantic search. Since semantic search will invent meaning that disagrees
     // with the meaning we've determined for the user by parsing their query.
-    if (filters.length > 0 && !isLowConfidence) return {results: []};
+    if (filters.length > 0 && !isLowConfidence) return [];
 
     const [queryEmbeddingVector] = await context.languageModel.model.embed(
         context.tracer.getTracer(),
@@ -1687,7 +1709,7 @@ export async function searchBySemantics(
         }),
     );
 
-    return {results: results.filter(isNonNullable)};
+    return results.filter(isNonNullable);
 }
 
 async function prepareSearchEntityMediaForResult(
@@ -2069,6 +2091,7 @@ export async function searchChannelsByKeywords(
                             fuzziness: 0,
                         },
                     },
+
                     // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
                     // matched. So if there's only one term or the last term is the critical term we
                     // won't be able to fix mispellings.
@@ -2084,7 +2107,7 @@ export async function searchChannelsByKeywords(
                                 // Reduce the number of fuzzy expansions.
                                 prefix_length: 1,
                                 // Misspellings should rank lower than proper spellings.
-                                boost: 0.5,
+                                boost: 0.25,
                             },
                         },
                     },
@@ -2265,6 +2288,7 @@ export async function searchTaskCollectionsByKeywords(
                             fuzziness: 0,
                         },
                     },
+
                     // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
                     // matched. So if there's only one term or the last term is the critical term we
                     // won't be able to fix mispellings.
@@ -2280,7 +2304,7 @@ export async function searchTaskCollectionsByKeywords(
                                 // Reduce the number of fuzzy expansions.
                                 prefix_length: 1,
                                 // Misspellings should rank lower than proper spellings.
-                                boost: 0.5,
+                                boost: 0.25,
                             },
                         },
                     },

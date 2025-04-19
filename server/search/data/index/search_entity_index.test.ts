@@ -1595,7 +1595,7 @@ test("search by keywords only sees entities the account has access to", async ()
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
@@ -1613,7 +1613,7 @@ test("search by keywords only sees entities the account has access to", async ()
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
@@ -1638,7 +1638,7 @@ test("search by keywords only sees entities the account has access to", async ()
                 timeZone: defaultTimeZone,
                 currentTime: new Date(),
             })
-        ).results
+        )
             .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
@@ -1738,7 +1738,7 @@ test("search by semantics only sees entities the account has access to", async (
                     currentTime: new Date(),
                 },
             )
-        ).results
+        )
             .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual([`Document:${otherDocument.id}`].sort(defaultCompareStrings));
@@ -1757,7 +1757,7 @@ test("search by semantics only sees entities the account has access to", async (
                     currentTime: new Date(),
                 },
             )
-        ).results
+        )
             .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
@@ -1783,7 +1783,7 @@ test("search by semantics only sees entities the account has access to", async (
                     currentTime: new Date(),
                 },
             )
-        ).results
+        )
             .map(result => result.id)
             .sort(defaultCompareStrings),
     ).toEqual(
@@ -1909,29 +1909,27 @@ test("search by semantics will highlight matching words", async () => {
                 currentTime: new Date(),
             },
         ),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document.id}`,
-                score: expect.any(Number),
-                title: "This is a test",
-                bodyTextSnippet: [
-                    {text: "The body also contains the word “", isHighlighted: false},
-                    {text: "test", isHighlighted: true},
-                    {text: ".” Nice. ", isHighlighted: false},
-                    ...createArrayWithLength(100, i =>
-                        i === 0
-                            ? [{text: "test", isHighlighted: true}]
-                            : [
-                                  {text: " ", isHighlighted: false},
-                                  {text: "test", isHighlighted: true},
-                              ],
-                    ).flat(),
-                ],
-                media: null,
-            },
-        ],
-    });
+    ).toEqual([
+        {
+            id: `Document:${document.id}`,
+            score: expect.any(Number),
+            title: "This is a test",
+            bodyTextSnippet: [
+                {text: "The body also contains the word “", isHighlighted: false},
+                {text: "test", isHighlighted: true},
+                {text: ".” Nice. ", isHighlighted: false},
+                ...createArrayWithLength(100, i =>
+                    i === 0
+                        ? [{text: "test", isHighlighted: true}]
+                        : [
+                              {text: " ", isHighlighted: false},
+                              {text: "test", isHighlighted: true},
+                          ],
+                ).flat(),
+            ],
+            media: null,
+        },
+    ]);
 });
 
 test("searches with natural language parsing works", async () => {
@@ -2005,75 +2003,73 @@ test("searches with natural language parsing works", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Post:${post.id}`,
-                score: expect.any(Number),
-                title: null,
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! Check out this "},
-                    {isHighlighted: true, text: "trains"},
-                    {isHighlighted: false, text: " document."},
-                ],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
+    ).toEqual([
+        {
+            id: `Post:${post.id}`,
+            score: expect.any(Number),
+            title: null,
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! Check out this "},
+                {isHighlighted: true, text: "trains"},
+                {isHighlighted: false, text: " document."},
+            ],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Document:${document1.id}`,
-                score: expect.any(Number),
-                title: "Test 1",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
-            },
-            {
-                id: `Document:${document4.id}`,
-                score: expect.any(Number),
-                title: "Test 4",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
-            },
-            {
-                id: `Document:${document2.id}`,
-                score: expect.any(Number),
-                title: "Test 2",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
-            },
-        ],
-    });
+        },
+        {
+            id: `Document:${document1.id}`,
+            score: expect.any(Number),
+            title: "Test 1",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Document:${document4.id}`,
+            score: expect.any(Number),
+            title: "Test 4",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Document:${document2.id}`,
+            score: expect.any(Number),
+            title: "Test 2",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+    ]);
 
     expect(
         await searchByKeywords(session1.action(), {
@@ -2083,77 +2079,75 @@ test("searches with natural language parsing works", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document1.id}`,
-                score: expect.any(Number),
-                title: "Test 1",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
+    ).toEqual([
+        {
+            id: `Document:${document1.id}`,
+            score: expect.any(Number),
+            title: "Test 1",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Document:${document4.id}`,
+            score: expect.any(Number),
+            title: "Test 4",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Document:${document2.id}`,
+            score: expect.any(Number),
+            title: "Test 2",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Post:${post.id}`,
+            score: expect.any(Number),
+            title: null,
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! Check out this "},
+                {isHighlighted: true, text: "trains"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "document"},
+                {isHighlighted: false, text: "."},
+            ],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Document:${document4.id}`,
-                score: expect.any(Number),
-                title: "Test 4",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
-            },
-            {
-                id: `Document:${document2.id}`,
-                score: expect.any(Number),
-                title: "Test 2",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
-            },
-            {
-                id: `Post:${post.id}`,
-                score: expect.any(Number),
-                title: null,
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! Check out this "},
-                    {isHighlighted: true, text: "trains"},
-                    {isHighlighted: false, text: " "},
-                    {isHighlighted: true, text: "document"},
-                    {isHighlighted: false, text: "."},
-                ],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
-            },
-        ],
-    });
+        },
+    ]);
 
     expect(
         await searchByKeywords(session1.action(), {
@@ -2163,45 +2157,43 @@ test("searches with natural language parsing works", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document4.id}`,
-                score: expect.any(Number),
-                title: "Test 4",
-                bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains! Trains!"}],
-                media: null,
+    ).toEqual([
+        {
+            id: `Document:${document4.id}`,
+            score: expect.any(Number),
+            title: "Test 4",
+            bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains! Trains!"}],
+            media: null,
+        },
+        {
+            id: `Document:${document3.id}`,
+            score: expect.any(Number),
+            title: "Test 3",
+            bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
+            media: null,
+        },
+        {
+            id: `Document:${document1.id}`,
+            score: expect.any(Number),
+            title: "Test 1",
+            bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
+            media: null,
+        },
+        {
+            id: `Post:${post.id}`,
+            score: expect.any(Number),
+            title: null,
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "Check out this trains "},
+                {isHighlighted: true, text: "document"},
+                {isHighlighted: false, text: "."},
+            ],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Document:${document3.id}`,
-                score: expect.any(Number),
-                title: "Test 3",
-                bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
-                media: null,
-            },
-            {
-                id: `Document:${document1.id}`,
-                score: expect.any(Number),
-                title: "Test 1",
-                bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
-                media: null,
-            },
-            {
-                id: `Post:${post.id}`,
-                score: expect.any(Number),
-                title: null,
-                bodyTextSnippet: [
-                    {isHighlighted: false, text: "Check out this trains "},
-                    {isHighlighted: true, text: "document"},
-                    {isHighlighted: false, text: "."},
-                ],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
-            },
-        ],
-    });
+        },
+    ]);
 
     expect(
         await searchByKeywords(session1.action(), {
@@ -2211,67 +2203,65 @@ test("searches with natural language parsing works", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document1.id}`,
-                score: expect.any(Number),
-                title: "Test 1",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
+    ).toEqual([
+        {
+            id: `Document:${document1.id}`,
+            score: expect.any(Number),
+            title: "Test 1",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Document:${document4.id}`,
+            score: expect.any(Number),
+            title: "Test 4",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Post:${post.id}`,
+            score: expect.any(Number),
+            title: null,
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! Check out this "},
+                {isHighlighted: true, text: "trains"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "document"},
+                {isHighlighted: false, text: "."},
+            ],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Document:${document4.id}`,
-                score: expect.any(Number),
-                title: "Test 4",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
-            },
-            {
-                id: `Post:${post.id}`,
-                score: expect.any(Number),
-                title: null,
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! Check out this "},
-                    {isHighlighted: true, text: "trains"},
-                    {isHighlighted: false, text: " "},
-                    {isHighlighted: true, text: "document"},
-                    {isHighlighted: false, text: "."},
-                ],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
-            },
-        ],
-    });
+        },
+    ]);
 
     expect(
         await searchByKeywords(session1.action(), {
@@ -2281,53 +2271,51 @@ test("searches with natural language parsing works", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document2.id}`,
-                score: expect.any(Number),
-                title: "Test 2",
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "!"},
-                ],
-                media: null,
+    ).toEqual([
+        {
+            id: `Document:${document2.id}`,
+            score: expect.any(Number),
+            title: "Test 2",
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Post:${post.id}`,
+            score: expect.any(Number),
+            title: null,
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! "},
+                {isHighlighted: true, text: "Trains"},
+                {isHighlighted: false, text: "! Check out this "},
+                {isHighlighted: true, text: "trains"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "document"},
+                {isHighlighted: false, text: "."},
+            ],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Post:${post.id}`,
-                score: expect.any(Number),
-                title: null,
-                bodyTextSnippet: [
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! "},
-                    {isHighlighted: true, text: "Trains"},
-                    {isHighlighted: false, text: "! Check out this "},
-                    {isHighlighted: true, text: "trains"},
-                    {isHighlighted: false, text: " "},
-                    {isHighlighted: true, text: "document"},
-                    {isHighlighted: false, text: "."},
-                ],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
-            },
-        ],
-    });
+        },
+    ]);
 
     expect(
         await searchByKeywords(session1.action(), {
@@ -2337,61 +2325,59 @@ test("searches with natural language parsing works", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document5.id}`,
-                score: expect.any(Number),
-                title: "Test 5",
-                bodyTextSnippet: [
-                    {isHighlighted: false, text: "By: "},
-                    {isHighlighted: true, text: "Sara"},
-                ],
-                media: null,
+    ).toEqual([
+        {
+            id: `Document:${document5.id}`,
+            score: expect.any(Number),
+            title: "Test 5",
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "By: "},
+                {isHighlighted: true, text: "Sara"},
+            ],
+            media: null,
+        },
+        {
+            id: `Document:${document2.id}`,
+            score: expect.any(Number),
+            title: "Test 2",
+            bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains!"}],
+            media: null,
+        },
+        {
+            id: `Account:${session2.account.id}`,
+            score: expect.any(Number),
+            title: "Sara Smith",
+            bodyTextSnippet: [],
+            media: {
+                type: "Account",
+                account: await session2.get(),
             },
-            {
-                id: `Document:${document2.id}`,
-                score: expect.any(Number),
-                title: "Test 2",
-                bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains!"}],
-                media: null,
+        },
+        {
+            id: `Document:${document3.id}`,
+            score: expect.any(Number),
+            title: "Test 3",
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "By: "},
+                {isHighlighted: true, text: "Sara"},
+            ],
+            media: null,
+        },
+        {
+            id: `Post:${post.id}`,
+            score: expect.any(Number),
+            title: null,
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "Check out this trains "},
+                {isHighlighted: true, text: "document"},
+                {isHighlighted: false, text: "."},
+            ],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Account:${session2.account.id}`,
-                score: expect.any(Number),
-                title: "Sara Smith",
-                bodyTextSnippet: [],
-                media: {
-                    type: "Account",
-                    account: await session2.get(),
-                },
-            },
-            {
-                id: `Document:${document3.id}`,
-                score: expect.any(Number),
-                title: "Test 3",
-                bodyTextSnippet: [
-                    {isHighlighted: false, text: "By: "},
-                    {isHighlighted: true, text: "Sara"},
-                ],
-                media: null,
-            },
-            {
-                id: `Post:${post.id}`,
-                score: expect.any(Number),
-                title: null,
-                bodyTextSnippet: [
-                    {isHighlighted: false, text: "Check out this trains "},
-                    {isHighlighted: true, text: "document"},
-                    {isHighlighted: false, text: "."},
-                ],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
-            },
-        ],
-    });
+        },
+    ]);
 
     expect(
         await searchByKeywords(session1.action(), {
@@ -2401,70 +2387,68 @@ test("searches with natural language parsing works", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document4.id}`,
-                score: expect.any(Number),
-                title: "Test 4",
-                bodyTextSnippet: [
-                    {isHighlighted: false, text: "By: "},
-                    {isHighlighted: true, text: "John"},
-                    {isHighlighted: false, text: ". Trains! Trains!"},
-                ],
-                media: null,
+    ).toEqual([
+        {
+            id: `Document:${document4.id}`,
+            score: expect.any(Number),
+            title: "Test 4",
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "By: "},
+                {isHighlighted: true, text: "John"},
+                {isHighlighted: false, text: ". Trains! Trains!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Document:${document3.id}`,
+            score: expect.any(Number),
+            title: "Test 3",
+            bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
+            media: null,
+        },
+        {
+            id: `Document:${document1.id}`,
+            score: expect.any(Number),
+            title: "Test 1",
+            bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
+            media: null,
+        },
+        {
+            id: `Account:${session1.account.id}`,
+            score: expect.any(Number),
+            title: "John Smith",
+            bodyTextSnippet: [],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Document:${document3.id}`,
-                score: expect.any(Number),
-                title: "Test 3",
-                bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
-                media: null,
+        },
+        {
+            id: `Document:${document2.id}`,
+            score: expect.any(Number),
+            title: "Test 2",
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "By: "},
+                {isHighlighted: true, text: "John"},
+                {isHighlighted: false, text: ". Trains!"},
+            ],
+            media: null,
+        },
+        {
+            id: `Post:${post.id}`,
+            score: expect.any(Number),
+            title: null,
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "Check out this trains "},
+                {isHighlighted: true, text: "document"},
+                {isHighlighted: false, text: "."},
+            ],
+            media: {
+                type: "Account",
+                account: await session1.get(),
             },
-            {
-                id: `Document:${document1.id}`,
-                score: expect.any(Number),
-                title: "Test 1",
-                bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
-                media: null,
-            },
-            {
-                id: `Account:${session1.account.id}`,
-                score: expect.any(Number),
-                title: "John Smith",
-                bodyTextSnippet: [],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
-            },
-            {
-                id: `Document:${document2.id}`,
-                score: expect.any(Number),
-                title: "Test 2",
-                bodyTextSnippet: [
-                    {isHighlighted: false, text: "By: "},
-                    {isHighlighted: true, text: "John"},
-                    {isHighlighted: false, text: ". Trains!"},
-                ],
-                media: null,
-            },
-            {
-                id: `Post:${post.id}`,
-                score: expect.any(Number),
-                title: null,
-                bodyTextSnippet: [
-                    {isHighlighted: false, text: "Check out this trains "},
-                    {isHighlighted: true, text: "document"},
-                    {isHighlighted: false, text: "."},
-                ],
-                media: {
-                    type: "Account",
-                    account: await session1.get(),
-                },
-            },
-        ],
-    });
+        },
+    ]);
 });
 
 test("highlighting bullet points with bold formatting works well", async () => {
@@ -2547,29 +2531,27 @@ test("highlighting bullet points with bold formatting works well", async () => {
             timeZone: defaultTimeZone,
             currentTime: new Date(),
         }),
-    ).toEqual({
-        results: [
-            {
-                id: `Document:${document.id}`,
-                score: expect.any(Number),
-                title: "Document with bullet points that have strong titles",
-                bodyTextSnippet: [
-                    {
-                        isHighlighted: false,
-                        text: "Culinary Delights: Exploring diverse cuisines to satisfy your taste buds. Healthy Habits: Incorporating nutrient-rich foods for a balanced diet. Kitchen Adventures: Trying out new recipes and cooking techniques. Global Gastronomy: Sampling iconic dishes from around the world. Foodie Travel: Discovering the best eats while traveling. Farm-to-Table Experience: Enjoying the freshness of ",
-                    },
-                    {isHighlighted: true, text: "locally"},
-                    {isHighlighted: false, text: " "},
-                    {isHighlighted: true, text: "sourced"},
-                    {
-                        isHighlighted: false,
-                        text: " ingredients. Sweet Indulgences: Exploring the world of decadent desserts and sweets",
-                    },
-                ],
-                media: null,
-            },
-        ],
-    });
+    ).toEqual([
+        {
+            id: `Document:${document.id}`,
+            score: expect.any(Number),
+            title: "Document with bullet points that have strong titles",
+            bodyTextSnippet: [
+                {
+                    isHighlighted: false,
+                    text: "Culinary Delights: Exploring diverse cuisines to satisfy your taste buds. Healthy Habits: Incorporating nutrient-rich foods for a balanced diet. Kitchen Adventures: Trying out new recipes and cooking techniques. Global Gastronomy: Sampling iconic dishes from around the world. Foodie Travel: Discovering the best eats while traveling. Farm-to-Table Experience: Enjoying the freshness of ",
+                },
+                {isHighlighted: true, text: "locally"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "sourced"},
+                {
+                    isHighlighted: false,
+                    text: " ingredients. Sweet Indulgences: Exploring the world of decadent desserts and sweets",
+                },
+            ],
+            media: null,
+        },
+    ]);
 });
 
 test("search by affinity can include my tasks", async () => {
@@ -3834,3 +3816,273 @@ test("search by affinity will also return up to five favorites", async () => {
         ],
     });
 });
+
+test(
+    "prefix matches and typo matches on search entity titles are allowed",
+    async () => {
+        const names = [
+            "Old Man's War",
+            "The Lock Artist",
+            "HTML5",
+            "Thank You Jeeves",
+            "The Code of the Wooster",
+            "Right Ho Jeeves",
+            "The DaVinci Code",
+            "Angels & Demons",
+            "The Silmarillion",
+            "Syrup",
+            "The Lost Symbol",
+            "The Book of Lies",
+            "Lamb",
+            "Fool",
+            "Incompetence",
+            "Fat",
+            "Colony",
+            "Backwards, Red Dwarf",
+            "The Grand Design",
+            "The Book of Samson",
+            "The Preservationist",
+            "Fallen",
+            "Monster 1959",
+            "Test Mabc",
+            "Test Mxyz",
+            "Core Product FY2024Q3",
+            "Core Product FY2023Q3",
+            "Core Product FY2024Q2",
+            "Playground",
+        ];
+
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const otherSpace = await TestSpace.create(context);
+        const otherSession = await otherSpace.createSession();
+
+        for (const name of names) {
+            // Make sure created times advance in order.
+            import.meta.jest.advanceTimersByTime(1000);
+
+            await runAllPromises([
+                TestChannel.create(session, {name}),
+                TestChannel.create(otherSession, {name}),
+            ]);
+        }
+
+        await ProcessContextModule.waitForTestTasks();
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const testSearch = async (queryText: string) => {
+            const results = await searchByKeywords(testSearchSession.action(), {
+                spaceId: testSearchSpace.id,
+                queryText,
+                limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
+            });
+
+            return filterMapArray(results, result =>
+                result.id.startsWith("Channel:") ? result.title : undefined,
+            );
+        };
+
+        const runTests = async () => {
+            // Testing prefix matching
+            expect(await testSearch("inc")).toEqual(["Incompetence"]);
+            expect((await testSearch("f")).sort()).toEqual([
+                "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
+                "Core Product FY2024Q3",
+                "Fallen",
+                "Fat",
+                "Fool",
+            ]);
+
+            // Testing not first word matching
+            expect(await testSearch("jeeves")).toEqual(["Right Ho Jeeves", "Thank You Jeeves"]);
+
+            // Testing not first word prefix matching
+            expect(await testSearch("jee")).toEqual(["Right Ho Jeeves", "Thank You Jeeves"]);
+
+            // Testing stop word inclusion
+            expect(await testSearch("th")).toEqual([
+                "The Preservationist",
+                "The Book of Samson",
+                "The Grand Design",
+                "The Book of Lies",
+                "The Lost Symbol",
+                "The Silmarillion",
+                "The DaVinci Code",
+                "The Code of the Wooster",
+                "Thank You Jeeves",
+                "The Lock Artist",
+            ]);
+            expect(await testSearch("t")).toEqual([
+                "Test Mxyz",
+                "Test Mabc",
+                "The Preservationist",
+                "The Book of Samson",
+                "The Grand Design",
+                "The Book of Lies",
+                "The Lost Symbol",
+                "The Silmarillion",
+                "The DaVinci Code",
+                "The Code of the Wooster",
+                "Thank You Jeeves",
+                "The Lock Artist",
+            ]);
+            expect(await testSearch("the")).toEqual([
+                "The Preservationist",
+                "The Silmarillion",
+                "The Code of the Wooster",
+                "The Grand Design",
+                "The Lost Symbol",
+                "The DaVinci Code",
+                "The Lock Artist",
+                "The Book of Samson",
+                "The Book of Lies",
+            ]);
+
+            // Testing word position swaps
+            expect(await testSearch("Backwards, Red Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+            expect(await testSearch("Backwards Red Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+            expect(await testSearch("Backwards Dwarf Red")).toEqual(["Backwards, Red Dwarf"]);
+            expect(await testSearch("Red Backwards Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+            expect(await testSearch("Dwarf Red Backwards")).toEqual(["Backwards, Red Dwarf"]);
+            expect(await testSearch("thank jeeves")).toEqual([
+                "Thank You Jeeves",
+                "Right Ho Jeeves",
+            ]);
+            expect(await testSearch("jeeves thank")).toEqual([
+                "Thank You Jeeves",
+                "Right Ho Jeeves",
+            ]);
+            expect(await testSearch("jeeves thank you")).toEqual([
+                "Thank You Jeeves",
+                "Right Ho Jeeves",
+            ]);
+            expect(await testSearch("jeeves you thank")).toEqual([
+                "Thank You Jeeves",
+                "Right Ho Jeeves",
+            ]);
+
+            // Testing word in different positions
+            expect(await testSearch("code")).toEqual([
+                "The DaVinci Code",
+                "The Code of the Wooster",
+                "Core Product FY2024Q2",
+                "Core Product FY2023Q3",
+                "Core Product FY2024Q3",
+            ]);
+
+            // Testing last word prefix matching
+            expect(await testSearch("test")).toEqual(["Test Mxyz", "Test Mabc"]);
+            expect(await testSearch("test m")).toEqual([
+                "Test Mxyz",
+                "Test Mabc",
+                "Monster 1959",
+                "Old Man's War",
+            ]);
+            expect(await testSearch("test ma")).toEqual([
+                "Test Mabc",
+                "Old Man's War",
+                "Test Mxyz",
+            ]);
+            expect(await testSearch("test mab")).toEqual([
+                "Test Mabc",
+                "Test Mxyz",
+                "Old Man's War",
+            ]);
+            expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
+            expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
+            expect(await testSearch("tes m")).toEqual([
+                "Test Mxyz",
+                "Test Mabc",
+                "Monster 1959",
+                "Old Man's War",
+            ]);
+
+            // Testing typos
+            expect(await testSearch("Preservationist")).toEqual(["The Preservationist"]);
+            expect(await testSearch("Preseravtionist")).toEqual(["The Preservationist"]);
+            expect(await testSearch("Preseravtoinist")).toEqual(["The Preservationist"]);
+            expect(await testSearch("Perseravtoinist")).toEqual([]);
+            expect(await testSearch("Perseravtoisnit")).toEqual([]);
+            expect(await testSearch("Mnoster 1")).toEqual(["Monster 1959"]);
+
+            // Testing typos in prefix
+            expect(await testSearch("Preserv")).toEqual(["The Preservationist"]);
+            expect(await testSearch("Presevr")).toEqual([]);
+            expect(await testSearch("Perserv")).toEqual([]);
+            expect(await testSearch("rPeserv")).toEqual([]);
+
+            // Testing identifiers are analyzed properly
+            expect(await testSearch("2024")).toEqual([
+                "Core Product FY2024Q2",
+                "Core Product FY2024Q3",
+                "Core Product FY2023Q3",
+            ]);
+            expect(await testSearch("Q3")).toEqual([
+                "Core Product FY2023Q3",
+                "Core Product FY2024Q3",
+                "Core Product FY2024Q2",
+            ]);
+            expect(await testSearch("2024 Q3")).toEqual([
+                "Core Product FY2024Q3",
+                "Core Product FY2024Q2",
+                "Core Product FY2023Q3",
+            ]);
+            expect(await testSearch("Q3 2024")).toEqual([
+                "Core Product FY2024Q3",
+                "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
+            ]);
+            expect(await testSearch("FY2024Q3")).toEqual([
+                "Core Product FY2024Q3",
+                "Core Product FY2024Q2",
+                "Core Product FY2023Q3",
+            ]);
+            expect(await testSearch("Q3FY2024")).toEqual([
+                "Core Product FY2024Q3",
+                "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
+            ]);
+            expect(await testSearch("FY2024 Q3")).toEqual([
+                "Core Product FY2024Q3",
+                "Core Product FY2024Q2",
+                "Core Product FY2023Q3",
+            ]);
+            expect(await testSearch("Q3 FY2024")).toEqual([
+                "Core Product FY2024Q3",
+                "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
+            ]);
+
+            // Testing search as user types
+            expect(await testSearch("pl")).toEqual(["Playground"]);
+            expect(await testSearch("pla")).toEqual(["Playground"]);
+            // TODO(calebmer): "play" after applying the stemmer is "plai" which doesn't
+            // match "playground". We should see if there's still a way to make this
+            // search. Maybe by detecting stemmed words in the prefix match (so fuzzy
+            // search doesn't apply) and search once with stemming and once without? Would
+            // like to see more cases before writing a fix.
+            expect(await testSearch("play")).toEqual([]);
+            expect(await testSearch("playg")).toEqual(["Playground"]);
+            expect(await testSearch("playgr")).toEqual(["Playground"]);
+            expect(await testSearch("playgro")).toEqual(["Playground"]);
+            expect(await testSearch("playgrou")).toEqual(["Playground"]);
+            expect(await testSearch("playgroun")).toEqual(["Playground"]);
+            expect(await testSearch("playground")).toEqual(["Playground"]);
+        };
+
+        let testSearchSpace = space;
+        let testSearchSession = session;
+        await runTests();
+        testSearchSession = otherSession;
+        await expect(runTests).rejects.toThrow(PermissionDeniedError);
+        testSearchSpace = otherSpace;
+        await runTests();
+    },
+    // Increase test timeout since we've found that sometimes this test is slow to
+    // run in CI.
+    30 * 1000,
+);

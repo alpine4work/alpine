@@ -639,7 +639,7 @@ test(
         const getSearchEntityIds = async (session: TestSpaceSession) => {
             await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-            const {results} = await searchByKeywords(session.action(), {
+            const results = await searchByKeywords(session.action(), {
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
@@ -1169,7 +1169,7 @@ test("will not allow users to view task comments they do not have access to", as
     const getSearchEntityIds = async (session: TestSpaceSession) => {
         await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-        const {results} = await searchByKeywords(session.action(), {
+        const results = await searchByKeywords(session.action(), {
             spaceId: space.id,
             queryText: "task comment",
             limit: 100,
@@ -1297,7 +1297,7 @@ test("will not allow users to view task comments they do not have access to afte
 
     const getSearchEntityIds = async (session: TestSpaceSession) => {
         await context.opensearch.refresh(SearchEntityKeywordIndex);
-        const {results} = await searchByKeywords(session.action(), {
+        const results = await searchByKeywords(session.action(), {
             spaceId: space.id,
             queryText: "task comment",
             limit: 100,
@@ -1411,7 +1411,7 @@ test("will not allow users to view task comments they do not have access to when
 
     const getSearchEntityIds = async (session: TestSpaceSession) => {
         await context.opensearch.refresh(SearchEntityKeywordIndex);
-        const {results} = await searchByKeywords(session.action(), {
+        const results = await searchByKeywords(session.action(), {
             spaceId: space.id,
             queryText: "task comment",
             limit: 100,
@@ -1939,13 +1939,12 @@ test("effective task collection name fuzzy searching", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    await runAllPromises(
-        bookNames.map(async bookName => {
-            const collection = await TestTaskCollection.create(session, {name: bookName});
-            await collection.access.grantDefault(session);
-            return collection;
-        }),
-    );
+    for (const bookName of bookNames) {
+        const collection = await TestTaskCollection.create(session, {name: bookName});
+        await collection.access.grantDefault(session);
+        await ProcessContextModule.waitForTestTasks();
+        import.meta.jest.advanceTimersByTime(1000);
+    }
 
     await ProcessContextModule.waitForTestTasks();
     await refreshTaskCollectionIndexForTest(context);
@@ -1962,9 +1961,9 @@ test("effective task collection name fuzzy searching", async () => {
 
     // Testing prefix matching
     expect(await testSearch("inc")).toEqual(["Incompetence"]);
-    expect(await testSearch("f")).toEqual([
-        "Core Product FY2024Q2",
+    expect((await testSearch("f")).sort()).toEqual([
         "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
         "Core Product FY2024Q3",
         "Fallen",
         "Fat",
@@ -1977,10 +1976,44 @@ test("effective task collection name fuzzy searching", async () => {
     // Testing not first word prefix matching
     expect(await testSearch("jee")).toEqual(["Right Ho Jeeves", "Thank You Jeeves"]);
 
-    // Testing stop word removal
-    expect(await testSearch("th")).toEqual(["Thank You Jeeves"]);
-    expect(await testSearch("t")).toEqual(["Test Mxyz", "Test Mabc", "Thank You Jeeves"]);
-    expect(await testSearch("the")).toEqual([]);
+    // Testing stop word inclusion
+    expect(await testSearch("th")).toEqual([
+        "The Preservationist",
+        "The Book of Samson",
+        "The Grand Design",
+        "The Book of Lies",
+        "The Lost Symbol",
+        "The Silmarillion",
+        "The DaVinci Code",
+        "The Code of the Wooster",
+        "Thank You Jeeves",
+        "The Lock Artist",
+    ]);
+    expect(await testSearch("t")).toEqual([
+        "Test Mxyz",
+        "Test Mabc",
+        "The Preservationist",
+        "The Book of Samson",
+        "The Grand Design",
+        "The Book of Lies",
+        "The Lost Symbol",
+        "The Silmarillion",
+        "The DaVinci Code",
+        "The Code of the Wooster",
+        "Thank You Jeeves",
+        "The Lock Artist",
+    ]);
+    expect(await testSearch("the")).toEqual([
+        "The Code of the Wooster",
+        "The Preservationist",
+        "The Silmarillion",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The DaVinci Code",
+        "The Lock Artist",
+        "The Book of Samson",
+        "The Book of Lies",
+    ]);
 
     // Testing word position swaps
     expect(await testSearch("Backwards, Red Dwarf")).toEqual(["Backwards, Red Dwarf"]);
@@ -2010,8 +2043,8 @@ test("effective task collection name fuzzy searching", async () => {
         "Monster 1959",
         "Old Man's War",
     ]);
-    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Test Mxyz", "Old Man's War"]);
-    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Test Mxyz", "Old Man's War"]);
+    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man's War", "Test Mxyz"]);
+    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man's War", "Test Mxyz"]);
     expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
     expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
     expect(await testSearch("tes m")).toEqual([
@@ -2086,31 +2119,39 @@ test("excludes collections account doesn't have access to when searching", async
     const session3 = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const [
-        ,
-        ,
-        ,
-        ,
-        collection5,
-        collection6,
-        collection7,
-        collection8,
-        collection9,
-        collection10,
-        collection11,
-    ] = await runAllPromises([
-        TestTaskCollection.create(session1),
-        TestTaskCollection.create(session2),
-        TestTaskCollection.create(session1),
-        TestTaskCollection.create(session2),
-        TestTaskCollection.create(session1),
-        TestTaskCollection.create(session2),
-        TestTaskCollection.create(session1),
-        TestTaskCollection.create(session2),
-        TestTaskCollection.create(session1),
-        TestTaskCollection.create(session1),
-        TestTaskCollection.create(otherSession),
-    ]);
+    await TestTaskCollection.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    await TestTaskCollection.create(session2);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    await TestTaskCollection.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    await TestTaskCollection.create(session2);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    const collection5 = await TestTaskCollection.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    const collection6 = await TestTaskCollection.create(session2);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    const collection7 = await TestTaskCollection.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    const collection8 = await TestTaskCollection.create(session2);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    const collection9 = await TestTaskCollection.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    const collection10 = await TestTaskCollection.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
+    const collection11 = await TestTaskCollection.create(otherSession);
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(1000);
 
     await runAllPromises([
         collection5.access.set(session1, {
@@ -2152,6 +2193,9 @@ test("excludes collections account doesn't have access to when searching", async
     expect(await testSearch(session1, 3)).toEqual([collection9.id, collection7.id, collection5.id]);
     expect(await testSearch(session2, 3)).toEqual([collection9.id, collection8.id, collection6.id]);
     expect(await testSearch(session3, 3)).toEqual([collection9.id, collection6.id, collection5.id]);
+
+    import.meta.jest.runAllTimers();
+    await ProcessContextModule.waitForTestTasks();
 });
 
 // Tests that would be in `get_search_entity.test.ts` except we don't want to
