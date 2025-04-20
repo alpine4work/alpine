@@ -1073,7 +1073,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     );
 
     return (
-        <FocusRing isVisible={isFocusRingVisible} offset="0">
+        <FocusRing isVisible={isFocusRingVisible} offset="inset">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
                 ref={ref}
@@ -1277,7 +1277,7 @@ function MenuCustomItem({
     }, [pendingState]);
 
     return (
-        <FocusRing isVisible={isFocusRingVisible} offset="0">
+        <FocusRing isVisible={isFocusRingVisible} offset="inset">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
                 ref={menuItemRef}
@@ -1719,7 +1719,7 @@ const MenuChildrenItem = forwardRef(function MenuStandardItem(
                 </Box>
             }
         >
-            <FocusRing isVisible={isFocusRingVisible} offset="0">
+            <FocusRing isVisible={isFocusRingVisible} offset="inset">
                 <Box
                     // eslint-disable-next-line react-compiler/react-compiler
                     {...mergeProps(pressProps, {

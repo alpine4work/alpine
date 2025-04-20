@@ -8,11 +8,8 @@ import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    useExpensivelyLoadAllSpaceAccounts,
-    useExpensivelyPreloadAllSpaceAccounts,
-} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {inputPlaceholderStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCurrentAccountAvatar} from "~/client/tasks/internal/task_current_account_avatar.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
@@ -27,6 +24,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore} from "~/shared/store/const_store.js";
@@ -79,9 +77,9 @@ export function TaskQueryFilterAccountOperationEditor({
         options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
 }) {
-    useExpensivelyPreloadAllSpaceAccounts();
+    const {space, currentAccount} = useSpaceContext();
 
-    const {currentAccount} = useSpaceContext();
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const accountIds = useMemo(() => {
         const accountIds = new Set<AccountId | "CurrentAccount" | "MissingAccount">();
@@ -339,7 +337,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
     accountIds: ReadonlySet<AccountId | "CurrentAccount" | "MissingAccount">;
 }) {
     const platform = usePlatform();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const accountStore = useAccountClientStore();
 
     // If `currentAccount` is non-null then `queryReferencesForUrlGrant` should be
@@ -349,7 +347,10 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
         assert(queryReferencesForUrlGrant === null);
     }
 
-    const allAccounts = useExpensivelyLoadAllSpaceAccounts({isDisabled: !currentAccount});
+    const allAccounts = useLazyLoadRpc(
+        expensivelyGetAllSpaceAccounts,
+        currentAccount ? {spaceId: space.id} : null,
+    ).output?.accounts;
     const isLoading = currentAccount && !allAccounts;
 
     const [initialAccountIds] = useState(accountIds);

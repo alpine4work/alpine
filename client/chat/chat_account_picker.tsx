@@ -28,11 +28,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    useExpensivelyLoadAllSpaceAccounts,
-    useExpensivelyPreloadAllSpaceAccounts,
-} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
@@ -55,6 +52,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -93,7 +91,7 @@ export function ChatAccountPicker({
 }) {
     const platform = usePlatform();
     const accountStore = useAccountClientStore();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -115,11 +113,14 @@ export function ChatAccountPicker({
     }, [shouldInitiallyFocus]);
 
     // Preload accounts since we don't load accounts until the dropdown is open.
-    useExpensivelyPreloadAllSpaceAccounts();
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const [shouldLoadAccounts, setShouldLoadAccounts] = useState(false);
     const allAccounts =
-        useExpensivelyLoadAllSpaceAccounts({isDisabled: !shouldLoadAccounts}) ?? emptyArray;
+        useLazyLoadRpc(
+            expensivelyGetAllSpaceAccounts,
+            shouldLoadAccounts ? {spaceId: space.id} : null,
+        ).output?.accounts ?? emptyArray;
 
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();
@@ -875,7 +876,7 @@ function ChatAccountPickerListBoxOption({
     assert(isValidElement(item.rendered));
 
     return (
-        <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
+        <FocusRing offset="inset" isVisible={isFocused && wasFocusVisibleWhenFocused}>
             <li
                 {...optionProps}
                 ref={optionRef}

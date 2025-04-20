@@ -4,9 +4,11 @@ import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {ShareOverlay} from "~/client/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/navigation/internal/use_share_state.js";
-import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export function ShareButton({
     entityNoun,
@@ -21,9 +23,11 @@ export function ShareButton({
     isReadOnly?: boolean;
     onCopyLink: () => MaybePromise<void>;
 }) {
+    const {currentAccount, space} = useSpaceContext();
+
     // We need all accounts when the `<ShareOverlay>` is open so preload
     // them now.
-    useExpensivelyPreloadAllSpaceAccounts();
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const {changeAccessPolicy, isReadOnly, overlayId, modals} = useShareState({
         entityNoun,

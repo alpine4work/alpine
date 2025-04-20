@@ -804,7 +804,7 @@ function ShareOverlayAccountGrantInputListBoxOption({
     }, [isFocused]);
 
     return (
-        <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
+        <FocusRing offset="inset" isVisible={isFocused && wasFocusVisibleWhenFocused}>
             <li
                 {...optionProps}
                 ref={optionRef}

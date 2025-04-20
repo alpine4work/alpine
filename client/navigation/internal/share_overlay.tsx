@@ -18,10 +18,10 @@ import {
     removeAccessLevelText,
 } from "~/client/navigation/internal/access_level_text.js";
 import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
+import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {
     backgroundColorVar,
     greyElevated1ClassName,
@@ -47,6 +47,7 @@ import {partitionIterable} from "~/shared/helpers/iterable/partition_iterable.js
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -67,9 +68,13 @@ export function ShareOverlay({
     onCopyLink: () => MaybePromise<void>;
     onCloseWithoutAnimation: () => void;
 }) {
+    const {space} = useSpaceContext();
+
     const hasAccountGrantInput = !isReadOnly;
 
-    const allAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
+    const allAccounts =
+        useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output?.accounts ??
+        emptyArray;
 
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();

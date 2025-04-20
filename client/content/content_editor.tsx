@@ -154,9 +154,9 @@ import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layou
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
-import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styles/styles.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
@@ -216,6 +216,7 @@ import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -653,6 +654,7 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
     ref: Ref<ContentEditorRef<Content>>,
 ) {
     const isInitialAppRender = useIsInitialAppRender();
+    const spaceContext = useSpaceContextIfExists();
 
     // Preload space accounts so when the user tries to mention one they
     // are available.
@@ -661,7 +663,12 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
     // depend on space context in unit tests.
     if (!import.meta.jest) {
         // eslint-disable-next-line react-compiler/react-compiler, react-hooks/rules-of-hooks
-        useExpensivelyPreloadAllSpaceAccounts();
+        useIdlyPreloadRpc(
+            expensivelyGetAllSpaceAccounts,
+            // If the actor doesn't have space access then don't preload all space accounts
+            // since we'll get a `PermissionDeniedError` anyway.
+            spaceContext?.currentAccount ? {spaceId: spaceContext.space.id} : null,
+        );
     }
 
     if (isInitialAppRender) {

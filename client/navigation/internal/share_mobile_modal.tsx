@@ -9,13 +9,15 @@ import {
 import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
 import {ShareSwitch} from "~/client/navigation/internal/share_switch.js";
 import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.js";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {backgroundColorVar} from "~/client/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareMobileModal({
@@ -31,9 +33,13 @@ export function ShareMobileModal({
     isReadOnly: boolean;
     onCloseWithAnimation: () => void;
 }) {
+    const {space} = useSpaceContext();
+
     const hasAccountGrantInput = !isReadOnly;
 
-    const allAccounts = useExpensivelyLoadAllSpaceAccounts() ?? emptyArray;
+    const allAccounts =
+        useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output?.accounts ??
+        emptyArray;
 
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();

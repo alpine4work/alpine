@@ -56,7 +56,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
 
     return (
         <FocusRing
-            offset={isQuiet ? "0" : "0.5"}
+            offset={isQuiet ? "inset" : "0.5"}
             isVisible={isFocused && wasFocusVisibleWhenFocused}
         >
             <Box

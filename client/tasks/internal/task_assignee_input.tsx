@@ -22,11 +22,8 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
+import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {
-    useExpensivelyLoadAllSpaceAccounts,
-    useExpensivelyPreloadAllSpaceAccounts,
-} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {isTaskGridViewApplyingUndoStackEntry} from "~/client/tasks/internal/is_task_grid_view_applying_undo_stack_entry.js";
 import {
@@ -40,6 +37,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -131,7 +129,7 @@ function TaskAssigneeInput(
     const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountStore = useAccountClientStore();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
@@ -167,11 +165,14 @@ function TaskAssigneeInput(
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
 
     // Preload accounts since we don't load accounts until the dropdown is open.
-    useExpensivelyPreloadAllSpaceAccounts();
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
     const [shouldLoadAccounts, setShouldLoadAccounts] = useState(false);
     const allAccounts =
-        useExpensivelyLoadAllSpaceAccounts({isDisabled: !shouldLoadAccounts}) ?? emptyArray;
+        useLazyLoadRpc(
+            expensivelyGetAllSpaceAccounts,
+            shouldLoadAccounts ? {spaceId: space.id} : null,
+        ).output?.accounts ?? emptyArray;
 
     const accountById = useMemo(() => {
         const accountById = new Map<AccountId, AccountModel>();
