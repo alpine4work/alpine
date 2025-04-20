@@ -7,6 +7,7 @@ import {
     newLineRegExp,
     newLineRegExpWithoutRepetitionOrCapture,
 } from "~/server/search/data/index/internal/chunk_search_content.js";
+import {isContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
 import {HighlightColor} from "~/shared/design/core/highlight_color.js";
 import {
     DocumentContent,
@@ -67,7 +68,7 @@ export function parseSearchContent(
         shouldParseEmphasisHtmlTagAsHighlight?: boolean;
     } = {},
 ): DocumentContent | DocumentWithoutTitleContent {
-    const inputRootNode = fromMarkdown(inputText, {
+    const inputRootNode = fromMarkdown(inputText, "utf-8", {
         extensions: [gfmStrikethrough()],
         mdastExtensions: [gfmStrikethroughFromMarkdown()],
     });
@@ -194,17 +195,89 @@ export function parseSearchContent(
             }
 
             case "code": {
+                let emphasisTagOpenCount = 0;
+
                 return [
                     schema.nodes.codeBlock.create(
-                        {},
-                        inputNode.value
-                            .split(newLineRegExpWithoutRepetitionOrCapture)
-                            .map(text =>
-                                schema.nodes.codeBlockLine.create(
-                                    {},
-                                    text.length > 0 ? [schema.text(text)] : [],
-                                ),
-                            ),
+                        {
+                            language:
+                                typeof inputNode.lang === "string" &&
+                                isContentCodeBlockLanguageId(inputNode.lang)
+                                    ? inputNode.lang
+                                    : "text",
+                        },
+                        inputNode.value.split(newLineRegExpWithoutRepetitionOrCapture).map(text => {
+                            let startIndex = 0;
+                            let length = 0;
+
+                            const nodes: Array<Node> = [];
+                            const parts = text.split(/(\\?<\/?em\s*>)/g);
+
+                            const print = () => {
+                                if (length === 0) return;
+
+                                if (emphasisTagOpenCount === 0) {
+                                    nodes.push(
+                                        schema.text(text.slice(startIndex, startIndex + length)),
+                                    );
+                                } else {
+                                    nodes.push(
+                                        schema.text(text.slice(startIndex, startIndex + length), [
+                                            schema.marks.highlight.create({
+                                                color: HighlightColor.Orange,
+                                            }),
+                                        ]),
+                                    );
+                                }
+                            };
+
+                            // Manually implement support for `<em>` tags in inline code
+                            for (let i = 0; i < parts.length; i++) {
+                                const part = parts[i]!;
+
+                                if (i % 2 === 0) {
+                                    length += part.length;
+                                    continue;
+                                }
+
+                                if (part.startsWith("\\")) {
+                                    print();
+
+                                    startIndex = startIndex + length + 1;
+                                    length = part.length - 1;
+                                    continue;
+                                }
+
+                                if (shouldParseEmphasisHtmlTagAsHighlight) {
+                                    if (part.startsWith("<em")) {
+                                        print();
+
+                                        emphasisTagOpenCount += 1;
+                                        startIndex = startIndex + length + part.length;
+                                        length = 0;
+                                        continue;
+                                    }
+
+                                    if (part.startsWith("</em")) {
+                                        print();
+
+                                        emphasisTagOpenCount = Math.max(
+                                            0,
+                                            emphasisTagOpenCount - 1,
+                                        );
+                                        startIndex = startIndex + length + part.length;
+                                        length = 0;
+                                        continue;
+                                    }
+                                }
+
+                                length += part.length;
+                            }
+
+                            print();
+
+                            return schema.nodes.codeBlockLine.create({}, nodes);
+                        }),
                     ),
                 ];
             }

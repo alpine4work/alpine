@@ -18,6 +18,7 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -60,7 +61,12 @@ async function testGetFullSearchContentChunk(
         // Content we get after parsing should equal the content we printed with some
         // acceptable lossiness.
         expect(content2.toJSON()).toEqual(
-            (await dropIgnoredSearchContent(content, options))?.toJSON(),
+            (
+                await dropIgnoredSearchContent(content, {
+                    getAccountIfExists: options.getAccountIfExists,
+                    withoutMarks: false,
+                })
+            )?.toJSON(),
         );
         expect(text2).toEqual(text);
 
@@ -87,6 +93,7 @@ async function dropIgnoredSearchContent(
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
+        withoutMarks: boolean;
     },
 ): Promise<Node | null> {
     if (node.type.name === "fileRow" || node.type.name === "fileFloat") return null;
@@ -103,18 +110,24 @@ async function dropIgnoredSearchContent(
         return node.type.schema.text(`@${accountName}`);
     }
 
-    const marks = node.marks.filter(
-        mark =>
-            mark.type.name !== "link" &&
-            mark.type.name !== "comment" &&
-            mark.type.name !== "highlight",
-    );
+    const marks = !options.withoutMarks
+        ? node.marks.filter(
+              mark =>
+                  mark.type.name !== "link" &&
+                  mark.type.name !== "comment" &&
+                  mark.type.name !== "highlight",
+          )
+        : emptyArray;
 
     if (marks.length !== node.marks.length) {
         node = node.mark(marks);
     }
 
     if (node.type.name === "text") return node;
+
+    if (node.type.name === "codeBlockLine") {
+        options = {...options, withoutMarks: true};
+    }
 
     const content = (
         await runAllPromises(
@@ -4720,14 +4733,14 @@ test("properly escapes content in inline code", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
-        text: "`_` `*` `` ` `` ``` `` ``` ```` ``` ```` `\\` `foo_bar` `foo*bar` ``foo`bar`` ```foo``bar``` ````foo```bar```` ````fo`o```b`ar```` `foo\\bar` `[]()` `[foo](bar)` `foo[]()bar` `foo[foo](bar)bar` `\\<em>content</em>` `\\<em>content</em>_view.tsx` `<strong>content</strong>` `<strong>content</strong>_view.tsx` ` ` ` starts with space` `ends with space ` `   starts with 3 spaces` `ends with 3 spaces   ` ``  `starts with space` `` `` `ends with space`  `` ``    `starts with 3 spaces` `` `` `ends with 3 spaces`    ``",
+        text: "`_` `*` `` ` `` ``` `` ``` ```` ``` ```` `\\` `foo_bar` `foo*bar` ``foo`bar`` ```foo``bar``` ````foo```bar```` ````fo`o```b`ar```` `foo\\bar` `[]()` `[foo](bar)` `foo[]()bar` `foo[foo](bar)bar` `\\<em>content\\</em>` `\\<em>content\\</em>_view.tsx` `<strong>content</strong>` `<strong>content</strong>_view.tsx` ` ` ` starts with space` `ends with space ` `   starts with 3 spaces` `ends with 3 spaces   ` ``  `starts with space` `` `` `ends with space`  `` ``    `starts with 3 spaces` `` `` `ends with 3 spaces`    ``",
         isGroup: false,
-        tokenCount: 242,
+        tokenCount: 244,
         context: {sectionHeading: null},
         sentenceChunks: [
             {
-                text: "`_` `*` `` ` `` ``` `` ``` ```` ``` ```` `\\` `foo_bar` `foo*bar` ``foo`bar`` ```foo``bar``` ````foo```bar```` ````fo`o```b`ar```` `foo\\bar` `[]()` `[foo](bar)` `foo[]()bar` `foo[foo](bar)bar` `\\<em>content</em>` `\\<em>content</em>_view.tsx` `<strong>content</strong>` `<strong>content</strong>_view.tsx` ` ` ` starts with space` `ends with space ` `   starts with 3 spaces` `ends with 3 spaces   ` ``  `starts with space` `` `` `ends with space`  `` ``    `starts with 3 spaces` `` `` `ends with 3 spaces`    ``",
-                tokenCount: 242,
+                text: "`_` `*` `` ` `` ``` `` ``` ```` ``` ```` `\\` `foo_bar` `foo*bar` ``foo`bar`` ```foo``bar``` ````foo```bar```` ````fo`o```b`ar```` `foo\\bar` `[]()` `[foo](bar)` `foo[]()bar` `foo[foo](bar)bar` `\\<em>content\\</em>` `\\<em>content\\</em>_view.tsx` `<strong>content</strong>` `<strong>content</strong>_view.tsx` ` ` ` starts with space` `ends with space ` `   starts with 3 spaces` `ends with 3 spaces   ` ``  `starts with space` `` `` `ends with space`  `` ``    `starts with 3 spaces` `` `` `ends with 3 spaces`    ``",
+                tokenCount: 244,
             },
         ],
         lineMarginTop: 2,
@@ -5024,5 +5037,307 @@ lazy dog`,
                 lineMarginBottom: 2,
             },
         ],
+    });
+});
+
+test("drops inline formatting within a code block", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {
+                        type: "codeBlock",
+                        attrs: {language: "javascript"},
+                        content: [
+                            {
+                                type: "codeBlockLine",
+                                content: [
+                                    {type: "text", text: "1. "},
+                                    {
+                                        type: "text",
+                                        text: "bold",
+                                        marks: [{type: "bold"}],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [
+                                    {type: "text", text: "2. "},
+                                    {
+                                        type: "text",
+                                        text: "italic",
+                                        marks: [{type: "italic"}],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [
+                                    {type: "text", text: "3. "},
+                                    {
+                                        type: "text",
+                                        text: "italic & bold",
+                                        marks: [{type: "italic"}, {type: "bold"}],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [
+                                    {type: "text", text: "4. "},
+                                    {
+                                        type: "text",
+                                        text: "strike",
+                                        marks: [{type: "strike"}],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [
+                                    {type: "text", text: "5. "},
+                                    {
+                                        type: "text",
+                                        text: "comment",
+                                        marks: [{type: "comment", commentThreadId: generateId()}],
+                                    },
+                                ],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [
+                                    {type: "text", text: "6. "},
+                                    {
+                                        type: "text",
+                                        text: "link",
+                                        marks: [{type: "link", url: "https://example.com"}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            }),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+\`\`\`javascript
+1. bold
+2. italic
+3. italic & bold
+4. strike
+5. comment
+6. link
+\`\`\``,
+        isGroup: false,
+        tokenCount: 30,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {text: "```javascript\n", tokenCount: 5},
+            {text: "1. bold\n", tokenCount: 3},
+            {text: "2. italic\n", tokenCount: 4},
+            {text: "3. italic & bold\n", tokenCount: 6},
+            {text: "4. strike\n", tokenCount: 3},
+            {text: "5. comment\n", tokenCount: 3},
+            {text: "6. link\n", tokenCount: 3},
+            {text: "```", tokenCount: 3},
+        ],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
+    });
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [
+                            {type: "text", text: "I added the ability to pass in paths to "},
+                            {type: "text", marks: [{type: "code"}], text: "dev test"},
+                            {type: "text", text: ". For example:"},
+                        ],
+                    },
+                    {
+                        type: "codeBlock",
+                        attrs: {language: "shell"},
+                        content: [
+                            {
+                                type: "codeBlockLine",
+                                content: [
+                                    {type: "text", text: "dev test "},
+                                    {
+                                        type: "text",
+                                        marks: [{type: "bold"}],
+                                        text: "server/documents/data/documents_table.test.ts",
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: "This means you won’t have to manually rewrite a test file path into a Bazel label! By passing in a file path, we’ll automatically figure out that the test label for ",
+                            },
+                            {
+                                type: "text",
+                                marks: [{type: "code"}],
+                                text: "server/documents/data/documents_table.test.ts",
+                            },
+                            {type: "text", text: " is "},
+                            {
+                                type: "text",
+                                marks: [{type: "code"}],
+                                text: "//server/documents/data:documents_table_test",
+                            },
+                            {type: "text", text: " then we’ll run that test."},
+                        ],
+                    },
+                ],
+            }),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+I added the ability to pass in paths to \`dev test\`. For example:
+
+\`\`\`shell
+dev test server/documents/data/documents_table.test.ts
+\`\`\`
+
+This means you won’t have to manually rewrite a test file path into a Bazel label! By passing in a file path, we’ll automatically figure out that the test label for \`server/documents/data/documents_table.test.ts\` is \`//server/documents/data:documents_table_test\` then we’ll run that test.`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 117,
+        childChunks: [
+            {
+                isGroup: true,
+                context: {sectionHeading: null},
+                tokenCount: 39,
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 17,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {
+                                text: "I added the ability to pass in paths to `dev test`.",
+                                tokenCount: 14,
+                            },
+                            {text: "For example:", tokenCount: 3},
+                        ],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 22,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {text: "```shell\n", tokenCount: 4},
+                            {
+                                text: "dev test server/documents/data/documents_table.test.ts\n",
+                                tokenCount: 15,
+                            },
+                            {text: "```", tokenCount: 3},
+                        ],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                ],
+            },
+            {
+                isGroup: false,
+                tokenCount: 78,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This means you won’t have to manually rewrite a test file path into a Bazel label!",
+                        tokenCount: 21,
+                    },
+                    {
+                        text: "By passing in a file path, we’ll automatically figure out that the test label for `server/documents/data/documents_table.test.ts` is `//server/documents/data:documents_table_test` then we’ll run that test.",
+                        tokenCount: 57,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+test("properly escapes text within inline code block", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {
+                        type: "codeBlock",
+                        attrs: {language: "javascript"},
+                        content: [
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "test1 _test2_ test3"}],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "test4 **test5** test6"}],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "test7 <em>test8</em> test9"}],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "test10 <em>test11 test12"}],
+                            },
+                            {
+                                type: "codeBlockLine",
+                                content: [{type: "text", text: "test13 test14</em> test15"}],
+                            },
+                        ],
+                    },
+                ],
+            }),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+\`\`\`javascript
+test1 _test2_ test3
+test4 **test5** test6
+test7 \\<em>test8\\</em> test9
+test10 \\<em>test11 test12
+test13 test14\\</em> test15
+\`\`\``,
+        isGroup: false,
+        tokenCount: 62,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {text: "```javascript\n", tokenCount: 5},
+            {text: "test1 _test2_ test3\n", tokenCount: 8},
+            {text: "test4 **test5** test6\n", tokenCount: 10},
+            {text: "test7 \\<em>test8\\</em> test9\n", tokenCount: 15},
+            {text: "test10 \\<em>test11 test12\n", tokenCount: 10},
+            {text: "test13 test14\\</em> test15\n", tokenCount: 11},
+            {text: "```", tokenCount: 3},
+        ],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
     });
 });

@@ -339,3 +339,114 @@ test("works when certain nodes have empty text", () => {
         ],
     });
 });
+
+test("doesn't parse marks in a code block", () => {
+    expect(parseSearchContent("This is a\n```\nfoo**bar**\n```\ncode block").toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "This is a"}],
+            },
+            {
+                type: "codeBlock",
+                attrs: {language: "text"},
+                content: [
+                    {
+                        type: "codeBlockLine",
+                        content: [{type: "text", text: "foo**bar**"}],
+                    },
+                ],
+            },
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "code block"}],
+            },
+        ],
+    });
+});
+
+test("parses an `<em>` tag in a code block", () => {
+    expect(
+        parseSearchContent("This is a\n```\nfoo<em>bar</em>\n```\ncode block", {
+            shouldParseEmphasisHtmlTagAsHighlight: true,
+        }).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "This is a"}],
+            },
+            {
+                type: "codeBlock",
+                attrs: {language: "text"},
+                content: [
+                    {
+                        type: "codeBlockLine",
+                        content: [
+                            {type: "text", text: "foo"},
+                            {
+                                type: "text",
+                                text: "bar",
+                                marks: [{type: "highlight", attrs: {color: "orange"}}],
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "code block"}],
+            },
+        ],
+    });
+});
+
+test("parses an `<em>` tag spanning multiple lines in a code block", () => {
+    expect(
+        parseSearchContent("This is a\n```\ntest1 <em>test2\ntest3</em> test4\n```\ncode block", {
+            shouldParseEmphasisHtmlTagAsHighlight: true,
+        }).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "This is a"}],
+            },
+            {
+                type: "codeBlock",
+                attrs: {language: "text"},
+                content: [
+                    {
+                        type: "codeBlockLine",
+                        content: [
+                            {type: "text", text: "test1 "},
+                            {
+                                type: "text",
+                                text: "test2",
+                                marks: [{type: "highlight", attrs: {color: "orange"}}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "codeBlockLine",
+                        content: [
+                            {
+                                type: "text",
+                                text: "test3",
+                                marks: [{type: "highlight", attrs: {color: "orange"}}],
+                            },
+                            {type: "text", text: " test4"},
+                        ],
+                    },
+                ],
+            },
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "code block"}],
+            },
+        ],
+    });
+});

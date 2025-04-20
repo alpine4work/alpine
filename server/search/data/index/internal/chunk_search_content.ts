@@ -207,7 +207,7 @@ export async function getFullSearchContentChunk(
             const sectionHeadingPromise = sectionHeadingNode
                 ? printSearchTextForInlineFragment(sectionHeadingNode.content, {
                       getAccountIfExists,
-                      isHeading: true,
+                      context: "heading",
                   })
                 : null;
 
@@ -1057,7 +1057,13 @@ async function chunkSearchContentBySentenceForBlockNode(
 
             return {
                 sentenceChunks: Array.from(
-                    concatIterables(["```\n"], flatIterable(codeBlockLines), ["```"]),
+                    concatIterables(
+                        !node.attrs.language || node.attrs.language === "text"
+                            ? ["```\n"]
+                            : [`\`\`\`${node.attrs.language}\n`],
+                        flatIterable(codeBlockLines),
+                        ["```"],
+                    ),
                 ),
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1150,7 +1156,7 @@ async function chunkSearchContentBySentenceForTextblockNode(
         case "paragraph": {
             const text = await printSearchTextForInlineFragment(node.content, {
                 ...options,
-                isHeading: false,
+                context: null,
             });
 
             return chunkSearchContentBySentenceForText(text);
@@ -1159,7 +1165,7 @@ async function chunkSearchContentBySentenceForTextblockNode(
         case "heading": {
             const text = await printSearchTextForInlineFragment(node.content, {
                 ...options,
-                isHeading: true,
+                context: "heading",
             });
 
             const prefix =
@@ -1188,7 +1194,7 @@ async function chunkSearchContentBySentenceForTextblockNode(
         case "codeBlockLine": {
             const text = await printSearchTextForInlineFragment(node.content, {
                 ...options,
-                isHeading: false,
+                context: "codeBlock",
             });
 
             return [`${text}\n`];
@@ -1201,7 +1207,7 @@ async function chunkSearchContentBySentenceForTextblockNode(
 async function printSearchTextForInlineFragment(
     fragment: Fragment,
     options: {
-        isHeading: boolean;
+        context: "heading" | "codeBlock" | null;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModelWithoutSpace | null>;
@@ -1209,12 +1215,29 @@ async function printSearchTextForInlineFragment(
 ): Promise<string> {
     const content: Array<Node> = [];
 
-    // Remove `link` marks and merge text nodes with the same marks together.
+    // Remove `link`, `comment`, and `highlight` marks and merge text nodes with
+    // the same marks together.
     for (let node of fragment.content) {
         assert(node.isInline);
 
-        if (node.marks.some(mark => mark.type.name === "link")) {
-            node = node.mark(node.marks.filter(mark => mark.type.name !== "link"));
+        if (options.context === "codeBlock" && node.marks.length > 0) {
+            node = node.mark([]);
+        } else if (
+            node.marks.some(
+                mark =>
+                    printSearchEmbeddingTextForMarkByTypeName[
+                        mark.type.name as ContentMarkTypeName
+                    ] === null,
+            )
+        ) {
+            node = node.mark(
+                node.marks.filter(
+                    mark =>
+                        printSearchEmbeddingTextForMarkByTypeName[
+                            mark.type.name as ContentMarkTypeName
+                        ] !== null,
+                ),
+            );
         }
 
         const lastNode = content[content.length - 1];
@@ -1237,17 +1260,17 @@ async function printSearchTextForInlineFragment(
 }
 
 const printSearchEmbeddingTextForMarkByTypeName: {
-    [Key in ContentMarkTypeName]: (textContent: string, mark: Mark) => string;
+    [Key in ContentMarkTypeName]: ((textContent: string, mark: Mark) => string) | null;
 } = {
     italic: textContent => `*${textContent}*`,
     bold: textContent => `**${textContent}**`,
     code: textContent => `\`${textContent}\``,
     // Don't include URLs in search embedding text. We believe they'll confuse the
     // model as the text won't read naturally. (Should test this!)
-    link: textContent => textContent,
+    link: null,
     strike: textContent => `~~${textContent}~~`,
-    comment: textContent => textContent,
-    highlight: textContent => textContent,
+    comment: null,
+    highlight: null,
 };
 
 /**
@@ -1289,7 +1312,7 @@ const printSearchEmbeddingTextForMarkByTypeName: {
 async function printSearchTextForInlineNode(
     node: Node,
     options: {
-        isHeading: boolean;
+        context: "heading" | "codeBlock" | null;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModelWithoutSpace | null>;
@@ -1301,7 +1324,7 @@ async function printSearchTextForInlineNode(
     switch (typeName) {
         case "break": {
             // Hard breaks aren't supported in headings so directly add a `<br/>` element.
-            if (options.isHeading) {
+            if (options.context === "heading") {
                 return "<br/>";
             } else {
                 // A little funky, but CommonMark specifies a newline preceded by a backslash
@@ -1326,9 +1349,10 @@ async function printSearchTextForInlineNode(
 
             // Escape any Markdown characters in the text content so the LLM model doesn't
             // get it confused with our own markdown styling.
-            let textContent = codeMark
-                ? escapeMarkdownInInlineCode(node.textContent)
-                : escapeMarkdown(node.textContent);
+            let textContent =
+                options.context === "codeBlock" || codeMark
+                    ? escapeMarkdownInCode(node.textContent)
+                    : escapeMarkdown(node.textContent);
 
             // The code mark must always be applied first. CommonMark specifies that
             // asterisks or other characters within code are treated as literal characters.
@@ -1363,7 +1387,9 @@ async function printSearchTextForInlineNode(
                         mark.type.name as ContentMarkTypeName
                     ];
 
-                return printSearchEmbeddingTextForMark(textContent, mark);
+                return printSearchEmbeddingTextForMark !== null
+                    ? printSearchEmbeddingTextForMark(textContent, mark)
+                    : textContent;
             }, textContent);
 
             return textContent;
@@ -1399,14 +1425,14 @@ function escapeMarkdown(textContent: string): string {
 }
 
 /**
- * Escape markdown characters in some inline code content.
+ * Escape markdown characters in code content.
  *
  * You can put any character in inline code and it'll render. With the
  * exception of the `<em>` tag which the OpenSearch highlighter inserts. We
  * manually handle `<em>` tag parsing in inline code in `parseSearchContent()`.
  */
-function escapeMarkdownInInlineCode(textContent: string): string {
-    return textContent.replaceAll(/<em\s*>/gm, substring => {
+function escapeMarkdownInCode(textContent: string): string {
+    return textContent.replaceAll(/<\/?em\s*>/gm, substring => {
         const match = substring.match(/^(\s*?)(\S.*)$/);
         assert(match);
         return `${match[1]!}\\${match[2]!}`;
