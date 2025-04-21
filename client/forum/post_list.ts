@@ -1,6 +1,7 @@
 import createTree, {Tree, Node as TreeNode} from "functional-red-black-tree";
 import {SetStateAction} from "react";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
+import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/virtualized/helpers/virtualized_tree.js";
 import {
@@ -15,7 +16,7 @@ import {
     NotFoundError,
     OutOfRangeError,
 } from "~/shared/error/error.js";
-import {ChannelModel} from "~/shared/forum/channel_model.js";
+import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
@@ -48,6 +49,7 @@ export type PostListChannelHeader =
     | {
           readonly isOnlyNavigationBar: false;
           readonly channel: ChannelModel;
+          readonly channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel> | null;
           readonly isCreatingChannel: boolean;
           readonly isEditingDescription: boolean;
           readonly onCancelDescriptionEditing: () => void;

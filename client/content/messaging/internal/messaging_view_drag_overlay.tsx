@@ -32,14 +32,14 @@ export function MessagingViewDragOverlay() {
             style={{transition: "opacity 200ms ease-out"}}
         >
             <div
-                className={sprinkles({width: "64", color: "grey-90"})}
+                className={sprinkles({width: "64", color: "grey-70"})}
                 style={{
                     transform: isInitialRender ? "rotate(4deg) translateX(0.5rem)" : undefined,
                     transformOrigin: "bottom right",
                     transition: "transform 200ms ease-out",
                 }}
             >
-                <TwoCardsWithSummitOnTopCardIllustration strokeWidth={3} />
+                <TwoCardsWithSummitOnTopCardIllustration strokeWidth={2.25} />
             </div>
             <div
                 className={sprinkles({

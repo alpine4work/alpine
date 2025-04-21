@@ -290,7 +290,15 @@ function PostListView(
         asideBufferedHeight: 0,
     });
 
-    const hasAside = routeLayout !== "narrow" && !!aside;
+    const posts = useMemo(
+        () =>
+            channelHeader
+                ? new PostListWithChannelHeader(channelHeader, postsWithoutChannelHeader)
+                : postsWithoutChannelHeader,
+        [channelHeader, postsWithoutChannelHeader],
+    );
+
+    const hasAside = routeLayout !== "narrow" && !!aside && posts.getPostCount() > 0;
     const hasNavigationBar = !!navigationBar?.navigationBar;
     const hasChannelHeader = !!channelHeader;
 
@@ -299,14 +307,6 @@ function PostListView(
             ? channelHeader.shouldNotShowChannelId
             : channelHeader.channel.id
         : null;
-
-    const posts = useMemo(
-        () =>
-            channelHeader
-                ? new PostListWithChannelHeader(channelHeader, postsWithoutChannelHeader)
-                : postsWithoutChannelHeader,
-        [channelHeader, postsWithoutChannelHeader],
-    );
 
     // Always pin the post comment input to the bottom of the list view on mobile
     // layout of a single post. We use a heuristic of one post with always open
@@ -829,7 +829,9 @@ function PostListView(
             messageEditing.state.isEditing ||
             // Comments aren't expandable on mobile (unless we're in a post view) so don't
             // allow file dropping.
-            (platform === "mobile" && !isPostView),
+            (platform === "mobile" && !isPostView) ||
+            // Can't drop files while creating the channel.
+            (!channelHeader?.isOnlyNavigationBar && !!channelHeader?.isCreatingChannel),
         onDrop: event => {
             const view = assertExists(viewRef.current);
             const renderedRange = view.getRenderedRange();
@@ -887,6 +889,7 @@ function PostListView(
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = posts.getItem(index);
+
             switch (item.type) {
                 case "ChannelHeader": {
                     return {
@@ -917,7 +920,10 @@ function PostListView(
                                 >
                                     {hasNavigationBar && <Spacer space={navigationBarHeight} />}
                                     {!item.channelHeader.isOnlyNavigationBar && (
-                                        <ChannelViewHeader channelHeader={item.channelHeader} />
+                                        <ChannelViewHeader
+                                            channelHeader={item.channelHeader}
+                                            hasNoPosts={posts.getPostCount() === 0}
+                                        />
                                     )}
                                 </div>
                                 {hasAside && (

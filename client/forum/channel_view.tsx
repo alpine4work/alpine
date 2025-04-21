@@ -231,7 +231,7 @@ export function ChannelView({
             </Box>
         ),
         desktopMaxWidth:
-            routeLayout !== "narrow"
+            routeLayout !== "narrow" && posts.getPostCount() > 0
                 ? addRemLengths(contentStyles.contentMaxWidth, postListViewAsideMaxWidth)
                 : contentStyles.contentMaxWidth,
         // Create a bit of space to the left so we don't cut off the channel name
@@ -301,6 +301,7 @@ export function ChannelView({
         (): PostListChannelHeader & {isOnlyNavigationBar: false} => ({
             isOnlyNavigationBar: false,
             channel,
+            channelAndMetadataQuery,
             isCreatingChannel: false,
             isEditingDescription: isEditingDescriptionInline,
             onCancelDescriptionEditing: () => setIsEditingDescriptionInline(false),
@@ -317,7 +318,14 @@ export function ChannelView({
                 handleEventForChannel(event);
             },
         }),
-        [channel, channelId, context, handleEventForChannel, isEditingDescriptionInline],
+        [
+            channel,
+            channelAndMetadataQuery,
+            channelId,
+            context,
+            handleEventForChannel,
+            isEditingDescriptionInline,
+        ],
     );
 
     return (

@@ -11,6 +11,7 @@ import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_vi
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {MountainRoadAtSunriseIllustration} from "~/client/icons/illustrations/mountain_road_at_sunrise_illustration.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
@@ -23,6 +24,7 @@ import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
+import {ChannelContributorsModel} from "~/shared/forum/channel_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     MessageContent,
@@ -32,10 +34,25 @@ import {
 
 export function ChannelViewHeader({
     channelHeader,
+    hasNoPosts,
 }: {
     channelHeader: PostListChannelHeader & {isOnlyNavigationBar: false};
+    hasNoPosts: boolean;
 }) {
     const routeLayout = useRouteLayout();
+
+    let contributors: ChannelContributorsModel | null = null;
+
+    if (channelHeader.channelAndMetadataQuery) {
+        for (let i = 0; i < channelHeader.channelAndMetadataQuery.getItemCount(); i++) {
+            const item = channelHeader.channelAndMetadataQuery.getItem(i);
+
+            if (item.type === "Loaded" && item.item.model instanceof ChannelContributorsModel) {
+                contributors = item.item.model;
+                break;
+            }
+        }
+    }
 
     return (
         <>
@@ -66,7 +83,7 @@ export function ChannelViewHeader({
                     )}
                     <ChannelViewContributorsSection
                         channel={channelHeader.channel}
-                        contributors={null}
+                        contributors={contributors}
                         withoutTitle={true}
                     />
                 </Box>
@@ -81,6 +98,30 @@ export function ChannelViewHeader({
                     isCreatingChannel={channelHeader.isCreatingChannel}
                 />
             </Box>
+            {hasNoPosts && (
+                <Box
+                    height={routeLayout === "narrow" ? "96" : "128"}
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                >
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        justifyContent="center"
+                        alignItems="center"
+                        gap="2"
+                    >
+                        <Box width="64" color="grey-30">
+                            <MountainRoadAtSunriseIllustration strokeWidth={1.75} />
+                        </Box>
+                        <Box color="grey-40" fontSize="100" fontStyle="light" textAlign="center">
+                            Nothing here yet. Start a<br />
+                            conversation by creating a post
+                        </Box>
+                    </Box>
+                </Box>
+            )}
         </>
     );
 }

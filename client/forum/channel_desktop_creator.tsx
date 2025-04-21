@@ -96,6 +96,7 @@ export function ChannelDesktopCreator({
                 () => ({
                     isOnlyNavigationBar: false,
                     channel,
+                    channelAndMetadataQuery: null,
                     isCreatingChannel: true,
                     isEditingDescription: false,
                     onCancelDescriptionEditing: noop,
