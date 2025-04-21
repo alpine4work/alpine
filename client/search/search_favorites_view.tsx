@@ -16,7 +16,7 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 import {setInteractionModality} from "@react-aria/interactions";
-import {ArrowUp, Link as LinkIcon, Star} from "phosphor-react";
+import {DotsSixVertical, Link as LinkIcon} from "phosphor-react";
 import {
     Fragment,
     KeyboardEvent as SyntheticKeyboardEvent,
@@ -50,7 +50,6 @@ import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
 import {
-    searchFavoriteEntityIconColor,
     subscribeToUpdateSearchFavoriteEntityMenuAction,
     updateSearchFavoriteEntityMenuAction,
 } from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
@@ -62,21 +61,13 @@ import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     searchAffinityEntityViewMinHeightPx,
     searchEntityViewDefaultPaddingX,
-    searchEntityViewMediaSize,
-    searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
 import {
     colorSchemeVars,
     contentStyles,
     grey5SemiTransparentColorVar,
-    sprinkles,
 } from "~/client/styles/styles.js";
-import {
-    parseRemLength,
-    screenPaddingX,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/core/spacing.js";
+import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -97,13 +88,6 @@ import {
     searchShortcutFavoriteEntityMaxCount,
     searchShortcutFavoriteEntityMinCount,
 } from "~/shared/spaces/space_account_settings.js";
-
-const searchFavoriteEntitiesTitleStarIconSize = "5";
-const searchFavoriteEntitiesTitleStarMarginX = `${
-    (parseRemLength(searchEntityViewMediaSize) -
-        parseRemLength(searchFavoriteEntitiesTitleStarIconSize)) /
-    2
-}rem`;
 
 const screenPaddingXWithoutSearchEntityViewPaddingX = mapObjectValues(
     screenPaddingX,
@@ -388,31 +372,7 @@ export function SearchFavoritesView({
 
     return (
         <SpaceRouteScrollView
-            title={
-                platform === "mobile" ? (
-                    "Favorites"
-                ) : (
-                    // The spacing here is carefully constructed to align with
-                    // `<SearchEntityViewTitle>` on desktop. If `<SearchEntityViewTitle>` updates
-                    // then this will need to update too.
-                    <Box
-                        display="flex"
-                        alignItems="center"
-                        gap={searchEntityViewTitleTypeDisplayGap}
-                    >
-                        <Star
-                            size={spacing[searchFavoriteEntitiesTitleStarIconSize]}
-                            weight="fill"
-                            className={sprinkles({fill: searchFavoriteEntityIconColor})}
-                            style={{
-                                marginLeft: searchFavoriteEntitiesTitleStarMarginX,
-                                marginRight: searchFavoriteEntitiesTitleStarMarginX,
-                            }}
-                        />
-                        <Box>Favorites</Box>
-                    </Box>
-                )
-            }
+            title="Favorites"
             desktopTitleFontSize="400"
             desktopTitleFontWeight="bold"
             withoutDisappearingTitle={true}
@@ -426,7 +386,11 @@ export function SearchFavoritesView({
                     paddingX={screenPaddingX}
                     style={{height: searchAffinityEntityViewMinHeightPx[spacingScale] / 2}}
                 >
-                    <Box width="full" height="border" backgroundColor="grey-5" />
+                    <Box
+                        width="full"
+                        height="border"
+                        style={{backgroundColor: grey5SemiTransparentColorVar}}
+                    />
                 </Box>
                 <Box
                     style={{
@@ -468,17 +432,6 @@ export function SearchFavoritesView({
                         />
                     </DndContext>
                 </Box>
-                {shortcutFavoriteEntityCount < results.length && (
-                    <Box
-                        display="flex"
-                        flexDirection="column"
-                        justifyContent="flex-end"
-                        paddingX={screenPaddingX}
-                        style={{height: searchAffinityEntityViewMinHeightPx[spacingScale] / 2}}
-                    >
-                        <Box width="full" height="border" backgroundColor="grey-5" />
-                    </Box>
-                )}
             </Box>
         </SpaceRouteScrollView>
     );
@@ -928,7 +881,9 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                         onPointerCancel: () => setIsPointerDown(false),
                     })}
                     width="full"
-                    paddingY="3"
+                    paddingTop="4"
+                    paddingBottom="2"
+                    marginBottom="2"
                     cursor={isPointerDown ? "grabbing" : "grab"}
                     opacity={isDragging ? "0" : undefined}
                 >
@@ -959,7 +914,7 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                                     : "grey-40"
                             }
                         >
-                            Shortcuts <ArrowUp size={spacing["3"]} />
+                            Shortcuts <DotsSixVertical size={spacing["3"]} />
                         </Box>
                     </Box>
                     {platform === "mobile" && (isPointerDown || isDragOverlay) && (
