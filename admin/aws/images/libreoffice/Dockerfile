@@ -8,7 +8,6 @@
 # GitHub Runners. We arbitrarily picked `@debian_image` as the base image for
 # `AppService`, didn't consider other options, and have given each new service
 # the same base image.
-# GitHub Runners.
 FROM ubuntu@sha256:99c35190e22d294cdace2783ac55effc69d32896daaa265f0bbedbcde4fbe3e5
 
 # Use `--snapshot` to install a specific, immutable, version of `libreoffice`.
