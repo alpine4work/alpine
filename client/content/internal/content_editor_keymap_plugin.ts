@@ -21,6 +21,7 @@ import {
     TextSelection,
     Transaction,
 } from "prosemirror-state";
+import {liftTarget} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
@@ -133,6 +134,54 @@ export function buildContentEditorKeymapPlugin(
                 $from.node() === $to.node()
             ) {
                 return false;
+            }
+
+            // If we are inside an empty paragraph in a `quoteBlock` then we always want to
+            // use `lift()` not `split()`. `lift()` will make sure the empty paragraph is
+            // always lifted to the top level. By default if our cursor `|` is here:
+            //
+            // ```
+            // > foo
+            // > |
+            // > bar
+            // ```
+            //
+            // Then `liftEmptyBlock()` gives us this:
+            //
+            // ```
+            // > foo
+            //
+            // > |
+            // > bar
+            // ```
+            //
+            // Note that there's not an empty paragraph between the two quote blocks. It's
+            // two adjacent quote blocks. Instead we want this:
+            //
+            // ```
+            // > foo
+            //
+            // |
+            //
+            // > bar
+            // ```
+            //
+            // Under some conditions, the [`liftEmptyBlock` command will use the `split()`
+            // transform instead of the `lift()` transform][1]. Effectively we're making
+            // sure we always call the `lift()` branch of `liftEmptyBlock` in this case.
+            //
+            // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L342-L348
+            if (
+                $from.pos === $to.pos &&
+                node.type.name === "paragraph" &&
+                parentNode.type.name === "quoteBlock" &&
+                node.childCount === 0
+            ) {
+                const range = $from.blockRange();
+                const target = range && liftTarget(range);
+                if (range === null || target === null) return false;
+                if (dispatch) dispatch(state.tr.lift(range, target).scrollIntoView());
+                return true;
             }
 
             return liftEmptyBlock(state, dispatch);
@@ -273,14 +322,14 @@ export function buildContentEditorKeymapPlugin(
                 // cursor:
                 //
                 // ```
-                //     test|
+                // 1    test|
                 // ```
                 //
                 // Hitting enter should give us:
                 //
                 // ```
-                //     test
-                //     |
+                // 1    test
+                // 2    |
                 // ```
                 return splitBlockWithCodeBlockLineLeadingIndentation(state, dispatch);
             } else {

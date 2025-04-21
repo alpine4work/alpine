@@ -877,7 +877,7 @@ test("pressing enter in a quote will create a new wrapped paragraph", async () =
     );
 });
 
-test("pressing enter in a quote's empty paragraph will exit the quote", async () => {
+test("pressing enter in a quote's empty paragraph at the end of a quote will exit the quote", async () => {
     render(<TestContentEditor />);
 
     await simulateTyping("> ");
@@ -890,6 +890,52 @@ test("pressing enter in a quote's empty paragraph will exit the quote", async ()
 
     fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
     expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph("hello")), paragraph)');
+});
+
+test("pressing enter in a quote's empty paragraph at the beginning of a quote will exit the quote", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    expect(getSelection()).toEqual({type: "text", anchor: 2, head: 2});
+    await simulateTyping("hello");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("world");
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(2), state.doc.resolve(7))),
+    );
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(quoteBlock(paragraph, paragraph("world")))');
+    expect(getSelection()).toEqual({type: "text", anchor: 2, head: 2});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual('doc(paragraph, quoteBlock(paragraph("world")))');
+});
+
+test("pressing enter in a quote's empty paragraph in the middle of a quote will exit the quote", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("> ");
+    await simulateTyping("hello");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getSelection()).toEqual({type: "text", anchor: 9, head: 9});
+    await simulateTyping("good");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    await simulateTyping("world");
+    dispatch(state =>
+        state.tr.setSelection(new TextSelection(state.doc.resolve(9), state.doc.resolve(13))),
+    );
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("hello"), paragraph, paragraph("world")))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 9, head: 9});
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual(
+        'doc(quoteBlock(paragraph("hello")), paragraph, quoteBlock(paragraph("world")))',
+    );
 });
 
 test("pressing enter in an empty bullet list item will exit the item", async () => {
