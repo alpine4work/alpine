@@ -88,6 +88,7 @@ import {
     printContentSingleLineTextSnippetPreservingMarks,
 } from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
@@ -310,6 +311,18 @@ export async function deploySearchEntityIndexes(tracer: TracerBase, client: Open
         client.deployIndex(tracer, SearchEntityKeywordIndex),
         client.deployIndex(tracer, SearchEntityEmbeddingChunkIndex),
     ]);
+}
+
+/**
+ * Manually refresh the search entity keyword index in tests. This means any
+ * changes to the index will be available when searching.
+ */
+export function refreshSearchEntityKeywordIndexForTest(
+    context: Context<{tracer: TracerContextModule; opensearch: OpensearchContextModule}>,
+) {
+    assert(import.meta.jest);
+
+    return context.opensearch.refresh(SearchEntityKeywordIndex);
 }
 
 /**

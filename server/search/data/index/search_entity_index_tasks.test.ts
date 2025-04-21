@@ -9,6 +9,7 @@ import {
     processIndexSearchEntityDependentsJobTestCounter,
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
+    refreshSearchEntityKeywordIndexForTest,
     searchByKeywords,
     searchTaskCollectionsByAffinity,
     searchTaskCollectionsByKeywords,
@@ -16,7 +17,6 @@ import {
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {refreshTaskCollectionIndexForTest} from "~/server/tasks/data/task_index.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -1947,7 +1947,7 @@ test("effective task collection name fuzzy searching", async () => {
     }
 
     await ProcessContextModule.waitForTestTasks();
-    await refreshTaskCollectionIndexForTest(context);
+    await refreshSearchEntityKeywordIndexForTest(context);
 
     const testSearch = async (queryText: string) => {
         const results = await searchTaskCollectionsByKeywords(session.action(), {
@@ -2178,7 +2178,7 @@ test("excludes collections account doesn't have access to when searching", async
     await collection10.delete(session1);
 
     await ProcessContextModule.waitForTestTasks();
-    await refreshTaskCollectionIndexForTest(context);
+    await refreshSearchEntityKeywordIndexForTest(context);
 
     const testSearch = async (session: TestSpaceSession, limit: number) => {
         const results = await searchTaskCollectionsByKeywords(session.action(), {
