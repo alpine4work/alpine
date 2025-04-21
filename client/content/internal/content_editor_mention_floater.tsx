@@ -37,7 +37,8 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
@@ -51,6 +52,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -79,6 +81,7 @@ export function ContentEditorMentionFloater({
     onCloseWithAnimation: () => void;
 }) {
     const platform = usePlatform();
+    const {space} = useSpaceContext();
 
     const overlayRef = useRef<OverlayRef>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -112,7 +115,8 @@ export function ContentEditorMentionFloater({
     }, [isClosing, onCloseWithoutAnimation]);
 
     const accountStore = useAccountClientStore();
-    const allAccounts = useExpensivelyLoadAllSpaceAccounts();
+    const allAccounts = useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output
+        ?.accounts;
 
     const allAccountDatas = useStore(
         useMemo(
