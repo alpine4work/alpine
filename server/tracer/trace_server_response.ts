@@ -165,7 +165,7 @@ export function startTracerSpanFromPropagationContextHeader(
             data: propagationContext.data,
         });
     } catch (error) {
-        tracer.getRoot().logUncaughtException("Invalid trace propagation context", error);
+        tracer.getRoot().logException("Invalid trace propagation context", error);
         return tracer.startSpan(name);
     }
 }

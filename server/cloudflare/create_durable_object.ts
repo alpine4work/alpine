@@ -196,7 +196,7 @@ export function createDurableObject<
                     waitUntil: promise =>
                         this._state.waitUntil(
                             promise.catch(error => {
-                                this._tracer.logUncaughtException(
+                                this._tracer.logException(
                                     "Uncaught exception from `waitUntil()`",
                                     error,
                                 );

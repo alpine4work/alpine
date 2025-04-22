@@ -310,7 +310,7 @@ export default function Root() {
                 return;
             }
 
-            context.tracer.getRoot().logUncaughtException(
+            context.tracer.getRoot().logException(
                 "Uncaught exception",
                 event.error ?? new UnknownError(event.message),
                 {},

@@ -108,10 +108,7 @@ export class TaskRealtimeClient {
                 } else {
                     this._getContext()
                         .tracer.getRoot()
-                        .logUncaughtException(
-                            "Uncaught exception from task client store",
-                            options.error,
-                        );
+                        .logException("Uncaught exception from task client store", options.error);
                 }
             },
         });
@@ -595,7 +592,7 @@ export class TaskRealtimeClient {
                         if (!hasCaughtError) {
                             this._getContext()
                                 .tracer.getRoot()
-                                .logUncaughtException("Task realtime subscribe call failed", error);
+                                .logException("Task realtime subscribe call failed", error);
                         }
                     });
                 });
@@ -714,7 +711,7 @@ export class TaskRealtimeClient {
                                     // continue cleaning up.
                                     this._getContext()
                                         .tracer.getRoot()
-                                        .logUncaughtException(
+                                        .logException(
                                             "Task client store cleanup query subscription failed",
                                             error,
                                         );
@@ -729,7 +726,7 @@ export class TaskRealtimeClient {
                                     // continue cleaning up.
                                     this._getContext()
                                         .tracer.getRoot()
-                                        .logUncaughtException(
+                                        .logException(
                                             "Task client store cleanup task subscription failed",
                                             error,
                                         );
@@ -746,7 +743,7 @@ export class TaskRealtimeClient {
                                     // continue cleaning up.
                                     this._getContext()
                                         .tracer.getRoot()
-                                        .logUncaughtException(
+                                        .logException(
                                             "Task client store cleanup collection subscription failed",
                                             error,
                                         );
@@ -759,7 +756,7 @@ export class TaskRealtimeClient {
                         // uncaught exception that's not presented to the user.
                         this._getContext()
                             .tracer.getRoot()
-                            .logUncaughtException("Task realtime unsubscribe call failed", error);
+                            .logException("Task realtime unsubscribe call failed", error);
                     });
             }
         };
@@ -839,10 +836,7 @@ export class TaskRealtimeClient {
                     if (!subscriptionsStore.getSnapshot().queries.has(query)) {
                         this._getContext()
                             .tracer.getRoot()
-                            .logUncaughtException(
-                                "Task realtime load more tasks call failed",
-                                error,
-                            );
+                            .logException("Task realtime load more tasks call failed", error);
                         return;
                     }
 

@@ -224,7 +224,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         // exceptions and instead log the exception with our tracer.
         process.off("uncaughtException", handleUncaughtExceptionBeforeTracerInitialization);
         process.on("uncaughtException", error => {
-            tracer.logUncaughtException("Uncaught exception", error);
+            tracer.logException("Uncaught exception", error);
         });
 
         try {

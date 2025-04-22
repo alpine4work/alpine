@@ -919,7 +919,7 @@ export class JobQueueConsumer<
                 this._processContext.tracer
                     .getTracer()
                     .getRoot()
-                    .logUncaughtException("Job parsing failed", error);
+                    .logException("Job parsing failed", error);
             }
 
             throw error;

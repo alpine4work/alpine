@@ -63,7 +63,7 @@ async function main() {
             </AppContextProvider>,
             {
                 onRecoverableError: error => {
-                    tracer.logUncaughtException("Recoverable React error", error);
+                    tracer.logException("Recoverable React error", error);
                 },
             },
         );

@@ -330,10 +330,7 @@ export class WebSocketClient<Protocol extends WebSocketProtocolBase> {
                 if (wasSoftClosed) {
                     this._getContext()
                         .tracer.getRoot()
-                        .logUncaughtException(
-                            "WebSocket closed with error after soft close",
-                            error,
-                        );
+                        .logException("WebSocket closed with error after soft close", error);
                 }
             });
         };

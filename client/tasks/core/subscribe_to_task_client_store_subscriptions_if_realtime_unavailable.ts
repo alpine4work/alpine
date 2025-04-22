@@ -130,7 +130,7 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                         // continue cleaning up.
                         getContext()
                             .tracer.getRoot()
-                            .logUncaughtException(
+                            .logException(
                                 "Task client store cleanup query subscription failed",
                                 error,
                             );
@@ -152,7 +152,7 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                             // continue cleaning up.
                             getContext()
                                 .tracer.getRoot()
-                                .logUncaughtException(
+                                .logException(
                                     "Task client store cleanup task subscription failed",
                                     error,
                                 );
@@ -175,7 +175,7 @@ export function subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable(
                             // continue cleaning up.
                             getContext()
                                 .tracer.getRoot()
-                                .logUncaughtException(
+                                .logException(
                                     "Task client store cleanup task collection subscription failed",
                                     error,
                                 );

@@ -131,4 +131,13 @@ export abstract class TracerBase {
      * good span name.
      */
     public abstract log(name: string, data?: TracerEventData): void;
+
+    /**
+     * Add a structured exception log event to this span.
+     *
+     * Uses `this.log()` but with exception event attributes.
+     *
+     * See `TracerBase.log` for how to name this event.
+     */
+    public abstract logException(name: string, error: unknown, data?: TracerEventData): void;
 }

@@ -223,7 +223,7 @@ export class ApnsConnection {
         if (this._startClosePromiseResolver.isSettled()) {
             this._processContext.tracer
                 .getRoot()
-                .logUncaughtException("Already closed APNs connection", error, {
+                .logException("Already closed APNs connection", error, {
                     apns: {connectionId: this._id},
                 });
             return;

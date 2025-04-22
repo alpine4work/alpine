@@ -269,9 +269,7 @@ export function useDynamoGeneralRealtimeItemBase<Model>(
                 });
             },
             error => {
-                context.tracer
-                    .getRoot()
-                    .logUncaughtException("Failed to reload realtime item", error);
+                context.tracer.getRoot().logException("Failed to reload realtime item", error);
             },
         );
     }, [context.tracer, item.key, isConnected, reloadItemWithStrongReadConsistency, onUpdateItem]);

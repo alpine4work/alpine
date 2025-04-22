@@ -471,15 +471,13 @@ export default function SpaceLayoutRoute() {
                             error => {
                                 context.tracer
                                     .getRoot()
-                                    .logUncaughtException("Couldn't save iOS device token", error);
+                                    .logException("Couldn't save iOS device token", error);
                             },
                         );
                     }
                 },
                 error => {
-                    context.tracer
-                        .getRoot()
-                        .logUncaughtException("Couldn't take iOS device tokens", error);
+                    context.tracer.getRoot().logException("Couldn't take iOS device tokens", error);
                 },
             );
         };

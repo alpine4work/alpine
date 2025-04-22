@@ -137,7 +137,7 @@ function actuallyCreateStandardizedRequestListener(
         } catch (error) {
             // The server should try its best to handle errors and provide a relevant error
             // response. However, as a fallback treat any errors as uncaught exceptions.
-            tracer.logUncaughtException("Unhandled error during request", error);
+            tracer.logException("Unhandled error during request", error);
 
             handleUnhandledError(error);
         }
@@ -252,7 +252,7 @@ export function createStandardizedServer<Route>(
     const server = createServer(requestListener);
 
     server.on("error", error => {
-        tracer.logUncaughtException("Uncaught exception from HTTP server", error);
+        tracer.logException("Uncaught exception from HTTP server", error);
     });
 
     registerGracefulServerShutdown(shutdownManager, server);
@@ -317,7 +317,7 @@ export function createStandardizedServerWithWebSockets<Route>(
     });
 
     webSocketServer.on("error", error => {
-        tracer.logUncaughtException("Uncaught exception from WebSocket server", error);
+        tracer.logException("Uncaught exception from WebSocket server", error);
     });
 
     const restrictedWebSocketUpgradeHeaders = ["upgrade", "connection", "sec-websocket-accept"];

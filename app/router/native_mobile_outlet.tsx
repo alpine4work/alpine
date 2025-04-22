@@ -105,7 +105,7 @@ export function NativeMobileOutlet({
                     return () => {};
                 },
                 navigate: async () => {
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError("Can't navigate in an inert route"),
                     );
@@ -116,7 +116,7 @@ export function NativeMobileOutlet({
                     // instead of `useLazyLoadRpc()`. Maybe if revalidate is called we should hold
                     // it until the user pops back. I have no intention of supporting this use case
                     // but we could add in the future.
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError("Can't fetch in an inert route"),
                     );
@@ -126,7 +126,7 @@ export function NativeMobileOutlet({
                     // e.g. Polling? Maybe if revalidate is called we should hold it until the user
                     // pops back. I have no intention of supporting this use case but we could add
                     // in the future.
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError("Can't revalidate in an inert route"),
                     );
@@ -144,26 +144,26 @@ export function NativeMobileOutlet({
                         return;
                     }
 
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError("Can't delete fetcher in an inert route"),
                     );
                 },
                 getBlocker: () => {
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError("Can't get blocker in an inert route"),
                     );
                     return IDLE_BLOCKER;
                 },
                 deleteBlocker: () => {
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError("Can't delete blocker in an inert route"),
                     );
                 },
                 _internalSetRoutes: () => {
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError("Can't call `_internalSetRoutes` in an inert route"),
                     );
@@ -171,7 +171,7 @@ export function NativeMobileOutlet({
                 _internalFetchControllers: new Map(),
                 _internalActiveDeferreds: new Map(),
                 unstable_unsafelyRestoreNavigation: async () => {
-                    tracer.logUncaughtException(
+                    tracer.logException(
                         "Inert route activity",
                         new InternalError(
                             "Can't call `unstable_unsafelyRestoreNavigation` in an inert route",

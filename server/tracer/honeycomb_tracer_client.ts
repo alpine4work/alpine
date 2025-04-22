@@ -109,7 +109,7 @@ export class HoneycombTracerClient {
                             await response.json();
                         for (const eventResponse of eventResponses) {
                             if (eventResponse.status >= 400) {
-                                this._tracer.logUncaughtException(
+                                this._tracer.logException(
                                     "Failed to send event to Honeycomb",
                                     new DataLossError(
                                         `Failed to send event to Honeycomb${

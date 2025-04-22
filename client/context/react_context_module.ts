@@ -33,7 +33,7 @@ export class ReactContextModule extends ContextModuleBase<{tracer: TracerContext
                 // log. The trace will always point to our error message renderer which
                 // isn't useful.
                 scheduleMicrotask(() => {
-                    tracer.getRoot().logUncaughtException("Rendered error", error);
+                    tracer.getRoot().logException("Rendered error", error);
                 });
             },
         });

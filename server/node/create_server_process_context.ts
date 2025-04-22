@@ -52,7 +52,7 @@ export function createServerProcessContext({
             waitUntil: promise => {
                 shutdownManager.registerWaitUntilPromise(
                     promise.catch(error => {
-                        tracer.logUncaughtException("Uncaught exception from `waitUntil()`", error);
+                        tracer.logException("Uncaught exception from `waitUntil()`", error);
                     }),
                 );
             },

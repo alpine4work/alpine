@@ -459,7 +459,7 @@ export class FileClientStore {
                             // retry any idempotent RPCs until they succeed.
                             getContext()
                                 .tracer.getRoot()
-                                .logUncaughtException(
+                                .logException(
                                     "Couldn't refresh expired file preview URL signature",
                                     error,
                                 );
@@ -549,7 +549,7 @@ export class FileClientStore {
                             // retry any idempotent RPCs until they succeed.
                             getContext()
                                 .tracer.getRoot()
-                                .logUncaughtException(
+                                .logException(
                                     "Polling for file that hasn't finished loading failed",
                                     error,
                                 );

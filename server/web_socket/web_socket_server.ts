@@ -888,7 +888,7 @@ class WebSocketServerConnectionWrapper<
                 } catch (error) {
                     this._processContext.tracer
                         .getRoot()
-                        .logUncaughtException("Invalid WebSocket message", error);
+                        .logException("Invalid WebSocket message", error);
                     return;
                 }
 
@@ -914,7 +914,7 @@ class WebSocketServerConnectionWrapper<
                     } catch (error) {
                         this._processContext.tracer
                             .getRoot()
-                            .logUncaughtException("Invalid trace propagation context", error);
+                            .logException("Invalid trace propagation context", error);
 
                         ({span, finishSpan} = this._processContext.tracer
                             .getRoot()

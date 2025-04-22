@@ -193,7 +193,7 @@ export async function run({
     );
 
     server.on("error", error => {
-        tracer.logUncaughtException("Uncaught exception from HTTP server", error);
+        tracer.logException("Uncaught exception from HTTP server", error);
     });
 
     registerGracefulServerShutdown(shutdownManager, server);
@@ -335,10 +335,7 @@ export async function run({
         bazelDevSocket.on("error", error => {
             if (isShuttingDown) return;
 
-            tracer.logUncaughtException(
-                "Uncaught exception from Bazel dev server WebSocket",
-                error,
-            );
+            tracer.logException("Uncaught exception from Bazel dev server WebSocket", error);
 
             bazelBuildPromiseResolver?.reject(error);
             bazelBuildPromiseResolver = null;
@@ -353,10 +350,7 @@ export async function run({
                 }`,
             );
 
-            tracer.logUncaughtException(
-                "Uncaught exception from Bazel dev server WebSocket",
-                error,
-            );
+            tracer.logException("Uncaught exception from Bazel dev server WebSocket", error);
 
             bazelBuildPromiseResolver?.reject(error);
             bazelBuildPromiseResolver = null;

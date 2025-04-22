@@ -402,7 +402,7 @@ export function ReporterContextProvider({children}: {children?: ReactNode}) {
             },
 
             logErrorWithoutDisplaying: (context, title, error) => {
-                context.tracer.getRoot().logUncaughtException(title, error);
+                context.tracer.getRoot().logException(title, error);
             },
 
             showInfoToast: (context, message, options) => {
