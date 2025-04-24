@@ -2193,6 +2193,7 @@ async function sendPushNotificationToAccountDevices(
             const entryPath = getInboxEntryKeyPath(
                 newInboxEntryItem.spaceId,
                 getInboxEntryKey(newInboxEntryItem),
+                "narrow",
             );
 
             await runAllPromises(
@@ -2637,7 +2638,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
 >({
     getSubscribers: async (context, event) => {
         const {spaceId, accountIds} = await getChatAccountIds(context, event.chatId, {
-            consistency: "StrongWithinCache",
+            consistency: "Strong",
         });
         return {
             info: {spaceId, accountIds},
@@ -2863,7 +2864,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
         const {accountIds, postCreatedTime} = await getPostNotificationSubscribers(
             context,
             event.postId,
-            {consistency: "StrongWithinCache"},
+            {consistency: "Strong"},
         );
         return {
             info: {postCreatedTime},
@@ -3168,7 +3169,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
             documentId: event.documentId,
             commentThreadId: event.commentThreadId,
             isFirstComment: event.commentIndex === 0,
-            consistency: "StrongWithinCache",
+            consistency: "Strong",
         });
 
         return {
@@ -3430,7 +3431,7 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
 >({
     getSubscribers: async (context, event) => {
         const {accountIds} = await getTaskNotificationSubscribers(context, event.taskId, {
-            consistency: "StrongWithinCache",
+            consistency: "Strong",
         });
         return {
             info: {},

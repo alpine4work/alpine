@@ -1,3 +1,4 @@
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -70,7 +71,11 @@ export const InboxEntryKeySchema = Schema.union({
     Task: InboxTaskEntryKeySchema,
 });
 
-export function getInboxEntryKeyPath(spaceId: SpaceId, key: InboxEntryKey): string {
+export function getInboxEntryKeyPath(
+    spaceId: SpaceId,
+    key: InboxEntryKey,
+    routeLayout: RouteLayout,
+): string {
     switch (key.type) {
         case "Chat":
             return `/s/${spaceId}/chat/${key.chatId}?inbox=show`;
@@ -82,15 +87,23 @@ export function getInboxEntryKeyPath(spaceId: SpaceId, key: InboxEntryKey): stri
             return `/s/${spaceId}/documents/${key.documentId}/comments/${key.commentThreadId}?inbox=show`;
         case "DocumentNewCommentThreads":
             return `/s/${spaceId}/notifications/document-comment-threads/${key.documentId}-${key.bucketGeneration}?inbox=show`;
-        case "Task":
-            return `/s/${spaceId}/tasks/${key.taskId}/comments?inbox=show`;
+        case "Task": {
+            if (routeLayout === "wide") {
+                return `/s/${spaceId}/tasks/${key.taskId}?inbox=show&comments=show`;
+            } else {
+                return `/s/${spaceId}/tasks/${key.taskId}/comments?inbox=show`;
+            }
+        }
         default:
             throw exhaustive(key);
     }
 }
 
-export function getInboxEntryPath(model: InboxEntryModelInterface): string {
-    return getInboxEntryKeyPath(model.spaceId, model.getKey());
+export function getInboxEntryPath(
+    model: InboxEntryModelInterface,
+    routeLayout: RouteLayout,
+): string {
+    return getInboxEntryKeyPath(model.spaceId, model.getKey(), routeLayout);
 }
 
 interface InboxEntryModelInterface {

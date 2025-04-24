@@ -29,6 +29,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
@@ -259,11 +260,23 @@ export function TaskRealtimeClientContextProvider({
             });
 
             // Initialize `TaskClientStore` with initial loader data. After initialization,
-            // task routes must have a `clientLoader` that calls
+            // `app_client_routes.ts` will update client loaders so they call
             // `clientLoaderTaskStoreLoaderData()` to make sure their data gets into the
             // store before React renders.
             for (const loaderData of Object.values(dataRouterStateContext.loaderData)) {
                 loadTaskDataIntoClient(client, loaderData);
+
+                // If this is the inbox route (`s.$spaceId.inbox`) then check `peekData` for
+                // any task loader data we need to load into our store. Since before
+                // initialization in `app_client_routes.ts` won't have loaded task data into
+                // the store.
+                if (isObject(loaderData.peekData)) {
+                    for (const peekLoaderData of Object.values<any>(
+                        loaderData.peekData.hydrationData.loaderData,
+                    )) {
+                        loadTaskDataIntoClient(client, peekLoaderData);
+                    }
+                }
             }
 
             return client;

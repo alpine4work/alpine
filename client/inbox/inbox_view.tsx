@@ -26,6 +26,7 @@ import {
     PeekSwitcherStatePeekBase,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {
@@ -55,6 +56,8 @@ export function InboxView({
     initialPeekData: {spacePath: string; hydrationData: HydrationState} | null;
     onPeekChange: (peek: PeekSwitcherStatePeekBase<{key: DynamoItemKey | null}> | null) => void;
 }) {
+    const routeLayout = useRouteLayout();
+
     const {query, tryLoadingMore, itemsDeletedByLastChangeForAnimation} = useInboxState({
         filter,
         initialEntriesResult,
@@ -75,14 +78,14 @@ export function InboxView({
             for (let i = 0; i < itemCount; i++) {
                 const item = query.getItem(i);
                 if (item.type === "Loaded") {
-                    if (getInboxEntryPath(item.item.model) === spacePath) {
+                    if (getInboxEntryPath(item.item.model, routeLayout) === spacePath) {
                         return item.item.key;
                     }
                 }
             }
             return null;
         },
-        [query],
+        [query, routeLayout],
     );
 
     const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
@@ -187,11 +190,11 @@ export function InboxView({
             if (selectedEntryKey === entry.key) return Promise.resolve();
 
             return switchPeek({
-                spacePath: getInboxEntryPath(entry.model),
+                spacePath: getInboxEntryPath(entry.model, routeLayout),
                 extra: {key: entry.key},
             });
         },
-        [selectedEntryKey, switchPeek],
+        [routeLayout, selectedEntryKey, switchPeek],
     );
 
     const navigation = useMemo(

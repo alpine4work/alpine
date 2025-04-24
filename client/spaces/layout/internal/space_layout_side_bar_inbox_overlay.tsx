@@ -201,7 +201,7 @@ function SpaceLayoutSideBarInboxOverlayExpandButton({
                 // Optimization: Since we know the first inbox entry we can include it in the
                 // URL so our backend can load data it in parallel.
                 const firstItem = entriesRef.current?.getFirstItemIfExists();
-                const firstItemPath = firstItem ? getInboxEntryPath(firstItem.model) : null;
+                const firstItemPath = firstItem ? getInboxEntryPath(firstItem.model, "wide") : null;
                 if (firstItemPath) {
                     // base64 encode the initial path to hide the fact that it's a URL.
                     const textEncoder = new TextEncoder();
@@ -433,7 +433,7 @@ function SpaceLayoutTopBarInboxOverlayEntry({
                 if (isPending) return;
                 setIsPending(true);
 
-                peekStackContext.push(getInboxEntryPath(entry.model)).then(
+                peekStackContext.push(getInboxEntryPath(entry.model, "narrow")).then(
                     () => {
                         setIsPending(false);
                         onClose();

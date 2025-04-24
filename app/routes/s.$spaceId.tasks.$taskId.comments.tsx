@@ -191,6 +191,7 @@ export default function TaskCommentsRoute() {
                         },
                     ]}
                     titleJustifyContent={platform !== "mobile" ? "flex-start" : "center"}
+                    desktopMaxWidth={contentStyles.contentMaxWidth}
                 />
                 <Box
                     pointerEvents="none"

@@ -12,7 +12,15 @@ export function useRouteLayout(): RouteLayout {
     const platform = usePlatform();
     const peekContext = usePeekContext();
 
-    return peekContext?.layout ?? (platform === "mobile" ? "narrow" : "wide");
+    return peekContext?.layout ?? getDefaultRouteLayoutForPlatform(platform);
+}
+
+/**
+ * Get the default `RouteLayout` for the platform. Assuming we're not rendering
+ * in a peek.
+ */
+export function getDefaultRouteLayoutForPlatform(platform: Platform): RouteLayout {
+    return platform === "mobile" ? "narrow" : "wide";
 }
 
 export type PlatformRouteLayout = "mobileNarrow" | "desktopNarrow" | "desktopWide";

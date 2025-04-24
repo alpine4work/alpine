@@ -313,7 +313,7 @@ function InboxMobileEntryView({
                 if (isPending) return;
                 setIsPending(true);
 
-                navigate(getInboxEntryPath(entry.model)).finally(() => {
+                navigate(getInboxEntryPath(entry.model, "narrow")).finally(() => {
                     setIsPending(false);
                 });
             }}

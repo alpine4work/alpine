@@ -13,6 +13,7 @@ import {InboxMobileView} from "~/client/inbox/inbox_mobile_view.js";
 import {InboxView} from "~/client/inbox/inbox_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderPlatform, usePlatform} from "~/client/remix/platform_context.js";
+import {getDefaultRouteLayoutForPlatform} from "~/client/remix/route_layout_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
@@ -106,7 +107,12 @@ export async function loader({params, context, request, serverRoutes: routes}: L
                   context,
                   request,
                   peekRoutes,
-                  resolvePath(getInboxEntryPath(entriesResult.items[0]!.model)),
+                  resolvePath(
+                      getInboxEntryPath(
+                          entriesResult.items[0]!.model,
+                          getDefaultRouteLayoutForPlatform(platform),
+                      ),
+                  ),
               )
             : peekDataFromSelectedParam;
 
@@ -185,7 +191,9 @@ function InboxRoute() {
                                     textEncoder.encode(
                                         peek.initialSpacePath
                                             .replace(/^(\/s\/[^/]+\/)/, "")
-                                            .replace(/[?&]inbox=show/, ""),
+                                            .replace(/&inbox=show(&|$)/, "$1")
+                                            .replace(/\?inbox=show&/, "?")
+                                            .replace(/\?inbox=show$/, ""),
                                     ),
                                     "Rfc4648Url",
                                 );
