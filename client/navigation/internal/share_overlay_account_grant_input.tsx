@@ -3,7 +3,18 @@ import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass} from "phosphor-react";
-import {KeyboardEvent, RefObject, createRef, useEffect, useMemo, useRef, useState} from "react";
+import {
+    KeyboardEvent,
+    Ref,
+    RefObject,
+    createRef,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
 import {flushSync} from "react-dom";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
@@ -65,19 +76,30 @@ type ShareOverlayAccountGrantInputItem = {
 
 let isClosingComboBox = false;
 
-export function ShareOverlayAccountGrantInput({
-    accountGrantById,
-    onAccessPolicyChange,
-    allAccounts,
-    accountById,
-    isAltKeyDown,
-}: {
-    accountGrantById: AccessPolicy["accountGrantById"];
-    onAccessPolicyChange: (action: AccessPolicyAction) => void;
-    allAccounts: ReadonlyArray<AccountModel>;
-    accountById: ReadonlyMap<AccountId, AccountModel>;
-    isAltKeyDown: boolean;
-}) {
+export type ShareOverlayAccountGrantInputRef = {
+    isComboBoxOpen(): boolean;
+    closeComboBox(): void;
+};
+
+const ShareOverlayAccountGrantInputForwardRef = forwardRef(ShareOverlayAccountGrantInput);
+export {ShareOverlayAccountGrantInputForwardRef as ShareOverlayAccountGrantInput};
+
+function ShareOverlayAccountGrantInput(
+    {
+        accountGrantById,
+        onAccessPolicyChange,
+        allAccounts,
+        accountById,
+        isAltKeyDown,
+    }: {
+        accountGrantById: AccessPolicy["accountGrantById"];
+        onAccessPolicyChange: (action: AccessPolicyAction) => void;
+        allAccounts: ReadonlyArray<AccountModel>;
+        accountById: ReadonlyMap<AccountId, AccountModel>;
+        isAltKeyDown: boolean;
+    },
+    ref: Ref<ShareOverlayAccountGrantInputRef>,
+) {
     const context = useAppContext();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -238,6 +260,22 @@ export function ShareOverlayAccountGrantInput({
     };
 
     const comboBoxState = useComboBoxState(comboBoxProps);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            isComboBoxOpen: () => comboBoxState.isOpen,
+            closeComboBox: () => {
+                // Animate closing the combobox from an component component. If a parent
+                // component wants to close our combobox it's unlikely that action is the
+                // result of a direct user interaction so we'll want to animate.
+                setDisableAnimationOut(false);
+
+                comboBoxState.close();
+            },
+        }),
+        [comboBoxState],
+    );
 
     const {labelProps, inputProps, listBoxProps} = useComboBox(
         {

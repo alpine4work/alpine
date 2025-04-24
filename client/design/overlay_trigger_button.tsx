@@ -113,6 +113,7 @@ function OverlayTriggerButton(
         onActuallyVisibleChange,
         onOverlayEscapeGlobalKeyDown,
         onOverlayTabGlobalKeyDown,
+        onOverlayOutsidePress,
     }: {
         /**
          * The overlay element the trigger will render. Must provide a ref to an
@@ -207,6 +208,12 @@ function OverlayTriggerButton(
          * prevent the default `<OverlayTriggerButton>` behavior on tab key down.
          */
         onOverlayTabGlobalKeyDown?: (event: KeyboardEvent) => void | {allowDefault: boolean};
+
+        /**
+         * Called when the user presses outside the overlay. Allows you to prevent
+         * closing the overlay on outside press.
+         */
+        onOverlayOutsidePress?: () => void | {preventDefault: boolean};
     },
     ref: Ref<OverlayTriggerButtonRef>,
 ) {
@@ -529,6 +536,9 @@ function OverlayTriggerButton(
 
         if (overlayTriggerElement?.contains(targetElement)) return;
         if (overlayElement?.contains(targetElement)) return;
+
+        const result = onOverlayOutsidePress?.();
+        if (result?.preventDefault) return;
 
         // Courtesy blur call if the focused element is in the overlay. Useful on
         // mobile Safari since if the focused element is removed from the DOM there

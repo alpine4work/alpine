@@ -1,12 +1,14 @@
+import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
-import {ShareOverlay} from "~/client/navigation/internal/share_overlay.js";
+import {ShareOverlay, ShareOverlayRef} from "~/client/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/navigation/internal/use_share_state.js";
 import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
@@ -24,6 +26,8 @@ export function ShareButton({
     onCopyLink: () => MaybePromise<void>;
 }) {
     const {currentAccount, space} = useSpaceContext();
+
+    const overlayRef = useRef<ShareOverlayRef>(null);
 
     // We need all accounts when the `<ShareOverlay>` is open so preload
     // them now.
@@ -46,6 +50,7 @@ export function ShareButton({
                 overlay={({isVisible, onCloseWithoutAnimation}) => (
                     <Box paddingX="3">
                         <ShareOverlay
+                            ref={overlayRef}
                             id={overlayId}
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={changeAccessPolicy}
@@ -72,6 +77,17 @@ export function ShareButton({
                     // Don't close the overlay when tab is pressed. Tab is needed to navigate
                     // internally within the share overlay.
                     return {allowDefault: true};
+                }}
+                onOverlayOutsidePress={() => {
+                    const overlay = assertExists(overlayRef.current);
+
+                    // If the share overlay's account grant input combobox is open and the user
+                    // clicks outside of the overlay, instead of closing the entire overlay just
+                    // close the combobox. A second click will close the overlay too.
+                    if (overlay.isAccountGrantInputComboBoxOpen()) {
+                        overlay.closeAccountGrantInputComboBox();
+                        return {preventDefault: true};
+                    }
                 }}
             >
                 <Button

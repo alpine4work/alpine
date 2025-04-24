@@ -1,5 +1,5 @@
 import {CaretDown, Globe, Link as LinkIcon} from "phosphor-react";
-import {useEffect, useMemo, useState} from "react";
+import {Ref, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {FocusScope} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
@@ -17,7 +17,10 @@ import {
     noAccessLevelText,
     removeAccessLevelText,
 } from "~/client/navigation/internal/access_level_text.js";
-import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
+import {
+    ShareOverlayAccountGrantInput,
+    ShareOverlayAccountGrantInputRef,
+} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
@@ -40,6 +43,7 @@ import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {RemLength, Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -51,26 +55,54 @@ import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definition
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
-export function ShareOverlay({
-    id,
-    accessPolicy,
-    onAccessPolicyChange,
-    isVisible,
-    isReadOnly,
-    onCopyLink,
-    onCloseWithoutAnimation,
-}: {
-    id: string;
-    accessPolicy: AccessPolicy;
-    onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => void;
-    isVisible: boolean;
-    isReadOnly: boolean;
-    onCopyLink: () => MaybePromise<void>;
-    onCloseWithoutAnimation: () => void;
-}) {
+export type ShareOverlayRef = {
+    isAccountGrantInputComboBoxOpen(): boolean;
+    closeAccountGrantInputComboBox(): void;
+};
+
+const ShareOverlayForwardRef = forwardRef(ShareOverlay);
+export {ShareOverlayForwardRef as ShareOverlay};
+
+function ShareOverlay(
+    {
+        id,
+        accessPolicy,
+        onAccessPolicyChange,
+        isVisible,
+        isReadOnly,
+        onCopyLink,
+        onCloseWithoutAnimation,
+    }: {
+        id: string;
+        accessPolicy: AccessPolicy;
+        onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => void;
+        isVisible: boolean;
+        isReadOnly: boolean;
+        onCopyLink: () => MaybePromise<void>;
+        onCloseWithoutAnimation: () => void;
+    },
+    ref: Ref<ShareOverlayRef>,
+) {
     const {space} = useSpaceContext();
 
     const hasAccountGrantInput = !isReadOnly;
+
+    const accountGrantInputRef = useRef<ShareOverlayAccountGrantInputRef>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            isAccountGrantInputComboBoxOpen: () => {
+                if (!hasAccountGrantInput) return false;
+                return assertExists(accountGrantInputRef.current).isComboBoxOpen();
+            },
+            closeAccountGrantInputComboBox: () => {
+                if (!hasAccountGrantInput) return;
+                assertExists(accountGrantInputRef.current).closeComboBox();
+            },
+        }),
+        [hasAccountGrantInput],
+    );
 
     const allAccounts =
         useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output?.accounts ??
@@ -143,6 +175,7 @@ export function ShareOverlay({
                     {hasAccountGrantInput && (
                         <Box position="relative" zIndex="10" paddingX="5">
                             <ShareOverlayAccountGrantInput
+                                ref={accountGrantInputRef}
                                 accountGrantById={accessPolicy.accountGrantById}
                                 onAccessPolicyChange={onAccessPolicyChange}
                                 allAccounts={allAccounts}
