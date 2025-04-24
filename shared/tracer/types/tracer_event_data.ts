@@ -1011,6 +1011,9 @@ export type TracerEventData = {
          */
         readonly serverlessCollectionType?: string;
 
+        /** Routing key for the document. */
+        readonly routing?: string;
+
         /**
          * A JSON string representation of a search's query. User data in the query is
          * replaced with `_`.
@@ -1024,6 +1027,20 @@ export type TracerEventData = {
         readonly get?: {
             /** Was the document found? */
             readonly found?: boolean;
+
+            /** ID of the document. */
+            readonly id?: string;
+
+            /**
+             * The document's `_seq_no` property used for optimistic concurrency control.
+             */
+            readonly seqNo?: number;
+
+            /**
+             * The document's `_primary_term` property used for optimistic concurrency
+             * control.
+             */
+            readonly primaryTerm?: number;
         };
 
         /** Information regarding an OpenSearch multi-get document request. */
@@ -1031,14 +1048,103 @@ export type TracerEventData = {
             /** How many documents were requested? */
             readonly count?: number;
 
+            /**
+             * The routing keys for the requested documents joined by commas. Only present
+             * if there's not one singular routing value for all the documents we're
+             * loading.
+             */
+            readonly routings?: string;
+
+            /** IDs of the documents. */
+            readonly ids?: string;
+
             /** How many documents were found? */
             readonly foundCount?: number;
+
+            /**
+             * The `_seq_no` property of the returned documents joined by commas.
+             */
+            readonly seqNos?: string;
+
+            /**
+             * The `_primary_term` property of the returned documents joined by commas.
+             */
+            readonly primaryTerms?: string;
+        };
+
+        /** Information regarding an OpenSearch index request. */
+        readonly index?: {
+            /** ID of the document. */
+            readonly id?: string;
+
+            /**
+             * If we're using optimistic concurrency control, the `_seq_no` property of the
+             * document must match or else we'll reject the update.
+             */
+            readonly ifSeqNo?: number;
+
+            /**
+             * If we're using optimistic concurrency control, the `_primary_term` property of
+             * the document must match or else we'll reject the update.
+             */
+            readonly ifPrimaryTerm?: number;
+
+            /**
+             * The document's new `_seq_no` property used for optimistic concurrency
+             * control.
+             */
+            readonly seqNo?: number;
+
+            /**
+             * The document's new `_primary_term` property used for optimistic concurrency
+             * control.
+             */
+            readonly primaryTerm?: number;
         };
 
         /** Information regarding an OpenSearch bulk request. */
         readonly bulk?: {
             /** How many bulk operations were made? */
             readonly count?: number;
+
+            /**
+             * The routing keys for the requested documents joined by commas. Only present
+             * if there's not one singular routing value for all the documents we're
+             * loading.
+             */
+            readonly routings?: string;
+
+            /** IDs of the documents. */
+            readonly ids?: string;
+
+            /** The actions from the bulk update separated by commas. */
+            readonly actions?: string;
+
+            /**
+             * If we're using optimistic concurrency control, the `_seq_no` property of the
+             * command must match or else we'll reject the update (null if there is no
+             * `_seq_no`).
+             */
+            readonly ifSeqNos?: string;
+
+            /**
+             * If we're using optimistic concurrency control, the `_primary_term` property of
+             * the command must match or else we'll reject the update (null if there is no
+             * `_primary_term`).
+             */
+            readonly ifPrimaryTerms?: string;
+
+            /**
+             * The document's new `_seq_no` property used for optimistic concurrency
+             * control.
+             */
+            readonly seqNos?: string;
+
+            /**
+             * The document's new `_primary_term` property used for optimistic concurrency
+             * control.
+             */
+            readonly primaryTerms?: string;
         };
 
         /** Information regarding an OpenSearch search request. */

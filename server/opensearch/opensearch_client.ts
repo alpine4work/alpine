@@ -1276,7 +1276,11 @@ export class OpensearchClient implements OpensearchClientInterface {
             },
             async (response, span) => {
                 span.addData({
-                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                    opensearch: {
+                        serverlessCollectionType: index.serverlessCollectionType,
+                        routing,
+                        get: {id},
+                    },
                 });
 
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
@@ -1287,14 +1291,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                     | {error: OpensearchError}
                     | ({
                           error?: undefined;
-                          _seq_no: number;
-                          _primary_term: number;
                       } & (
-                          | {found: false}
+                          | {
+                                found: false;
+                                _seq_no?: undefined;
+                                _primary_term?: undefined;
+                            }
                           | {
                                 found: true;
                                 _id: string;
                                 _source: JsonValue;
+                                _seq_no: number;
+                                _primary_term: number;
                             }
                       )) = await response.json();
 
@@ -1305,7 +1313,15 @@ export class OpensearchClient implements OpensearchClientInterface {
                     );
                 }
 
-                span.addData({opensearch: {get: {found: body.found}}});
+                span.addData({
+                    opensearch: {
+                        get: {
+                            found: body.found,
+                            seqNo: body._seq_no,
+                            primaryTerm: body._primary_term,
+                        },
+                    },
+                });
 
                 return body;
             },
@@ -1373,7 +1389,11 @@ export class OpensearchClient implements OpensearchClientInterface {
             },
             async (response, span) => {
                 span.addData({
-                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                    opensearch: {
+                        serverlessCollectionType: index.serverlessCollectionType,
+                        routing,
+                        get: {id},
+                    },
                 });
 
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
@@ -1384,14 +1404,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                     | {error: OpensearchError}
                     | ({
                           error?: undefined;
-                          _seq_no: number;
-                          _primary_term: number;
                       } & (
-                          | {found: false}
+                          | {
+                                found: false;
+                                _seq_no?: undefined;
+                                _primary_term?: undefined;
+                            }
                           | {
                                 found: true;
                                 _id: string;
                                 _routing: string;
+                                _seq_no: number;
+                                _primary_term: number;
                                 fields?: {[key: string]: Array<JsonValue>};
                             }
                       )) = await response.json();
@@ -1403,7 +1427,15 @@ export class OpensearchClient implements OpensearchClientInterface {
                     );
                 }
 
-                span.addData({opensearch: {get: {found: body.found}}});
+                span.addData({
+                    opensearch: {
+                        get: {
+                            found: body.found,
+                            seqNo: body._seq_no,
+                            primaryTerm: body._primary_term,
+                        },
+                    },
+                });
 
                 return body;
             },
@@ -1554,7 +1586,15 @@ export class OpensearchClient implements OpensearchClientInterface {
                 span.addData({
                     opensearch: {
                         serverlessCollectionType: serverlessCollectionType!,
-                        mget: {count: commands.length},
+                        routing: singularRouting ?? undefined,
+                        mget: {
+                            count: commands.length,
+                            routings:
+                                singularRouting !== null
+                                    ? commands.map(command => command.routing).join(", ")
+                                    : undefined,
+                            ids: commands.map(command => command.id).join(", "),
+                        },
                     },
                 });
 
@@ -1570,12 +1610,17 @@ export class OpensearchClient implements OpensearchClientInterface {
                               {
                                   _index: string;
                                   _id: string;
-                                  _seq_no: number;
-                                  _primary_term: number;
                               } & (
-                                  | {found?: false; error?: OpensearchError}
+                                  | {
+                                        found?: false;
+                                        _seq_no?: undefined;
+                                        _primary_term?: undefined;
+                                        error?: OpensearchError;
+                                    }
                                   | {
                                         found: true;
+                                        _seq_no: number;
+                                        _primary_term: number;
                                         _source?: JsonValue;
                                         fields?: {[key: string]: Array<JsonValue>};
                                     }
@@ -1593,6 +1638,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 }
 
                 let foundCount = 0;
+                const spanSeqNos: Array<number> = [];
+                const spanPrimaryTerms: Array<number> = [];
 
                 for (const bodyDoc of body.docs) {
                     if (!bodyDoc.found) {
@@ -1608,9 +1655,22 @@ export class OpensearchClient implements OpensearchClientInterface {
                     }
 
                     foundCount++;
+                    spanSeqNos.push(bodyDoc._seq_no);
+                    spanPrimaryTerms.push(bodyDoc._primary_term);
                 }
 
-                span.addData({opensearch: {mget: {foundCount}}});
+                span.addData({
+                    opensearch: {
+                        mget: {
+                            foundCount,
+                            // TODO(calebmer): I don't think it's guaranteed that `body.docs` will be in
+                            // the same order as the `ids` we passed in. Ideally we would make sure these
+                            // arrays are in the same order as the input `ids`.
+                            seqNos: spanSeqNos.join(", "),
+                            primaryTerms: spanPrimaryTerms.join(", "),
+                        },
+                    },
+                });
 
                 return body;
             },
@@ -1721,7 +1781,15 @@ export class OpensearchClient implements OpensearchClientInterface {
             },
             async (response, span) => {
                 span.addData({
-                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
+                    opensearch: {
+                        serverlessCollectionType: index.serverlessCollectionType,
+                        routing,
+                        index: {
+                            id: doc.id,
+                            ifSeqNo: doc.version ? doc.version.sequenceNumber : undefined,
+                            ifPrimaryTerm: doc.version ? doc.version.primaryTerm : undefined,
+                        },
+                    },
                 });
 
                 // NOTE(#opensearch-important-json-disclaimer): This response only contains
@@ -1742,6 +1810,15 @@ export class OpensearchClient implements OpensearchClientInterface {
                         {cause: body.error},
                     );
                 }
+
+                span.addData({
+                    opensearch: {
+                        index: {
+                            seqNo: body._seq_no,
+                            primaryTerm: body._primary_term,
+                        },
+                    },
+                });
 
                 return body;
             },
@@ -1818,6 +1895,9 @@ export class OpensearchClient implements OpensearchClientInterface {
         }
 
         const bulkBody: Array<JsonValue> = [];
+        const spanActions: Array<string> = [];
+        const spanIfSeqNos: Array<number | null> = [];
+        const spanIfPrimaryTerms: Array<number | null> = [];
 
         for (const command of commands) {
             const {action, ifSequenceNumber, ifPrimaryTerm, body} = command.serialize();
@@ -1835,6 +1915,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             if (body !== null) {
                 bulkBody.push(body);
             }
+
+            spanActions.push(action);
+            spanIfSeqNos.push(ifSequenceNumber ?? null);
+            spanIfPrimaryTerms.push(ifPrimaryTerm ?? null);
         }
 
         // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
@@ -1872,7 +1956,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                 span.addData({
                     opensearch: {
                         serverlessCollectionType: serverlessCollectionType!,
-                        bulk: {count: bulkBody.length},
+                        routing: singularRouting ?? undefined,
+                        bulk: {
+                            count: bulkBody.length,
+                            routings:
+                                singularRouting === null
+                                    ? commands.map(command => command.routing).join(", ")
+                                    : undefined,
+                            ids: commands.map(command => command.id).join(", "),
+                            actions: spanActions.join(", "),
+                            ifSeqNos: spanIfSeqNos.join(", "),
+                            ifPrimaryTerms: spanIfPrimaryTerms.join(", "),
+                        },
                     },
                 });
 
@@ -1884,10 +1979,26 @@ export class OpensearchClient implements OpensearchClientInterface {
                           error?: undefined;
                           errors: boolean;
                           items: Array<{
-                              create?: {error?: OpensearchError};
-                              update?: {error?: OpensearchError};
-                              delete?: {error?: OpensearchError};
-                              index?: {error?: OpensearchError};
+                              create?: {
+                                  error?: OpensearchError;
+                                  _seq_no?: number;
+                                  _primary_term?: number;
+                              };
+                              update?: {
+                                  error?: OpensearchError;
+                                  _seq_no?: number;
+                                  _primary_term?: number;
+                              };
+                              delete?: {
+                                  error?: OpensearchError;
+                                  _seq_no?: number;
+                                  _primary_term?: number;
+                              };
+                              index?: {
+                                  error?: OpensearchError;
+                                  _seq_no?: number;
+                                  _primary_term?: number;
+                              };
                           }>;
                       } = await response.json();
 
@@ -1933,6 +2044,28 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                     throw error;
                 }
+
+                const spanSeqNos: Array<number | null> = [];
+                const spanPrimaryTerms: Array<number | null> = [];
+
+                for (const item of body.items) {
+                    const actualItem = item.create ?? item.update ?? item.delete ?? item.index;
+
+                    spanSeqNos.push(actualItem?._seq_no ?? null);
+                    spanPrimaryTerms.push(actualItem?._primary_term ?? null);
+                }
+
+                span.addData({
+                    opensearch: {
+                        bulk: {
+                            // TODO(calebmer): I don't think it's guaranteed that `body.items` will be in
+                            // the same order as the `commands` we passed in. Ideally we would make sure
+                            // these arrays are in the same order as the input `commands`.
+                            seqNos: spanSeqNos.join(", "),
+                            primaryTerms: spanPrimaryTerms.join(", "),
+                        },
+                    },
+                });
 
                 return null;
             },
@@ -2053,6 +2186,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 span.addData({
                     opensearch: {
                         serverlessCollectionType: index.serverlessCollectionType,
+                        routing,
                         query: getOpensearchQueryClauseDescription(query),
                         sort: JSON.stringify(sort),
                     },
