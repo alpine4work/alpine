@@ -43,6 +43,7 @@ import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_
 import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {
     FilePostAuthorizer,
+    getChannelNotificationSubscribers,
     getChannelPreview,
     getPost,
     getPostAndInitialComments,
@@ -3032,20 +3033,12 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
     {}
 >({
     getSubscribers: async (context, event) => {
-        // TODO(calebmer): For now, until we implement channel subscriptions, every
-        // account gets a notification for any new post in every channel. When we have
-        // channel subscriptions, a mention should deliver a notification regardless of
-        // whether the mentioned user is in the channel.
-        const accounts = await expensivelyGetAllSpaceAccounts(
-            // Ok to read space accounts with eventual consistency. Creating a post won't
-            // also add an account to the space.
-            context.dynamo.unexpectStrongReadConsistency(),
-            event.spaceId,
-        );
-
+        const accountIds = await getChannelNotificationSubscribers(context, event.channelId, {
+            consistency: "Strong",
+        });
         return {
             info: {},
-            accountIds: accounts.map(account => account.id),
+            accountIds,
         };
     },
     updateInboxEntry: async (context, event, {info: {}, accountId}) => {

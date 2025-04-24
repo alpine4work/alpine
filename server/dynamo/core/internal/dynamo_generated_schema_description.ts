@@ -5579,6 +5579,32 @@ export const dynamoGeneratedSchemaDescription: {
                                     }
                                 }
                             }
+                        },
+                        "Subscription": {
+                            "id": 1,
+                            "orderKey": "a1",
+                            "sortKeyAttributeByKey": {
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "createdTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    }
+                                }
+                            }
                         }
                     }
                 },

@@ -80,6 +80,7 @@
         "@react-aria/ssr": "3.8.0",
         "@react-aria/utils": "3.21.0",
         "@react-stately/collections": "3.10.2",
+        "@react-stately/combobox": "3.7.1",
         "@react-stately/selection": "3.14.0",
         "@react-types/shared": "3.21.0",
         "@remix-run/dev": "2.9.2",

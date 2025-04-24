@@ -113,15 +113,20 @@ export const backfillChannelAndMetadata = defineRpc({
     },
 });
 
-export const getChannelContributors = defineRpc({
-    name: "getChannelContributors",
+export const subscribeToChannel = defineRpc({
+    name: "subscribeToChannel",
     input: {
         channelId: Schema.id<ChannelId>(),
-        limit: Schema.integer,
     },
-    output: {
-        contributors: Schema.array(AccountModel.schema),
+    output: {},
+});
+
+export const unsubscribeFromChannel = defineRpc({
+    name: "unsubscribeFromChannel",
+    input: {
+        channelId: Schema.id<ChannelId>(),
     },
+    output: {},
 });
 
 export const getChannelPosts = defineRpc({

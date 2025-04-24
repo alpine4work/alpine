@@ -13,12 +13,13 @@ import {
     deletePostComment,
     getChannel,
     getChannelAndMetadata,
-    getChannelContributors,
     getChannelPosts,
     getPost,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    subscribeToChannel,
+    unsubscribeFromChannel,
     updateChannelDescription,
     updateChannelName,
     updateChannelNameAndDescription,
@@ -88,21 +89,27 @@ export default implementRpcs(definitions, {
         },
     },
 
+    subscribeToChannel: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await subscribeToChannel(context.actor.authorizeSession(), input.channelId);
+            return {};
+        },
+    },
+
+    unsubscribeFromChannel: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await unsubscribeFromChannel(context.actor.authorizeSession(), input.channelId);
+            return {};
+        },
+    },
+
     backfillChannelAndMetadata: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const backfillChannelResult = await backfillChannelAndMetadata(context, input);
             return {backfillChannelResult};
-        },
-    },
-
-    getChannelContributors: {
-        visibility: ["AppClient"],
-        execute: async (context, input) => {
-            const contributors = await getChannelContributors(context, input.channelId, {
-                limit: input.limit,
-            });
-            return {contributors};
         },
     },
 
