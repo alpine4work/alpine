@@ -14,10 +14,48 @@ index bda672225f076be7fc7350f01e11a35d84ba167a..d3b553e3db679bb5982854b5240adf7b
  /**
   * Memory history stores the current location in memory. It is designed for use
 diff --git a/dist/router.cjs.js b/dist/router.cjs.js
-index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee491c3b274 100644
+index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..e5b2d633aa64cd3f8ce4fffa364658dcd86af14d 100644
 --- a/dist/router.cjs.js
 +++ b/dist/router.cjs.js
-@@ -125,6 +125,11 @@ function createMemoryHistory(options) {
+@@ -27,6 +27,37 @@ function _extends() {
+   return _extends.apply(this, arguments);
+ }
+ 
++// NOTE(calebmer): Better `Promise.all()` implementation that waits for all
++// promises to finish even if one of the promises rejected. This is a simpler
++// version of our `runAllPromises()` helper that doesn't aggregate errors.
++// 
++// We need to wait for all promises to resolve when running an HTTP request
++// because otherwise we'll call `context.destroy()` prematurely while other
++// promises are waiting to complete!
++// 
++// Adding this since I'm observing "Context was already destroyed" errors in
++// production and my hypothesis is it's because an `await Promise.all()` in
++// Remix is causing us to exit prematurely ([task with screenshots of example
++// trace][1]).
++//
++// Replacing all `Promise.all()` calls in this package with this function.
++//
++// [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/811cn4d4nj0g5gst552a32wk90
++async function betterPromiseAll(promises) {
++  const values = [];
++
++  const results = await Promise.allSettled(promises);
++
++  for (const result of results) {
++    if (result.status === "rejected") {
++      throw result.reason;
++    }
++    values.push(result.value);
++  }
++
++  return values;
++}
++
+ ////////////////////////////////////////////////////////////////////////////////
+ //#region Types and Constants
+ ////////////////////////////////////////////////////////////////////////////////
+@@ -125,6 +156,11 @@ function createMemoryHistory(options) {
      get index() {
        return index;
      },
@@ -29,7 +67,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
      get action() {
        return action;
      },
-@@ -1308,9 +1313,16 @@ const json = function json(data, init) {
+@@ -1308,9 +1344,16 @@ const json = function json(data, init) {
    if (!headers.has("Content-Type")) {
      headers.set("Content-Type", "application/json; charset=utf-8");
    }
@@ -47,7 +85,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -2104,6 +2116,76 @@ function createRouter(init) {
+@@ -2104,6 +2147,76 @@ function createRouter(init) {
      cancelledFetcherLoads = [];
    }
  
@@ -124,7 +162,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -2177,7 +2259,8 @@ function createRouter(init) {
+@@ -2177,7 +2290,8 @@ function createRouter(init) {
        preventScrollReset,
        replace: opts && opts.replace,
        enableViewTransition: opts && opts.unstable_viewTransition,
@@ -134,7 +172,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
      });
    }
  
-@@ -2247,6 +2330,30 @@ function createRouter(init) {
+@@ -2247,6 +2361,30 @@ function createRouter(init) {
        } = getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -165,7 +203,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
        completeNavigation(location, {
          matches: notFoundMatches,
          loaderData: {},
-@@ -2265,7 +2372,33 @@ function createRouter(init) {
+@@ -2265,7 +2403,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -200,7 +238,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
        completeNavigation(location, {
          matches
        }, {
-@@ -2314,6 +2447,24 @@ function createRouter(init) {
+@@ -2314,6 +2478,24 @@ function createRouter(init) {
        return;
      }
  
@@ -225,7 +263,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -2428,6 +2579,24 @@ function createRouter(init) {
+@@ -2428,6 +2610,24 @@ function createRouter(init) {
  
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -250,7 +288,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(location, _extends({
          matches,
-@@ -2777,6 +2946,31 @@ function createRouter(init) {
+@@ -2777,6 +2977,31 @@ function createRouter(init) {
      if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -282,7 +320,34 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
        completeNavigation(state.navigation.location, {
          matches,
          loaderData,
-@@ -3291,7 +3485,8 @@ function createRouter(init) {
+@@ -2964,7 +3189,7 @@ function createRouter(init) {
+   async function callDataStrategy(type, request, matchesToLoad, matches) {
+     try {
+       let results = await callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties);
+-      return await Promise.all(results.map((result, i) => {
++      return await betterPromiseAll(results.map((result, i) => {
+         if (isRedirectHandlerResult(result)) {
+           let response = result.result;
+           return {
+@@ -2984,7 +3209,7 @@ function createRouter(init) {
+     }
+   }
+   async function callLoadersAndMaybeResolveData(currentMatches, matches, matchesToLoad, fetchersToLoad, request) {
+-    let [loaderResults, ...fetcherResults] = await Promise.all([matchesToLoad.length ? callDataStrategy("loader", request, matchesToLoad, matches) : [], ...fetchersToLoad.map(f => {
++    let [loaderResults, ...fetcherResults] = await betterPromiseAll([matchesToLoad.length ? callDataStrategy("loader", request, matchesToLoad, matches) : [], ...fetchersToLoad.map(f => {
+       if (f.matches && f.match && f.controller) {
+         let fetcherRequest = createClientSideRequest(init.history, f.path, f.controller.signal);
+         return callDataStrategy("loader", fetcherRequest, [f.match], f.matches).then(r => r[0]);
+@@ -2997,7 +3222,7 @@ function createRouter(init) {
+         });
+       }
+     })]);
+-    await Promise.all([resolveDeferredResults(currentMatches, matchesToLoad, loaderResults, loaderResults.map(() => request.signal), false, state.loaderData), resolveDeferredResults(currentMatches, fetchersToLoad.map(f => f.match), fetcherResults, fetchersToLoad.map(f => f.controller ? f.controller.signal : null), true)]);
++    await betterPromiseAll([resolveDeferredResults(currentMatches, matchesToLoad, loaderResults, loaderResults.map(() => request.signal), false, state.loaderData), resolveDeferredResults(currentMatches, fetchersToLoad.map(f => f.match), fetcherResults, fetchersToLoad.map(f => f.controller ? f.controller.signal : null), true)]);
+     return {
+       loaderResults,
+       fetcherResults
+@@ -3291,7 +3516,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
@@ -292,7 +357,34 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
    };
    return router;
  }
-@@ -4326,7 +4521,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
+@@ -3701,7 +3927,7 @@ function createStaticHandler(routes, opts) {
+   // pass around the manifest, mapRouteProperties, etc.
+   async function callDataStrategy(type, request, matchesToLoad, matches, isRouteRequest, requestContext, unstable_dataStrategy) {
+     let results = await callDataStrategyImpl(unstable_dataStrategy || defaultDataStrategy, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext);
+-    return await Promise.all(results.map((result, i) => {
++    return await betterPromiseAll(results.map((result, i) => {
+       if (isRedirectHandlerResult(result)) {
+         let response = result.result;
+         // Throw redirects and let the server handle them with an HTTP redirect
+@@ -4158,7 +4384,7 @@ async function loadLazyRouteModule(route, mapRouteProperties, manifest) {
+ 
+ // Default implementation of `dataStrategy` which fetches all loaders in parallel
+ function defaultDataStrategy(opts) {
+-  return Promise.all(opts.matches.map(m => m.resolve()));
++  return betterPromiseAll(opts.matches.map(m => m.resolve()));
+ }
+ async function callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext) {
+   let routeIdsToLoad = matchesToLoad.reduce((acc, m) => acc.add(m.route.id), new Set());
+@@ -4248,7 +4474,7 @@ async function callLoaderOrAction(type, request, match, manifest, mapRouteProper
+       if (handler) {
+         // Run statically defined handler in parallel with lazy()
+         let handlerError;
+-        let [value] = await Promise.all([
++        let [value] = await betterPromiseAll([
+         // If the handler throws, don't let it immediately bubble out,
+         // since we need to let the lazy() execution finish so we know if this
+         // route has a boundary that can handle the error
+@@ -4326,7 +4552,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
          if (result.body == null) {
            data = null;
          } else {
@@ -304,7 +396,7 @@ index 7c5abbb2f2c314912921298c6101e1fe0e0bebbf..a542ad58180b184d34e781017339fee4
          }
        } else {
          data = await result.text();
-@@ -5017,4 +5215,4 @@ exports.redirectDocument = redirectDocument;
+@@ -5017,4 +5246,4 @@ exports.redirectDocument = redirectDocument;
  exports.resolvePath = resolvePath;
  exports.resolveTo = resolveTo;
  exports.stripBasename = stripBasename;
@@ -357,10 +449,48 @@ index f9c6cadf4a97ca40f80f8a379098249c21b9232f..7a6b9d68739cae1b14b073d7f4e646bc
  type BaseSubmissionOptions = {
      formMethod?: HTMLFormMethod;
 diff --git a/dist/router.js b/dist/router.js
-index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d93cd9390 100644
+index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..fb306f7fb35b21f62a7961037a45d38d45fbadf2 100644
 --- a/dist/router.js
 +++ b/dist/router.js
-@@ -91,6 +91,11 @@ function createMemoryHistory(options) {
+@@ -23,6 +23,37 @@ function _extends() {
+   return _extends.apply(this, arguments);
+ }
+ 
++// NOTE(calebmer): Better `Promise.all()` implementation that waits for all
++// promises to finish even if one of the promises rejected. This is a simpler
++// version of our `runAllPromises()` helper that doesn't aggregate errors.
++// 
++// We need to wait for all promises to resolve when running an HTTP request
++// because otherwise we'll call `context.destroy()` prematurely while other
++// promises are waiting to complete!
++// 
++// Adding this since I'm observing "Context was already destroyed" errors in
++// production and my hypothesis is it's because an `await Promise.all()` in
++// Remix is causing us to exit prematurely ([task with screenshots of example
++// trace][1]).
++//
++// Replacing all `Promise.all()` calls in this package with this function.
++//
++// [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/811cn4d4nj0g5gst552a32wk90
++async function betterPromiseAll(promises) {
++  const values = [];
++
++  const results = await Promise.allSettled(promises);
++
++  for (const result of results) {
++    if (result.status === "rejected") {
++      throw result.reason;
++    }
++    values.push(result.value);
++  }
++
++  return values;
++}
++
+ ////////////////////////////////////////////////////////////////////////////////
+ //#region Types and Constants
+ ////////////////////////////////////////////////////////////////////////////////
+@@ -91,6 +122,11 @@ function createMemoryHistory(options) {
      get index() {
        return index;
      },
@@ -372,7 +502,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
      get action() {
        return action;
      },
-@@ -1040,9 +1045,16 @@ const json = function json(data, init) {
+@@ -1040,9 +1076,16 @@ const json = function json(data, init) {
    if (!headers.has("Content-Type")) {
      headers.set("Content-Type", "application/json; charset=utf-8");
    }
@@ -390,7 +520,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -1717,6 +1729,75 @@ function createRouter(init) {
+@@ -1717,6 +1760,75 @@ function createRouter(init) {
      cancelledDeferredRoutes = [];
      cancelledFetcherLoads = [];
    }
@@ -466,7 +596,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1789,7 +1870,8 @@ function createRouter(init) {
+@@ -1789,7 +1901,8 @@ function createRouter(init) {
        preventScrollReset,
        replace: opts && opts.replace,
        enableViewTransition: opts && opts.unstable_viewTransition,
@@ -476,7 +606,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
      });
    }
    // Revalidate all current loaders.  If a navigation is in progress or if this
-@@ -1852,6 +1934,30 @@ function createRouter(init) {
+@@ -1852,6 +1965,30 @@ function createRouter(init) {
        } = getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -507,7 +637,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
        completeNavigation(location, {
          matches: notFoundMatches,
          loaderData: {},
-@@ -1869,7 +1975,33 @@ function createRouter(init) {
+@@ -1869,7 +2006,33 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -542,7 +672,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
        completeNavigation(location, {
          matches
        }, {
-@@ -1914,6 +2046,25 @@ function createRouter(init) {
+@@ -1914,6 +2077,25 @@ function createRouter(init) {
      if (shortCircuited) {
        return;
      }
@@ -568,7 +698,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -2020,6 +2171,24 @@ function createRouter(init) {
+@@ -2020,6 +2202,24 @@ function createRouter(init) {
      pendingNavigationLoadId = ++incrementingLoadId;
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -593,7 +723,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(location, _extends({
          matches,
-@@ -2350,6 +2519,31 @@ function createRouter(init) {
+@@ -2350,6 +2550,31 @@ function createRouter(init) {
      if (state.navigation.state === "loading" && loadId > pendingNavigationLoadId) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -625,7 +755,34 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
        completeNavigation(state.navigation.location, {
          matches,
          loaderData,
-@@ -2843,7 +3037,8 @@ function createRouter(init) {
+@@ -2524,7 +2749,7 @@ function createRouter(init) {
+   async function callDataStrategy(type, request, matchesToLoad, matches) {
+     try {
+       let results = await callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties);
+-      return await Promise.all(results.map((result, i) => {
++      return await betterPromiseAll(results.map((result, i) => {
+         if (isRedirectHandlerResult(result)) {
+           let response = result.result;
+           return {
+@@ -2544,7 +2769,7 @@ function createRouter(init) {
+     }
+   }
+   async function callLoadersAndMaybeResolveData(currentMatches, matches, matchesToLoad, fetchersToLoad, request) {
+-    let [loaderResults, ...fetcherResults] = await Promise.all([matchesToLoad.length ? callDataStrategy("loader", request, matchesToLoad, matches) : [], ...fetchersToLoad.map(f => {
++    let [loaderResults, ...fetcherResults] = await betterPromiseAll([matchesToLoad.length ? callDataStrategy("loader", request, matchesToLoad, matches) : [], ...fetchersToLoad.map(f => {
+       if (f.matches && f.match && f.controller) {
+         let fetcherRequest = createClientSideRequest(init.history, f.path, f.controller.signal);
+         return callDataStrategy("loader", fetcherRequest, [f.match], f.matches).then(r => r[0]);
+@@ -2557,7 +2782,7 @@ function createRouter(init) {
+         });
+       }
+     })]);
+-    await Promise.all([resolveDeferredResults(currentMatches, matchesToLoad, loaderResults, loaderResults.map(() => request.signal), false, state.loaderData), resolveDeferredResults(currentMatches, fetchersToLoad.map(f => f.match), fetcherResults, fetchersToLoad.map(f => f.controller ? f.controller.signal : null), true)]);
++    await betterPromiseAll([resolveDeferredResults(currentMatches, matchesToLoad, loaderResults, loaderResults.map(() => request.signal), false, state.loaderData), resolveDeferredResults(currentMatches, fetchersToLoad.map(f => f.match), fetcherResults, fetchersToLoad.map(f => f.controller ? f.controller.signal : null), true)]);
+     return {
+       loaderResults,
+       fetcherResults
+@@ -2843,7 +3068,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
@@ -635,7 +792,34 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
    };
    return router;
  }
-@@ -3828,7 +4023,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
+@@ -3233,7 +3459,7 @@ function createStaticHandler(routes, opts) {
+   // pass around the manifest, mapRouteProperties, etc.
+   async function callDataStrategy(type, request, matchesToLoad, matches, isRouteRequest, requestContext, unstable_dataStrategy) {
+     let results = await callDataStrategyImpl(unstable_dataStrategy || defaultDataStrategy, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext);
+-    return await Promise.all(results.map((result, i) => {
++    return await betterPromiseAll(results.map((result, i) => {
+       if (isRedirectHandlerResult(result)) {
+         let response = result.result;
+         // Throw redirects and let the server handle them with an HTTP redirect
+@@ -3664,7 +3890,7 @@ async function loadLazyRouteModule(route, mapRouteProperties, manifest) {
+ }
+ // Default implementation of `dataStrategy` which fetches all loaders in parallel
+ function defaultDataStrategy(opts) {
+-  return Promise.all(opts.matches.map(m => m.resolve()));
++  return betterPromiseAll(opts.matches.map(m => m.resolve()));
+ }
+ async function callDataStrategyImpl(dataStrategyImpl, type, request, matchesToLoad, matches, manifest, mapRouteProperties, requestContext) {
+   let routeIdsToLoad = matchesToLoad.reduce((acc, m) => acc.add(m.route.id), new Set());
+@@ -3750,7 +3976,7 @@ async function callLoaderOrAction(type, request, match, manifest, mapRouteProper
+       if (handler) {
+         // Run statically defined handler in parallel with lazy()
+         let handlerError;
+-        let [value] = await Promise.all([
++        let [value] = await betterPromiseAll([
+         // If the handler throws, don't let it immediately bubble out,
+         // since we need to let the lazy() execution finish so we know if this
+         // route has a boundary that can handle the error
+@@ -3828,7 +4054,10 @@ async function convertHandlerResultToDataResult(handlerResult) {
          if (result.body == null) {
            data = null;
          } else {
@@ -647,7 +831,7 @@ index d70796d05dfc1dc4a790e67ac49c858e5f9daefe..9d625d713c9bec20d544245e6cda556d
          }
        } else {
          data = await result.text();
-@@ -4472,4 +4670,4 @@ function persistAppliedTransitions(_window, transitions) {
+@@ -4472,4 +4701,4 @@ function persistAppliedTransitions(_window, transitions) {
  //#endregion
  
  export { AbortedDeferredError, Action, IDLE_BLOCKER, IDLE_FETCHER, IDLE_NAVIGATION, UNSAFE_DEFERRED_SYMBOL, DeferredData as UNSAFE_DeferredData, ErrorResponseImpl as UNSAFE_ErrorResponseImpl, convertRouteMatchToUiMatch as UNSAFE_convertRouteMatchToUiMatch, convertRoutesToDataRoutes as UNSAFE_convertRoutesToDataRoutes, getResolveToMatches as UNSAFE_getResolveToMatches, invariant as UNSAFE_invariant, warning as UNSAFE_warning, createBrowserHistory, createHashHistory, createMemoryHistory, createPath, createRouter, createStaticHandler, defer, generatePath, getStaticContextFromError, getToPathname, isDeferredData, isRouteErrorResponse, joinPaths, json, matchPath, matchRoutes, normalizePathname, parsePath, redirect, redirectDocument, resolvePath, resolveTo, stripBasename };
@@ -680,7 +864,7 @@ index 691e830dd4f5b969ea480ff1293f9e7ca3f7bc38..b8d08b83a8cd348ee0668f4297538aa6
   * @remix-run/router v1.16.1
   *
 diff --git a/history.ts b/history.ts
-index 335645db1cdfd1d5f2af3c8fac6cab3a7bfe0ad0..72ae06a7c11cb4cea4d6455f925311d4ce122836 100644
+index 335645db1cdfd1d5f2af3c8fac6cab3a7bfe0ad0..aa46263ab18eca1b40307d35534f1552a7422071 100644
 --- a/history.ts
 +++ b/history.ts
 @@ -221,6 +221,10 @@ export interface MemoryHistory extends History {
@@ -719,10 +903,48 @@ index 6b56d4d25e968a05c26f41c61e6b5c2661b5d210..c205276b6a92d9ef781ef8b44937deb4
    "types": "./dist/index.d.ts",
    "files": [
 diff --git a/router.ts b/router.ts
-index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5ed157e339 100644
+index b72cb7009192971da790f1d7eb269947c7504f70..d2ee301513696b9abebf3f0d7fbf43e3cde33e85 100644
 --- a/router.ts
 +++ b/router.ts
-@@ -266,6 +266,20 @@ export interface Router {
+@@ -51,6 +51,37 @@ import {
+   stripBasename,
+ } from "./utils";
+ 
++// NOTE(calebmer): Better `Promise.all()` implementation that waits for all
++// promises to finish even if one of the promises rejected. This is a simpler
++// version of our `runAllPromises()` helper that doesn't aggregate errors.
++// 
++// We need to wait for all promises to resolve when running an HTTP request
++// because otherwise we'll call `context.destroy()` prematurely while other
++// promises are waiting to complete!
++// 
++// Adding this since I'm observing "Context was already destroyed" errors in
++// production and my hypothesis is it's because an `await Promise.all()` in
++// Remix is causing us to exit prematurely ([task with screenshots of example
++// trace][1]).
++//
++// Replacing all `Promise.all()` calls in this package with this function.
++//
++// [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/811cn4d4nj0g5gst552a32wk90
++async function betterPromiseAll(promises) {
++  const values = [];
++
++  const results = await Promise.allSettled(promises);
++
++  for (const result of results) {
++    if (result.status === "rejected") {
++      throw result.reason;
++    }
++    values.push(result.value);
++  }
++
++  return values;
++}
++
+ ////////////////////////////////////////////////////////////////////////////////
+ //#region Types and Constants
+ ////////////////////////////////////////////////////////////////////////////////
+@@ -266,6 +297,20 @@ export interface Router {
     * Internal pending DeferredData instances accessed by unit tests
     */
    _internalActiveDeferreds: Map<string, DeferredData>;
@@ -743,7 +965,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
  }
  
  /**
-@@ -378,6 +392,11 @@ export interface RouterInit {
+@@ -378,6 +423,11 @@ export interface RouterInit {
    hydrationData?: HydrationState;
    window?: Window;
    unstable_dataStrategy?: DataStrategyFunction;
@@ -755,7 +977,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
  }
  
  /**
-@@ -469,6 +488,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
+@@ -469,6 +519,9 @@ type BaseNavigateOptions = BaseNavigateOrFetchOptions & {
    state?: any;
    fromRouteId?: string;
    unstable_viewTransition?: boolean;
@@ -765,7 +987,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
  };
  
  // Only allowed for submission navigations
-@@ -1272,6 +1294,82 @@ export function createRouter(init: RouterInit): Router {
+@@ -1272,6 +1325,82 @@ export function createRouter(init: RouterInit): Router {
      cancelledFetcherLoads = [];
    }
  
@@ -848,7 +1070,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(
-@@ -1379,6 +1477,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1379,6 +1508,7 @@ export function createRouter(init: RouterInit): Router {
        replace: opts && opts.replace,
        enableViewTransition: opts && opts.unstable_viewTransition,
        flushSync,
@@ -856,7 +1078,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
      });
    }
  
-@@ -1432,6 +1531,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1432,6 +1562,7 @@ export function createRouter(init: RouterInit): Router {
        replace?: boolean;
        enableViewTransition?: boolean;
        flushSync?: boolean;
@@ -864,7 +1086,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
      }
    ): Promise<void> {
      // Abort any in-progress navigations and start a new one. Unset any ongoing
-@@ -1462,6 +1562,30 @@ export function createRouter(init: RouterInit): Router {
+@@ -1462,6 +1593,30 @@ export function createRouter(init: RouterInit): Router {
          getShortCircuitMatches(routesToUse);
        // Cancel all pending deferred on 404s since we don't keep any routes
        cancelActiveDeferreds();
@@ -895,7 +1117,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
        completeNavigation(
          location,
          {
-@@ -1482,12 +1606,38 @@ export function createRouter(init: RouterInit): Router {
+@@ -1482,12 +1637,38 @@ export function createRouter(init: RouterInit): Router {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -935,7 +1157,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
        completeNavigation(location, { matches }, { flushSync });
        return;
      }
-@@ -1559,6 +1709,24 @@ export function createRouter(init: RouterInit): Router {
+@@ -1559,6 +1740,24 @@ export function createRouter(init: RouterInit): Router {
        return;
      }
  
@@ -960,7 +1182,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
      // Clean up now that the action/loaders have completed.  Don't clean up if
      // we short circuited because pendingNavigationController will have already
      // been assigned to a new controller for the next navigation
-@@ -1721,6 +1889,24 @@ export function createRouter(init: RouterInit): Router {
+@@ -1721,6 +1920,24 @@ export function createRouter(init: RouterInit): Router {
  
      // Short circuit if we have no loaders to run
      if (matchesToLoad.length === 0 && revalidatingFetchers.length === 0) {
@@ -985,7 +1207,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
        let updatedFetchers = markFetchRedirectsDone();
        completeNavigation(
          location,
-@@ -2215,6 +2401,30 @@ export function createRouter(init: RouterInit): Router {
+@@ -2215,6 +2432,30 @@ export function createRouter(init: RouterInit): Router {
      ) {
        invariant(pendingAction, "Expected pending action");
        pendingNavigationController && pendingNavigationController.abort();
@@ -1016,7 +1238,34 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
  
        completeNavigation(state.navigation.location, {
          matches,
-@@ -2904,6 +3114,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -2476,7 +2717,7 @@ export function createRouter(init: RouterInit): Router {
+         mapRouteProperties
+       );
+ 
+-      return await Promise.all(
++      return await betterPromiseAll(
+         results.map((result, i) => {
+           if (isRedirectHandlerResult(result)) {
+             let response = result.result as Response;
+@@ -2513,7 +2754,7 @@ export function createRouter(init: RouterInit): Router {
+     fetchersToLoad: RevalidatingFetcher[],
+     request: Request
+   ) {
+-    let [loaderResults, ...fetcherResults] = await Promise.all([
++    let [loaderResults, ...fetcherResults] = await betterPromiseAll([
+       matchesToLoad.length
+         ? callDataStrategy("loader", request, matchesToLoad, matches)
+         : [],
+@@ -2541,7 +2782,7 @@ export function createRouter(init: RouterInit): Router {
+       }),
+     ]);
+ 
+-    await Promise.all([
++    await betterPromiseAll([
+       resolveDeferredResults(
+         currentMatches,
+         matchesToLoad,
+@@ -2904,6 +3145,7 @@ export function createRouter(init: RouterInit): Router {
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
      _internalSetRoutes,
@@ -1024,7 +1273,34 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
    };
  
    return router;
-@@ -4364,7 +4575,10 @@ async function convertHandlerResultToDataResult(
+@@ -3511,7 +3753,7 @@ export function createStaticHandler(
+       requestContext
+     );
+ 
+-    return await Promise.all(
++    return await betterPromiseAll(
+       results.map((result, i) => {
+         if (isRedirectHandlerResult(result)) {
+           let response = result.result as Response;
+@@ -4144,7 +4386,7 @@ async function loadLazyRouteModule(
+ function defaultDataStrategy(
+   opts: DataStrategyFunctionArgs
+ ): ReturnType<DataStrategyFunction> {
+-  return Promise.all(opts.matches.map((m) => m.resolve()));
++  return betterPromiseAll(opts.matches.map((m) => m.resolve()));
+ }
+ 
+ async function callDataStrategyImpl(
+@@ -4281,7 +4523,7 @@ async function callLoaderOrAction(
+       if (handler) {
+         // Run statically defined handler in parallel with lazy()
+         let handlerError;
+-        let [value] = await Promise.all([
++        let [value] = await betterPromiseAll([
+           // If the handler throws, don't let it immediately bubble out,
+           // since we need to let the lazy() execution finish so we know if this
+           // route has a boundary that can handle the error
+@@ -4364,7 +4606,10 @@ async function convertHandlerResultToDataResult(
          if (result.body == null) {
            data = null;
          } else {
@@ -1037,7 +1313,7 @@ index b72cb7009192971da790f1d7eb269947c7504f70..e85ef6fe7eea350a8d5784627f4cdb5e
        } else {
          data = await result.text();
 diff --git a/utils.ts b/utils.ts
-index 561421e777349fe05016cf161236b9c12de5f8ea..e50feffe2e16bc101b63056e51c2c062abc5ed26 100644
+index 561421e777349fe05016cf161236b9c12de5f8ea..e63596a3583fa5e41de50d1cde13e02d86c83d85 100644
 --- a/utils.ts
 +++ b/utils.ts
 @@ -1326,10 +1326,16 @@ export const json: JsonFunction = (data, init = {}) => {

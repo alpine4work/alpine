@@ -458,6 +458,72 @@ index 9c9460d22233eb9345e08c821239866ac88b86cb..0271e1c9298329ccb47960b40dcaa8ca
  };
  async function handleDataRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
    try {
+diff --git a/dist/esm/single-fetch.js b/dist/esm/single-fetch.js
+index 0b9b6c7eaec829519c3ed6b1232936ce45aabfd4..05f070c89c24f880c537932186f73f5f2c1479b4 100644
+--- a/dist/esm/single-fetch.js
++++ b/dist/esm/single-fetch.js
+@@ -14,6 +14,37 @@ import { sanitizeError, sanitizeErrors } from './errors.js';
+ import { ServerMode } from './mode.js';
+ import { isResponse, isDeferredData, isRedirectStatusCode } from './responses.js';
+ 
++// NOTE(calebmer): Better `Promise.all()` implementation that waits for all
++// promises to finish even if one of the promises rejected. This is a simpler
++// version of our `runAllPromises()` helper that doesn't aggregate errors.
++// 
++// We need to wait for all promises to resolve when running an HTTP request
++// because otherwise we'll call `context.destroy()` prematurely while other
++// promises are waiting to complete!
++// 
++// Adding this since I'm observing "Context was already destroyed" errors in
++// production and my hypothesis is it's because an `await Promise.all()` in
++// Remix is causing us to exit prematurely ([task with screenshots of example
++// trace][1]).
++//
++// Replacing all `Promise.all()` calls in this package with this function.
++//
++// [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/811cn4d4nj0g5gst552a32wk90
++async function betterPromiseAll(promises) {
++  const values = [];
++
++  const results = await Promise.allSettled(promises);
++
++  for (const result of results) {
++    if (result.status === "rejected") {
++      throw result.reason;
++    }
++    values.push(result.value);
++  }
++
++  return values;
++}
++
+ const SingleFetchRedirectSymbol = Symbol("SingleFetchRedirect");
+ const ResponseStubActionSymbol = Symbol("ResponseStubAction");
+ function getSingleFetchDataStrategy(responseStubs, {
+@@ -26,12 +57,12 @@ function getSingleFetchDataStrategy(responseStubs, {
+   }) => {
+     // Don't call loaders on action data requests
+     if (isActionDataRequest && request.method === "GET") {
+-      return await Promise.all(matches.map(m => m.resolve(async () => ({
++      return await betterPromiseAll(matches.map(m => m.resolve(async () => ({
+         type: "data",
+         result: null
+       }))));
+     }
+-    let results = await Promise.all(matches.map(async match => {
++    let results = await betterPromiseAll(matches.map(async match => {
+       let responseStub;
+       if (request.method !== "GET") {
+         responseStub = responseStubs[ResponseStubActionSymbol];
+@@ -68,7 +99,7 @@ function getSingleFetchResourceRouteDataStrategy({
+   return async ({
+     matches
+   }) => {
+-    let results = await Promise.all(matches.map(async match => {
++    let results = await betterPromiseAll(matches.map(async match => {
+       let responseStub = match.shouldLoad ? responseStubs[match.route.id] : null;
+       let result = await match.resolve(async handler => {
+         // Cast `ResponseStubImpl -> ResponseStub` to hide the symbol in userland
 diff --git a/dist/index.d.ts b/dist/index.d.ts
 index 65fd0016d4c0bf89015a128719a9e553b49ce219..d1912f3d0d87aba1912c56cf7243108aa213e656 100644
 --- a/dist/index.d.ts
@@ -629,3 +695,69 @@ index 216f844cce8eafef9aacd5bbf26b973a0dc4539d..84b18175f84b2e9c54e6fc0575e1d796
  };
  async function handleDataRequest(serverMode, build, staticHandler, routeId, request, loadContext, handleError) {
    try {
+diff --git a/dist/single-fetch.js b/dist/single-fetch.js
+index cbe5900073d1b4cb5874a6ae9f1134575946a700..9afc04b3497e1b12f9c7bbe4272c9436e157f19a 100644
+--- a/dist/single-fetch.js
++++ b/dist/single-fetch.js
+@@ -18,6 +18,37 @@ var errors = require('./errors.js');
+ var mode = require('./mode.js');
+ var responses = require('./responses.js');
+ 
++// NOTE(calebmer): Better `Promise.all()` implementation that waits for all
++// promises to finish even if one of the promises rejected. This is a simpler
++// version of our `runAllPromises()` helper that doesn't aggregate errors.
++// 
++// We need to wait for all promises to resolve when running an HTTP request
++// because otherwise we'll call `context.destroy()` prematurely while other
++// promises are waiting to complete!
++// 
++// Adding this since I'm observing "Context was already destroyed" errors in
++// production and my hypothesis is it's because an `await Promise.all()` in
++// Remix is causing us to exit prematurely ([task with screenshots of example
++// trace][1]).
++//
++// Replacing all `Promise.all()` calls in this package with this function.
++//
++// [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/811cn4d4nj0g5gst552a32wk90
++async function betterPromiseAll(promises) {
++  const values = [];
++
++  const results = await Promise.allSettled(promises);
++
++  for (const result of results) {
++    if (result.status === "rejected") {
++      throw result.reason;
++    }
++    values.push(result.value);
++  }
++
++  return values;
++}
++
+ const SingleFetchRedirectSymbol = Symbol("SingleFetchRedirect");
+ const ResponseStubActionSymbol = Symbol("ResponseStubAction");
+ function getSingleFetchDataStrategy(responseStubs, {
+@@ -30,12 +61,12 @@ function getSingleFetchDataStrategy(responseStubs, {
+   }) => {
+     // Don't call loaders on action data requests
+     if (isActionDataRequest && request.method === "GET") {
+-      return await Promise.all(matches.map(m => m.resolve(async () => ({
++      return await betterPromiseAll(matches.map(m => m.resolve(async () => ({
+         type: "data",
+         result: null
+       }))));
+     }
+-    let results = await Promise.all(matches.map(async match => {
++    let results = await betterPromiseAll(matches.map(async match => {
+       let responseStub;
+       if (request.method !== "GET") {
+         responseStub = responseStubs[ResponseStubActionSymbol];
+@@ -72,7 +103,7 @@ function getSingleFetchResourceRouteDataStrategy({
+   return async ({
+     matches
+   }) => {
+-    let results = await Promise.all(matches.map(async match => {
++    let results = await betterPromiseAll(matches.map(async match => {
+       let responseStub = match.shouldLoad ? responseStubs[match.route.id] : null;
+       let result = await match.resolve(async handler => {
+         // Cast `ResponseStubImpl -> ResponseStub` to hide the symbol in userland
