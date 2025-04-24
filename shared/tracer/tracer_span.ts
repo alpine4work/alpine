@@ -86,6 +86,12 @@ export class TracerSpan extends TracerBase {
     private _propagatedEventFlatData: TracerEventFlatData | null;
 
     /**
+     * Was an exception added to this span? If an exception was added to the span
+     * then additional exceptions added with `addException()` are logged.
+     */
+    private _hasException = false;
+
+    /**
      * Was this span referenced by some other span? For example a child span, a
      * log, or a link. If we generated a propagation context for this span we also
      * treat it as referenced since we can't know for sure whether the propagation
@@ -329,9 +335,17 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
-     * Add an exception to the span's data. Puts the span in an error state.
+     * Add an exception to the span's data. Puts the span in an error state. If the
+     * span already has an exception then we log an additional exception.
      */
     public addException(error: unknown) {
+        if (this._hasException) {
+            this.logException("Additional exception", error);
+            return;
+        }
+
+        this._hasException = true;
+
         this.addData({
             exception: getTracerEventExceptionData(
                 this.traceId,
