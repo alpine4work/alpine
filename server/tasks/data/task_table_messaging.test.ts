@@ -51,7 +51,7 @@ testMessagingImplementation<TaskId>(processContext, {
         };
     },
 
-    async createPrivateRoom(context, spaceId, sessions) {
+    async createPrivateRoom(context, spaceId, {insideSessions, insideViewerSession}) {
         await authorizeSpaceAccess(context, spaceId);
 
         const [space, account] = await runAllPromises([
@@ -63,12 +63,20 @@ testMessagingImplementation<TaskId>(processContext, {
 
         const taskCollection = await TestTaskCollection.create(session);
 
+        let count = 0;
+
         await taskCollection.access.set(session, {
             accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
-                ...sessions.map(innerSession => {
-                    return [innerSession.account.id, {level: "Comment"}] as const;
-                }),
-                [session.account.id, {level: "Manage", generation: 0}],
+                ...insideSessions.map((insideSession): [AccountId, AccessPolicyAccountGrant] => [
+                    insideSession.account.id,
+                    insideSession.account.id === context.actor.getAccountId()
+                        ? {level: "Manage", generation: 0}
+                        : {
+                              level: (["Comment", "Edit"] as const)[count++ % 2]!,
+                              generation: 1,
+                          },
+                ]),
+                [insideViewerSession.account.id, {level: "View"}],
             ]),
             defaultGrant: null,
             urlGrant: null,
@@ -82,6 +90,10 @@ testMessagingImplementation<TaskId>(processContext, {
             spaceId,
             createdTime: new Date((await task.getItem()).createdTime[0]),
             messageCount: 0,
+            doesInsideViewerSessionHaveRoomAccess: false,
+            revokeInsideSession: async (context, revokeSession) => {
+                await taskCollection.access.revoke(session, revokeSession.account.id);
+            },
         };
     },
 

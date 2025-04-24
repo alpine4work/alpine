@@ -1,3 +1,4 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
@@ -14,6 +15,7 @@ export class ChannelModel extends Model(
         createdTime: Schema.date,
         name: LabelStringSchema,
         description: MessageContentWithReferencesSchema,
+        accessPolicy: AccessPolicySchema,
     }),
 ) {
     public asPreview() {

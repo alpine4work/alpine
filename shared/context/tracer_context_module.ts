@@ -150,6 +150,17 @@ export class TracerContextModule extends ContextModuleBase implements ForkableCo
         this._tracer.log(name, data);
     }
 
+    /**
+     * Add a structured exception log event to this span.
+     *
+     * Uses `this.log()` but with exception event attributes.
+     *
+     * See `TracerBase.log` for how to name this event.
+     */
+    public logException(name: string, error: unknown, data?: TracerEventData) {
+        this._tracer.logException(name, error, data);
+    }
+
     public fork() {
         return new TracerContextModule(this._tracer);
     }

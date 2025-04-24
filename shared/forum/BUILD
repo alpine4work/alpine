@@ -4,6 +4,7 @@ ts_project(
     name = "forum",
     visibility = ["//visibility:public"],
     deps = [
+        "//shared/access",
         "//shared/accounts",
         "//shared/content",
         "//shared/dynamo",

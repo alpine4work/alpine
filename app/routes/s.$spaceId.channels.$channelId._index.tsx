@@ -121,7 +121,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             // This check makes this `GET` endpoint idempotent. You can hit the endpoint
             // multiple times and if our channel is already created we'll noop.
             try {
-                await authorizeChannelAccess(context, channelId);
+                await authorizeChannelAccess(context, channelId, "View", {consistency: "Strong"});
             } catch {
                 throw error;
             }

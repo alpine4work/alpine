@@ -1,3 +1,4 @@
+import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {
     getContentReferencesForNode,
@@ -20,8 +21,12 @@ import {
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
@@ -46,11 +51,18 @@ import {
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
+    createAuthorizeSpaceAccessPermissionDeniedError,
     getAccount,
     isAccountMemberOfSpace,
+    isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    AccessPolicySchema,
+    validateAccessPolicyUpdate,
+} from "~/shared/access/access_policy.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
@@ -68,12 +80,15 @@ import {
 import {
     DataLossError,
     DeadlineExceededError,
+    ErrorBase,
     FailedPreconditionError,
     InternalError,
+    InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -97,15 +112,19 @@ import {
 import {PostBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/post_realtime_protocol.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
@@ -117,6 +136,7 @@ import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -197,6 +217,18 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
 
                         /** A description for the channel which will appear in a sidebar. */
                         description: MessageContentSchema.default(emptyMessageContent),
+
+                        /** Who's allowed to access the channel and the posts inside it? */
+                        accessPolicy: AccessPolicySchema
+                            // NOTE(calebmer, 2025-04-21): Before today channels don't have an
+                            // `accessPolicy` and we assume all channels are public within the space.
+                            // So if we find a channel with no `accessPolicy` then default to a public
+                            // access policy.
+                            .default({
+                                accountGrantById: emptyMap,
+                                defaultGrant: {level: "Manage", generation: 0},
+                                urlGrant: null,
+                            }),
                     }),
                 },
 
@@ -953,12 +985,25 @@ export async function runMoveForumChannelsAndPostsMigration(
         ) {
             const mutex = mutexes[n++ % mutexes.length]!;
 
+            // Make sure we're not overriding an existing `accessPolicy`.
+            assert(!("accessPolicy" in item));
+
             promiseWaiter.waitUntil(
                 mutex.withLock(async () => {
                     await DynamoTableSchema.executeTransaction(context, [
                         ForumTable.transactionDeleteItem(item),
                         ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheckAndWithoutEvent(
-                            item,
+                            {
+                                ...item,
+                                // NOTE(calebmer, 2025-04-21): This migration was run before channels had
+                                // access policies. And the implicit access policy was public to everyone in
+                                // the space.
+                                accessPolicy: {
+                                    accountGrantById: emptyMap,
+                                    defaultGrant: {level: "Manage", generation: 0},
+                                    urlGrant: null,
+                                },
+                            },
                         ),
                     ]);
                 }),
@@ -987,6 +1032,11 @@ export async function seedTestChannels(
             creatorId: null,
             name: "Test",
             description: emptyMessageContent,
+            accessPolicy: {
+                accountGrantById: emptyMap,
+                defaultGrant: {level: "Manage", generation: 0},
+                urlGrant: null,
+            },
         },
     );
 
@@ -1038,6 +1088,11 @@ export function internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntr
                 creatorId: ownerAccountId,
                 name: "Welcome",
                 description: emptyMessageContent,
+                accessPolicy: {
+                    accountGrantById: new Map([[ownerAccountId, {level: "Manage", generation: 0}]]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                },
             },
             {
                 onAfterTransactionExecutedSuccessfully: () => {
@@ -1068,11 +1123,19 @@ export async function createChannel(
         channelId = generateId<ChannelId>(),
         name,
         description = emptyMessageContent,
+        accessPolicy = {
+            accountGrantById: new Map([
+                [context.actor.getAccountId(), {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
     }: {
         spaceId: SpaceId;
         channelId?: ChannelId;
         name: string;
         description?: MessageContent;
+        accessPolicy?: AccessPolicy;
     },
 ): Promise<{
     id: ChannelId;
@@ -1083,6 +1146,20 @@ export async function createChannel(
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
+    if (
+        !(await evaluateAccessPolicy(
+            context,
+            spaceId,
+            context.actor.getAccountId(),
+            accessPolicy,
+            "Manage",
+        ))
+    ) {
+        throw new InvalidArgumentError(
+            'Account actor must have "Manage" access level on channels they create',
+        );
+    }
+
     const channelItem: ChannelAttributesItem = {
         partitionType: "Channel",
         sortRangeType: "Attributes",
@@ -1092,6 +1169,7 @@ export async function createChannel(
         creatorId: context.actor.getAccountId(),
         name,
         description,
+        accessPolicy,
     };
 
     const {transactionEntry, getEvent} =
@@ -1115,16 +1193,7 @@ export async function createChannel(
     // Future `authorizeChannelAccess()` calls in the request should not need to
     // load the channel. This optimization kicks in for the create channel Remix
     // route.
-    ChannelPreviewCache.set(
-        context,
-        channelId,
-        new ChannelPreviewModel({
-            id: channelItem.channelId,
-            spaceId: channelItem.spaceId,
-            createdTime: channelItem.createdTime,
-            name: channelItem.name,
-        }),
-    );
+    ChannelPreviewItemAuthorizationCache.set(context, "Strong", channelId, channelItem);
 
     context.jobs.send({
         type: "IndexSearchEntity",
@@ -1156,56 +1225,94 @@ export async function createChannel(
     };
 }
 
-/**
- * Gets the channel object with the provided ID. Returns null if the channel
- * doesn't exist, returns a `Result` with a `PermissionDeniedError` if access
- * isn't authorized.
- *
- * Sometimes calling code wants to handle these error cases by discarding the
- * channel instead of returning null.
- */
-export async function getChannelIfPossible(
-    context: ServerContentActionContext,
-    channelId: ChannelId,
-    options?: {consistency?: DynamoReadConsistency},
-): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, PermissionDeniedError> | null> {
-    const getPromise = (async () => {
-        const channel = await ForumRealtimeTable.getRealtimeItemIfExists(
-            context,
-            {
-                partitionType: "Channel",
-                sortRangeType: "Attributes",
-                channelId,
-            },
-            {consistency: options?.consistency},
-        );
-        if (!channel) return null;
+const channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
+    AccessLevel,
+    ErrorDisplayMessage
+> = {
+    View: errorDisplayMessage`You aren’t allowed to access this channel. Ask someone with access to share it with you.`,
+    Comment: errorDisplayMessage`You aren’t allowed to comment in this channel. Ask someone who can share the channel to give you comment access.`,
+    Edit: errorDisplayMessage`You aren’t allowed to post in this channel. Ask someone who can share the channel to give you post access.`,
+    Manage: errorDisplayMessage`You aren’t allowed to share this channel. Ask someone who can share the channel to give you share access.`,
+};
 
-        await authorizeSpaceAccess(context, channel.model.spaceId);
+async function authorizeChannelItemAccess(
+    context: ServerActionContext,
+    channelItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    expectedAccessLevel: AccessLevel,
+): Promise<void> {
+    unwrapResult(
+        await authorizeChannelItemAccessIfPossible(context, channelItem, expectedAccessLevel),
+    );
+}
 
-        return channel;
-    })();
+async function authorizeChannelItemAccessIfPossible(
+    context: ServerActionContext,
+    channelItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    expectedAccessLevel: AccessLevel,
+): Promise<Result<void, ErrorBase>> {
+    switch (context.actor.type) {
+        // System actors can read all documents in the space they have access to.
+        case "System": {
+            if (context.actor.getSpaceId() !== channelItem.spaceId) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "System actor doesn't have access to channel's space",
+                    ),
+                };
+            }
 
-    const cachedGetPromise = getPromise.then(channel => channel?.model.asPreview() ?? null);
-
-    // Make sure errors thrown by this promise aren't treated as uncaught
-    // exceptions. We catch them below when we await `getPromise`.
-    cachedGetPromise.catch(() => {});
-
-    // If we're loading the channel, we can use the channel item in our
-    // `ChannelPreviewModel` cache to avoid extra fetches.
-    ChannelPreviewCache.set(context, channelId, cachedGetPromise);
-
-    try {
-        const channel = await getPromise;
-        if (!channel) return null;
-        return {ok: true, value: channel};
-    } catch (error) {
-        if (error instanceof PermissionDeniedError) {
-            return {ok: false, error};
-        } else {
-            throw error;
+            return okResult;
         }
+        case "Session":
+        case "Anonymous": {
+            // Evaluate the document access policy.
+            const isAccessAuthorized = await evaluateAccessPolicy(
+                context,
+                channelItem.spaceId,
+                context.actor.type === "Session" ? context.actor.getAccountId() : null,
+                channelItem.accessPolicy,
+                expectedAccessLevel,
+            );
+
+            if (isAccessAuthorized) return okResult;
+
+            // Throw an unauthenticated error if this is an anonymous user instead of
+            // returning false. We want to show the user the unauthenticated error display
+            // message when they don't have access.
+            if (context.actor.type === "Anonymous") {
+                return {ok: false, error: unauthenticatedSessionError()};
+            } else if (
+                !(await isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    channelItem.spaceId,
+                    context.actor.getAccountId(),
+                ))
+            ) {
+                return {
+                    ok: false,
+                    error: createAuthorizeSpaceAccessPermissionDeniedError(
+                        channelItem.spaceId,
+                        context.actor.getAccountId(),
+                    ),
+                };
+            } else {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        quote`Actor doesn't have ${expectedAccessLevel} access level to channel`,
+                        {
+                            displayMessage:
+                                channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
+                                    expectedAccessLevel
+                                ],
+                        },
+                    ),
+                };
+            }
+        }
+        default:
+            throw exhaustive(context.actor);
     }
 }
 
@@ -1217,6 +1324,7 @@ async function createChannelModelFromItem(
         readonly createdTime: Date;
         readonly name: string;
         readonly description: MessageContent;
+        readonly accessPolicy: AccessPolicy;
     },
 ): Promise<ChannelModel> {
     return new ChannelModel({
@@ -1232,12 +1340,55 @@ async function createChannelModelFromItem(
                 item.description,
             ),
         },
+        accessPolicy: item.accessPolicy,
     });
 }
 
 /**
- * Gets the channel object with the provided ID. Returns null if the channel
- * doesn't exist or throws if you don't have access to the channel.
+ * Gets the channel object with the provided `ChannelId`. Returns null if the
+ * channel doesn't exist, returns a `Result` with a `PermissionDeniedError` if
+ * access isn't authorized.
+ *
+ * Sometimes calling code wants to handle these error cases by discarding the
+ * channel instead of returning null.
+ */
+export async function getChannelIfPossible(
+    context: ServerContentActionContext,
+    channelId: ChannelId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = emptyObject,
+): Promise<Result<DynamoGeneralRealtimeItem<ChannelModel>, ErrorBase> | null> {
+    const getPromise = ForumRealtimeTable.getRealtimeItemIfExists(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Attributes",
+            channelId,
+        },
+        {consistency},
+    );
+
+    const cachedGetPromise = getPromise.then(channel => (channel ? channel.model : null));
+
+    // Make sure errors thrown by this promise aren't treated as uncaught
+    // exceptions. We catch them below when we await `getPromise`.
+    cachedGetPromise.catch(() => {});
+
+    // If we're loading the channel, we can use the channel item in our
+    // `ChannelPreviewModel` cache to avoid extra fetches.
+    ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, cachedGetPromise);
+
+    const channel = await getPromise;
+    if (!channel) return null;
+
+    const result = await authorizeChannelItemAccessIfPossible(context, channel.model, "View");
+    if (!result.ok) return result;
+
+    return {ok: true, value: channel};
+}
+
+/**
+ * Gets the channel object with the provided `ChannelId`. Returns null if the
+ * channel doesn't exist or throws if you don't have access to the channel.
  */
 export async function getChannelIfExists(
     context: ServerContentActionContext,
@@ -1250,8 +1401,8 @@ export async function getChannelIfExists(
 }
 
 /**
- * Gets the channel object with the provided ID. Throws if the channel doesn't
- * exist or you don't have access to the channel.
+ * Gets the channel object with the provided `ChannelId`. Throws if the channel
+ * doesn't exist or you don't have access to the channel.
  */
 export async function getChannel(
     context: ServerContentActionContext,
@@ -1273,7 +1424,7 @@ export async function getChannel(
 export async function getChannelContributors(
     context: ServerContentActionContext,
     channelId: ChannelId,
-    {limit}: {limit: number},
+    {limit, consistency = "Eventual"}: {limit: number; consistency?: DynamoReadConsistency},
 ): Promise<Array<AccountModel>> {
     const promise = (async () => {
         const items = await arrayFromAsyncIterable(
@@ -1281,6 +1432,7 @@ export async function getChannelContributors(
                 partitionKey: {partitionType: "Channel", channelId},
                 endSortKey: {sortRangeType: "Contributors"},
                 limit: "All",
+                consistency,
             }),
         );
         if (items.length === 0) return null;
@@ -1292,8 +1444,6 @@ export async function getChannelContributors(
             throw new DataLossError("Expected the first query item to be the channel item");
         }
 
-        await authorizeSpaceAccess(context, firstItem.spaceId);
-
         if (secondItem && secondItem.sortRangeType !== "Contributors") {
             throw new DataLossError("Expected the second query item to be the contributors item");
         }
@@ -1301,9 +1451,7 @@ export async function getChannelContributors(
         return {channelItem: firstItem, contributorsItem: secondItem};
     })();
 
-    const cachedPromise = promise.then(async result =>
-        result ? (await createChannelModelFromItem(context, result.channelItem)).asPreview() : null,
-    );
+    const cachedPromise = promise.then(async result => (result ? result.channelItem : null));
 
     // Make sure errors thrown by this promise aren't treated as uncaught
     // exceptions. We catch them below when we await `getPromise`.
@@ -1311,11 +1459,13 @@ export async function getChannelContributors(
 
     // If we're loading the channel, we can use the channel item in our
     // `ChannelPreviewModel` cache to avoid extra fetches.
-    ChannelPreviewCache.set(context, channelId, cachedPromise);
+    ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, cachedPromise);
 
     return (async () => {
         const result = await promise;
         if (!result) throw new NotFoundError("Channel not found");
+
+        await authorizeChannelItemAccess(context, result.channelItem, "View");
 
         const accountIdsByContributionCount = new DefaultMap<number, Array<AccountId>>(() => []);
 
@@ -1400,7 +1550,7 @@ export function getChannelAndMetadata(
             return result;
         })();
     } else {
-        const channelPromiseResolver = createPromiseResolver<ChannelPreviewModel | null>();
+        const channelPromiseResolver = createPromiseResolver<ChannelModel | null>();
 
         const promise = (async () => {
             const result = await ForumRealtimeTable.realtimeQuery(context, {
@@ -1411,7 +1561,7 @@ export function getChannelAndMetadata(
                 limit: postFilesLimit + 2,
                 onItem: item => {
                     if (item.model instanceof ChannelModel) {
-                        channelPromiseResolver.resolve(item.model.asPreview());
+                        channelPromiseResolver.resolve(item.model);
                     }
                 },
             });
@@ -1423,7 +1573,16 @@ export function getChannelAndMetadata(
                 throw new DataLossError("Expected the first query item to be the channel model");
             }
 
-            await authorizeSpaceAccess(context, channel.model.spaceId);
+            // Save the channel item to our authorization cache in case we try to load it
+            // again later.
+            ChannelPreviewItemAuthorizationCache.set(
+                context,
+                consistency,
+                channelId,
+                channel.model,
+            );
+
+            await authorizeChannelItemAccess(context, channel.model, "View");
 
             return result;
         })().then(
@@ -1464,7 +1623,12 @@ export function getChannelAndMetadata(
 
         // If we're loading the channel, we can use the channel item in our
         // `ChannelPreviewModel` cache to avoid extra fetches.
-        ChannelPreviewCache.set(context, channelId, channelPromiseResolver.promise);
+        ChannelPreviewItemAuthorizationCache.set(
+            context,
+            consistency,
+            channelId,
+            channelPromiseResolver.promise,
+        );
 
         return promise.then(result => {
             if (!result) {
@@ -1480,7 +1644,7 @@ export function getChannelAndMetadata(
  * Backfill any realtime updates to catch up our client after it's been
  * disconnected from realtime.
  */
-export function backfillChannelAndMetadata(
+export async function backfillChannelAndMetadata(
     context: ServerContentActionContext,
     {
         channelId,
@@ -1490,17 +1654,110 @@ export function backfillChannelAndMetadata(
         readTime: Date;
     },
 ): Promise<DynamoGeneralRealtimeBackfillResult<ChannelOrMetadataModel>> {
-    return ForumRealtimeTable.backfillRealtimeQuery(context, {
-        partitionKey: {partitionType: "Channel", channelId},
-        readTime,
-    });
+    const [, result] = await runAllPromises([
+        authorizeChannelAccess(context, channelId, "View"),
+
+        ForumRealtimeTable.backfillRealtimeQuery(context, {
+            partitionKey: {partitionType: "Channel", channelId},
+            readTime,
+        }),
+    ]);
+
+    return result;
 }
 
-const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | null>();
+type ChannelPreviewAttributesItem = {
+    readonly spaceId: SpaceId;
+    readonly createdTime: Date;
+    readonly name: string;
+    readonly accessPolicy: AccessPolicy;
+};
+
+assertAssignableTypes<ChannelAttributesItem, ChannelPreviewAttributesItem>();
+assertAssignableTypes<ChannelModel, ChannelPreviewAttributesItem>();
+
+const ChannelPreviewItemAuthorizationCache = new DynamoContextCache<
+    ChannelId,
+    ChannelPreviewAttributesItem | null
+>();
+
+async function getChannelPreviewItemForAuthorizationIfExists(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<ChannelPreviewAttributesItem | null> {
+    return ChannelPreviewItemAuthorizationCache.get(context, consistency, channelId, consistency =>
+        ForumRealtimeTable.getPartialItemIfExists(
+            context,
+            {
+                partitionType: "Channel",
+                sortRangeType: "Attributes",
+                channelId: channelId,
+            },
+            {
+                consistency,
+                attributes: ["spaceId", "createdTime", "name", "accessPolicy"],
+            },
+        ),
+    );
+}
+
+async function getChannelPreviewItemForAuthorization(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<ChannelPreviewAttributesItem> {
+    const channelItem = await getChannelPreviewItemForAuthorizationIfExists(
+        context,
+        channelId,
+        options,
+    );
+
+    if (!channelItem) {
+        throw new NotFoundError("Channel not found");
+    }
+
+    return channelItem;
+}
 
 /**
- * Gets a preview channel object with the provided ID. Returns null if the
- * channel doesn't exist and throws an error if the channel exists but you
+ * Gets a preview channel object with the provided `ChannelId`. Returns null if
+ * the channel doesn't exist, returns a `Result` with a `PermissionDeniedError`
+ * if access isn't authorized.
+ *
+ * The result is cached. If you call this for the same `ChannelId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
+ */
+export async function getChannelPreviewIfPossible(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<ChannelPreviewModel, ErrorBase> | null> {
+    const channelItem = await getChannelPreviewItemForAuthorizationIfExists(
+        context,
+        channelId,
+        options,
+    );
+    if (!channelItem) return null;
+
+    const result = await authorizeChannelItemAccessIfPossible(context, channelItem, "View");
+    if (!result.ok) return result;
+
+    return {
+        ok: true,
+        value: new ChannelPreviewModel({
+            id: channelId,
+            spaceId: channelItem.spaceId,
+            createdTime: channelItem.createdTime,
+            name: channelItem.name,
+        }),
+    };
+}
+
+/**
+ * Gets a preview channel object with the provided `ChannelId`. Returns null if
+ * the channel doesn't exist and throws an error if the channel exists but you
  * don't have access to the channel.
  *
  * The result is cached. If you call this for the same `ChannelId` multiple
@@ -1509,53 +1766,17 @@ const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | nu
  */
 export async function getChannelPreviewIfExists(
     context: ServerActionContext,
-    id: ChannelId,
-    {
-        consistency = "Eventual",
-        allowsEventualReadConsistency = false,
-    }: {
-        consistency?: DynamoReadConsistency;
-        allowsEventualReadConsistency?: boolean;
-    } = {},
+    channelId: ChannelId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<ChannelPreviewModel | null> {
-    const get = async () => {
-        const channelItem = await ForumRealtimeTable.getPartialItemIfExists(
-            context,
-            {
-                partitionType: "Channel",
-                sortRangeType: "Attributes",
-                channelId: id,
-            },
-            {
-                attributes: ["spaceId", "createdTime", "name"],
-                consistency,
-                allowsEventualReadConsistency,
-            },
-        );
-        if (!channelItem) return null;
-
-        await authorizeSpaceAccess(context, channelItem.spaceId);
-
-        return new ChannelPreviewModel({
-            id: channelItem.channelId,
-            spaceId: channelItem.spaceId,
-            createdTime: channelItem.createdTime,
-            name: channelItem.name,
-        });
-    };
-
-    if (consistency === "Strong") {
-        const getPromise = get();
-        ChannelPreviewCache.set(context, id, getPromise);
-        return await getPromise;
-    } else {
-        return await ChannelPreviewCache.get(context, id, get);
-    }
+    const channelResult = await getChannelPreviewIfPossible(context, channelId, options);
+    if (!channelResult) return null;
+    return unwrapResult(channelResult);
 }
 
 /**
- * Gets a preview channel object with the provided ID. Throws an error if the
- * channel doesn't exist.
+ * Gets a preview channel object with the provided `ChannelId`. Throws an error
+ * if the channel doesn't exist.
  *
  * The result is cached. If you call this for the same `ChannelId` multiple
  * times in the same action you'll get the same result without issuing a
@@ -1563,10 +1784,98 @@ export async function getChannelPreviewIfExists(
  */
 export async function getChannelPreview(
     context: ServerActionContext,
-    id: ChannelId,
-    options?: {consistency?: DynamoReadConsistency; allowsEventualReadConsistency?: boolean},
+    channelId: ChannelId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<ChannelPreviewModel> {
-    const channel = await getChannelPreviewIfExists(context, id, options);
+    const channel = await getChannelPreviewIfExists(context, channelId, options);
+    if (!channel) throw new NotFoundError("Channel not found");
+    return channel;
+}
+
+/**
+ * Gets a preview channel object and its `AccessPolicy` with the provided
+ * `ChannelId`. Returns null if the channel doesn't exist, returns a `Result`
+ * with a `PermissionDeniedError` if access isn't authorized.
+ *
+ * The result is cached. If you call this for the same `ChannelId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
+ */
+export async function getChannelPreviewAndAccessPolicyIfPossible(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<
+    {
+        readonly preview: ChannelPreviewModel;
+        readonly accessPolicy: AccessPolicy;
+    },
+    ErrorBase
+> | null> {
+    const channelItem = await getChannelPreviewItemForAuthorizationIfExists(
+        context,
+        channelId,
+        options,
+    );
+    if (!channelItem) return null;
+
+    const result = await authorizeChannelItemAccessIfPossible(context, channelItem, "View");
+    if (!result.ok) return result;
+
+    return {
+        ok: true,
+        value: {
+            preview: new ChannelPreviewModel({
+                id: channelId,
+                spaceId: channelItem.spaceId,
+                createdTime: channelItem.createdTime,
+                name: channelItem.name,
+            }),
+            accessPolicy: channelItem.accessPolicy,
+        },
+    };
+}
+
+/**
+ * Gets a preview channel object and its `AccessPolicy` with the provided
+ * `ChannelId`. Returns null if the channel doesn't exist, throws a
+ * `PermissionDeniedError` if access isn't authorized.
+ *
+ * The result is cached. If you call this for the same `ChannelId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
+ */
+export async function getChannelPreviewAndAccessPolicyIfExists(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{
+    readonly preview: ChannelPreviewModel;
+    readonly accessPolicy: AccessPolicy;
+} | null> {
+    const channel = await getChannelPreviewAndAccessPolicyIfPossible(context, channelId, options);
+    if (!channel) return null;
+    return unwrapResult(channel);
+}
+
+/**
+ * Gets a preview channel object and its `AccessPolicy` with the provided
+ * `ChannelId`. Throws if the channel doesn't exist or you don't have access
+ * to it.
+ *
+ * The result is cached. If you call this for the same `ChannelId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
+ */
+export async function getChannelPreviewAndAccessPolicy(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{
+    readonly preview: ChannelPreviewModel;
+    readonly accessPolicy: AccessPolicy;
+}> {
+    const channel = await getChannelPreviewAndAccessPolicyIfExists(context, channelId, options);
     if (!channel) throw new NotFoundError("Channel not found");
     return channel;
 }
@@ -1578,66 +1887,55 @@ export async function getChannelPreview(
  */
 export async function getChannelNameAndDescriptionContent(
     context: ServerActionContext,
-    id: ChannelId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    channelId: ChannelId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     name: string;
     description: MessageContent;
     createdTime: Date;
     creatorId: AccountId | null;
+    accessPolicy: AccessPolicy;
 }> {
-    const channelItem = await ForumRealtimeTable.getItem(
+    const channelItemPromise = ForumRealtimeTable.getItem(
         context,
         {
             partitionType: "Channel",
             sortRangeType: "Attributes",
-            channelId: id,
+            channelId,
         },
         {consistency},
     );
 
-    await authorizeSpaceAccess(context, channelItem.spaceId);
+    // Save the channel to our authorization cache in case we need it later.
+    ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, channelItemPromise);
+
+    const channelItem = await channelItemPromise;
+    await authorizeChannelItemAccess(context, channelItem, "View");
 
     return {
         name: channelItem.name,
         description: channelItem.description,
         createdTime: channelItem.createdTime,
         creatorId: channelItem.creatorId,
+        accessPolicy: channelItem.accessPolicy,
     };
 }
 
 /**
- * Authorize that the current user has access to a channel. Implicitly also authorizes
- * that the current user has access to the space the channel is in.
- *
- * This function is mostly strongly consistent. It's safe to use in strongly
- * consistent contexts. If an account just got access this function will pass
- * with strong consistency. If an account lost access we have to wait for
- * DynamoDB's eventual consistency lag before this function will start
- * throwing.
+ * Authorize that the current user has access to a channel. Implicitly also
+ * authorizes that the current user has access to the space the channel is in.
  */
 export async function authorizeChannelAccess(
     context: ServerActionContext,
-    id: ChannelId,
-): Promise<{spaceId: SpaceId}> {
-    let channel = await getChannelPreview(
-        context,
-        id,
-        // It's ok to call this function when expecting strong read consistency.
-        // Authorization is mostly strongly consistent since we retry with strong
-        // consistency if our eventually consistent read fails.
-        {allowsEventualReadConsistency: true},
-    );
+    channelId: ChannelId,
+    expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{spaceId: SpaceId; accessPolicy: AccessPolicy}> {
+    const channelItem = await getChannelPreviewItemForAuthorization(context, channelId, options);
 
-    if (!channel) {
-        channel = await getChannelPreview(context, id, {consistency: "Strong"});
-    }
+    await authorizeChannelItemAccess(context, channelItem, expectedAccessLevel);
 
-    if (!channel) {
-        throw new NotFoundError("Channel not found");
-    }
-
-    return {spaceId: channel.spaceId};
+    return {spaceId: channelItem.spaceId, accessPolicy: channelItem.accessPolicy};
 }
 
 /**
@@ -1674,7 +1972,8 @@ export async function updateChannelName(
         async channelItem => {
             if (!channelItem) throw new NotFoundError("Channel not found");
             spaceId = channelItem.spaceId;
-            await authorizeSpaceAccess(context, spaceId);
+
+            await authorizeChannelItemAccess(context, channelItem, "Manage");
 
             return {
                 ...channelItem,
@@ -1731,7 +2030,8 @@ export async function updateChannelDescription(
         async channelItem => {
             if (!channelItem) throw new NotFoundError("Channel not found");
             spaceId = channelItem.spaceId;
-            await authorizeSpaceAccess(context, spaceId);
+
+            await authorizeChannelItemAccess(context, channelItem, "Manage");
 
             return {
                 ...channelItem,
@@ -1796,7 +2096,8 @@ export async function updateChannelNameAndDescription(
         async channelItem => {
             if (!channelItem) throw new NotFoundError("Channel not found");
             spaceId = channelItem.spaceId;
-            await authorizeSpaceAccess(context, spaceId);
+
+            await authorizeChannelItemAccess(context, channelItem, "Manage");
 
             return {
                 ...channelItem,
@@ -1827,6 +2128,77 @@ export async function updateChannelNameAndDescription(
 }
 
 /**
+ * Updates the channel's `AccessPolicy`. The session actor must be a manager on
+ * the channel to update the channel's access policy.
+ */
+export async function updateChannelAccessPolicy(
+    context: ForumSessionActionContextWithBroadcast,
+    {
+        channelId,
+        accessPolicy,
+    }: {
+        channelId: ChannelId;
+        accessPolicy: AccessPolicy;
+    },
+): Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
+    }>;
+}> {
+    let spaceId: SpaceId | null = null;
+
+    const readTime = new Date();
+
+    const result = await ForumRealtimeTable.updateItem(
+        context,
+        {partitionType: "Channel", sortRangeType: "Attributes", channelId},
+        async channelItem => {
+            if (!channelItem) throw new NotFoundError("Channel not found");
+            spaceId = channelItem.spaceId;
+
+            await authorizeChannelItemAccess(context, channelItem, "Manage");
+
+            const result = validateAccessPolicyUpdate(
+                context.actor.getAccountId(),
+                channelItem.accessPolicy,
+                accessPolicy,
+            );
+            if (!result.ok) {
+                throw new FailedPreconditionError(result.reason);
+            }
+
+            return {
+                ...channelItem,
+                accessPolicy,
+            };
+        },
+    );
+
+    assert(spaceId);
+
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Channel",
+            channelId,
+            // We include `Preview` in `updatedTraits` since anything that depends on the
+            // `Preview` trait also implicitly depends on the `AccessPolicy` since preview
+            // access is derived from the `AccessPolicy`.
+            updatedTraits: {type: "Some", traits: ["Preview", "Authorization"]},
+        },
+    });
+
+    return {
+        getDynamoGeneralRealtimeEventTransaction: async context => ({
+            readTime,
+            eventTransaction: [await result.getEvent(context)],
+        }),
+    };
+}
+
+/**
  * Get the latest posts in a channel in reverse chronological order. The newest
  * post will be the first in the array.
  */
@@ -1843,7 +2215,7 @@ export async function getChannelPosts(
     },
 ): Promise<DynamoGeneralRealtimeIndexQueryResult<PostModel>> {
     const [, result] = await runAllPromises([
-        authorizeChannelAccess(context, channelId),
+        authorizeChannelAccess(context, channelId, "View"),
         ChannelPostsIndex.realtimeQuery(context, {
             partitionKey: {channelId},
             limit,
@@ -1863,7 +2235,7 @@ export async function backfillChannelPosts(
     {channelId, readTime}: {channelId: ChannelId; readTime: Date},
 ): Promise<DynamoGeneralRealtimeBackfillResult<PostModel>> {
     const [, result] = await runAllPromises([
-        authorizeChannelAccess(context, channelId),
+        authorizeChannelAccess(context, channelId, "View"),
         ChannelPostsIndex.backfillRealtimeQuery(context, {
             partitionKey: {channelId},
             readTime,
@@ -1916,7 +2288,7 @@ export async function createPost(
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
     }>;
 }> {
-    const channel = await getChannelPreview(context, channelId);
+    const {spaceId} = await authorizeChannelAccess(context, channelId, "Edit");
 
     const mentionCountByAccountId = getMentionCountByAccountIdInContent(content);
 
@@ -1924,8 +2296,8 @@ export async function createPost(
         partitionType: "Post",
         sortRangeType: "Attributes",
         postId: generateId(),
-        spaceId: channel.spaceId,
-        channelId: channel.id,
+        spaceId,
+        channelId,
         // NOTE(calebmer): Our tests override `Date.now()` to mock a fake time. So use
         // this slightly awkward form to let tests mock different times for post
         // creation.
@@ -1944,7 +2316,7 @@ export async function createPost(
     // Add our new post to the authorization cache BEFORE we create the post. That
     // way when we attach files with `attachFileFromAttachment()` they'll read the
     // post from this cache and won't throw a not found error.
-    PostItemAuthorizationCache.set(context, postItem.postId, postItem);
+    PostItemAuthorizationCache.set(context, "Strong", postItem.postId, postItem);
 
     const fileIds = getPostContentFileIds(postItem.content);
 
@@ -2104,7 +2476,7 @@ export async function createPost(
         event: {
             type: "CreatePost",
             id: generateId(),
-            spaceId: channel.spaceId,
+            spaceId,
             channelId: postItem.channelId,
             postId: postItem.postId,
             createdTime: postItem.createdTime,
@@ -2117,7 +2489,7 @@ export async function createPost(
 
     context.jobs.send({
         type: "IndexSearchEntity",
-        spaceId: channel.spaceId,
+        spaceId,
         update: {
             type: "Post",
             postId: postItem.postId,
@@ -2137,8 +2509,8 @@ export async function createPost(
     // certain post inside the channel.
     context.process.waitUntil(
         markSearchAffinityEntityInteraction(context, {
-            spaceId: channel.spaceId,
-            entityId: `Channel:${channel.id}`,
+            spaceId,
+            entityId: `Channel:${channelId}`,
             interaction: {type: "MediumIntentUpdate"},
         }),
     );
@@ -2151,9 +2523,9 @@ export async function createPost(
     // explicitly choosing to reference them.)
     for (const mentionedAccountId of mentionedAccountIds) {
         context.process.waitUntil(async () => {
-            if (await isAccountMemberOfSpace(context, channel.spaceId, mentionedAccountId)) {
+            if (await isAccountMemberOfSpace(context, spaceId, mentionedAccountId)) {
                 await markSearchAffinityEntityInteraction(context, {
-                    spaceId: channel.spaceId,
+                    spaceId,
                     entityId: `Account:${mentionedAccountId as AccountId}`,
                     interaction: {type: "HighIntentUpdate"},
                 });
@@ -2163,7 +2535,7 @@ export async function createPost(
 
     return {
         id: postItem.postId,
-        spaceId: channel.spaceId,
+        spaceId,
         createdTime: postItem.createdTime,
         getDynamoGeneralRealtimeEventTransaction: async context => ({
             readTime,
@@ -2192,13 +2564,13 @@ export async function getPost(
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, id, postItemPromise);
+    PostItemAuthorizationCache.set(context, consistency, id, postItemPromise);
 
     const postItem = await postItemPromise;
 
     const post = await ForumRealtimeTable.buildRealtimeItem(context, postItem);
 
-    await authorizeChannelAccess(context, post.model.channel.id);
+    await authorizeChannelAccess(context, post.model.channel.id, "View");
 
     return post;
 }
@@ -2206,12 +2578,13 @@ export async function getPost(
 export async function getPostContentAndChannelPreview(
     context: ServerActionContext,
     id: PostId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     createdTime: Date;
     authorId: AccountId;
     content: PostContent;
     channel: ChannelPreviewModel;
+    channelAccessPolicy: AccessPolicy;
 }> {
     const postItemPromise = ForumRealtimeTable.getItem(
         context,
@@ -2225,17 +2598,20 @@ export async function getPostContentAndChannelPreview(
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, id, postItemPromise);
+    PostItemAuthorizationCache.set(context, consistency, id, postItemPromise);
 
     const postItem = await postItemPromise;
 
-    const channel = await getChannelPreview(context, postItem.channelId, {consistency});
+    const channel = await getChannelPreviewAndAccessPolicy(context, postItem.channelId, {
+        consistency,
+    });
 
     return {
         createdTime: postItem.createdTime,
         authorId: postItem.authorId,
         content: postItem.content,
-        channel,
+        channel: channel.preview,
+        channelAccessPolicy: channel.accessPolicy,
     };
 }
 
@@ -2329,7 +2705,7 @@ export async function getPostAuthorAndChannelPreview(
 export async function getPostNotificationSubscribers(
     context: ServerSystemActionContext,
     id: PostId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
     postCreatedTime: Date;
@@ -2349,11 +2725,11 @@ export async function getPostNotificationSubscribers(
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, id, postItemPromise);
+    PostItemAuthorizationCache.set(context, consistency, id, postItemPromise);
 
     const postItem = await postItemPromise;
 
-    await authorizeChannelAccess(context, postItem.channelId);
+    await authorizeChannelAccess(context, postItem.channelId, "View", {consistency});
 
     const accountIds = new Set<ContentMentionAccountId>(
         concatIterables(
@@ -2391,10 +2767,10 @@ export function updatePostContent(
             postId,
         });
 
-        await authorizeChannelAccess(context, oldPostItem.channelId);
+        await authorizeChannelAccess(context, oldPostItem.channelId, "Edit");
 
         if (oldPostItem.authorId !== context.actor.getAccountId())
-            throw new PermissionDeniedError("Can only update post comments you authored");
+            throw new PermissionDeniedError("Can only update posts you authored");
 
         const contentUpdatedTime = new Date(
             oldPostItem.contentUpdatedTime
@@ -2530,7 +2906,7 @@ export async function getPostCommentAuthors(
     );
     if (!postItem) throw new NotFoundError("Post not found");
 
-    await authorizeChannelAccess(context, postItem.channelId);
+    await authorizeChannelAccess(context, postItem.channelId, "View");
 
     return runAllPromises(
         Array.from(
@@ -2540,7 +2916,7 @@ export async function getPostCommentAuthors(
     );
 }
 
-const PostItemAuthorizationCache = new ContextCache<
+const PostItemAuthorizationCache = new DynamoContextCache<
     PostId,
     Pick<
         PostAttributesItem,
@@ -2551,14 +2927,15 @@ const PostItemAuthorizationCache = new ContextCache<
 async function getPostItemForAuthorization(
     context: ServerActionContext,
     postId: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<
     Pick<
         PostAttributesItem,
         "partitionType" | "sortRangeType" | "postId" | "spaceId" | "channelId" | "authorId"
     >
 > {
-    return PostItemAuthorizationCache.get(context, postId, async () => {
-        const postItem = await ForumRealtimeTable.getPartialItemIfExists(
+    return PostItemAuthorizationCache.get(context, consistency, postId, consistency =>
+        ForumRealtimeTable.getPartialItem(
             context,
             {
                 partitionType: "Post",
@@ -2566,49 +2943,32 @@ async function getPostItemForAuthorization(
                 postId,
             },
             {
+                consistency,
                 attributes: ["spaceId", "channelId", "authorId"],
-                // It's ok to call this function when expecting strong read consistency.
-                // Authorization is mostly strongly consistent since we retry with strong
-                // consistency if our eventually consistent read fails.
-                allowsEventualReadConsistency: true,
             },
-        );
-        if (postItem) return postItem;
-
-        return ForumRealtimeTable.getPartialItem(
-            context,
-            {
-                partitionType: "Post",
-                sortRangeType: "Attributes",
-                postId,
-            },
-            {
-                attributes: ["spaceId", "channelId", "authorId"],
-                consistency: "Strong",
-            },
-        );
-    });
+        ),
+    );
 }
 
 /**
  * Authorizes that the session user can access the provided post.
  * Implicitly also authorizes that the session user can access the channel the
  * post is in and the space the channel is in.
- *
- * This function is mostly strongly consistent. It's safe to use in strongly
- * consistent contexts. If an account just got access this function will pass
- * with strong consistency. If an account lost access we have to wait for
- * DynamoDB's eventual consistency lag before this function will start
- * throwing.
  */
 export async function authorizePostAccess(
     context: ServerActionContext,
     id: PostId,
     expectedAccessLevel: "View" | "Edit",
-): Promise<{spaceId: SpaceId}> {
-    const postItem = await getPostItemForAuthorization(context, id);
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{spaceId: SpaceId; channelId: ChannelId; channelAccessPolicy: AccessPolicy}> {
+    const postItem = await getPostItemForAuthorization(context, id, options);
 
-    await authorizeChannelAccess(context, postItem.channelId);
+    const {accessPolicy: channelAccessPolicy} = await authorizeChannelAccess(
+        context,
+        postItem.channelId,
+        expectedAccessLevel,
+        options,
+    );
 
     switch (expectedAccessLevel) {
         case "View": {
@@ -2639,7 +2999,7 @@ export async function authorizePostAccess(
             throw exhaustive(expectedAccessLevel);
     }
 
-    return {spaceId: postItem.spaceId};
+    return {spaceId: postItem.spaceId, channelId: postItem.channelId, channelAccessPolicy};
 }
 
 /**
@@ -2664,7 +3024,9 @@ export async function createPostComment(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const unauthorizedPostItemPromise = ForumRealtimeTable.getPartialItem(
+        const postItemConsistency: DynamoReadConsistency = "Eventual";
+
+        const postItemPromise = ForumRealtimeTable.getPartialItem(
             context,
             {
                 partitionType: "Post",
@@ -2672,6 +3034,7 @@ export async function createPostComment(
                 postId,
             },
             {
+                consistency: postItemConsistency,
                 attributes: [
                     "spaceId",
                     "channelId",
@@ -2682,18 +3045,16 @@ export async function createPostComment(
             },
         );
 
-        const postItemPromise = (async () => {
-            const postItem = await unauthorizedPostItemPromise;
-            await authorizeChannelAccess(context, postItem.channelId);
-            return postItem;
-        })();
-
         // After we've loaded a post, save it to the authorization cache so if we need
         // to authorize later in the action it's available.
-        PostItemAuthorizationCache.set(context, postId, postItemPromise);
+        PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
         const [postItem] = await runAllPromises([
             postItemPromise,
+
+            postItemPromise.then(postItem =>
+                authorizeChannelAccess(context, postItem.channelId, "Comment"),
+            ),
 
             (async () => {
                 if (typeof parentCommentIndex !== "number") return;
@@ -2714,7 +3075,7 @@ export async function createPostComment(
             })(),
 
             // Make sure all the provided files exist.
-            unauthorizedPostItemPromise.then(postItem =>
+            postItemPromise.then(postItem =>
                 runAllPromises(
                     fileIds.map(fileId =>
                         getFileFromAttachment(
@@ -2934,15 +3295,17 @@ export async function getPostCommentPayload(
     }: {
         postId: PostId;
         commentIndex: number;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     createdTime: Date;
     authorId: AccountId;
     payload: MessagePayload;
+    channelId: ChannelId;
+    channelAccessPolicy: AccessPolicy;
 }> {
-    const [, item] = await runAllPromises([
-        authorizePostAccess(context, postId, "View"),
+    const [{channelId, channelAccessPolicy}, item] = await runAllPromises([
+        authorizePostAccess(context, postId, "View", {consistency}),
         ForumTable.getItem(
             context,
             {
@@ -2959,6 +3322,8 @@ export async function getPostCommentPayload(
         createdTime: item.createdTime,
         authorId: item.authorId,
         payload: item.payload,
+        channelId,
+        channelAccessPolicy,
     };
 }
 
@@ -3005,6 +3370,8 @@ export function updatePostCommentContent(
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
+        const postItemConsistency: DynamoReadConsistency = "Eventual";
+
         const postItemPromise = ForumRealtimeTable.getPartialItem(
             context,
             {
@@ -3013,6 +3380,7 @@ export function updatePostCommentContent(
                 postId,
             },
             {
+                consistency: postItemConsistency,
                 attributes: [
                     "spaceId",
                     "channelId",
@@ -3026,7 +3394,7 @@ export function updatePostCommentContent(
 
         // After we've loaded a post, save it to the authorization cache so if we need
         // to authorize later in the action it's available.
-        PostItemAuthorizationCache.set(context, postId, postItemPromise);
+        PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
         const [postItem, commentItem] = await runAllPromises([
             postItemPromise,
@@ -3038,7 +3406,7 @@ export function updatePostCommentContent(
             }),
         ]);
 
-        const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
+        const {spaceId} = await authorizeChannelAccess(context, postItem.channelId, "Comment");
 
         if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update post comments you authored");
@@ -3131,6 +3499,8 @@ export function deletePostComment(
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
+        const postItemConsistency: DynamoReadConsistency = "Eventual";
+
         const postItemPromise = ForumRealtimeTable.getPartialItem(
             context,
             {
@@ -3139,6 +3509,7 @@ export function deletePostComment(
                 postId,
             },
             {
+                consistency: postItemConsistency,
                 attributes: [
                     "spaceId",
                     "channelId",
@@ -3152,7 +3523,7 @@ export function deletePostComment(
 
         // After we've loaded a post, save it to the authorization cache so if we need
         // to authorize later in the action it's available.
-        PostItemAuthorizationCache.set(context, postId, postItemPromise);
+        PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
         const [postItem, commentItem] = await runAllPromises([
             postItemPromise,
@@ -3164,7 +3535,7 @@ export function deletePostComment(
             }),
         ]);
 
-        const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
+        const {spaceId} = await authorizeChannelAccess(context, postItem.channelId, "Comment");
 
         if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete post comments you authored");
@@ -3276,15 +3647,21 @@ export async function getPostAndInitialComments(
         limit: commentLimit + 1,
     });
 
-    const postItemPromise = ForumRealtimeTable.getItem(context, {
-        partitionType: "Post",
-        sortRangeType: "Attributes",
-        postId,
-    });
+    const postItemConsistency: DynamoReadConsistency = "Eventual";
+
+    const postItemPromise = ForumRealtimeTable.getItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId,
+        },
+        {consistency: postItemConsistency},
+    );
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, postId, postItemPromise);
+    PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
     // Important that this comes after the query call since we want to load the
     // query and post item in parallel.
@@ -3305,7 +3682,7 @@ export async function getPostAndInitialComments(
     }
 
     const [, post, comments, otherReferencedComments] = await runAllPromises([
-        authorizeChannelAccess(context, postItem.channelId),
+        authorizeChannelAccess(context, postItem.channelId, "View"),
         ForumRealtimeTable.buildRealtimeItem(context, postItem),
         runAllPromises(commentPromises),
         runAllPromises(
@@ -3363,6 +3740,8 @@ export async function getPostCommentsFromStart(
     otherReferencedComments: Array<PostCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
+    const postItemConsistency: DynamoReadConsistency = "Eventual";
+
     const postItemPromise = ForumRealtimeTable.getPartialItem(
         context,
         {
@@ -3371,13 +3750,14 @@ export async function getPostCommentsFromStart(
             postId,
         },
         {
+            consistency: postItemConsistency,
             attributes: ["spaceId", "channelId", "authorId", "commentsSummary"],
         },
     );
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, postId, postItemPromise);
+    PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
     const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
@@ -3388,7 +3768,7 @@ export async function getPostCommentsFromStart(
             afterCommentIndex,
             beforeCommentIndex,
         }),
-        postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
+        postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId, "View")),
     ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
@@ -3425,7 +3805,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
         limit: number;
         afterCommentIndex: number | null;
         beforeCommentIndex: number | null;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     comments: Array<PostCommentModel>;
@@ -3551,6 +3931,8 @@ export async function getPostCommentsFromEnd(
     otherReferencedComments: Array<PostCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
+    const postItemConsistency: DynamoReadConsistency = "Eventual";
+
     const postItemPromise = ForumRealtimeTable.getPartialItem(
         context,
         {
@@ -3559,13 +3941,14 @@ export async function getPostCommentsFromEnd(
             postId,
         },
         {
+            consistency: postItemConsistency,
             attributes: ["spaceId", "channelId", "authorId", "commentsSummary"],
         },
     );
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, postId, postItemPromise);
+    PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
     const [postItem, {comments, otherReferencedComments}] = await runAllPromises([
         postItemPromise,
@@ -3576,7 +3959,7 @@ export async function getPostCommentsFromEnd(
             afterCommentIndex,
             beforeCommentIndex,
         }),
-        postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
+        postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId, "View")),
     ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
@@ -3762,6 +4145,8 @@ export async function backfillPostComments(
     newOtherReferencedComments: Array<PostCommentModel>;
     commentChangesResult: PostCommentChangesResult;
 }> {
+    const postItemConsistency: DynamoReadConsistency = "Eventual";
+
     const postItemPromise = ForumRealtimeTable.getPartialItem(
         context,
         {
@@ -3770,13 +4155,14 @@ export async function backfillPostComments(
             postId,
         },
         {
+            consistency: postItemConsistency,
             attributes: ["spaceId", "channelId", "authorId", "createdTime", "commentsSummary"],
         },
     );
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, postId, postItemPromise);
+    PostItemAuthorizationCache.set(context, postItemConsistency, postId, postItemPromise);
 
     const [postItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([
@@ -3804,7 +4190,9 @@ export async function backfillPostComments(
                     consistency: "Strong",
                 }),
             ),
-            postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
+            postItemPromise.then(({channelId}) =>
+                authorizeChannelAccess(context, channelId, "View"),
+            ),
         ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
@@ -3853,7 +4241,7 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
             "postId" | "spaceId" | "createdTime" | "commentsSummary"
         >;
         lastCommentChangeTime: Date | null;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<PostCommentChangesResult> {
     // No changes occurred during the backfill period, there is nothing we need
@@ -4023,13 +4411,10 @@ export async function getPostDraftIfExists(
 
     const [channel, contentReferences] = await runAllPromises([
         draftItem.channelId
-            ? await getChannelPreviewIfExists(context, draftItem.channelId).catch(error => {
-                  // Ignore permission denied errors. If the user lost access to the channel then treat the
-                  // channel as null.
-                  if (error instanceof PermissionDeniedError) return null;
-
-                  throw error;
-              })
+            ? await getChannelPreviewIfPossible(context, draftItem.channelId).then(channelResult =>
+                  // Ignore permission denied errors on the channel.
+                  channelResult?.ok ? channelResult.value : null,
+              )
             : null,
         getContentReferencesForNode(
             context,

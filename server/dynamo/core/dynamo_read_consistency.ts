@@ -11,3 +11,13 @@
  * [2]: https://www.alexdebrie.com/posts/dynamodb-eventual-consistency
  */
 export type DynamoReadConsistency = "Eventual" | "Strong";
+
+/**
+ * Read consistency for `DynamoContextCache`. Includes the special
+ * `StrongWithinCache` consistency which will reuse data from the cache if that
+ * data was read with strong consistency. This special consistency is useful
+ * for performance if you want your reads to be strongly consistent as of cache
+ * creation time since we can get some cache reuse whereas `Strong` consistency
+ * always needs to reload data.
+ */
+export type DynamoCacheReadConsistency = DynamoReadConsistency | "StrongWithinCache";

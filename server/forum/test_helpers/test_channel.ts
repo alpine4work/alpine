@@ -1,5 +1,12 @@
+import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createChannel, getChannel, getChannelPreview} from "~/server/forum/data/forum_table.js";
+import {
+    createChannel,
+    getChannel,
+    getChannelPreview,
+    getChannelPreviewAndAccessPolicy,
+    updateChannelAccessPolicy,
+} from "~/server/forum/data/forum_table.js";
 import {TestPost, TestPostCreateOptions} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -73,6 +80,22 @@ export class TestChannel {
     public async getPreview(): Promise<ChannelPreviewModel> {
         return await getChannelPreview(this.space.systemAction(), this.id);
     }
+
+    public readonly access = new TestAccessPolicy({
+        get: async () => {
+            const {accessPolicy} = await getChannelPreviewAndAccessPolicy(
+                this.context.systemAction(this.space.id),
+                this.id,
+            );
+            return accessPolicy;
+        },
+        set: async (session, accessPolicy) => {
+            await updateChannelAccessPolicy(session.action(), {
+                channelId: this.id,
+                accessPolicy,
+            });
+        },
+    });
 
     public createPost(
         session: TestSpaceSession,

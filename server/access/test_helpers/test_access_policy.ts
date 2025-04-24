@@ -34,7 +34,13 @@ export class TestAccessPolicy {
         level: AccessLevel = "Manage",
     ): Promise<AccessPolicy> {
         const accountId: AccountId =
-            "account" in account ? account.account.id : "id" in account ? account.id : account;
+            typeof account === "string"
+                ? account
+                : "account" in account
+                ? account.account.id
+                : "id" in account
+                ? account.id
+                : account;
 
         const oldAccessPolicy = await this.get();
 
@@ -102,7 +108,13 @@ export class TestAccessPolicy {
         account: AccountId | TestAccount | TestSession,
     ): Promise<AccessPolicy> {
         const accountId: AccountId =
-            "account" in account ? account.account.id : "id" in account ? account.id : account;
+            typeof account === "string"
+                ? account
+                : "account" in account
+                ? account.account.id
+                : "id" in account
+                ? account.id
+                : account;
 
         const oldAccessPolicy = await this.get();
 

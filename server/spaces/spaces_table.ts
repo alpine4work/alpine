@@ -1080,8 +1080,8 @@ export async function isAccountMemberOfSpaceWithoutAuthorization(
     const item1 = await dangerouslyGetSpaceAccountItemIfExists(context, spaceId, accountId, {
         consistency: "Eventual",
         // It's ok to call this function when expecting strong read consistency.
-        // Authorization is mostly strongly consistent since we retry with strong
-        // consistency if our eventually consistent read fails.
+        // This authorization check is mostly strongly consistent since we retry with
+        // strong consistency below if our eventually consistent read fails.
         allowsEventualReadConsistency: true,
     });
     if (item1 && !item1.removal) return true;

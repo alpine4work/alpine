@@ -8,7 +8,10 @@ import {
     DynamoKeyAttributeSchema,
     dynamoKeySeparator,
 } from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
     intoDynamoAttributeValue,
@@ -1513,7 +1516,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             consistency = "Eventual",
             allowsEventualReadConsistency = false,
         }: {
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         } = {},
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
@@ -1526,7 +1529,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
-                consistency,
+                // As a convenience, we support `DynamoCacheReadConsistency` even though this
+                // method doesn't consult any cache. `Strong` provides more guarantees than
+                // `StrongWithinCache` so it's safe to use without changing semantics.
+                consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
                 expectsStrongReadConsistency:
                     !allowsEventualReadConsistency &&
                     getDynamoExpectsStrongReadConsistency(context),
@@ -1564,7 +1570,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         context: DynamoContext,
         key: Key,
         options?: {
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
         const item = await this.getItemIfExists(context, key, options);
@@ -1611,7 +1617,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             allowsEventualReadConsistency,
         }: {
             attributes: Array<Attributes>;
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
@@ -1649,7 +1655,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             {
                 tableName: this._name,
                 key: {partitionKey, sortKey},
-                consistency,
+                // As a convenience, we support `DynamoCacheReadConsistency` even though this
+                // method doesn't consult any cache. `Strong` provides more guarantees than
+                // `StrongWithinCache` so it's safe to use without changing semantics.
+                consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
                 projectionExpression:
                     projectionExpressionEntries.length !== 0
                         ? projectionExpressionEntries.join(", ")
@@ -1726,7 +1735,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         key: Key,
         options: {
             attributes: Array<Attributes>;
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>>> {
         const item = await this.getPartialItemIfExists(context, key, options);
@@ -3258,7 +3267,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             limit: number | "All";
             pageLimit?: number;
             descending?: boolean;
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
     ): AsyncIterableIterator<
@@ -3313,7 +3322,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 isEndExclusive: isEndSortKeyExclusive,
             },
             lastEvaluatedKey,
-            consistency,
+            // As a convenience, we support `DynamoCacheReadConsistency` even though this
+            // method doesn't consult any cache. `Strong` provides more guarantees than
+            // `StrongWithinCache` so it's safe to use without changing semantics.
+            consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
             limit: limit !== "All" ? limit : undefined,
             pageLimit,
             descending,

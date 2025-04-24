@@ -99,7 +99,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Document"),
             documentId: Schema.id<DocumentId>(),
         }),
-        updatableTraits: ["Title"],
+        updatableTraits: ["Title", "Authorization"],
     },
     DocumentComment: {
         schema: Schema.object({
@@ -115,7 +115,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Channel"),
             channelId: Schema.id<ChannelId>(),
         }),
-        updatableTraits: ["Preview"],
+        updatableTraits: ["Preview", "Authorization"],
     },
     Post: {
         schema: Schema.object({

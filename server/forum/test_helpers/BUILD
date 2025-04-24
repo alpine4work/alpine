@@ -8,6 +8,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//server/access/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/forum/data:data_testonly",

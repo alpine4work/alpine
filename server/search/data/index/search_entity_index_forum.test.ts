@@ -6,16 +6,20 @@ import {
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
+    searchByKeywords,
     searchChannelsByAffinity,
     searchChannelsByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
@@ -454,4 +458,519 @@ test("can search channels by affinity", async () => {
             })
         ).map(result => ({channelId: result.channel.id, origin: result.origin})),
     ).toEqual([]);
+});
+
+test("channel access policies are enforced in search", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3, session4, session5, session6] = await space.createSessions(
+        6,
+    );
+
+    const channels = await runAllPromises([
+        TestChannel.create(session1, {name: "Test Channel 1"}),
+        TestChannel.create(session1, {name: "Test Channel 2"}),
+        TestChannel.create(session1, {name: "Test Channel 3"}),
+        TestChannel.create(session1, {name: "Test Channel 4"}),
+        TestChannel.create(session1, {name: "Test Channel 5"}),
+        TestChannel.create(session6, {name: "Test Channel 6"}),
+        TestChannel.create(session6, {name: "Test Channel 7"}),
+        TestChannel.create(session6, {name: "Test Channel 8"}),
+    ]);
+
+    const [channel1, channel2, channel3, channel4, channel5, channel6, channel7, channel8] =
+        channels;
+
+    await runAllPromises([
+        channel1.access.revokeDefault(session1),
+        channel2.access.revokeDefault(session1),
+        channel3.access.revokeDefault(session1),
+        channel4.access.revokeDefault(session1),
+        channel5.access.revokeDefault(session1),
+        channel6.access.revokeDefault(session6),
+        channel7.access.revokeDefault(session6),
+        channel8.access.revokeDefault(session6),
+    ]);
+
+    const posts = await runAllPromises([
+        channel1.createPost(session1, "Test post 1"),
+        channel2.createPost(session1, "Test post 2"),
+        channel3.createPost(session1, "Test post 3"),
+        channel4.createPost(session1, "Test post 4"),
+        channel5.createPost(session1, "Test post 5"),
+        channel6.createPost(session6, "Test post 6"),
+        channel7.createPost(session6, "Test post 7"),
+        channel8.createPost(session6, "Test post 8"),
+    ]);
+
+    const [post1, post2, post3, post4, post5, post6, post7, post8] = posts;
+
+    const comments = await runAllPromises([
+        post1.createComment(session1, "Test post comment 1"),
+        post2.createComment(session1, "Test post comment 2"),
+        post3.createComment(session1, "Test post comment 3"),
+        post4.createComment(session1, "Test post comment 4"),
+        post5.createComment(session1, "Test post comment 5"),
+        post6.createComment(session6, "Test post comment 6"),
+        post7.createComment(session6, "Test post comment 7"),
+        post8.createComment(session6, "Test post comment 8"),
+    ]);
+
+    const searchEntityIdOrder = [
+        ...channels.map(channel => `Channel:${channel.id}`),
+        ...posts.map(post => `Post:${post.id}`),
+        ...comments.map(comment => `PostComment:${comment.room.id}-0`),
+    ];
+
+    await channel2.access.grant(session1, session6);
+
+    await channel3.access.grant(session1, session2, "View");
+    await channel3.access.grant(session1, session3, "Comment");
+    await channel3.access.grant(session1, session4, "Edit");
+    await channel3.access.grant(session1, session5, "Manage");
+
+    await channel4.access.grantDefault(session1);
+
+    await channel5.access.grantDefault(session1, "View");
+    await channel5.access.grant(session1, session2);
+    await channel5.access.grant(session1, session3);
+
+    await channel6.access.grantUrl(session6);
+
+    await channel7.access.grantUrl(session6);
+    await channel7.access.grant(session6, session5);
+
+    await channel8.access.grantUrl(session6);
+    await channel8.access.grantDefault(session6);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const getSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "test",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:"))
+            .sort(
+                (id1, id2) =>
+                    assertExists(searchEntityIdOrder.findIndex(id => id === id1)) -
+                    assertExists(searchEntityIdOrder.findIndex(id => id === id2)),
+            );
+    };
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Channel:${channel1.id}`,
+        `Channel:${channel2.id}`,
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post1.id}`,
+        `Post:${post2.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post1.id}-0`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `Channel:${channel2.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel6.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post2.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post6.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post6.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    await channel5.access.revoke(session1, session2);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Channel:${channel1.id}`,
+        `Channel:${channel2.id}`,
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post1.id}`,
+        `Post:${post2.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post1.id}-0`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `Channel:${channel2.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel6.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post2.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post6.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post6.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    await channel5.access.revokeDefault(session1);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Channel:${channel1.id}`,
+        `Channel:${channel2.id}`,
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post1.id}`,
+        `Post:${post2.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post1.id}-0`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `Channel:${channel2.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel6.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post2.id}`,
+        `Post:${post4.id}`,
+        `Post:${post6.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post6.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    await channel3.access.revoke(session1, session4);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Channel:${channel1.id}`,
+        `Channel:${channel2.id}`,
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post1.id}`,
+        `Post:${post2.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post1.id}-0`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel5.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post5.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post5.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `Channel:${channel4.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post4.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `Channel:${channel3.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post3.id}`,
+        `Post:${post4.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post3.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `Channel:${channel2.id}`,
+        `Channel:${channel4.id}`,
+        `Channel:${channel6.id}`,
+        `Channel:${channel7.id}`,
+        `Channel:${channel8.id}`,
+        `Post:${post2.id}`,
+        `Post:${post4.id}`,
+        `Post:${post6.id}`,
+        `Post:${post7.id}`,
+        `Post:${post8.id}`,
+        `PostComment:${post2.id}-0`,
+        `PostComment:${post4.id}-0`,
+        `PostComment:${post6.id}-0`,
+        `PostComment:${post7.id}-0`,
+        `PostComment:${post8.id}-0`,
+    ]);
 });

@@ -3959,10 +3959,10 @@ testMessagingImplementation<ChatId>(context, {
             messageCount: 0,
         };
     },
-    async createPrivateRoom(context, spaceId, sessions) {
+    async createPrivateRoom(context, spaceId, {insideSessions}) {
         const chat = await createChatForTest(context, {
             spaceId,
-            otherAccountIds: sessions.map(session => session.accountId),
+            otherAccountIds: insideSessions.map(session => session.accountId),
         });
 
         return {
@@ -3970,6 +3970,8 @@ testMessagingImplementation<ChatId>(context, {
             spaceId,
             createdTime: chat.createdTime,
             messageCount: 0,
+            doesInsideViewerSessionHaveRoomAccess: "Unimplemented",
+            revokeInsideSession: "Unimplemented",
         };
     },
     async getRoom(context, chatId) {

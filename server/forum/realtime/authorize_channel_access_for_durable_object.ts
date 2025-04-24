@@ -11,6 +11,6 @@ export function authorizeChannelAccessForDurableObject(
 ) {
     // Authorize chat access once per action then cache the result.
     return ChannelAccessCache.get(context, channelId, () =>
-        authorizeChannelAccess(context, {channelId}),
+        authorizeChannelAccess(context, {channelId, expectedAccessLevel: "View"}),
     );
 }

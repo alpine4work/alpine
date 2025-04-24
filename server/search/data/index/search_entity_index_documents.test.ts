@@ -996,6 +996,402 @@ test("document access policies are enforced in search", async () => {
     ]);
 });
 
+test("document comment access policies are enforced in search", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3, session4, session5, session6] = await space.createSessions(
+        6,
+    );
+
+    const documents = await runAllPromises([
+        TestDocument.create(session1, {body: "test 1"}),
+        TestDocument.create(session1, {body: "test 2"}),
+        TestDocument.create(session1, {body: "test 3"}),
+        TestDocument.create(session1, {body: "test 4"}),
+        TestDocument.create(session1, {body: "test 5"}),
+        TestDocument.create(session6, {body: "test 6"}),
+        TestDocument.create(session6, {body: "test 7"}),
+        TestDocument.create(session6, {body: "test 8"}),
+    ]);
+
+    const [document1, document2, document3, document4, document5, document6, document7, document8] =
+        documents;
+
+    const commentThreads = await runAllPromises([
+        document1.createCommentThread(session1, {from: 3, to: 6}, "test comment 1"),
+        document2.createCommentThread(session1, {from: 3, to: 6}, "test comment 2"),
+        document3.createCommentThread(session1, {from: 3, to: 6}, "test comment 3"),
+        document4.createCommentThread(session1, {from: 3, to: 6}, "test comment 4"),
+        document5.createCommentThread(session1, {from: 3, to: 6}, "test comment 5"),
+        document6.createCommentThread(session6, {from: 3, to: 6}, "test comment 6"),
+        document7.createCommentThread(session6, {from: 3, to: 6}, "test comment 7"),
+        document8.createCommentThread(session6, {from: 3, to: 6}, "test comment 8"),
+    ]);
+
+    const searchEntityIdOrder = [
+        ...commentThreads.map(
+            commentThread => `DocumentComment:${commentThread.document.id}-${commentThread.id}-0`,
+        ),
+        ...documents.map(document => `Document:${document.id}`),
+    ];
+
+    const [
+        commentThread1,
+        commentThread2,
+        commentThread3,
+        commentThread4,
+        commentThread5,
+        commentThread6,
+        commentThread7,
+        commentThread8,
+    ] = commentThreads;
+
+    await document2.access.grant(session1, session6);
+
+    await document3.access.grant(session1, session2, "View");
+    await document3.access.grant(session1, session3, "Comment");
+    await document3.access.grant(session1, session4, "Edit");
+    await document3.access.grant(session1, session5, "Manage");
+
+    await document4.access.grantDefault(session1);
+
+    await document5.access.grantDefault(session1, "View");
+    await document5.access.grant(session1, session2);
+    await document5.access.grant(session1, session3);
+
+    await document6.access.grantUrl(session6);
+
+    await document7.access.grantUrl(session6);
+    await document7.access.grant(session6, session5);
+
+    await document8.access.grantUrl(session6);
+    await document8.access.grantDefault(session6);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const getSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "test",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .map(result => result.id)
+            .filter(resultId => !resultId.startsWith("Account:"))
+            .sort(
+                (id1, id2) =>
+                    assertExists(searchEntityIdOrder.findIndex(id => id === id1)) -
+                    assertExists(searchEntityIdOrder.findIndex(id => id === id2)),
+            );
+    };
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `DocumentComment:${document1.id}-${commentThread1.id}-0`,
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document1.id}`,
+        `Document:${document2.id}`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document6.id}-${commentThread6.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document2.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document6.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    await document5.access.revoke(session1, session2);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `DocumentComment:${document1.id}-${commentThread1.id}-0`,
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document1.id}`,
+        `Document:${document2.id}`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document6.id}-${commentThread6.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document2.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document6.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    await document5.access.revokeDefault(session1);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `DocumentComment:${document1.id}-${commentThread1.id}-0`,
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document1.id}`,
+        `Document:${document2.id}`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document6.id}-${commentThread6.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document2.id}`,
+        `Document:${document4.id}`,
+        `Document:${document6.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    await document3.access.revoke(session1, session4);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `DocumentComment:${document1.id}-${commentThread1.id}-0`,
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document1.id}`,
+        `Document:${document2.id}`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document5.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session4)).toEqual([
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document4.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session5)).toEqual([
+        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document3.id}`,
+        `Document:${document4.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session6)).toEqual([
+        `DocumentComment:${document2.id}-${commentThread2.id}-0`,
+        `DocumentComment:${document4.id}-${commentThread4.id}-0`,
+        `DocumentComment:${document6.id}-${commentThread6.id}-0`,
+        `DocumentComment:${document7.id}-${commentThread7.id}-0`,
+        `DocumentComment:${document8.id}-${commentThread8.id}-0`,
+        `Document:${document2.id}`,
+        `Document:${document4.id}`,
+        `Document:${document6.id}`,
+        `Document:${document7.id}`,
+        `Document:${document8.id}`,
+    ]);
+});
+
 test("newly created documents will be visible in search even before indexing", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);

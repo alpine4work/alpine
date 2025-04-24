@@ -45,7 +45,9 @@ export type SearchEntityDependencyId =
     | `Account:${AccountId | ContentMentionAccountId}`
     | `Account:${AccountId | ContentMentionAccountId}:WithoutSpace`
     | `Document:${DocumentId}:Title`
+    | `Document:${DocumentId}:Authorization`
     | `Channel:${ChannelId}:Preview`
+    | `Channel:${ChannelId}:Authorization`
     | `Chat:${ChatId}`
     | `Task:${TaskId}:Authorization`
     | `TaskCollection:${TaskCollectionId}:Authorization`;

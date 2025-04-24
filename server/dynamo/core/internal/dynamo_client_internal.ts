@@ -227,10 +227,10 @@ export class DynamoClientInternal {
                     if (process.env.NODE_ENV !== "production") {
                         throw error;
                     } else {
-                        // In production, add the exception to the span but let it return like normal.
-                        // In case a developer accidentally forgot to make a read strong we don't want
-                        // to break the product for users.
-                        span.addException(error);
+                        // In production, log an error but let the method return like normal. In case a
+                        // developer accidentally forgot to make a read strong consistency it's
+                        // probably fine to log a warning without breaking the product.
+                        span.logException("Expected DynamoDB strong consistency", error);
                     }
                 }
 
@@ -322,10 +322,10 @@ export class DynamoClientInternal {
                     if (process.env.NODE_ENV !== "production") {
                         throw error;
                     } else {
-                        // In production, add the exception to the span but let it return like normal.
-                        // In case a developer accidentally forgot to make a read strong we don't want
-                        // to break the product for users.
-                        span.addException(error);
+                        // In production, log an error but let the method return like normal. In case a
+                        // developer accidentally forgot to make a read strong consistency it's
+                        // probably fine to log a warning without breaking the product.
+                        span.logException("Expected DynamoDB strong consistency", error);
                     }
                 }
 
@@ -772,10 +772,10 @@ export class DynamoClientInternal {
                     if (process.env.NODE_ENV !== "production") {
                         throw error;
                     } else {
-                        // In production, add the exception to the span but let it return like normal.
-                        // In case a developer accidentally forgot to make a read strong we don't want
-                        // to break the product for users.
-                        span.addException(error);
+                        // In production, log an error but let the method return like normal. In case a
+                        // developer accidentally forgot to make a read strong consistency it's
+                        // probably fine to log a warning without breaking the product.
+                        span.logException("Expected DynamoDB strong consistency", error);
                     }
                 }
 

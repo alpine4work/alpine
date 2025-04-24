@@ -3,8 +3,12 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {
     DynamoTableItemKeyType,
@@ -15,7 +19,6 @@ import {DynamoGeneralRealtimeTableSchema} from "~/server/dynamo/core/general_rea
 import {fileProcessorDeclarationByContentType} from "~/server/files/data/file_processor_declaration_by_content_type.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
     FailedPreconditionError,
     InternalError,
@@ -1463,22 +1466,16 @@ export class FileUploader {
     }
 }
 
-const FileItemContextCache = new ContextCache<`${SpaceId}:${FileId}`, FileItem | null>();
+const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, FileItem | null>();
 
 function getFileItemIfExistsWithCache(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    {
-        consistency = "Eventual",
-        allowsEventualReadConsistency = false,
-    }: {
-        consistency?: DynamoReadConsistency;
-        allowsEventualReadConsistency?: boolean;
-    } = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
-    const get = async () => {
-        const item = await FilesTable.getItemIfExists(
+    return FileItemContextCache.get(context, consistency, `${spaceId}:${fileId}`, consistency =>
+        FilesTable.getItemIfExists(
             context,
             {
                 partitionType: "Space",
@@ -1486,22 +1483,9 @@ function getFileItemIfExistsWithCache(
                 spaceId,
                 fileId,
             },
-            {consistency, allowsEventualReadConsistency},
-        );
-
-        if (!item) return null;
-        return item;
-    };
-
-    // We can't use a cached value when reading with strong consistency but we can
-    // save the read value to the cache for later.
-    if (consistency === "Strong") {
-        const getPromise = get();
-        FileItemContextCache.set(context, `${spaceId}:${fileId}`, getPromise);
-        return getPromise;
-    } else {
-        return FileItemContextCache.get(context, `${spaceId}:${fileId}`, get);
-    }
+            {consistency},
+        ),
+    );
 }
 
 async function getFileItemIfExistsAsUploader(
@@ -1757,7 +1741,10 @@ export async function getFileIfExistsFromAttachment(
     {
         consistency = "Eventual",
         accessLevel = "View",
-    }: {consistency?: DynamoReadConsistency; accessLevel?: "View" | "Edit"} = {},
+    }: {
+        consistency?: DynamoReadConsistency;
+        accessLevel?: "View" | "Edit";
+    } = {},
 ): Promise<FileModel | null> {
     const [item, , targetItem] = await runAllPromises([
         getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency}),

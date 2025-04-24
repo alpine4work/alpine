@@ -7,7 +7,6 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {
     getChannelNameAndDescriptionContent,
-    getChannelPreview,
     getPostCommentPayload,
     getPostContentAndChannelPreview,
 } from "~/server/forum/data/forum_table.js";
@@ -251,9 +250,7 @@ class SearchEntityReadState {
                 this._context,
                 this._context.actor.getSpaceId(),
                 accountId,
-                {
-                    consistency: "Strong",
-                },
+                {consistency: "Strong"},
             );
             if (!account) return null;
 
@@ -285,7 +282,7 @@ class SearchEntityReadState {
         this._recordDependencyId(`Document:${documentId}`);
 
         return getDocumentContent(this._context, documentId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
     }
 
@@ -293,7 +290,7 @@ class SearchEntityReadState {
         this._recordDependencyId(`Document:${documentId}:Title`);
 
         return getDocumentTitle(this._context, documentId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
     }
 
@@ -301,7 +298,13 @@ class SearchEntityReadState {
         documentId: DocumentId,
         commentThreadId: DocumentCommentThreadId,
         commentIndex: number,
-    ): Promise<{createdTime: Date; authorId: AccountId; payload: MessagePayload}> {
+    ): Promise<{
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+        documentAccessPolicy: AccessPolicy;
+    }> {
+        this._recordDependencyId(`Document:${documentId}:Authorization`);
         this._recordDependencyId(
             `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
         );
@@ -310,7 +313,7 @@ class SearchEntityReadState {
             documentId,
             commentThreadId,
             commentIndex,
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
     }
 
@@ -319,19 +322,12 @@ class SearchEntityReadState {
         description: MessageContent;
         createdTime: Date;
         creatorId: AccountId | null;
+        accessPolicy: AccessPolicy;
     }> {
         this._recordDependencyId(`Channel:${channelId}`);
 
         return getChannelNameAndDescriptionContent(this._context, channelId, {
-            consistency: "Strong",
-        });
-    }
-
-    public getChannelPreview(channelId: ChannelId): Promise<ChannelPreviewModel> {
-        this._recordDependencyId(`Channel:${channelId}:Preview`);
-
-        return getChannelPreview(this._context, channelId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
     }
 
@@ -347,32 +343,38 @@ class SearchEntityReadState {
         authorId: AccountId;
         content: PostContent;
         channel: ChannelPreviewModel;
+        channelAccessPolicy: AccessPolicy;
     }> {
         this._recordDependencyId(`Post:${postId}`);
 
         const contentAndChannel = await getPostContentAndChannelPreview(this._context, postId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
 
         this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Preview`);
         return contentAndChannel;
     }
 
-    public getPostCommentPayload(
+    public async getPostCommentPayload(
         postId: PostId,
         commentIndex: number,
     ): Promise<{
         createdTime: Date;
         authorId: AccountId;
         payload: MessagePayload;
+        channelId: ChannelId;
+        channelAccessPolicy: AccessPolicy;
     }> {
         this._recordDependencyId(`PostComment:${postId}-${commentIndex}`);
 
-        return getPostCommentPayload(this._context, {
+        const comment = await getPostCommentPayload(this._context, {
             postId,
             commentIndex,
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
+
+        this._recordDependencyId(`Channel:${comment.channelId}:Authorization`);
+        return comment;
     }
 
     public getTaskCommentPayload(
@@ -388,7 +390,7 @@ class SearchEntityReadState {
         return getTaskCommentPayload(this._context, {
             taskId,
             commentIndex,
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
     }
 
@@ -398,7 +400,7 @@ class SearchEntityReadState {
         this._recordDependencyId(`Chat:${chatId}`);
 
         return getChatAccountIds(this._context, chatId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
     }
 
@@ -415,7 +417,7 @@ class SearchEntityReadState {
         return getChatMessagePayload(this._context, {
             chatId,
             messageIndex,
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
     }
 
@@ -441,7 +443,7 @@ class SearchEntityReadState {
         ] = await runAllPromises([
             getTaskFromIndex(this._context, this._context.actor.getSpaceId(), taskId),
             getTaskNotesContentWithoutReferences(this._context, taskId, {
-                consistency: "Strong",
+                consistency: "StrongWithinCache",
             }),
         ]);
 
@@ -740,6 +742,7 @@ async function getDocumentCommentSearchEntity(
         createdTime,
         authorId,
         payload: commentPayload,
+        documentAccessPolicy,
     } = await state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex);
 
     const content =
@@ -760,15 +763,7 @@ async function getDocumentCommentSearchEntity(
 
     return {
         id: `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
-
-        // TODO(calebmer): Documents are currently accessible to everyone in a space.
-        // When we add access controls we need to update this with proper access policy
-        // information.
-        accessPolicy: {
-            accountGrantAccountIds: emptySet,
-            defaultGrantType: "Space",
-        },
-
+        accessPolicy: getSearchEntityIndexAccessPolicy(documentAccessPolicy),
         createdTime,
         title: null,
         body: content?.getFullText() ?? null,
@@ -804,15 +799,7 @@ async function getChannelSearchEntity(
 
     return {
         id: `Channel:${channelId}`,
-
-        // TODO(calebmer): Channels are currently accessible to everyone in a space.
-        // When we add access controls we need to update this with proper access policy
-        // information.
-        accessPolicy: {
-            accountGrantAccountIds: emptySet,
-            defaultGrantType: "Space",
-        },
-
+        accessPolicy: getSearchEntityIndexAccessPolicy(channel.accessPolicy),
         createdTime: channel.createdTime,
         title: channel.name,
         body: getFullText(),
@@ -866,17 +853,8 @@ async function getPostSearchEntity(
 
     return {
         id: `Post:${postId}`,
-
-        // TODO(calebmer): Channels are currently accessible to everyone in a space.
-        // When we add access controls we need to update this with proper access policy
-        // information.
-        accessPolicy: {
-            accountGrantAccountIds: emptySet,
-            defaultGrantType: "Space",
-        },
-
+        accessPolicy: getSearchEntityIndexAccessPolicy(post.channelAccessPolicy),
         createdTime: post.createdTime,
-
         title: null,
         body: getFullText(),
         media: {type: "Account", accountId: post.authorId},
@@ -894,6 +872,7 @@ async function getPostCommentSearchEntity(
         createdTime,
         authorId,
         payload: commentPayload,
+        channelAccessPolicy,
     } = await state.getPostCommentPayload(postId, commentIndex);
 
     const content =
@@ -912,15 +891,7 @@ async function getPostCommentSearchEntity(
 
     return {
         id: `PostComment:${postId}-${commentIndex}`,
-
-        // TODO(calebmer): Documents are currently accessible to everyone in a space.
-        // When we add access controls we need to update this with proper access policy
-        // information.
-        accessPolicy: {
-            accountGrantAccountIds: emptySet,
-            defaultGrantType: "Space",
-        },
-
+        accessPolicy: getSearchEntityIndexAccessPolicy(channelAccessPolicy),
         createdTime,
         title: null,
         body: content?.getFullText() ?? null,

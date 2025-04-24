@@ -227,14 +227,22 @@ export type TestMessagingImplementation<RoomKey extends string> = {
      * but only `insideSession` has access. `outsideSession` should not have access
      * to the room and an error should be thrown when they try.
      */
-    createPrivateRoom:
-        | ((
-              context: TestSessionActionContext,
-              spaceId: SpaceId,
-              insideSessions: Array<TestSessionItem>,
-              outsideSession: TestSessionItem,
-          ) => Promise<RoomInterface<RoomKey>>)
-        | "Unimplemented";
+    createPrivateRoom: (
+        context: TestSessionActionContext,
+        spaceId: SpaceId,
+        options: {
+            insideSessions: Array<TestSessionItem>;
+            insideViewerSession: TestSessionItem;
+            outsideSession: TestSessionItem;
+        },
+    ) => Promise<
+        RoomInterface<RoomKey> & {
+            doesInsideViewerSessionHaveRoomAccess: boolean | "Unimplemented";
+            revokeInsideSession:
+                | ((context: TestSessionActionContext, session: TestSessionItem) => Promise<void>)
+                | "Unimplemented";
+        }
+    >;
 
     /**
      * Gets an existing room.
@@ -357,6 +365,7 @@ export function testMessagingImplementation<RoomKey extends string>(
     const session2 = createTestSession(context, space);
     const session3 = createTestSession(context, space);
     const session4 = createTestSession(context, space);
+    const session5 = createTestSession(context, space);
     const otherSpace = createTestSpace(context);
     const otherSpaceSession = createTestSession(context, otherSpace);
 
@@ -369,11 +378,13 @@ export function testMessagingImplementation<RoomKey extends string>(
         return _createRoom(context, spaceId, [session1, session2, session3]);
     };
 
-    const createPrivateRoom =
-        typeof _createPrivateRoom === "function"
-            ? (context: TestSessionActionContext, spaceId: SpaceId) =>
-                  _createPrivateRoom(context, spaceId, [session1, session2, session3], session4)
-            : "Unimplemented";
+    const createPrivateRoom = (context: TestSessionActionContext, spaceId: SpaceId) => {
+        return _createPrivateRoom(context, spaceId, {
+            insideSessions: [session1, session2, session3],
+            insideViewerSession: session5,
+            outsideSession: session4,
+        });
+    };
 
     function massageMessage(message: MessageModel | null) {
         if (!message) return null;
@@ -587,25 +598,29 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can't get private room when you don't have access", async () => {
-                const room1 = await createPrivateRoom(context.action(session1), space.id);
+        test("can't get private room when you don't have access", async () => {
+            const room1 = await createPrivateRoom(context.action(session1), space.id);
 
-                expect((await getRoom(context.action(session1), room1.key))?.messageCount).toEqual(
-                    0,
-                );
-                expect((await getRoom(context.action(session2), room1.key))?.messageCount).toEqual(
-                    0,
-                );
-                expect((await getRoom(context.action(session3), room1.key))?.messageCount).toEqual(
-                    0,
-                );
+            expect((await getRoom(context.action(session1), room1.key))?.messageCount).toEqual(0);
+            expect((await getRoom(context.action(session2), room1.key))?.messageCount).toEqual(0);
+            expect((await getRoom(context.action(session3), room1.key))?.messageCount).toEqual(0);
 
-                await expect(getRoom(context.action(session4), room1.key)).rejects.toThrow(
-                    PermissionDeniedError,
-                );
-            });
-        }
+            await expect(getRoom(context.action(session4), room1.key)).rejects.toThrow(
+                PermissionDeniedError,
+            );
+
+            if (room1.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
+                if (room1.doesInsideViewerSessionHaveRoomAccess) {
+                    expect(
+                        (await getRoom(context.action(session5), room1.key))?.messageCount,
+                    ).toEqual(0);
+                } else {
+                    await expect(getRoom(context.action(session5), room1.key)).rejects.toThrow(
+                        PermissionDeniedError,
+                    );
+                }
+            }
+        });
 
         test("can create message", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -776,41 +791,50 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can't create message in private room from an account without access", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
+        test("can't create message in private room from an account without access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
 
-                await createMessage(context.action(session1), {
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content2,
+                fileIds: [],
+            });
+
+            await createMessage(context.action(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content3,
+                fileIds: [],
+            });
+
+            await expect(
+                createMessage(context.action(session4), {
                     roomKey: room.key,
                     parentMessageIndex: null,
-                    content: content1,
+                    content: content4,
                     fileIds: [],
-                });
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
 
-                await createMessage(context.action(session2), {
-                    roomKey: room.key,
-                    parentMessageIndex: null,
-                    content: content2,
-                    fileIds: [],
-                });
-
-                await createMessage(context.action(session3), {
-                    roomKey: room.key,
-                    parentMessageIndex: null,
-                    content: content3,
-                    fileIds: [],
-                });
-
+            if (room.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
                 await expect(
-                    createMessage(context.action(session4), {
+                    createMessage(context.action(session5), {
                         roomKey: room.key,
                         parentMessageIndex: null,
                         content: content4,
                         fileIds: [],
                     }),
                 ).rejects.toThrow(PermissionDeniedError);
-            });
-        }
+            }
+        });
 
         test("can't create message with invalid content", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -1059,42 +1083,61 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can't get a message in a private room when account doesn't have access", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
+        test("can't get a message in a private room when account doesn't have access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
 
-                const message = await createMessage(context.action(session1), {
-                    roomKey: room.key,
-                    parentMessageIndex: null,
-                    content: content1,
-                    fileIds: [],
-                });
-
-                await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session1), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                });
-
-                await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session2), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                });
-
-                await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session3), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                });
-
-                await expectGetMessageAndGetMessagePayloadToThrow(
-                    context.action(session4),
-                    {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    },
-                    PermissionDeniedError,
-                );
+            const message = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
             });
-        }
+
+            await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session1), {
+                roomKey: room.key,
+                messageIndex: message.index,
+            });
+
+            await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session2), {
+                roomKey: room.key,
+                messageIndex: message.index,
+            });
+
+            await expectGetMessageAndGetMessagePayloadNotToBeNull(context.action(session3), {
+                roomKey: room.key,
+                messageIndex: message.index,
+            });
+
+            await expectGetMessageAndGetMessagePayloadToThrow(
+                context.action(session4),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                PermissionDeniedError,
+            );
+
+            if (room.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
+                if (room.doesInsideViewerSessionHaveRoomAccess) {
+                    await expectGetMessageAndGetMessagePayloadNotToBeNull(
+                        context.action(session5),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        },
+                    );
+                } else {
+                    await expectGetMessageAndGetMessagePayloadToThrow(
+                        context.action(session5),
+                        {
+                            roomKey: room.key,
+                            messageIndex: message.index,
+                        },
+                        PermissionDeniedError,
+                    );
+                }
+            }
+        });
 
         test("can create a message with a parent", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -1447,90 +1490,198 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can update message in private room from account with access", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
+        test("can update message in private room from account with access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
 
-                const message = await createMessage(context.action(session2), {
+            const message = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await expectGetMessage(
+                context.action(session1),
+                {
                     roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
-                    fileIds: [],
-                });
+                    hasContentUpdated: false,
+                },
+            );
 
-                await expectGetMessage(
-                    context.action(session1),
-                    {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    },
-                    {
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session2.accountId,
-                        ),
-                        parentMessageIndex: null,
-                        content: content1,
-                        hasContentUpdated: false,
-                    },
-                );
+            await updateMessageContent(context.action(session2), {
+                roomKey: room.key,
+                messageIndex: message.index,
+                content: content2,
+            });
 
-                await updateMessageContent(context.action(session2), {
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content2,
+                    hasContentUpdated: true,
+                },
+            );
+        });
+
+        test("can't update message in private room from account which loses access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
+            if (room.revokeInsideSession === "Unimplemented") return;
+
+            const message = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
+
+            await updateMessageContent(context.action(session2), {
+                roomKey: room.key,
+                messageIndex: message.index,
+                content: content2,
+            });
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content2,
+                    hasContentUpdated: true,
+                },
+            );
+
+            await room.revokeInsideSession(context.action(session1), session2);
+
+            await expect(
+                updateMessageContent(context.action(session2), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    content: content3,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content2,
+                    hasContentUpdated: true,
+                },
+            );
+        });
+
+        test("can't update message in private room from account without access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
+
+            const message = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
+
+            await expect(
+                updateMessageContent(context.action(session4), {
                     roomKey: room.key,
                     messageIndex: message.index,
                     content: content2,
-                });
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
 
-                await expectGetMessage(
-                    context.action(session1),
-                    {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    },
-                    {
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session2.accountId,
-                        ),
-                        parentMessageIndex: null,
-                        content: content2,
-                        hasContentUpdated: true,
-                    },
-                );
-            });
-
-            test("can't update message in private room from account without access", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
-
-                const message = await createMessage(context.action(session1), {
+            await expectGetMessage(
+                context.action(session1),
+                {
                     roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
-                    fileIds: [],
-                });
+                    hasContentUpdated: false,
+                },
+            );
 
-                await expectGetMessage(
-                    context.action(session1),
-                    {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    },
-                    {
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
-                        parentMessageIndex: null,
-                        content: content1,
-                        hasContentUpdated: false,
-                    },
-                );
-
+            if (room.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
                 await expect(
-                    updateMessageContent(context.action(session4), {
+                    updateMessageContent(context.action(session5), {
                         roomKey: room.key,
                         messageIndex: message.index,
                         content: content2,
@@ -1554,8 +1705,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                         hasContentUpdated: false,
                     },
                 );
-            });
-        }
+            }
+        });
 
         test("can't update message with invalid content", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -1797,87 +1948,169 @@ export function testMessagingImplementation<RoomKey extends string>(
             );
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can delete message in private room from account with access", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
+        test("can delete message in private room from account with access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
 
-                const message = await createMessage(context.action(session2), {
-                    roomKey: room.key,
-                    parentMessageIndex: null,
-                    content: content1,
-                    fileIds: [],
-                });
-
-                await expectGetMessage(
-                    context.action(session1),
-                    {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    },
-                    {
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session2.accountId,
-                        ),
-                        parentMessageIndex: null,
-                        content: content1,
-                        hasContentUpdated: false,
-                    },
-                );
-
-                await deleteMessage(context.action(session2), {
-                    roomKey: room.key,
-                    messageIndex: message.index,
-                });
-
-                await expectGetMessage(
-                    context.action(session1),
-                    {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    },
-                    {
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session2.accountId,
-                        ),
-                        isDeleted: true,
-                    },
-                );
+            const message = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
             });
 
-            test("can't delete message in private room from account without access", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
-
-                const message = await createMessage(context.action(session1), {
+            await expectGetMessage(
+                context.action(session1),
+                {
                     roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
                     parentMessageIndex: null,
                     content: content1,
-                    fileIds: [],
-                });
+                    hasContentUpdated: false,
+                },
+            );
 
-                await expectGetMessage(
-                    context.action(session1),
-                    {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    },
-                    {
-                        author: await getAccount(
-                            context.action(session1),
-                            space.id,
-                            session1.accountId,
-                        ),
-                        parentMessageIndex: null,
-                        content: content1,
-                        hasContentUpdated: false,
-                    },
-                );
+            await deleteMessage(context.action(session2), {
+                roomKey: room.key,
+                messageIndex: message.index,
+            });
 
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
+                    isDeleted: true,
+                },
+            );
+        });
+
+        test("can't delete message in private room from account after revoking access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
+            if (room.revokeInsideSession === "Unimplemented") return;
+
+            const message = await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
+
+            await room.revokeInsideSession(context.action(session1), session2);
+
+            await expect(
+                deleteMessage(context.action(session2), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session2.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
+        });
+
+        test("can't delete message in private room from account without access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
+
+            const message = await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
+
+            await expect(
+                deleteMessage(context.action(session4), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: await getAccount(
+                        context.action(session1),
+                        space.id,
+                        session1.accountId,
+                    ),
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
+
+            if (room.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
                 await expect(
-                    deleteMessage(context.action(session4), {
+                    deleteMessage(context.action(session5), {
                         roomKey: room.key,
                         messageIndex: message.index,
                     }),
@@ -1900,8 +2133,8 @@ export function testMessagingImplementation<RoomKey extends string>(
                         hasContentUpdated: false,
                     },
                 );
-            });
-        }
+            }
+        });
 
         test("can't delete a message twice", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -2441,62 +2674,87 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can't get messages for private room from account who doesn't have access", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
+        test("can't get messages for private room from account who doesn't have access", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
 
-                expect(
-                    massageMessages(
-                        await getMessagesFromStart(context.action(session1), {
-                            roomKey: room.key,
-                            limit: 100,
-                            afterMessageIndex: null,
-                            beforeMessageIndex: null,
-                        }),
-                    ),
-                ).toEqual({
-                    messageCount: 0,
-                    messages: [],
-                });
-
-                expect(
-                    massageMessages(
-                        await getMessagesFromStart(context.action(session2), {
-                            roomKey: room.key,
-                            limit: 100,
-                            afterMessageIndex: null,
-                            beforeMessageIndex: null,
-                        }),
-                    ),
-                ).toEqual({
-                    messageCount: 0,
-                    messages: [],
-                });
-
-                expect(
-                    massageMessages(
-                        await getMessagesFromStart(context.action(session3), {
-                            roomKey: room.key,
-                            limit: 100,
-                            afterMessageIndex: null,
-                            beforeMessageIndex: null,
-                        }),
-                    ),
-                ).toEqual({
-                    messageCount: 0,
-                    messages: [],
-                });
-
-                await expect(
-                    getMessagesFromStart(context.action(session4), {
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
                         beforeMessageIndex: null,
                     }),
-                ).rejects.toThrow(PermissionDeniedError);
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
             });
-        }
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.action(session2), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromStart(context.action(session3), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
+            });
+
+            await expect(
+                getMessagesFromStart(context.action(session4), {
+                    roomKey: room.key,
+                    limit: 100,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            if (room.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
+                if (room.doesInsideViewerSessionHaveRoomAccess) {
+                    expect(
+                        massageMessages(
+                            await getMessagesFromStart(context.action(session5), {
+                                roomKey: room.key,
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                            }),
+                        ),
+                    ).toEqual({
+                        messageCount: 0,
+                        messages: [],
+                    });
+                } else {
+                    await expect(
+                        getMessagesFromStart(context.action(session5), {
+                            roomKey: room.key,
+                            limit: 100,
+                            afterMessageIndex: null,
+                            beforeMessageIndex: null,
+                        }),
+                    ).rejects.toThrow(PermissionDeniedError);
+                }
+            }
+        });
 
         test("can get messages from start with limit", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -4261,62 +4519,87 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can't get messages from end for private room account doesn't have access to", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
+        test("can't get messages from end for private room account doesn't have access to", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
 
-                expect(
-                    massageMessages(
-                        await getMessagesFromEnd(context.action(session1), {
-                            roomKey: room.key,
-                            limit: 100,
-                            afterMessageIndex: null,
-                            beforeMessageIndex: null,
-                        }),
-                    ),
-                ).toEqual({
-                    messageCount: 0,
-                    messages: [],
-                });
-
-                expect(
-                    massageMessages(
-                        await getMessagesFromEnd(context.action(session2), {
-                            roomKey: room.key,
-                            limit: 100,
-                            afterMessageIndex: null,
-                            beforeMessageIndex: null,
-                        }),
-                    ),
-                ).toEqual({
-                    messageCount: 0,
-                    messages: [],
-                });
-
-                expect(
-                    massageMessages(
-                        await getMessagesFromEnd(context.action(session3), {
-                            roomKey: room.key,
-                            limit: 100,
-                            afterMessageIndex: null,
-                            beforeMessageIndex: null,
-                        }),
-                    ),
-                ).toEqual({
-                    messageCount: 0,
-                    messages: [],
-                });
-
-                await expect(
-                    getMessagesFromEnd(context.action(session4), {
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.action(session1), {
                         roomKey: room.key,
                         limit: 100,
                         afterMessageIndex: null,
                         beforeMessageIndex: null,
                     }),
-                ).rejects.toThrow(PermissionDeniedError);
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
             });
-        }
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.action(session2), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
+            });
+
+            expect(
+                massageMessages(
+                    await getMessagesFromEnd(context.action(session3), {
+                        roomKey: room.key,
+                        limit: 100,
+                        afterMessageIndex: null,
+                        beforeMessageIndex: null,
+                    }),
+                ),
+            ).toEqual({
+                messageCount: 0,
+                messages: [],
+            });
+
+            await expect(
+                getMessagesFromEnd(context.action(session4), {
+                    roomKey: room.key,
+                    limit: 100,
+                    afterMessageIndex: null,
+                    beforeMessageIndex: null,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            if (room.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
+                if (room.doesInsideViewerSessionHaveRoomAccess) {
+                    expect(
+                        massageMessages(
+                            await getMessagesFromEnd(context.action(session5), {
+                                roomKey: room.key,
+                                limit: 100,
+                                afterMessageIndex: null,
+                                beforeMessageIndex: null,
+                            }),
+                        ),
+                    ).toEqual({
+                        messageCount: 0,
+                        messages: [],
+                    });
+                } else {
+                    await expect(
+                        getMessagesFromEnd(context.action(session5), {
+                            roomKey: room.key,
+                            limit: 100,
+                            afterMessageIndex: null,
+                            beforeMessageIndex: null,
+                        }),
+                    ).rejects.toThrow(PermissionDeniedError);
+                }
+            }
+        });
 
         test("can get messages from end with limit", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -8019,91 +8302,152 @@ export function testMessagingImplementation<RoomKey extends string>(
             ).rejects.toThrow(new PermissionDeniedError(spacePermissionDeniedErrorMessage));
         });
 
-        if (createPrivateRoom !== "Unimplemented") {
-            test("can't backfill messages for a private room account doesn't have access to", async () => {
-                const room = await createPrivateRoom(context.action(session1), space.id);
+        test("can't backfill messages for a private room account doesn't have access to", async () => {
+            const room = await createPrivateRoom(context.action(session1), space.id);
 
-                await createMessage(context.action(session1), {
-                    roomKey: room.key,
-                    parentMessageIndex: null,
-                    content: content1,
-                    fileIds: [],
-                });
+            await createMessage(context.action(session1), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
 
-                await createMessage(context.action(session2), {
-                    roomKey: room.key,
-                    parentMessageIndex: null,
-                    content: content1,
-                    fileIds: [],
-                });
+            await createMessage(context.action(session2), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
 
-                await createMessage(context.action(session3), {
-                    roomKey: room.key,
-                    parentMessageIndex: null,
-                    content: content1,
-                    fileIds: [],
-                });
+            await createMessage(context.action(session3), {
+                roomKey: room.key,
+                parentMessageIndex: null,
+                content: content1,
+                fileIds: [],
+            });
 
-                expect(
-                    massageMessageBackfill(
-                        await backfillMessages(context.action(session1), {
-                            roomKey: room.key,
-                            clientMessageCount: 0,
-                            clientLastMessageChangeTime: null,
-                            newMessageLimit: 100,
-                        }),
-                    ),
-                ).toEqual({
-                    messageCount: 3,
-                    lastMessageChangeTime: null,
-                    newMessages: [
-                        {
-                            author: await getAccount(
-                                context.action(session1),
-                                space.id,
-                                session1.accountId,
-                            ),
-                            parentMessageIndex: null,
-                            content: content1,
-                            hasContentUpdated: false,
-                        },
-                        {
-                            author: await getAccount(
-                                context.action(session2),
-                                space.id,
-                                session2.accountId,
-                            ),
-                            parentMessageIndex: null,
-                            content: content1,
-                            hasContentUpdated: false,
-                        },
-                        {
-                            author: await getAccount(
-                                context.action(session3),
-                                space.id,
-                                session3.accountId,
-                            ),
-                            parentMessageIndex: null,
-                            content: content1,
-                            hasContentUpdated: false,
-                        },
-                    ],
-                    messageChangesResult: {
-                        type: "Available",
-                        changes: [],
-                    },
-                });
-
-                await expect(
-                    backfillMessages(context.action(session4), {
+            expect(
+                massageMessageBackfill(
+                    await backfillMessages(context.action(session1), {
                         roomKey: room.key,
                         clientMessageCount: 0,
                         clientLastMessageChangeTime: null,
                         newMessageLimit: 100,
                     }),
-                ).rejects.toThrow(PermissionDeniedError);
+                ),
+            ).toEqual({
+                messageCount: 3,
+                lastMessageChangeTime: null,
+                newMessages: [
+                    {
+                        author: await getAccount(
+                            context.action(session1),
+                            space.id,
+                            session1.accountId,
+                        ),
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session2),
+                            space.id,
+                            session2.accountId,
+                        ),
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                    {
+                        author: await getAccount(
+                            context.action(session3),
+                            space.id,
+                            session3.accountId,
+                        ),
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                ],
+                messageChangesResult: {
+                    type: "Available",
+                    changes: [],
+                },
             });
-        }
+
+            await expect(
+                backfillMessages(context.action(session4), {
+                    roomKey: room.key,
+                    clientMessageCount: 0,
+                    clientLastMessageChangeTime: null,
+                    newMessageLimit: 100,
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            if (room.doesInsideViewerSessionHaveRoomAccess !== "Unimplemented") {
+                if (room.doesInsideViewerSessionHaveRoomAccess) {
+                    expect(
+                        massageMessageBackfill(
+                            await backfillMessages(context.action(session5), {
+                                roomKey: room.key,
+                                clientMessageCount: 0,
+                                clientLastMessageChangeTime: null,
+                                newMessageLimit: 100,
+                            }),
+                        ),
+                    ).toEqual({
+                        messageCount: 3,
+                        lastMessageChangeTime: null,
+                        newMessages: [
+                            {
+                                author: await getAccount(
+                                    context.action(session1),
+                                    space.id,
+                                    session1.accountId,
+                                ),
+                                parentMessageIndex: null,
+                                content: content1,
+                                hasContentUpdated: false,
+                            },
+                            {
+                                author: await getAccount(
+                                    context.action(session2),
+                                    space.id,
+                                    session2.accountId,
+                                ),
+                                parentMessageIndex: null,
+                                content: content1,
+                                hasContentUpdated: false,
+                            },
+                            {
+                                author: await getAccount(
+                                    context.action(session3),
+                                    space.id,
+                                    session3.accountId,
+                                ),
+                                parentMessageIndex: null,
+                                content: content1,
+                                hasContentUpdated: false,
+                            },
+                        ],
+                        messageChangesResult: {
+                            type: "Available",
+                            changes: [],
+                        },
+                    });
+                } else {
+                    await expect(
+                        backfillMessages(context.action(session5), {
+                            roomKey: room.key,
+                            clientMessageCount: 0,
+                            clientLastMessageChangeTime: null,
+                            newMessageLimit: 100,
+                        }),
+                    ).rejects.toThrow(PermissionDeniedError);
+                }
+            }
+        });
 
         test("limits the number of new messages when backfilling", async () => {
             const room = await createRoom(context.action(session1), space.id);

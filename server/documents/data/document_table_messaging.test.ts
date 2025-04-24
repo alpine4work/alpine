@@ -1,0 +1,356 @@
+import {DocAttrStep} from "prosemirror-transform";
+import {
+    FileDocumentAuthorizer,
+    authorizeDocumentAccess,
+    backfillDocumentComments,
+    createDocument,
+    createDocumentComment,
+    deleteDocumentComment,
+    getDocument,
+    getDocumentComment,
+    getDocumentCommentPayload,
+    getDocumentCommentsFromEnd,
+    getDocumentCommentsFromStart,
+    getDocumentWithOptionalComments,
+    getDocumentsTableForTest,
+    updateDocumentCommentContent,
+    updateDocumentContent,
+} from "~/server/documents/data/documents_table.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
+import {
+    assertDocumentContent,
+    DocumentContentProsemirrorSchema as schema,
+} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentCommentRoomKey,
+    decodeDocumentCommentRoomKey,
+    encodeDocumentCommentRoomKey,
+} from "~/shared/documents/document_model.js";
+import {NotFoundError} from "~/shared/error/error.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+
+const context = createTestContext();
+
+testMessagingImplementation<DocumentCommentRoomKey>(context, {
+    async createRoom(context, spaceId) {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await createDocument(context, {
+            spaceId,
+            content: assertDocumentContent(
+                schema.node(
+                    "doc",
+                    {
+                        accessPolicy: cast<AccessPolicy>({
+                            accountGrantById: emptyMap,
+                            defaultGrant: {level: "Manage", generation: 0},
+                            urlGrant: null,
+                        }),
+                    },
+                    [schema.node("title"), schema.node("paragraph")],
+                ),
+            ),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+        const createdTime = new Date(Date.now());
+
+        await DocumentsTable.createItem(context, {
+            partitionType: "Document",
+            // NOTE(calebmer): Our messaging tests run against an archived comment thread
+            // since it's less common than a referenced comment thread.
+            sortRangeType: "ArchivedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime,
+            fallbackContentSnippet: null,
+            commentsSummary: {
+                nextCommentIndex: 0,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map(),
+                mentionCountByAccountId: new Map(),
+            },
+            resolutionState: {
+                type: "Unresolved",
+            },
+        });
+
+        return {
+            key: encodeDocumentCommentRoomKey(document.id, commentThreadId),
+            spaceId,
+            createdTime,
+            messageCount: 0,
+        };
+    },
+    async createPrivateRoom(context, spaceId, {insideSessions, insideViewerSession}) {
+        const DocumentsTable = getDocumentsTableForTest();
+
+        let count = 0;
+
+        const document = await createDocument(context, {
+            spaceId,
+            content: assertDocumentContent(
+                schema.node(
+                    "doc",
+                    {
+                        accessPolicy: cast<AccessPolicy>({
+                            accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                                ...insideSessions.map(
+                                    (insideSession): [AccountId, AccessPolicyAccountGrant] => [
+                                        insideSession.account.id,
+                                        insideSession.account.id === context.actor.getAccountId()
+                                            ? {level: "Manage", generation: 0}
+                                            : {
+                                                  level: (["Comment", "Edit"] as const)[
+                                                      count++ % 2
+                                                  ]!,
+                                                  generation: 1,
+                                              },
+                                    ],
+                                ),
+                                [insideViewerSession.account.id, {level: "View"}],
+                            ]),
+                            defaultGrant: null,
+                            urlGrant: null,
+                        }),
+                    },
+                    [schema.node("title"), schema.node("paragraph")],
+                ),
+            ),
+        });
+
+        const commentThreadId = generateId<DocumentCommentThreadId>();
+        const createdTime = new Date(Date.now());
+
+        await DocumentsTable.createItem(context, {
+            partitionType: "Document",
+            // NOTE(calebmer): Our messaging tests run against an archived comment thread
+            // since it's less common than a referenced comment thread.
+            sortRangeType: "ArchivedCommentThread",
+            documentId: document.id,
+            commentThreadId,
+            createdTime,
+            fallbackContentSnippet: null,
+            commentsSummary: {
+                nextCommentIndex: 0,
+                lastChangeTime: null,
+                commentCountByAuthorId: new Map(),
+                mentionCountByAccountId: new Map(),
+            },
+            resolutionState: {
+                type: "Unresolved",
+            },
+        });
+
+        return {
+            key: encodeDocumentCommentRoomKey(document.id, commentThreadId),
+            spaceId,
+            createdTime,
+            messageCount: 0,
+            doesInsideViewerSessionHaveRoomAccess: false,
+            revokeInsideSession: async (context, session) => {
+                const currentDocument = await getDocument(context, document.id);
+                const accessPolicy: AccessPolicy = currentDocument.content.doc.attrs.accessPolicy;
+
+                const newAccessPolicy: AccessPolicy = {
+                    ...accessPolicy,
+                    accountGrantById: new Map(
+                        filterIterable(
+                            accessPolicy.accountGrantById,
+                            ([accountId]) => accountId !== session.account.id,
+                        ),
+                    ),
+                };
+
+                await updateDocumentContent(context, {
+                    id: document.id,
+                    version: currentDocument.version,
+                    steps: [new DocAttrStep("accessPolicy", newAccessPolicy)],
+                    clientId: generateId(),
+                    intentionallyUpdateAccessPolicy: newAccessPolicy,
+                });
+            },
+        };
+    },
+    async getRoom(context, roomKey) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const DocumentsTable = getDocumentsTableForTest();
+
+        const document = await getDocumentWithOptionalComments(context, documentId);
+
+        const commentThreadItem = await DocumentsTable.getItemIfExists(context, {
+            partitionType: "Document",
+            sortRangeType: "ArchivedCommentThread",
+            documentId,
+            commentThreadId,
+        });
+        if (!commentThreadItem) throw new NotFoundError("Document comment thread not found");
+
+        await authorizeDocumentAccess(context, document.id, "Comment");
+
+        return {
+            key: roomKey,
+            spaceId: document.spaceId,
+            createdTime: commentThreadItem.createdTime,
+            messageCount: reduceIterable(
+                commentThreadItem.commentsSummary.commentCountByAuthorId.values(),
+                (commentCount, authorCommentCount) => commentCount + authorCommentCount,
+                0,
+            ),
+        };
+    },
+    getMissingRoomKey() {
+        return encodeDocumentCommentRoomKey(generateId(), generateId());
+    },
+    getRoomFileAuthorizer(roomKey) {
+        const [documentId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return FileDocumentAuthorizer.bind({type: "DocumentComments", documentId});
+    },
+    async createMessage(
+        context,
+        {roomKey, parentMessageIndex: parentCommentIndex, content, fileIds},
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const comment = await createDocumentComment(context, {
+            documentId,
+            commentThreadId,
+            parentCommentIndex,
+            content,
+            fileIds,
+        });
+
+        return {
+            index: comment.index,
+            createdTime: comment.createdTime,
+        };
+    },
+    async getMessage(context, {roomKey, messageIndex: commentIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return getDocumentComment(context, {documentId, commentThreadId, commentIndex});
+    },
+    async getMessagePayload(context, {roomKey, messageIndex: commentIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return (
+            await getDocumentCommentPayload(context, {
+                documentId,
+                commentThreadId,
+                commentIndex,
+            })
+        ).payload;
+    },
+    async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return updateDocumentCommentContent(context, {
+            documentId,
+            commentThreadId,
+            commentIndex,
+            content,
+        });
+    },
+    async deleteMessage(context, {roomKey, messageIndex: commentIndex}) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        return deleteDocumentComment(context, {documentId, commentThreadId, commentIndex});
+    },
+    async getMessagesFromStart(
+        context,
+        {
+            roomKey,
+            limit,
+            afterMessageIndex: afterCommentIndex,
+            beforeMessageIndex: beforeCommentIndex,
+        },
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+            await getDocumentCommentsFromStart(context, {
+                documentId,
+                commentThreadId,
+                limit,
+                afterCommentIndex,
+                beforeCommentIndex,
+            });
+
+        return {
+            messageCount: commentCount,
+            messages: comments,
+            otherReferencedMessages: otherReferencedComments,
+            lastMessageChangeTime: lastCommentChangeTime,
+        };
+    },
+    async getMessagesFromEnd(
+        context,
+        {
+            roomKey,
+            limit,
+            afterMessageIndex: afterCommentIndex,
+            beforeMessageIndex: beforeCommentIndex,
+        },
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {commentCount, comments, otherReferencedComments, lastCommentChangeTime} =
+            await getDocumentCommentsFromEnd(context, {
+                documentId,
+                commentThreadId,
+                limit,
+                afterCommentIndex,
+                beforeCommentIndex,
+            });
+
+        return {
+            messageCount: commentCount,
+            messages: comments,
+            otherReferencedMessages: otherReferencedComments,
+            lastMessageChangeTime: lastCommentChangeTime,
+        };
+    },
+    async backfillMessages(
+        context,
+        {
+            roomKey,
+            clientMessageCount: clientCommentCount,
+            clientLastMessageChangeTime: clientLastCommentChangeTime,
+            newMessageLimit: newCommentLimit,
+        },
+    ) {
+        const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+        const {
+            commentCount,
+            lastCommentChangeTime,
+            newComments,
+            newOtherReferencedComments,
+            commentChangesResult,
+        } = await backfillDocumentComments(context, {
+            documentId,
+            commentThreadId,
+            clientCommentCount,
+            clientLastCommentChangeTime,
+            newCommentLimit,
+        });
+
+        return {
+            messageCount: commentCount,
+            lastMessageChangeTime: lastCommentChangeTime,
+            newMessages: newComments,
+            newOtherReferencedMessages: newOtherReferencedComments,
+            messageChangesResult: commentChangesResult,
+        };
+    },
+    spacePermissionDeniedErrorMessage: "Account doesn't have access to space",
+});

@@ -12,6 +12,7 @@ alias(
 ts_project(
     name = "data",
     test_deps = [
+        "//server/access/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/forum/test_helpers",
@@ -29,6 +30,7 @@ ts_project(
         "//server/search/data/index:__pkg__",
     ],
     deps = [
+        "//server/access",
         "//server/content",
         "//server/context",
         "//server/dynamo/core",

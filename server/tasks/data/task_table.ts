@@ -19,12 +19,16 @@ import {
 import {ServerContentActionContext} from "~/server/context/server_content_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {
     DynamoBatchContextModule,
     DynamoContextModule,
 } from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
@@ -69,7 +73,7 @@ import {
     hasAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
-import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -84,6 +88,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -3562,7 +3567,10 @@ export async function backfillTaskActionTransactionHistory(
     return actionTransactions;
 }
 
-const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttributesItem | null>();
+const TaskItemAuthorizationCache = new DynamoContextCache<
+    TaskId,
+    TaskEssentialAttributesItem | null
+>();
 
 /**
  * Gets a task to be used in authorization. If used in `TaskRealtimeService`
@@ -3587,45 +3595,32 @@ async function getTaskItemForAuthorization(
     }>,
     taskId: TaskId,
     loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | null,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<TaskEssentialAttributesItemBase> {
     const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
-    const taskItem = await TaskItemAuthorizationCache.get(context, taskId, async () => {
-        const taskItem = await TaskTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Task",
-                sortRangeType: "EssentialAttributes",
-                taskId,
-            },
-            // It's ok to call this function when expecting strong read consistency.
-            // Authorization is mostly strongly consistent since we retry with strong
-            // consistency if our eventually consistent read fails.
-            {allowsEventualReadConsistency: true},
-        );
-
-        if (taskItem) return taskItem;
-
-        return TaskTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Task",
-                sortRangeType: "EssentialAttributes",
-                taskId,
-            },
-            // If we couldn't find the task, maybe it was just created. Try reading again
-            // with strong read consistency. Don't want to throw an error if the task
-            // actually exists.
-            {consistency: "Strong"},
-        );
-    });
+    const taskItem = await TaskItemAuthorizationCache.get(
+        context,
+        consistency,
+        taskId,
+        consistency =>
+            TaskTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Task",
+                    sortRangeType: "EssentialAttributes",
+                    taskId,
+                },
+                {consistency},
+            ),
+    );
 
     if (!taskItem) throw new NotFoundError("Task not found", {aggregateDedupeKey: taskId});
     return taskItem;
 }
 
-const TaskCollectionItemAuthorizationCache = new ContextCache<
+const TaskCollectionItemAuthorizationCache = new DynamoContextCache<
     TaskCollectionId,
     TaskCollectionEssentialAttributesItem
 >();
@@ -3658,39 +3653,26 @@ async function getTaskCollectionItemForAuthorization(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<TaskCollectionEssentialAttributesItemBase> {
     const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
     if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
 
-    return TaskCollectionItemAuthorizationCache.get(context, collectionId, async () => {
-        const collectionItem = await TaskTable.getItemIfExists(
-            context,
-            {
-                partitionType: "TaskCollection",
-                sortRangeType: "EssentialAttributes",
-                collectionId,
-            },
-            // It's ok to call this function when expecting strong read consistency.
-            // Authorization is mostly strongly consistent since we retry with strong
-            // consistency if our eventually consistent read fails.
-            {allowsEventualReadConsistency: true},
-        );
-
-        if (collectionItem) return collectionItem;
-
-        return TaskTable.getItem(
-            context,
-            {
-                partitionType: "TaskCollection",
-                sortRangeType: "EssentialAttributes",
-                collectionId,
-            },
-            // If we couldn't find the collection, maybe it was just created. Try reading
-            // again with strong read consistency. Don't want to throw an error if the
-            // collection actually exists.
-            {consistency: "Strong"},
-        );
-    });
+    return TaskCollectionItemAuthorizationCache.get(
+        context,
+        consistency,
+        collectionId,
+        consistency =>
+            TaskTable.getItem(
+                context,
+                {
+                    partitionType: "TaskCollection",
+                    sortRangeType: "EssentialAttributes",
+                    collectionId,
+                },
+                {consistency},
+            ),
+    );
 }
 
 export type TaskAuthorizationActor =
@@ -3957,8 +3939,9 @@ export async function authorizeTaskAccess(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId; createdTime: HybridLogicalTime}> {
-    const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
+    const taskItem = await getTaskItemForAuthorization(context, taskId, loaders, options);
 
     unwrapResult(
         await authorizeTaskItemAccessIfPossibleForActor(
@@ -3967,9 +3950,10 @@ export async function authorizeTaskAccess(
             taskItem,
             expectedAccessLevel,
             {
-                getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders),
+                getTaskItem: taskId =>
+                    getTaskItemForAuthorization(context, taskId, loaders, options),
                 getCollectionItem: collectionId =>
-                    getTaskCollectionItemForAuthorization(context, collectionId, loaders),
+                    getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
             },
         ),
     );
@@ -4253,7 +4237,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     context: ServerActionContext,
     taskId: TaskId,
     expectedAccessLevel: AccessLevel,
-    consistency?: DynamoReadConsistency,
+    consistency: DynamoCacheReadConsistency = "Eventual",
 ): Promise<{
     item: TaskEssentialAttributesItem;
     commentsSummaryItem: TaskCommentsSummaryItem | null;
@@ -4288,15 +4272,15 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
 
     // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
     // the same `TaskId` later.
-    TaskItemAuthorizationCache.set(context, taskId, taskItemPromise);
+    TaskItemAuthorizationCache.set(context, consistency, taskId, taskItemPromise);
 
     taskItem = await taskItemPromise;
     if (!taskItem) throw new NotFoundError("Task not found");
 
     await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
-        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null, {consistency}),
         getCollectionItem: collectionId =>
-            getTaskCollectionItemForAuthorization(context, collectionId, null),
+            getTaskCollectionItemForAuthorization(context, collectionId, null, {consistency}),
     });
 
     return {
@@ -4314,7 +4298,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Val
         commentsSummaryItem: TaskCommentsSummaryItem | null;
         notesItem: TaskNotesItem | null;
     }) => Promise<Value>,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<Value | null> {
     let item: TaskEssentialAttributesItem | null = null;
     let commentsSummaryItem: TaskCommentsSummaryItem | null = null;
@@ -4349,16 +4333,17 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists<Val
 
     // Cache the `taskItem` in case `getTaskItemForAuthorization()` is called for
     // the same `TaskId` later.
-    TaskItemAuthorizationCache.set(context, taskId, itemPromise);
+    TaskItemAuthorizationCache.set(context, consistency, taskId, itemPromise);
 
     item = await itemPromise;
     if (!item) return null;
 
     const [, value] = await runAllPromises([
         authorizeTaskItemAccess(context, item, expectedAccessLevel, {
-            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+            getTaskItem: taskId =>
+                getTaskItemForAuthorization(context, taskId, null, {consistency}),
             getCollectionItem: collectionId =>
-                getTaskCollectionItemForAuthorization(context, collectionId, null),
+                getTaskCollectionItemForAuthorization(context, collectionId, null, {consistency}),
         }),
         process({
             item,
@@ -4379,7 +4364,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
         commentsSummaryItem: TaskCommentsSummaryItem | null;
         notesItem: TaskNotesItem | null;
     }) => Promise<Value>,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Value> {
     const value = await authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists(
         context,
@@ -4419,7 +4404,7 @@ export async function getTaskCommentPayload(
     }: {
         taskId: TaskId;
         commentIndex: number;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     createdTime: Date;
@@ -4427,7 +4412,7 @@ export async function getTaskCommentPayload(
     payload: MessagePayload;
 }> {
     const [, item] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment"),
+        authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
         TaskTable.getItem(
             context,
             {
@@ -4492,7 +4477,7 @@ export async function getTaskOwner(
 export async function getTaskNotificationSubscribers(
     context: ServerSystemActionContext,
     id: TaskId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
 }> {
@@ -5883,7 +5868,7 @@ function convertTaskCollectionIndexDocToItem(
 export function getTaskNotesContentWithoutReferences(
     context: ServerActionContext,
     taskId: TaskId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     spaceId: SpaceId;
     version: number;

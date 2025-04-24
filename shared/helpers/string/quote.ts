@@ -10,16 +10,16 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * You can also call the function with a single string like `quote("foo")` to
  * wrap the string in quotes and escape any quotes within the string.
  */
-export function quote(string: string): string;
+export function quote(string: string | number): string;
 export function quote(
     templateStrings: TemplateStringsArray,
     ...values: Array<string | number | boolean | null | undefined>
 ): string;
 export function quote(
-    templateStrings: TemplateStringsArray | string,
+    templateStrings: TemplateStringsArray | string | number,
     ...values: Array<string | number | boolean | null | undefined>
 ): string {
-    if (typeof templateStrings === "string") {
+    if (typeof templateStrings === "string" || typeof templateStrings === "number") {
         return JSON.stringify(templateStrings);
     }
 

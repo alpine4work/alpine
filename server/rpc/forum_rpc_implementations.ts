@@ -198,7 +198,9 @@ export default implementRpcs(definitions, {
     authorizeChannelAccess: {
         visibility: ["ChannelRealtimeService"],
         execute: async (context, input) => {
-            return authorizeChannelAccess(context, input.channelId);
+            return authorizeChannelAccess(context, input.channelId, input.expectedAccessLevel, {
+                consistency: "Eventual",
+            });
         },
     },
 

@@ -5,7 +5,10 @@ import {
 } from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
     DynamoTableSchema,
     DynamoTableSchemaIndexConfigOptions,
@@ -1355,7 +1358,10 @@ export class DynamoGeneralRealtimeTableSchema<
     public async getDeletedItemIfExists<ItemKey extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: ItemKey,
-        options?: {consistency?: DynamoReadConsistency; allowsEventualReadConsistency?: boolean},
+        options?: {
+            consistency?: DynamoCacheReadConsistency;
+            allowsEventualReadConsistency?: boolean;
+        },
     ): Promise<{updateLockVersion: number | undefined} | null> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
@@ -2172,7 +2178,10 @@ export class DynamoGeneralRealtimeTableSchema<
     public getItemIfExists<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
-        options?: {consistency?: DynamoReadConsistency; allowsEventualReadConsistency?: boolean},
+        options?: {
+            consistency?: DynamoCacheReadConsistency;
+            allowsEventualReadConsistency?: boolean;
+        },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key> | null> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
@@ -2189,7 +2198,10 @@ export class DynamoGeneralRealtimeTableSchema<
     public getItem<Key extends Types["ItemKey"]>(
         context: DynamoContext,
         itemKey: Key,
-        options?: {consistency?: DynamoReadConsistency; allowsEventualReadConsistency?: boolean},
+        options?: {
+            consistency?: DynamoCacheReadConsistency;
+            allowsEventualReadConsistency?: boolean;
+        },
     ): Promise<MergeObjectIntersection<Types["Item"] & Key>> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
@@ -2212,7 +2224,7 @@ export class DynamoGeneralRealtimeTableSchema<
         itemKey: Key,
         options: {
             attributes: Array<Attributes>;
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
             allowsEventualReadConsistency?: boolean;
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>> | null> {
@@ -2237,7 +2249,7 @@ export class DynamoGeneralRealtimeTableSchema<
         itemKey: Key,
         options: {
             attributes: Array<Attributes>;
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): Promise<MergeObjectIntersection<Key & Pick<Types["Item"] & Key, Attributes>>> {
         assert(
@@ -2257,7 +2269,7 @@ export class DynamoGeneralRealtimeTableSchema<
     public async getRealtimeItemIfExists<Key extends Types["ItemKey"]>(
         context: ServerContentActionContext,
         itemKey: Key,
-        options?: {consistency?: DynamoReadConsistency},
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<
         ModelMap[Key["partitionType"]][Key["sortRangeType"]]
     > | null> {
@@ -2285,7 +2297,7 @@ export class DynamoGeneralRealtimeTableSchema<
     public async getRealtimeItem<Key extends Types["ItemKey"]>(
         context: ServerContentActionContext,
         itemKey: Key,
-        options?: {consistency?: DynamoReadConsistency},
+        options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<DynamoGeneralRealtimeItem<ModelMap[Key["partitionType"]][Key["sortRangeType"]]>> {
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
@@ -2338,7 +2350,7 @@ export class DynamoGeneralRealtimeTableSchema<
             limit: number | "All";
             pageLimit?: number;
             descending?: boolean;
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
         },
     ): AsyncIterableIterator<
         MergeObjectIntersection<
@@ -2404,7 +2416,7 @@ export class DynamoGeneralRealtimeTableSchema<
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
             limit: number | "All";
-            consistency?: DynamoReadConsistency;
+            consistency?: DynamoCacheReadConsistency;
             onItem?: (
                 item: DynamoGeneralRealtimeItem<
                     ModelMap[PartitionKey["partitionType"]][Types["QueryKeyMap"][PartitionKey["partitionType"]][StartSortKey["sortRangeType"]][EndSortKey["sortRangeType"]]]

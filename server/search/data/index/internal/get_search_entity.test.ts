@@ -127,7 +127,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     tokenizer,
                 ),
             ).toEqual({
-                dependencyIds: new Set([]),
+                dependencyIds: new Set([`Document:${document.id}:Authorization`]),
                 entity: {
                     id: `DocumentComment:${document.id}-${commentThread.id}-0`,
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
@@ -251,7 +251,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     tokenizer,
                 ),
             ).toEqual({
-                dependencyIds: new Set([]),
+                dependencyIds: new Set([`Channel:${channel.id}:Authorization`]),
                 entity: {
                     id: `PostComment:${post.id}-0`,
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},

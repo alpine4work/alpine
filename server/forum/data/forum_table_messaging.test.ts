@@ -6,17 +6,21 @@ import {
     createPost,
     createPostComment,
     deletePostComment,
+    getChannelPreviewAndAccessPolicy,
     getPost,
     getPostComment,
     getPostCommentPayload,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    updateChannelAccessPolicy,
     updatePostCommentContent,
 } from "~/server/forum/data/forum_table.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {AccessPolicy, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {generateId} from "~/shared/id/id.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 
@@ -40,8 +44,67 @@ testMessagingImplementation<PostId>(context, {
         };
     },
 
-    // TODO(calebmer): Implement when we can have private channels!
-    createPrivateRoom: "Unimplemented",
+    async createPrivateRoom(context, spaceId, {insideSessions, insideViewerSession}) {
+        const channel = await createChannel(context, {
+            spaceId,
+            name: "Test",
+        });
+
+        let count = 0;
+
+        await updateChannelAccessPolicy(context, {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+                    ...insideSessions.map(
+                        (insideSession): [AccountId, AccessPolicyAccountGrant] => [
+                            insideSession.account.id,
+                            insideSession.account.id === context.actor.getAccountId()
+                                ? {level: "Manage", generation: 0}
+                                : {
+                                      level: (["Comment", "Edit"] as const)[count++ % 2]!,
+                                      generation: 1,
+                                  },
+                        ],
+                    ),
+                    [insideViewerSession.account.id, {level: "View"}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        });
+
+        const post = await createPost(context, {
+            channelId: channel.id,
+            content: createSimplePostContent("test"),
+        });
+
+        return {
+            key: post.id,
+            spaceId,
+            createdTime: post.createdTime,
+            messageCount: 0,
+            doesInsideViewerSessionHaveRoomAccess: true,
+            revokeInsideSession: async (context, session) => {
+                const {accessPolicy} = await getChannelPreviewAndAccessPolicy(context, channel.id);
+
+                const newAccessPolicy: AccessPolicy = {
+                    ...accessPolicy,
+                    accountGrantById: new Map(
+                        filterIterable(
+                            accessPolicy.accountGrantById,
+                            ([accountId]) => accountId !== session.account.id,
+                        ),
+                    ),
+                };
+
+                await updateChannelAccessPolicy(context, {
+                    channelId: channel.id,
+                    accessPolicy: newAccessPolicy,
+                });
+            },
+        };
+    },
 
     async getRoom(context, postId) {
         const {model: post} = await getPost(context, postId);

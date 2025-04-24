@@ -11,8 +11,12 @@ import {
     ServerContentSessionActionContext,
 } from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
@@ -29,7 +33,6 @@ import {
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -37,6 +40,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -581,10 +585,13 @@ function actuallyGetOrCreateChatForAccounts(
                 chatItem: ChatAttributesItem;
                 chatAccountItems: Array<ChatAccountItem>;
             } | null> => {
+                const queryConsistency: DynamoReadConsistency = "Eventual";
                 let chatItem: ChatAttributesItem | undefined;
                 const chatAccountItems: Array<ChatAccountItem> = [];
 
                 for await (const item of ChatTable.query(context, {
+                    limit: "All",
+                    consistency: queryConsistency,
                     partitionKey: {
                         partitionType: "Chat",
                         chatId,
@@ -596,7 +603,6 @@ function actuallyGetOrCreateChatForAccounts(
                         sortRangeType: "Account",
                         accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
                     },
-                    limit: "All",
                 })) {
                     switch (item.sortRangeType) {
                         case "Attributes": {
@@ -605,7 +611,12 @@ function actuallyGetOrCreateChatForAccounts(
 
                             // Once we've loaded the chat item, we can add it to our authorization cache so
                             // we don't need to make future network requests.
-                            ChatItemAuthorizationCache.set(context, item.chatId, item);
+                            ChatItemAuthorizationCache.set(
+                                context,
+                                queryConsistency,
+                                item.chatId,
+                                item,
+                            );
                             break;
                         }
                         case "Account": {
@@ -616,6 +627,7 @@ function actuallyGetOrCreateChatForAccounts(
                             // cache so we don't need to make future network requests.
                             ChatAccountItemAuthorizationCache.set(
                                 context,
+                                queryConsistency,
                                 `${item.chatId}:${item.accountId}`,
                                 item,
                             );
@@ -998,42 +1010,27 @@ export function sendChatMessage(
     });
 }
 
-const ChatItemAuthorizationCache = new ContextCache<ChatId, ChatAttributesItem | null>();
+const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatAttributesItem | null>();
 
 async function getChatItemIfExistsForAuthorization(
     context: ServerActionContext,
     chatId: ChatId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<ChatAttributesItem | null> {
-    return ChatItemAuthorizationCache.get(context, chatId, async () => {
-        const chatItem = await ChatTable.getItemIfExists(
+    return ChatItemAuthorizationCache.get(context, consistency, chatId, consistency =>
+        ChatTable.getItemIfExists(
             context,
             {
                 partitionType: "Chat",
                 sortRangeType: "Attributes",
                 chatId,
             },
-            // It's ok to call this function when expecting strong read consistency.
-            // Authorization is mostly strongly consistent since we retry with strong
-            // consistency if our eventually consistent read fails.
-            {allowsEventualReadConsistency: true},
-        );
-        if (chatItem) return chatItem;
-
-        // If we can't find the chat with eventual consistency, it may have just been
-        // created so try again with strong consistency.
-        return ChatTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Chat",
-                sortRangeType: "Attributes",
-                chatId,
-            },
-            {consistency: "Strong"},
-        );
-    });
+            {consistency},
+        ),
+    );
 }
 
-const ChatAccountItemAuthorizationCache = new ContextCache<
+const ChatAccountItemAuthorizationCache = new DynamoContextCache<
     `${ChatId}:${AccountId}`,
     ChatAccountItem | null
 >();
@@ -1042,46 +1039,28 @@ async function getChatAccountItemIfExistsForAuthorization(
     context: ServerActionContext,
     chatId: ChatId,
     accountId: AccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<ChatAccountItem | null> {
-    return ChatAccountItemAuthorizationCache.get(context, `${chatId}:${accountId}`, async () => {
-        const chatAccountItem = await ChatTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Chat",
-                sortRangeType: "Account",
-                chatId,
-                accountId,
-            },
-            // It's ok to call this function when expecting strong read consistency.
-            // Authorization is mostly strongly consistent since we retry with strong
-            // consistency if our eventually consistent read fails.
-            {allowsEventualReadConsistency: true},
-        );
-        if (chatAccountItem) return chatAccountItem;
-
-        // If we couldn't find the item with eventual consistency, it may have just
-        // been created so try again with strong consistency.
-        return ChatTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Chat",
-                sortRangeType: "Account",
-                chatId,
-                accountId,
-            },
-            {consistency: "Strong"},
-        );
-    });
+    return ChatAccountItemAuthorizationCache.get(
+        context,
+        consistency,
+        `${chatId}:${accountId}`,
+        consistency =>
+            ChatTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Chat",
+                    sortRangeType: "Account",
+                    chatId,
+                    accountId,
+                },
+                {consistency},
+            ),
+    );
 }
 
 /**
  * Authorize that the current account is allowed to access the chat.
- *
- * This function is mostly strongly consistent. It's safe to use in strongly
- * consistent contexts. If an account just got access this function will pass
- * with strong consistency. If an account lost access we have to wait for
- * DynamoDB's eventual consistency lag before this function will start
- * throwing.
  *
  * Cached at the action level so multiple requests with the same `ChatId` in
  * the same action will only load data from the database once.
@@ -1089,6 +1068,7 @@ async function getChatAccountItemIfExistsForAuthorization(
 export async function authorizeChatAccess(
     context: ServerActionContext,
     chatId: ChatId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId}> {
     switch (context.actor.type) {
         case "Session": {
@@ -1097,7 +1077,7 @@ export async function authorizeChatAccess(
 
         // If we have access to the space, we have access to the chat...
         case "System": {
-            const chatItem = await getChatItemIfExistsForAuthorization(context, chatId);
+            const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
 
             if (!chatItem) {
                 throw new NotFoundError("Chat not found");
@@ -1125,17 +1105,12 @@ export async function authorizeChatAccess(
  *
  * Returns some data related to the chat that exists on the item's we
  * query for.
- *
- * This function is mostly strongly consistent. It's safe to use in strongly
- * consistent contexts. If an account just got access this function will pass
- * with strong consistency. If an account lost access we have to wait for
- * DynamoDB's eventual consistency lag before this function will start
- * throwing.
  */
 export async function authorizeChatAccessForAccount(
     context: ServerActionContext,
     chatId: ChatId,
     accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
     const [chatAccountItem] = await runAllPromises([
         (async () => {
@@ -1143,6 +1118,7 @@ export async function authorizeChatAccessForAccount(
                 context,
                 chatId,
                 accountId,
+                options,
             );
 
             if (!chatAccountItem) {
@@ -1162,6 +1138,7 @@ export async function authorizeChatAccessForAccount(
                         context,
                         chatId,
                         context.actor.getAccountId(),
+                        options,
                     );
 
                     if (!chatAccountItem) {
@@ -1348,10 +1325,13 @@ export function getSharedChatsForTest(
  * Get the provided chat by `ChatId`.
  */
 export async function getChat(context: ServerActionContext, chatId: ChatId): Promise<ChatModel> {
+    const queryConsistency: DynamoReadConsistency = "Eventual";
     let chatItem: ChatAttributesItem | undefined;
     const chatAccountItems: Array<ChatAccountItem> = [];
 
     for await (const item of ChatTable.query(context, {
+        limit: "All",
+        consistency: queryConsistency,
         partitionKey: {
             partitionType: "Chat",
             chatId,
@@ -1363,7 +1343,6 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
             sortRangeType: "Account",
             accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
         },
-        limit: "All",
     })) {
         switch (item.sortRangeType) {
             case "Attributes": {
@@ -1372,7 +1351,7 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
 
                 // Once we've loaded the chat item, we can add it to our authorization cache so
                 // we don't need to make future network requests.
-                ChatItemAuthorizationCache.set(context, item.chatId, item);
+                ChatItemAuthorizationCache.set(context, queryConsistency, item.chatId, item);
                 break;
             }
             case "Account": {
@@ -1383,6 +1362,7 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
                 // cache so we don't need to make future network requests.
                 ChatAccountItemAuthorizationCache.set(
                     context,
+                    queryConsistency,
                     `${item.chatId}:${item.accountId}`,
                     item,
                 );
@@ -1455,7 +1435,7 @@ async function createChatModelFromItems(
 export async function getChatAccountIds(
     context: ServerActionContext,
     chatId: ChatId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     createdTime: Date;
     spaceId: SpaceId;
@@ -1466,6 +1446,8 @@ export async function getChatAccountIds(
     const accountIds: Array<AccountId> = [];
 
     for await (const item of ChatTable.query(context, {
+        limit: "All",
+        consistency,
         partitionKey: {
             partitionType: "Chat",
             chatId,
@@ -1477,8 +1459,6 @@ export async function getChatAccountIds(
             sortRangeType: "Account",
             accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
         },
-        limit: "All",
-        consistency,
     })) {
         switch (item.sortRangeType) {
             case "Attributes": {
@@ -1487,7 +1467,7 @@ export async function getChatAccountIds(
 
                 // Once we've loaded the chat item, we can add it to our authorization cache so
                 // we don't need to make future network requests.
-                ChatItemAuthorizationCache.set(context, item.chatId, item);
+                ChatItemAuthorizationCache.set(context, consistency, item.chatId, item);
                 break;
             }
             case "Account": {
@@ -1504,6 +1484,7 @@ export async function getChatAccountIds(
                 // cache so we don't need to make future network requests.
                 ChatAccountItemAuthorizationCache.set(
                     context,
+                    consistency,
                     `${item.chatId}:${item.accountId}`,
                     item,
                 );
@@ -1574,7 +1555,7 @@ export async function getChatMessagePayload(
     }: {
         chatId: ChatId;
         messageIndex: number;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     createdTime: Date;
@@ -1582,7 +1563,7 @@ export async function getChatMessagePayload(
     payload: MessagePayload;
 }> {
     const [, item] = await runAllPromises([
-        authorizeChatAccess(context, chatId),
+        authorizeChatAccess(context, chatId, {consistency}),
         ChatTable.getItem(
             context,
             {

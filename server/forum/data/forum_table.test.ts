@@ -11,6 +11,7 @@ import {
     authorizeChannelAccess,
     authorizePostAccess,
     authorizePostDraftAccess,
+    backfillChannelAndMetadata,
     backfillChannelPosts,
     createChannel,
     createOrReplacePostDraft,
@@ -20,16 +21,20 @@ import {
     getChannelAndMetadata,
     getChannelContributors,
     getChannelContributorsKey,
+    getChannelIfPossible,
     getChannelNameAndDescriptionContent,
     getChannelPosts,
     getChannelPreview,
     getPost,
+    getPostAndInitialComments,
+    getPostAuthorAndChannelPreview,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     getPostContentAndChannelPreview,
     getPostDraftIfExists,
     getPostNotificationSubscribers,
+    updateChannelAccessPolicy,
     updateChannelDescription,
     updateChannelName,
     updateChannelNameAndDescription,
@@ -42,6 +47,7 @@ import {getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
@@ -98,7 +104,7 @@ const testContent3WithReferences: PostContentWithReferences = {
 const testMessageContent1 = createSimpleMessageContent("test1");
 const testMessageContent2 = createSimpleMessageContent("test2");
 
-test("can not create a channel for a different space", async () => {
+test("can't create a channel for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -109,6 +115,35 @@ test("can not create a channel for a different space", async () => {
             name: "Test",
         }),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't create a channel if the actor doesn't have manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    await expect(
+        createChannel(session1.action(), {
+            spaceId: space.id,
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session2.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow('Account actor must have "Manage" access level on channels they create');
+
+    await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test",
+        accessPolicy: {
+            accountGrantById: new Map([[session2.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
 });
 
 test("can create a channel", async () => {
@@ -140,32 +175,42 @@ test("can create a channel with a description", async () => {
     );
 });
 
-test("can not get a channel that does not exist", async () => {
+test("can't get a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
-    const badChanelId = generateId<ChannelId>();
+    const badChannelId = generateId<ChannelId>();
 
-    await expect(getChannel(session.action(), badChanelId)).rejects.toThrow(NotFoundError);
+    await expect(getChannel(session.action(), badChannelId)).rejects.toThrow(NotFoundError);
+    await expect(getChannelIfPossible(session.action(), badChannelId)).resolves.toEqual(null);
     await expect(
-        getChannelNameAndDescriptionContent(session.action(), badChanelId),
+        getChannelNameAndDescriptionContent(session.action(), badChannelId),
     ).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelAndMetadata(session.action(), {channelId: badChanelId, postFilesLimit: 100}),
+        getChannelAndMetadata(session.action(), {channelId: badChannelId, postFilesLimit: 100}),
     ).rejects.toThrow(NotFoundError);
     await expect(
         getChannelAndMetadata(session.action(), {
-            channelId: badChanelId,
+            channelId: badChannelId,
             postFilesLimit: 100,
-            afterItemKey: getChannelContributorsKey(badChanelId),
+            afterItemKey: getChannelContributorsKey(badChannelId),
         }),
     ).rejects.toThrow(NotFoundError);
     await expect(
-        getChannelContributors(session.action(), badChanelId, {limit: 100}),
+        getChannelContributors(session.action(), badChannelId, {limit: 100}),
     ).rejects.toThrow(NotFoundError);
+    await expect(
+        backfillChannelAndMetadata(session.action(), {
+            channelId: badChannelId,
+            readTime: new Date(),
+        }),
+    ).rejects.toThrow(NotFoundError);
+    await expect(authorizeChannelAccess(session.action(), badChannelId, "View")).rejects.toThrow(
+        NotFoundError,
+    );
 });
 
-test("can not get a channel for a different space", async () => {
+test("can't get a channel for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
 
@@ -180,6 +225,9 @@ test("can not get a channel for a different space", async () => {
     await expect(
         getChannelNameAndDescriptionContent(otherSession.action(), channel.id),
     ).rejects.toThrow(PermissionDeniedError);
+    await expect(getChannelIfPossible(otherSession.action(), channel.id)).resolves.toEqual(
+        expect.objectContaining({ok: false, error: expect.any(PermissionDeniedError)}),
+    );
     await expect(
         getChannelAndMetadata(otherSession.action(), {channelId: channel.id, postFilesLimit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
@@ -193,6 +241,153 @@ test("can not get a channel for a different space", async () => {
     await expect(
         getChannelContributors(otherSession.action(), channel.id, {limit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        backfillChannelAndMetadata(otherSession.action(), {
+            channelId: channel.id,
+            readTime: new Date(),
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(authorizeChannelAccess(otherSession.action(), channel.id, "View")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("can't get a private channel", async () => {
+    const space = await TestSpace.create(context);
+
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel = await TestChannel.create(session1);
+
+    await expect(getChannel(session3.action(), channel.id)).resolves.toBeTruthy();
+    await expect(getChannelIfPossible(session3.action(), channel.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+    await expect(
+        getChannelNameAndDescriptionContent(session3.action(), channel.id),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelAndMetadata(session3.action(), {channelId: channel.id, postFilesLimit: 100}),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelAndMetadata(session3.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+            afterItemKey: getChannelContributorsKey(channel.id),
+        }),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelContributors(session3.action(), channel.id, {limit: 100}),
+    ).resolves.toBeTruthy();
+    await expect(
+        backfillChannelAndMetadata(session3.action(), {
+            channelId: channel.id,
+            readTime: new Date(),
+        }),
+    ).resolves.toBeTruthy();
+    await expect(
+        authorizeChannelAccess(session3.action(), channel.id, "View"),
+    ).resolves.toBeTruthy();
+
+    await channel.access.revokeDefault(session1);
+    await channel.access.grant(session1, session2);
+
+    await expect(getChannel(session1.action(), channel.id)).resolves.toBeTruthy();
+    await expect(getChannelIfPossible(session1.action(), channel.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+    await expect(
+        getChannelNameAndDescriptionContent(session1.action(), channel.id),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelAndMetadata(session1.action(), {channelId: channel.id, postFilesLimit: 100}),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelAndMetadata(session1.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+            afterItemKey: getChannelContributorsKey(channel.id),
+        }),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelContributors(session1.action(), channel.id, {limit: 100}),
+    ).resolves.toBeTruthy();
+    await expect(
+        backfillChannelAndMetadata(session1.action(), {
+            channelId: channel.id,
+            readTime: new Date(),
+        }),
+    ).resolves.toBeTruthy();
+    await expect(
+        authorizeChannelAccess(session1.action(), channel.id, "View"),
+    ).resolves.toBeTruthy();
+
+    await expect(getChannel(session2.action(), channel.id)).resolves.toBeTruthy();
+    await expect(getChannelIfPossible(session2.action(), channel.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+    await expect(
+        getChannelNameAndDescriptionContent(session2.action(), channel.id),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelAndMetadata(session2.action(), {channelId: channel.id, postFilesLimit: 100}),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelAndMetadata(session2.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+            afterItemKey: getChannelContributorsKey(channel.id),
+        }),
+    ).resolves.toBeTruthy();
+    await expect(
+        getChannelContributors(session2.action(), channel.id, {limit: 100}),
+    ).resolves.toBeTruthy();
+    await expect(
+        backfillChannelAndMetadata(session2.action(), {
+            channelId: channel.id,
+            readTime: new Date(),
+        }),
+    ).resolves.toBeTruthy();
+    await expect(
+        authorizeChannelAccess(session2.action(), channel.id, "View"),
+    ).resolves.toBeTruthy();
+
+    await expect(getChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    await expect(getChannelIfPossible(session3.action(), channel.id)).resolves.toEqual(
+        expect.objectContaining({
+            ok: false,
+            error: expect.objectContaining({
+                message: 'Actor doesn\'t have "View" access level to channel',
+            }),
+        }),
+    );
+    await expect(
+        getChannelNameAndDescriptionContent(session3.action(), channel.id),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+    await expect(
+        getChannelAndMetadata(session3.action(), {channelId: channel.id, postFilesLimit: 100}),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+    await expect(
+        getChannelAndMetadata(session3.action(), {
+            channelId: channel.id,
+            postFilesLimit: 100,
+            afterItemKey: getChannelContributorsKey(channel.id),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+    await expect(
+        getChannelContributors(session3.action(), channel.id, {limit: 100}),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+    await expect(
+        backfillChannelAndMetadata(session3.action(), {
+            channelId: channel.id,
+            readTime: new Date(),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+    await expect(authorizeChannelAccess(session3.action(), channel.id, "View")).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
 });
 
 test("can get a channel", async () => {
@@ -204,6 +399,9 @@ test("can get a channel", async () => {
     });
 
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test");
+    expect((await getChannelIfPossible(session.action(), channel.id))?.value?.model.name).toEqual(
+        "Test",
+    );
     expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
         "Test",
     );
@@ -221,6 +419,15 @@ test("can get a channel", async () => {
         }),
     ).not.toBeNull();
     expect(await getChannelContributors(session.action(), channel.id, {limit: 100})).not.toBeNull();
+    await expect(
+        backfillChannelAndMetadata(session.action(), {
+            channelId: channel.id,
+            readTime: new Date(),
+        }),
+    ).resolves.toBeTruthy();
+    await expect(
+        authorizeChannelAccess(session.action(), channel.id, "View"),
+    ).resolves.toBeTruthy();
 });
 
 test("can update a channel's name", async () => {
@@ -259,7 +466,27 @@ test("can update a channel's name", async () => {
     ).toEqual("Test 2");
 });
 
-test("can not update a channel's name from a different space", async () => {
+test("can't update a channel's name if the name is too long", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {
+        name: "Test 1",
+    });
+
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
+
+    await expect(
+        updateChannelName(session.action(), {
+            channelId: channel.id,
+            name: "x".repeat(513),
+        }),
+    ).rejects.toThrow("Expected string to have a length less than or equal to 512");
+
+    expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
+});
+
+test("can't update a channel's name from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -281,7 +508,71 @@ test("can not update a channel's name from a different space", async () => {
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });
 
-test("can not update the name of a channel that does not exist", async () => {
+test("can't update a channel's name without manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {
+        name: "Test 1",
+    });
+
+    await channel.access.revokeDefault(session1);
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
+
+    await expect(
+        updateChannelName(session2.action(), {
+            channelId: channel.id,
+            name: "Test 2",
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(
+        updateChannelName(session2.action(), {
+            channelId: channel.id,
+            name: "Test 3",
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
+
+    await channel.access.grantDefault(session1, "Comment");
+
+    await expect(
+        updateChannelName(session2.action(), {
+            channelId: channel.id,
+            name: "Test 4",
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await expect(
+        updateChannelName(session2.action(), {
+            channelId: channel.id,
+            name: "Test 5",
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1");
+
+    await channel.access.grantDefault(session1, "Manage");
+
+    await updateChannelName(session2.action(), {
+        channelId: channel.id,
+        name: "Test 6",
+    });
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 6");
+});
+
+test("can't update the name of a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -322,7 +613,7 @@ test("can update a channel's description", async () => {
     );
 });
 
-test("can not update a channel's description from a different space", async () => {
+test("can't update a channel's description from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -346,7 +637,7 @@ test("can not update a channel's description from a different space", async () =
     );
 });
 
-test("can not update the description of a channel that does not exist", async () => {
+test("can't update the description of a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -358,7 +649,7 @@ test("can not update the description of a channel that does not exist", async ()
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can not update a channel's description with invalid content", async () => {
+test("can't update a channel's description with invalid content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -395,6 +686,82 @@ test("can not update a channel's description with invalid content", async () => 
     );
 });
 
+test("can't update a channel's description without manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {
+        description: "Test 1",
+    });
+
+    await channel.access.revokeDefault(session1);
+
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1"))');
+
+    await expect(
+        updateChannelDescription(session2.action(), {
+            channelId: channel.id,
+            description: createSimpleMessageContent("Test 2"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1"))');
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(
+        updateChannelDescription(session2.action(), {
+            channelId: channel.id,
+            description: createSimpleMessageContent("Test 3"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1"))');
+
+    await channel.access.grantDefault(session1, "Comment");
+
+    await expect(
+        updateChannelDescription(session2.action(), {
+            channelId: channel.id,
+            description: createSimpleMessageContent("Test 4"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1"))');
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await expect(
+        updateChannelDescription(session2.action(), {
+            channelId: channel.id,
+            description: createSimpleMessageContent("Test 5"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1"))');
+
+    await channel.access.grantDefault(session1, "Manage");
+
+    await updateChannelDescription(session2.action(), {
+        channelId: channel.id,
+        description: createSimpleMessageContent("Test 6"),
+    });
+
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 6"))');
+});
+
 test("can update a channel's name and description", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -418,7 +785,7 @@ test("can update a channel's name and description", async () => {
     );
 });
 
-test("can not update a channel's name and description from a different space", async () => {
+test("can't update a channel's name and description from a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -439,7 +806,7 @@ test("can not update a channel's name and description from a different space", a
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });
 
-test("can not update the name and description of a channel that does not exist", async () => {
+test("can't update the name and description of a channel that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -452,6 +819,250 @@ test("can not update the name and description of a channel that does not exist",
     ).rejects.toThrow(NotFoundError);
 });
 
+test("can't update a channel's name and description without manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {
+        name: "Test 1a",
+        description: "Test 1b",
+    });
+
+    await channel.access.revokeDefault(session1);
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1b"))');
+
+    await expect(
+        updateChannelNameAndDescription(session2.action(), {
+            channelId: channel.id,
+            name: "Test 2a",
+            description: createSimpleMessageContent("Test 2b"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1b"))');
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(
+        updateChannelNameAndDescription(session2.action(), {
+            channelId: channel.id,
+            name: "Test 3a",
+            description: createSimpleMessageContent("Test 3b"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1b"))');
+
+    await channel.access.grantDefault(session1, "Comment");
+
+    await expect(
+        updateChannelNameAndDescription(session2.action(), {
+            channelId: channel.id,
+            name: "Test 4a",
+            description: createSimpleMessageContent("Test 4b"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1b"))');
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await expect(
+        updateChannelNameAndDescription(session2.action(), {
+            channelId: channel.id,
+            name: "Test 5a",
+            description: createSimpleMessageContent("Test 5b"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 1a");
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 1b"))');
+
+    await channel.access.grantDefault(session1, "Manage");
+
+    await updateChannelNameAndDescription(session2.action(), {
+        channelId: channel.id,
+        name: "Test 6a",
+        description: createSimpleMessageContent("Test 6b"),
+    });
+
+    expect((await getChannel(session1.action(), channel.id)).model.name).toEqual("Test 6a");
+    expect(
+        (await getChannel(session1.action(), channel.id)).model.description.doc.toString(),
+    ).toEqual('doc(paragraph("Test 6b"))');
+});
+
+test("can't update channel access policy without manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+    const channel = await TestChannel.create(session1);
+
+    await channel.access.revokeDefault(session1);
+
+    await expect(
+        updateChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 2}],
+                    [session3.account.id, {level: "Manage", generation: 3}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(
+        updateChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 2}],
+                    [session3.account.id, {level: "Manage", generation: 3}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "Comment");
+
+    await expect(
+        updateChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 2}],
+                    [session3.account.id, {level: "Manage", generation: 3}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await expect(
+        updateChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 2}],
+                    [session3.account.id, {level: "Manage", generation: 3}],
+                ]),
+                defaultGrant: null,
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "Manage");
+
+    expect(await channel.access.get()).toEqual({
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "Manage", generation: 1},
+        urlGrant: null,
+    });
+
+    await updateChannelAccessPolicy(session2.action(), {
+        channelId: channel.id,
+        accessPolicy: {
+            accountGrantById: new Map([
+                [session1.account.id, {level: "Manage", generation: 0}],
+                [session2.account.id, {level: "Manage", generation: 2}],
+                [session3.account.id, {level: "Manage", generation: 3}],
+            ]),
+            defaultGrant: null,
+            urlGrant: null,
+        },
+    });
+
+    expect(await channel.access.get()).toEqual({
+        accountGrantById: new Map([
+            [session1.account.id, {level: "Manage", generation: 0}],
+            [session2.account.id, {level: "Manage", generation: 2}],
+            [session3.account.id, {level: "Manage", generation: 3}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    });
+});
+
+test("can't update channel access policy with invalid update", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+    const channel = await TestChannel.create(session1);
+
+    await expect(
+        updateChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "Manage", generation: 1},
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow(
+        "Can't set new account grant manage generation to be less than or equal to our actor's manage generation",
+    );
+
+    await expect(
+        updateChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session2.account.id, {level: "Manage", generation: 2}],
+                ]),
+                defaultGrant: {level: "Manage", generation: 1},
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow(
+        "Can't revoke manage access from an account with a manage generation less than our actor",
+    );
+
+    await expect(
+        updateChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                    [session2.account.id, {level: "Manage", generation: 2}],
+                ]),
+                defaultGrant: {level: "Manage", generation: 3},
+                urlGrant: null,
+            },
+        }),
+    ).rejects.toThrow("Can't change default grant manage generation");
+});
+
 test("can create a post", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -460,7 +1071,7 @@ test("can create a post", async () => {
     await channel.createPost(session);
 });
 
-test("can not create a post for a different space", async () => {
+test("can't create a post for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -470,7 +1081,7 @@ test("can not create a post for a different space", async () => {
     await expect(channel.createPost(otherSession)).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can not create a post with invalid content", async () => {
+test("can't create a post with invalid content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const channel = await TestChannel.create(session);
@@ -489,14 +1100,71 @@ test("can not create a post with invalid content", async () => {
     ).rejects.toThrow(InvalidArgumentError);
 });
 
-test("can not get a post that does not exist", async () => {
+test("can't create a post without edit access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1);
+
+    await channel.access.revokeDefault(session1);
+
+    await expect(
+        createPost(session2.action(), {
+            channelId: channel.id,
+            content: createSimplePostContent("Test post 1"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to channel');
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(
+        createPost(session2.action(), {
+            channelId: channel.id,
+            content: createSimplePostContent("Test post 2"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to channel');
+
+    await channel.access.grantDefault(session1, "Comment");
+
+    await expect(
+        createPost(session2.action(), {
+            channelId: channel.id,
+            content: createSimplePostContent("Test post 3"),
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to channel');
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await createPost(session2.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post 4"),
+    });
+
+    await channel.access.grantDefault(session1, "Manage");
+
+    await createPost(session2.action(), {
+        channelId: channel.id,
+        content: createSimplePostContent("Test post 5"),
+    });
+});
+
+test("can't get a post that does not exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     await expect(getPost(session.action(), generateId())).rejects.toThrow(NotFoundError);
+    await expect(getPostContentAndChannelPreview(session.action(), generateId())).rejects.toThrow(
+        NotFoundError,
+    );
+    await expect(getPostAuthorAndChannelPreview(session.action(), generateId())).rejects.toThrow(
+        NotFoundError,
+    );
+    await expect(
+        getPostAndInitialComments(session.action(), {postId: generateId(), commentLimit: 100}),
+    ).rejects.toThrow(NotFoundError);
 });
 
-test("can not get a post for a different space", async () => {
+test("can't get a post for a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -507,6 +1175,74 @@ test("can not get a post for a different space", async () => {
     const post = await channel.createPost(session);
 
     await expect(getPost(otherSession.action(), post.id)).rejects.toThrow(PermissionDeniedError);
+    await expect(getPostContentAndChannelPreview(otherSession.action(), post.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(getPostAuthorAndChannelPreview(otherSession.action(), post.id)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        getPostAndInitialComments(otherSession.action(), {postId: post.id, commentLimit: 100}),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't get a post from channel actor doesn't have view access to", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1);
+    await channel.access.revokeDefault(session1);
+
+    const post = await channel.createPost(session1);
+
+    await expect(getPost(session2.action(), post.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    await expect(
+        getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(
+        getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
+    ).resolves.toBeTruthy();
+
+    await channel.access.grantDefault(session1, "Comment");
+
+    await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(
+        getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
+    ).resolves.toBeTruthy();
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(
+        getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
+    ).resolves.toBeTruthy();
+
+    await channel.access.grantDefault(session1, "Manage");
+
+    await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    await expect(
+        getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
+    ).resolves.toBeTruthy();
 });
 
 test("can get a post", async () => {
@@ -520,6 +1256,15 @@ test("can get a post", async () => {
     expect((await getPost(session.action(), post.id)).model.content.doc.toJSON()).toEqual(
         testContent1.toJSON(),
     );
+    expect(
+        (await getPostContentAndChannelPreview(session.action(), post.id)).content.toJSON(),
+    ).toEqual(testContent1.toJSON());
+    expect(await getPostAuthorAndChannelPreview(session.action(), post.id)).toBeTruthy();
+    expect(
+        (
+            await getPostAndInitialComments(session.action(), {postId: post.id, commentLimit: 100})
+        ).post.model.content.doc.toJSON(),
+    ).toEqual(testContent1.toJSON());
 });
 
 test("can get the comment authors on a post", async () => {
@@ -604,7 +1349,7 @@ test("can get the comment authors on a post", async () => {
     );
 });
 
-test("can not get the comment authors in another space", async () => {
+test("can't get the comment authors in another space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -623,6 +1368,32 @@ test("can not get the comment authors in another space", async () => {
     await expect(
         getPostCommentAuthors(otherSession.action(), {postId: post.id, limit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("can't get the comment authors for a post in a channel you don't have access to", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel = await TestChannel.create(session1);
+    const post = await channel.createPost(session1);
+    await channel.access.revokeDefault(session1);
+    await channel.access.grant(session1, session2, "Comment");
+
+    await expect(
+        getPostCommentAuthors(session3.action(), {postId: post.id, limit: 100}),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+
+    await post.createComment(session2, testMessageContent1);
+
+    await expect(
+        getPostCommentAuthors(session3.action(), {postId: post.id, limit: 100}),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
+
+    await channel.access.grant(session1, session3, "View");
+
+    expect(await getPostCommentAuthors(session3.action(), {postId: post.id, limit: 100})).toEqual([
+        await session2.get(),
+    ]);
 });
 
 test("can not get channel posts for a channel that does not exist", async () => {
@@ -2626,7 +3397,7 @@ test("can update a post's contents", async () => {
     });
 });
 
-test("can not update another account's post", async () => {
+test("can't update another account's post", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -2659,7 +3430,7 @@ test("can not update another account's post", async () => {
             postId: post.id,
             content: testContent2,
         }),
-    ).rejects.toThrow(PermissionDeniedError);
+    ).rejects.toThrow("Can only update posts you authored");
 
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
@@ -2681,7 +3452,7 @@ test("can not update another account's post", async () => {
     });
 });
 
-test("can not update another space's post", async () => {
+test("can't update another space's post", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -2737,7 +3508,7 @@ test("can not update another space's post", async () => {
     });
 });
 
-test("can not update a post with invalid content", async () => {
+test("can't update a post with invalid content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2790,6 +3561,141 @@ test("can not update a post with invalid content", async () => {
         author: await session.get(),
         content: testContent1WithReferences,
         contentUpdatedTime: null,
+        commentCount: 0,
+        lastCommentChangeTime: null,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+});
+
+test("can't update a post after losing channel access", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const channel = await TestChannel.create(session1);
+
+    const post = await channel.createPost(session2, testContent1);
+
+    expect((await getPost(session1.action(), post.id)).model).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: channel.initialName,
+            spaceId: space.id,
+        },
+        createdTime: expect.any(Date),
+        author: await session2.get(),
+        content: testContent1WithReferences,
+        contentUpdatedTime: null,
+        commentCount: 0,
+        lastCommentChangeTime: null,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    await updatePostContent(session2.action(), {
+        postId: post.id,
+        content: testContent2,
+    });
+
+    expect((await getPost(session1.action(), post.id)).model).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: channel.initialName,
+            spaceId: space.id,
+        },
+        createdTime: expect.any(Date),
+        author: await session2.get(),
+        content: testContent2WithReferences,
+        contentUpdatedTime: expect.any(Date),
+        commentCount: 0,
+        lastCommentChangeTime: null,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    await channel.access.revokeDefault(session1);
+
+    await expect(
+        updatePostContent(session2.action(), {
+            postId: post.id,
+            content: testContent3,
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to channel');
+
+    expect((await getPost(session1.action(), post.id)).model).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: channel.initialName,
+            spaceId: space.id,
+        },
+        createdTime: expect.any(Date),
+        author: await session2.get(),
+        content: testContent2WithReferences,
+        contentUpdatedTime: expect.any(Date),
+        commentCount: 0,
+        lastCommentChangeTime: null,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(
+        updatePostContent(session2.action(), {
+            postId: post.id,
+            content: testContent3,
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to channel');
+
+    expect((await getPost(session1.action(), post.id)).model).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: channel.initialName,
+            spaceId: space.id,
+        },
+        createdTime: expect.any(Date),
+        author: await session2.get(),
+        content: testContent2WithReferences,
+        contentUpdatedTime: expect.any(Date),
+        commentCount: 0,
+        lastCommentChangeTime: null,
+        commentAuthorCount: 0,
+        previewCommentAuthors: [],
+    });
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await updatePostContent(session2.action(), {
+        postId: post.id,
+        content: testContent3,
+    });
+
+    expect((await getPost(session1.action(), post.id)).model).toEqual({
+        id: post.id,
+        spaceId: space.id,
+        channel: {
+            id: channel.id,
+            createdTime: channel.createdTime,
+            name: channel.initialName,
+            spaceId: space.id,
+        },
+        createdTime: expect.any(Date),
+        author: await session2.get(),
+        content: testContent3WithReferences,
+        contentUpdatedTime: expect.any(Date),
         commentCount: 0,
         lastCommentChangeTime: null,
         commentAuthorCount: 0,
@@ -3239,10 +4145,22 @@ test("can authorize post access at different levels", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
 
-    const [session1, session2, session3] = await space1.createSessions(3);
+    const [session1, session2, session3, session5, session6, session7, session8] =
+        await space1.createSessions(7);
     const session4 = await space2.createSession();
 
     const channel = await TestChannel.create(session1);
+
+    const post4 = await channel.createPost(session6);
+    const post5 = await channel.createPost(session7);
+    const post6 = await channel.createPost(session8);
+
+    await channel.access.revokeDefault(session1);
+    await channel.access.grant(session1, session2, "Manage");
+    await channel.access.grant(session1, session3, "Manage");
+    await channel.access.grant(session1, session6, "View");
+    await channel.access.grant(session1, session7, "Comment");
+    await channel.access.grant(session1, session8, "Edit");
 
     const post1 = await channel.createPost(session1);
     const post2 = await channel.createPost(session2);
@@ -3273,6 +4191,10 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(session2.action(), post1.id, "View")).toEqual(null);
     expect(await authorize(session3.action(), post1.id, "View")).toEqual(null);
     expect(await authorize(session4.action(), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post1.id, "View")).toEqual(null);
+    expect(await authorize(session7.action(), post1.id, "View")).toEqual(null);
+    expect(await authorize(session8.action(), post1.id, "View")).toEqual(null);
     expect(await authorize(context.anonymousAction(), post1.id, "View")).toEqual("Unauthenticated");
 
     expect(await authorize(space1.systemAction(), post1.id, "Edit")).toEqual(null);
@@ -3281,6 +4203,10 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(session2.action(), post1.id, "Edit")).toEqual("PermissionDenied");
     expect(await authorize(session3.action(), post1.id, "Edit")).toEqual("PermissionDenied");
     expect(await authorize(session4.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session7.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session8.action(), post1.id, "Edit")).toEqual("PermissionDenied");
     expect(await authorize(context.anonymousAction(), post1.id, "Edit")).toEqual("Unauthenticated");
 
     expect(await authorize(space1.systemAction(), post2.id, "View")).toEqual(null);
@@ -3289,6 +4215,10 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(session2.action(), post2.id, "View")).toEqual(null);
     expect(await authorize(session3.action(), post2.id, "View")).toEqual(null);
     expect(await authorize(session4.action(), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post2.id, "View")).toEqual(null);
+    expect(await authorize(session7.action(), post2.id, "View")).toEqual(null);
+    expect(await authorize(session8.action(), post2.id, "View")).toEqual(null);
     expect(await authorize(context.anonymousAction(), post2.id, "View")).toEqual("Unauthenticated");
 
     expect(await authorize(space1.systemAction(), post2.id, "Edit")).toEqual(null);
@@ -3297,6 +4227,10 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(session2.action(), post2.id, "Edit")).toEqual(null);
     expect(await authorize(session3.action(), post2.id, "Edit")).toEqual("PermissionDenied");
     expect(await authorize(session4.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session7.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session8.action(), post2.id, "Edit")).toEqual("PermissionDenied");
     expect(await authorize(context.anonymousAction(), post2.id, "Edit")).toEqual("Unauthenticated");
 
     expect(await authorize(space1.systemAction(), post3.id, "View")).toEqual(null);
@@ -3305,6 +4239,10 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(session2.action(), post3.id, "View")).toEqual(null);
     expect(await authorize(session3.action(), post3.id, "View")).toEqual(null);
     expect(await authorize(session4.action(), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post3.id, "View")).toEqual(null);
+    expect(await authorize(session7.action(), post3.id, "View")).toEqual(null);
+    expect(await authorize(session8.action(), post3.id, "View")).toEqual(null);
     expect(await authorize(context.anonymousAction(), post3.id, "View")).toEqual("Unauthenticated");
 
     expect(await authorize(space1.systemAction(), post3.id, "Edit")).toEqual(null);
@@ -3313,7 +4251,169 @@ test("can authorize post access at different levels", async () => {
     expect(await authorize(session2.action(), post3.id, "Edit")).toEqual("PermissionDenied");
     expect(await authorize(session3.action(), post3.id, "Edit")).toEqual(null);
     expect(await authorize(session4.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session7.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session8.action(), post3.id, "Edit")).toEqual("PermissionDenied");
     expect(await authorize(context.anonymousAction(), post3.id, "Edit")).toEqual("Unauthenticated");
+
+    expect(await authorize(space1.systemAction(), post4.id, "View")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session2.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session3.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session7.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session8.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
+
+    expect(await authorize(space1.systemAction(), post4.id, "Edit")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session2.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session4.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session7.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session8.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post4.id, "Edit")).toEqual("Unauthenticated");
+
+    expect(await authorize(space1.systemAction(), post4.id, "View")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session2.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session3.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session7.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(session8.action(), post4.id, "View")).toEqual(null);
+    expect(await authorize(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
+
+    expect(await authorize(space1.systemAction(), post5.id, "Edit")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session2.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session4.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session7.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session8.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), post5.id, "Edit")).toEqual("Unauthenticated");
+
+    expect(await authorize(space1.systemAction(), post6.id, "View")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post6.id, "View")).toEqual(null);
+    expect(await authorize(session2.action(), post6.id, "View")).toEqual(null);
+    expect(await authorize(session3.action(), post6.id, "View")).toEqual(null);
+    expect(await authorize(session4.action(), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post6.id, "View")).toEqual(null);
+    expect(await authorize(session7.action(), post6.id, "View")).toEqual(null);
+    expect(await authorize(session8.action(), post6.id, "View")).toEqual(null);
+    expect(await authorize(context.anonymousAction(), post6.id, "View")).toEqual("Unauthenticated");
+
+    expect(await authorize(space1.systemAction(), post6.id, "Edit")).toEqual(null);
+    expect(await authorize(space2.systemAction(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session2.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session4.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session7.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session8.action(), post6.id, "Edit")).toEqual(null);
+    expect(await authorize(context.anonymousAction(), post6.id, "Edit")).toEqual("Unauthenticated");
+});
+
+test("can authorize channel access at different levels", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+
+    const [session1, session2, session3, session4, session5] = await space1.createSessions(7);
+    const session6 = await space2.createSession();
+
+    const channel = await TestChannel.create(session1);
+
+    await channel.access.revokeDefault(session1);
+    await channel.access.grant(session1, session2, "View");
+    await channel.access.grant(session1, session3, "Comment");
+    await channel.access.grant(session1, session4, "Edit");
+
+    const authorize = async (
+        context: ServerActionContext,
+        id: ChannelId,
+        expectedAccessLevel: AccessLevel,
+    ) => {
+        try {
+            await authorizeChannelAccess(context, id, expectedAccessLevel);
+            return null;
+        } catch (error) {
+            if (error instanceof PermissionDeniedError) {
+                return "PermissionDenied";
+            } else if (error instanceof UnauthenticatedError) {
+                return "Unauthenticated";
+            } else {
+                throw error;
+            }
+        }
+    };
+
+    expect(await authorize(space1.systemAction(), channel.id, "View")).toEqual(null);
+    expect(await authorize(space2.systemAction(), channel.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), channel.id, "View")).toEqual(null);
+    expect(await authorize(session2.action(), channel.id, "View")).toEqual(null);
+    expect(await authorize(session3.action(), channel.id, "View")).toEqual(null);
+    expect(await authorize(session4.action(), channel.id, "View")).toEqual(null);
+    expect(await authorize(session5.action(), channel.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), channel.id, "View")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), channel.id, "View")).toEqual(
+        "Unauthenticated",
+    );
+
+    expect(await authorize(space1.systemAction(), channel.id, "Comment")).toEqual(null);
+    expect(await authorize(space2.systemAction(), channel.id, "Comment")).toEqual(
+        "PermissionDenied",
+    );
+    expect(await authorize(session1.action(), channel.id, "Comment")).toEqual(null);
+    expect(await authorize(session2.action(), channel.id, "Comment")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), channel.id, "Comment")).toEqual(null);
+    expect(await authorize(session4.action(), channel.id, "Comment")).toEqual(null);
+    expect(await authorize(session5.action(), channel.id, "Comment")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), channel.id, "Comment")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), channel.id, "Comment")).toEqual(
+        "Unauthenticated",
+    );
+
+    expect(await authorize(space1.systemAction(), channel.id, "Edit")).toEqual(null);
+    expect(await authorize(space2.systemAction(), channel.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session1.action(), channel.id, "Edit")).toEqual(null);
+    expect(await authorize(session2.action(), channel.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), channel.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session4.action(), channel.id, "Edit")).toEqual(null);
+    expect(await authorize(session5.action(), channel.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), channel.id, "Edit")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), channel.id, "Edit")).toEqual(
+        "Unauthenticated",
+    );
+
+    expect(await authorize(space1.systemAction(), channel.id, "Manage")).toEqual(null);
+    expect(await authorize(space2.systemAction(), channel.id, "Manage")).toEqual(
+        "PermissionDenied",
+    );
+    expect(await authorize(session1.action(), channel.id, "Manage")).toEqual(null);
+    expect(await authorize(session2.action(), channel.id, "Manage")).toEqual("PermissionDenied");
+    expect(await authorize(session3.action(), channel.id, "Manage")).toEqual("PermissionDenied");
+    expect(await authorize(session4.action(), channel.id, "Manage")).toEqual("PermissionDenied");
+    expect(await authorize(session5.action(), channel.id, "Manage")).toEqual("PermissionDenied");
+    expect(await authorize(session6.action(), channel.id, "Manage")).toEqual("PermissionDenied");
+    expect(await authorize(context.anonymousAction(), channel.id, "Manage")).toEqual(
+        "Unauthenticated",
+    );
 });
 
 test("authorizing channel access as session actor is cached", async () => {
@@ -3331,19 +4431,19 @@ test("authorizing channel access as session actor is cached", async () => {
 
         expect(getCount()).toEqual(0);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3358,14 +4458,14 @@ test("authorizing channel access as session actor is cached", async () => {
         expect(getCount()).toEqual(0);
 
         await runAllPromises([
-            authorizeChannelAccess(actionContext, channel.id),
-            authorizeChannelAccess(actionContext, channel.id),
-            authorizeChannelAccess(actionContext, channel.id),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
         ]);
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
     }
@@ -3386,19 +4486,19 @@ test("authorizing channel access as system actor is cached", async () => {
 
         expect(getCount()).toEqual(0);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(1);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3413,14 +4513,14 @@ test("authorizing channel access as system actor is cached", async () => {
         expect(getCount()).toEqual(0);
 
         await runAllPromises([
-            authorizeChannelAccess(actionContext, channel.id),
-            authorizeChannelAccess(actionContext, channel.id),
-            authorizeChannelAccess(actionContext, channel.id),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
         ]);
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(1);
     }
@@ -3445,19 +4545,19 @@ test("authorizing channel access after getting channel as session actor is cache
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3475,19 +4575,19 @@ test("authorizing channel access after getting channel as session actor is cache
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3505,19 +4605,19 @@ test("authorizing channel access after getting channel as session actor is cache
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3535,19 +4635,19 @@ test("authorizing channel access after getting channel as session actor is cache
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(3);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(3);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3574,19 +4674,19 @@ test("authorizing channel access after getting channel as system actor is cached
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(1);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3604,19 +4704,19 @@ test("authorizing channel access after getting channel as system actor is cached
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(1);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(1);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3634,19 +4734,19 @@ test("authorizing channel access after getting channel as system actor is cached
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -3664,19 +4764,19 @@ test("authorizing channel access after getting channel as system actor is cached
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
-        await authorizeChannelAccess(actionContext, channel.id);
+        await authorizeChannelAccess(actionContext, channel.id, "View");
 
         expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
-                authorizeChannelAccess(actionContext, channel.id),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -5157,6 +6257,13 @@ test("creating a post with files adds to the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5198,6 +6305,13 @@ test("creating a post with files adds to the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5243,6 +6357,13 @@ test("creating a post with files adds to the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5301,6 +6422,13 @@ test("creating a post with files adds to the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5370,6 +6498,13 @@ test("creating a post with files adds to the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5494,6 +6629,13 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5535,6 +6677,13 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5581,6 +6730,13 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5637,6 +6793,13 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5693,6 +6856,13 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5746,6 +6916,13 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {
@@ -5791,6 +6968,13 @@ test("updating a post with files changes the channel's post files", async () => 
                     name: channel.initialName,
                     createdTime: expect.any(Date),
                     description: emptyMessageContentWithReferences,
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session.account.id, {level: "Manage", generation: 0}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
                 }),
             },
             {

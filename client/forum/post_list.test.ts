@@ -11,6 +11,7 @@ import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
@@ -874,6 +875,11 @@ test("can add a channel header at the beginning", () => {
             doc: emptyMessageContent,
             references: emptyContentReferences,
         },
+        accessPolicy: {
+            accountGrantById: emptyMap,
+            urlGrant: null,
+            defaultGrant: null,
+        },
     });
 
     let list = PostBasicList.new({type: "Many", hasMorePosts: false, posts: []});
@@ -989,6 +995,7 @@ test("can add a channel header at the beginning", () => {
         {
             isOnlyNavigationBar: false,
             channel,
+            channelAndMetadataQuery: null,
             isCreatingChannel: false,
             isEditingDescription: false,
             onCancelDescriptionEditing: noop,
@@ -1003,6 +1010,7 @@ test("can add a channel header at the beginning", () => {
             channelHeader: {
                 isOnlyNavigationBar: false,
                 channel,
+                channelAndMetadataQuery: null,
                 isCreatingChannel: false,
                 isEditingDescription: false,
                 onCancelDescriptionEditing: noop,

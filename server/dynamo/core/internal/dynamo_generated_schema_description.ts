@@ -1634,7 +1634,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "itemSchema": {
                                                                                 "type": "Enum",
                                                                                 "values": [
-                                                                                    "Title"
+                                                                                    "Title",
+                                                                                    "Authorization"
                                                                                 ]
                                                                             }
                                                                         },
@@ -6507,6 +6508,13 @@ export const dynamoGeneratedSchemaDescription: {
                                         "valueSchema": {
                                             "type": "Reference",
                                             "reuseReferenceId": "05d7837f"
+                                        },
+                                        "optional": true
+                                    },
+                                    "accessPolicy": {
+                                        "valueSchema": {
+                                            "type": "Reference",
+                                            "reuseReferenceId": "7689b5ac"
                                         },
                                         "optional": true
                                     },

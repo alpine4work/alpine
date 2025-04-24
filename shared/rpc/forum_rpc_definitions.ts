@@ -1,3 +1,4 @@
+import {AccessLevelSchema} from "~/shared/access/access_policy.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {
     createDynamoGeneralRealtimeBackfillResultSchema,
@@ -245,6 +246,7 @@ export const authorizeChannelAccess = defineRpc({
     name: "authorizeChannelAccess",
     input: {
         channelId: Schema.id<ChannelId>(),
+        expectedAccessLevel: AccessLevelSchema,
     },
     output: {
         spaceId: Schema.id<SpaceId>(),

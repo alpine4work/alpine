@@ -27,8 +27,12 @@ import {
     ServerContentSessionActionContext,
 } from "~/server/context/server_content_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
@@ -58,7 +62,6 @@ import {
 } from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
-import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
 import {DocumentCommentThreadReference} from "~/shared/documents/document_content_references.js";
 import {
@@ -265,7 +268,7 @@ const DocumentIndexSearchEntityJobSchema = Schema.object({
         Any: Schema.object({type: Schema.value("Any")}),
         Some: Schema.object({
             type: Schema.value("Some"),
-            traits: Schema.array(Schema.enum(["Title"])),
+            traits: Schema.array(Schema.enum(["Title", "Authorization"])),
         }),
     }),
 });
@@ -916,7 +919,7 @@ export async function createDocument(
 export async function getDocumentPreviewIfPossible(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<DocumentPreviewModel, ErrorBase> | null> {
     const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
     if (!item) return null;
@@ -953,7 +956,7 @@ export async function getDocumentPreviewIfPossible(
 export async function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentPreviewModel | null> {
     const result = await getDocumentPreviewIfPossible(context, id, options);
     if (!result) return null;
@@ -972,7 +975,7 @@ export async function getDocumentPreviewIfExists(
 export async function getDocumentPreview(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentPreviewModel> {
     const document = await getDocumentPreviewIfExists(context, id, options);
     if (!document) throw new NotFoundError("Document not found");
@@ -981,23 +984,22 @@ export async function getDocumentPreview(
 
 /**
  * Authorizes that the current request can access the document.
- *
- * This function is mostly strongly consistent. It's safe to use in strongly
- * consistent contexts. If an account just got access this function will pass
- * with strong consistency. If an account lost access we have to wait for
- * DynamoDB's eventual consistency lag before this function will start
- * throwing.
  */
 export async function authorizeDocumentAccess(
     context: ServerActionContext,
     documentId: DocumentId,
     expectedAccessLevel: AccessLevel,
-): Promise<{spaceId: SpaceId; creatorId: AccountId | null}> {
-    const documentItem = await getDocumentItemForAuthorization(context, documentId);
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{spaceId: SpaceId; creatorId: AccountId | null; accessPolicy: AccessPolicy}> {
+    const documentItem = await getDocumentItemForAuthorization(context, documentId, options);
 
     await authorizeDocumentItemAccess(context, documentItem, expectedAccessLevel);
 
-    return {spaceId: documentItem.spaceId, creatorId: documentItem.creatorId};
+    return {
+        spaceId: documentItem.spaceId,
+        creatorId: documentItem.creatorId,
+        accessPolicy: documentItem.accessPolicy,
+    };
 }
 
 async function authorizeDocumentItemAccess(
@@ -1081,7 +1083,7 @@ async function authorizeDocumentItemAccessIfPossible(
     }
 }
 
-const DocumentItemAuthorizationCache = new ContextCache<
+const DocumentItemAuthorizationCache = new DynamoContextCache<
     DocumentId,
     DocumentAttributesItem | null
 >();
@@ -1089,8 +1091,9 @@ const DocumentItemAuthorizationCache = new ContextCache<
 async function getDocumentItemForAuthorization(
     context: ServerActionContext,
     documentId: DocumentId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentAttributesItem> {
-    const item = await getDocumentItemForAuthorizationIfExists(context, documentId);
+    const item = await getDocumentItemForAuthorizationIfExists(context, documentId, options);
     if (!item) throw new NotFoundError("Document not found");
     return item;
 }
@@ -1098,56 +1101,19 @@ async function getDocumentItemForAuthorization(
 async function getDocumentItemForAuthorizationIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<DocumentAttributesItem | null> {
-    // If strong consistency was explicitly requested then we always want to read
-    // the document regardless of what's in the cache so we get the most up-to-date
-    // data.
-    if (consistency === "Strong") {
-        const itemPromise = DocumentsTable.getItemIfExists(
+    return DocumentItemAuthorizationCache.get(context, consistency, documentId, consistency =>
+        DocumentsTable.getItemIfExists(
             context,
             {
                 partitionType: "Document",
                 sortRangeType: "Attributes",
                 documentId,
             },
-            {consistency: "Strong"},
-        );
-
-        DocumentItemAuthorizationCache.set(context, documentId, itemPromise);
-
-        return itemPromise;
-    }
-
-    return DocumentItemAuthorizationCache.get(context, documentId, async () => {
-        const item = await DocumentsTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Document",
-                sortRangeType: "Attributes",
-                documentId,
-            },
-            // It's ok to call this function when expecting strong read consistency.
-            // Authorization is mostly strongly consistent since we retry with strong
-            // consistency if our eventually consistent read fails.
-            {allowsEventualReadConsistency: true},
-        );
-
-        if (item) return item;
-
-        return DocumentsTable.getItemIfExists(
-            context,
-            {
-                partitionType: "Document",
-                sortRangeType: "Attributes",
-                documentId,
-            },
-            // If we couldn't find the document, maybe it was just created. Try reading
-            // again with strong read consistency. We don't want to throw an authorization
-            // error if the document actually exists.
-            {consistency: "Strong"},
-        );
-    });
+            {consistency},
+        ),
+    );
 }
 
 type InternalDocument = {
@@ -1179,7 +1145,7 @@ async function getInternalDocumentIfExists(
         forCollaborationServiceInitialization?: boolean;
 
         // Allow reading the document content with strong consistency.
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     } = {},
 ): Promise<InternalDocument | null> {
     getInternalDocumentTestCounter.incrementForTest(documentId);
@@ -1215,7 +1181,7 @@ async function getInternalDocumentIfExists(
                 // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
                 // references) the document preview is already available and can be used to
                 // authorize.
-                DocumentItemAuthorizationCache.set(context, documentId, item);
+                DocumentItemAuthorizationCache.set(context, consistency, documentId, item);
 
                 // Must have view access level to read the document.
                 await authorizeDocumentItemAccess(context, item, "View");
@@ -1451,7 +1417,11 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
         DocumentReferencedCommentThreadItem
     >();
 
+    const queryConsistency: DynamoReadConsistency = "Eventual";
+
     for await (const item of DocumentsTable.query(context, {
+        limit: "All",
+        consistency: queryConsistency,
         partitionKey: {
             partitionType: "Document",
             documentId,
@@ -1463,7 +1433,6 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
             sortRangeType: "ReferencedCommentThread",
             commentThreadId: getMaxId<DocumentCommentThreadId>(),
         },
-        limit: "All",
     })) {
         // If we've found the snapshot item and the user doesn't have comment access
         // then stop looping. We don't want to read comment thread items since the user
@@ -1485,7 +1454,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                 // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
                 // references) the document preview is already available and can be used to
                 // authorize.
-                DocumentItemAuthorizationCache.set(context, documentId, item);
+                DocumentItemAuthorizationCache.set(context, queryConsistency, documentId, item);
 
                 // Must have the view access level to read a document.
                 await authorizeDocumentItemAccess(context, item, "View");
@@ -1741,7 +1710,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
 export async function getDocumentTitle(
     context: ServerActionContext,
     documentId: DocumentId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<string> {
     const documentPreview = await getDocumentPreview(context, documentId, options);
     return documentPreview.getTitle();
@@ -1754,7 +1723,7 @@ export async function getDocumentTitle(
 export async function getDocumentContent(
     context: ServerActionContext,
     documentId: DocumentId,
-    {consistency}: {consistency?: DynamoReadConsistency} = emptyObject,
+    {consistency}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
 ): Promise<{
     spaceId: SpaceId;
     createdTime: Date;
@@ -3070,13 +3039,20 @@ export async function updateDocumentContent(
         if (steps.length > 0) {
             const newTitleWithoutFallback = getDocumentContentTitleWithoutFallback(newContent);
 
-            const updatedTraits: Array<"Title"> = [];
+            const updatedTraits: Array<"Title" | "Authorization"> = [];
 
             if (
                 getDocumentContentTitleWithoutFallback(internalDocument.content) !==
-                newTitleWithoutFallback
+                    newTitleWithoutFallback ||
+                // If the access policy updates then the title also implicitly updates since
+                // access to the title depends on the access policy.
+                oldAccessPolicy !== newAccessPolicy
             ) {
                 updatedTraits.push("Title");
+            }
+
+            if (oldAccessPolicy !== newAccessPolicy) {
+                updatedTraits.push("Authorization");
             }
 
             const areUpdatedTraitsInLastIndexSearchEntityJob =
@@ -4400,7 +4376,7 @@ async function getDocumentCommentThreadItemIfExists(
          * range.
          */
         shouldTryArchiveFirst?: boolean;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<DocumentCommentThreadItem | null> {
     {
@@ -4474,7 +4450,7 @@ async function getDocumentCommentThreadItem(
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         shouldTryArchiveFirst?: boolean;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ) {
     const item = await getDocumentCommentThreadItemIfExists(context, {
@@ -4693,14 +4669,15 @@ export async function getDocumentCommentPayload(
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     createdTime: Date;
     authorId: AccountId;
     payload: MessagePayload;
+    documentAccessPolicy: AccessPolicy;
 }> {
-    const {commentItem} = await getDocumentCommentItem(context, {
+    const {commentItem, documentAccessPolicy} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
         commentIndex,
@@ -4711,6 +4688,7 @@ export async function getDocumentCommentPayload(
         createdTime: commentItem.createdTime,
         authorId: commentItem.authorId,
         payload: commentItem.payload,
+        documentAccessPolicy,
     };
 }
 
@@ -4749,11 +4727,11 @@ async function getDocumentCommentItem(
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ) {
-    const [{spaceId}, , commentItem] = await runAllPromises([
-        authorizeDocumentAccess(context, documentId, "Comment"),
+    const [{spaceId, accessPolicy}, , commentItem] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
 
         // Throws an error if the comment thread item doesn't exist.
         getDocumentCommentThreadItem(context, {
@@ -4782,6 +4760,7 @@ async function getDocumentCommentItem(
     return {
         spaceId,
         commentItem,
+        documentAccessPolicy: accessPolicy,
     };
 }
 
@@ -5881,13 +5860,13 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         isFirstComment: boolean;
-        consistency?: DynamoReadConsistency;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     accountIds: Set<AccountId | ContentMentionAccountId>;
 }> {
     const [{creatorId}, commentThreadItem] = await runAllPromises([
-        authorizeDocumentAccess(context, documentId, "Comment"),
+        authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
