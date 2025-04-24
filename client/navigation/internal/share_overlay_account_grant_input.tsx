@@ -735,7 +735,6 @@ function ShareOverlayAccountGrantInputListBox({
                 sprinkles({
                     borderRadius: "1.5",
                     padding: "1",
-                    marginX: "2",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
                     maxHeight: {desktop: "64", mobile: "48"},
