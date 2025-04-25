@@ -771,6 +771,50 @@ export class OpensearchClient implements OpensearchClientInterface {
         assert(process.env.NODE_ENV !== "production");
 
         await getOrSetDefaultMapValue(this._ensureLocalIndexPromiseByIndex, index, async () => {
+            await tracer.withSpan("Waiting for OpenSearch to start", async () => {
+                const url = this._urlByServerlessCollectionType[index.serverlessCollectionType];
+                assert(url.hostname === "localhost");
+
+                // We don't wait for OpenSearch to start before executing code in our dev
+                // server and tests. That's because OpenSearch takes ~7s to start. That means
+                // we need to wait for it here before we can use it.
+                const port = parseInt(url.port, 10);
+                assert(Number.isInteger(port));
+                await waitForHttpServer(port);
+
+                // We need to wait for OpenSearch primary shards to be allocated before we can
+                // check the status of indexes or create new indexes. Otherwise OpenSearch
+                // returns weird partial health errors in integration tests.
+                //
+                // This [endpoint is not available in OpenSearch serverless][1] so we don't run
+                // it in production.
+                //
+                // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-genref.html#serverless-operations
+                await fetchWithTracer(
+                    tracer,
+                    new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", url),
+                    {
+                        sign: this._signer.sign,
+                        serviceName: "OpenSearch",
+                        route: "/_cluster/health",
+                        method: "GET",
+                    },
+                    async response => {
+                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                        // float-64 size in cluster health. Ok to use native JSON parser instead of
+                        // `json-bigint`.
+                        const body = await response.json();
+                        if (!response.ok) {
+                            throw new InternalError(
+                                // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                                // so it's ok to stringify with native JSON parser.
+                                `OpenSearch health check failed: ${JSON.stringify(body)}`,
+                            );
+                        }
+                    },
+                );
+            });
+
             const ensureLocalCachePath = joinPath(
                 assertExists(
                     this._ensureLocalCachePath,
@@ -854,49 +898,6 @@ export class OpensearchClient implements OpensearchClientInterface {
     ) {
         return tracer.withSpan("Deploy OpenSearch index", async tracer => {
             const url = this._urlByServerlessCollectionType[index.serverlessCollectionType];
-
-            // We don't wait for OpenSearch to start before executing code in our dev
-            // server and tests. That's because OpenSearch takes ~7s to start. That means
-            // we need to wait for it here before we can use it.
-            if (process.env.NODE_ENV !== "production") {
-                assert(url.hostname === "localhost");
-
-                const port = parseInt(url.port, 10);
-                assert(Number.isInteger(port));
-                await waitForHttpServer(port);
-
-                // We need to wait for OpenSearch primary shards to be allocated before we can
-                // check the status of indexes or create new indexes. Otherwise OpenSearch
-                // returns weird partial health errors in integration tests.
-                //
-                // This [endpoint is not available in OpenSearch serverless][1] so we don't run
-                // it in production.
-                //
-                // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-genref.html#serverless-operations
-                await fetchWithTracer(
-                    tracer,
-                    new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", url),
-                    {
-                        sign: this._signer.sign,
-                        serviceName: "OpenSearch",
-                        route: "/_cluster/health",
-                        method: "GET",
-                    },
-                    async response => {
-                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                        // float-64 size in cluster health. Ok to use native JSON parser instead of
-                        // `json-bigint`.
-                        const body = await response.json();
-                        if (!response.ok) {
-                            throw new InternalError(
-                                // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                // so it's ok to stringify with native JSON parser.
-                                `OpenSearch health check failed: ${JSON.stringify(body)}`,
-                            );
-                        }
-                    },
-                );
-            }
 
             await retryWithExponentialBackoff(async retry => {
                 const getBody = await fetchWithTracer(
