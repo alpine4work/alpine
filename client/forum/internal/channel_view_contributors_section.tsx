@@ -77,9 +77,6 @@ export function ChannelViewContributorsSection({
                     <IconButton
                         variant="quiet-darken"
                         size="base"
-                        // This button doesn't look interactive enough on its own. So use a pointer
-                        // cursor to make clear it's interactive.
-                        cursor="pointer"
                         description="Invite"
                         pressErrorTitle="Couldn’t invite people to channel"
                         onPress={async () => {
