@@ -695,20 +695,6 @@ const ForumTable = DynamoTableSchema.new({
                         description: MessageContentSchema.default(emptyMessageContent),
                     }),
                 },
-
-                /**
-                 * Accounts who are subscribed to get notifications in their inbox whenever a
-                 * post is created in this channel.
-                 */
-                {
-                    name: "Subscription",
-                    sortKeyAttributes: {
-                        accountId: DynamoKeyAttributeSchema.id<AccountId>(),
-                    },
-                    attributes: Schema.object({
-                        createdTime: Schema.date,
-                    }),
-                },
             ],
         },
         {
@@ -1952,111 +1938,6 @@ export async function authorizeChannelAccess(
     return {spaceId: channelItem.spaceId, accessPolicy: channelItem.accessPolicy};
 }
 
-// NOCOMMIT: Document and test!
-export async function subscribeToChannel(
-    context: ServerSessionActionContext,
-    channelId: ChannelId,
-) {
-    await authorizeChannelAccess(context, channelId, "View");
-
-    await ForumTable.updateItem(
-        context,
-        {
-            partitionType: "Channel",
-            sortRangeType: "Subscription",
-            channelId,
-            accountId: context.actor.getAccountId(),
-        },
-        item => {
-            if (item) return item;
-
-            return {
-                partitionType: "Channel",
-                sortRangeType: "Subscription",
-                channelId,
-                accountId: context.actor.getAccountId(),
-                createdTime: new Date(),
-            };
-        },
-    );
-}
-
-// NOCOMMIT: Document and test!
-export async function unsubscribeFromChannel(
-    context: ServerSessionActionContext,
-    channelId: ChannelId,
-) {
-    await authorizeChannelAccess(context, channelId, "View");
-
-    await ForumTable.updateItem(
-        context,
-        {
-            partitionType: "Channel",
-            sortRangeType: "Subscription",
-            channelId,
-            accountId: context.actor.getAccountId(),
-        },
-        item => {
-            if (!item) return item;
-
-            return null;
-        },
-    );
-}
-
-// NOCOMMIT: Document and test!
-export async function isSubscribedToChannel(
-    context: ServerSessionActionContext,
-    channelId: ChannelId,
-): Promise<boolean> {
-    await authorizeChannelAccess(context, channelId, "View");
-
-    const item = await ForumTable.getItemIfExists(context, {
-        partitionType: "Channel",
-        sortRangeType: "Subscription",
-        channelId,
-        accountId: context.actor.getAccountId(),
-    });
-
-    return !!item;
-}
-
-// NOCOMMIT: Document and test!
-export async function getChannelNotificationSubscribers(
-    context: ServerSystemActionContext,
-    channelId: ChannelId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
-) {
-    // Double check that this is a system actor. Currently the list of channel
-    // subscribers is private. We don't want there to be social pressure to never
-    // unsubscribe from a channel because people can see whether or not you're
-    // subscribed (like there is in Slack, leaving a channel shows everyone a
-    // "Caleb left the channel" message).
-    context.actor.authorizeSystem();
-
-    await authorizeChannelAccess(context, channelId, "View");
-
-    const accountIds: Array<AccountId> = [];
-
-    for await (const item of ForumTable.query(context, {
-        consistency,
-        limit: "All",
-        partitionKey: {partitionType: "Channel", channelId},
-        startSortKey: {
-            sortRangeType: "Subscription",
-            accountId: DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
-        },
-        endSortKey: {
-            sortRangeType: "Subscription",
-            accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-        },
-    })) {
-        accountIds.push(item.accountId);
-    }
-
-    return accountIds;
-}
-
 /**
  * Updates the name of the channel.
  */
@@ -2823,7 +2704,7 @@ export async function getPostAuthorAndChannelPreview(
  */
 export async function getPostNotificationSubscribers(
     context: ServerSystemActionContext,
-    postId: PostId,
+    id: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
@@ -2834,7 +2715,7 @@ export async function getPostNotificationSubscribers(
         {
             partitionType: "Post",
             sortRangeType: "Attributes",
-            postId: postId,
+            postId: id,
         },
         {
             attributes: ["createdTime", "authorId", "spaceId", "channelId", "commentsSummary"],
@@ -2844,7 +2725,7 @@ export async function getPostNotificationSubscribers(
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
+    PostItemAuthorizationCache.set(context, consistency, id, postItemPromise);
 
     const postItem = await postItemPromise;
 

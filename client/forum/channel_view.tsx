@@ -1,10 +1,8 @@
-import {Bell, BellRinging, Link as LinkIcon} from "phosphor-react";
+import {Link as LinkIcon} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {Button} from "~/client/design/button.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {Tooltip} from "~/client/design/tooltip.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
@@ -30,7 +28,6 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
-    postFauxInputCreateButtonInnerButtonHeight,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -45,14 +42,11 @@ import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
 import {
     backfillChannelAndMetadata,
     backfillChannelPosts,
     getChannelAndMetadata,
     getChannelPosts,
-    subscribeToChannel,
-    unsubscribeFromChannel,
     updateChannelDescription,
     updateChannelName,
     updateChannelNameAndDescription,
@@ -61,12 +55,10 @@ import {
 export function ChannelView({
     initialChannelResult,
     initialPostsResult,
-    initialIsSubscribed,
     initialIsFavorite,
 }: {
     initialChannelResult: DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>;
     initialPostsResult: DynamoGeneralRealtimeIndexQueryResult<PostModel>;
-    initialIsSubscribed: boolean;
     initialIsFavorite: boolean;
 }) {
     const context = useAppContext();
@@ -247,13 +239,6 @@ export function ChannelView({
         desktopTitleLeftSlop: "1",
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
-        // NOCOMMIT: Mobile???
-        desktopAdditionalActions: (
-            <ChannelViewSubscribeButton
-                channelId={channelId}
-                initialIsSubscribed={initialIsSubscribed}
-            />
-        ),
         menuActions: [
             [
                 {
@@ -420,71 +405,5 @@ export function ChannelView({
                 </MobileFullScreenModal>
             )}
         </Box>
-    );
-}
-
-function ChannelViewSubscribeButton({
-    channelId,
-    initialIsSubscribed,
-}: {
-    channelId: ChannelId;
-    initialIsSubscribed: boolean;
-}) {
-    const context = useAppContext();
-
-    const [isSubscribed, setIsSubscribed] = useState(initialIsSubscribed);
-
-    return (
-        <Tooltip placement="bottom-end" content="Get notified about new posts">
-            <Button
-                variant={isSubscribed ? "neutral-disabled" : "neutral"}
-                icon={isSubscribed ? <BellRinging /> : <Bell />}
-                // Consistent height with the post faux create input.
-                height={postFauxInputCreateButtonInnerButtonHeight}
-                paddingX="2.5"
-                pressErrorTitle={
-                    !isSubscribed
-                        ? "Couldn’t subscribe to channel"
-                        : "Couldn’t unsubscribe from channel"
-                }
-                onPress={async () => {
-                    if (isSubscribed) {
-                        // Optimistically update our `isSubscribed` state so the UI changes at the
-                        // same time as `isPressed` becomes false. If the RPC fails then we revert
-                        // the change.
-                        setIsSubscribed(false);
-
-                        try {
-                            await unsubscribeFromChannel(context, {channelId});
-                        } catch (error) {
-                            setIsSubscribed(isSubscribed);
-                            throw error;
-                        }
-                    } else {
-                        // Optimistically update our `isSubscribed` state so the UI changes at the same
-                        // time as `isPressed` becomes false. If the RPC fails then we revert the
-                        // change.
-                        setIsSubscribed(true);
-
-                        try {
-                            await subscribeToChannel(context, {channelId});
-                        } catch (error) {
-                            setIsSubscribed(isSubscribed);
-                            throw error;
-                        }
-                    }
-                }}
-            >
-                <span
-                    style={{
-                        // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here.
-                        // So tone down the font weight a bit.
-                        fontWeight: !isSubscribed ? 425 : undefined,
-                    }}
-                >
-                    {isSubscribed ? "Subscribed" : "Subscribe"}
-                </span>
-            </Button>
-        </Tooltip>
     );
 }

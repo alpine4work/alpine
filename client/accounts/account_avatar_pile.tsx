@@ -22,16 +22,14 @@ export function AccountAvatarPile({
     size = "6",
     topPreviewAccount = "Last",
     previewAccounts,
-    accountCount = previewAccounts.length,
+    accountCount,
     getAllAccounts,
-    lastAvatar,
 }: {
     size?: AccountAvatarPileSize;
     topPreviewAccount?: "First" | "Last";
     previewAccounts: ReadonlyArray<AccountModel | AccountModelData>;
-    accountCount?: number;
-    getAllAccounts?: (limit: number) => MaybePromise<ReadonlyArray<AccountModel>>;
-    lastAvatar?: ReactNode;
+    accountCount: number;
+    getAllAccounts: (limit: number) => MaybePromise<ReadonlyArray<AccountModel>>;
 }) {
     const previewAccountIds = useMemo(
         () => new Set(previewAccounts.map(account => account.id)),
@@ -80,11 +78,6 @@ export function AccountAvatarPile({
         } as const
     )[size];
 
-    // Is there a last circle with some interactive element? Either a count of how
-    // many additional accounts there are or some custom avatar.
-    const hasLastAvatar: boolean =
-        !!lastAvatar || (!!getAllAccounts && accountCount > previewAccounts.length);
-
     return (
         <Box
             display="flex"
@@ -107,7 +100,7 @@ export function AccountAvatarPile({
                         zIndex:
                             // If we're rendering the account count then don't put the first avatar on top
                             // since we shouldn't occlude the account count.
-                            topPreviewAccount === "First" && !hasLastAvatar
+                            topPreviewAccount === "First" && accountCount <= previewAccounts.length
                                 ? previewAccounts.length - index
                                 : 1 + index,
                     }}
@@ -116,115 +109,82 @@ export function AccountAvatarPile({
                         account={account}
                         size={avatarSize}
                         backgroundBorderWidth={
-                            previewAccounts.length > 1 || hasLastAvatar ? borderWidth : undefined
+                            previewAccounts.length > 1 || accountCount > previewAccounts.length
+                                ? borderWidth
+                                : undefined
                         }
                     />
                 </Box>
             ))}
-            {lastAvatar ? (
+            {accountCount > previewAccounts.length && (
                 <Box
                     height={avatarSize}
                     width={avatarOverlapWidth}
                     position="relative"
                     style={{zIndex: 1 + previewAccounts.length}}
                 >
-                    <Box
-                        height={avatarSize}
-                        width={avatarSize}
-                        borderRadius="full"
-                        style={{
-                            boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
+                    <AsyncTooltip
+                        placement="bottom-start"
+                        getContent={async () => {
+                            let remainingAccountCount = accountCount;
+                            const accounts = await getAllAccounts(100);
+
+                            const children = [];
+
+                            for (const account of accounts) {
+                                remainingAccountCount--;
+                                if (previewAccountIds.has(account.id)) continue;
+                                children.push(
+                                    <AccountAvatarPileAccountName
+                                        key={account.id}
+                                        account={account}
+                                    />,
+                                );
+                            }
+
+                            if (remainingAccountCount > 0) {
+                                children.push(
+                                    <div key="more">
+                                        and <PrettyNumber number={remainingAccountCount} /> more…
+                                    </div>,
+                                );
+                            }
+
+                            return <>{children}</>;
                         }}
                     >
                         <Box
                             height={avatarSize}
                             width={avatarSize}
                             borderRadius="full"
-                            backgroundColor="grey-10"
-                            color="grey-70"
-                            display="flex"
-                            justifyContent="center"
-                            alignItems="center"
-                            overflow="hidden"
-                        >
-                            {lastAvatar}
-                        </Box>
-                    </Box>
-                </Box>
-            ) : (
-                getAllAccounts &&
-                accountCount > previewAccounts.length && (
-                    <Box
-                        height={avatarSize}
-                        width={avatarOverlapWidth}
-                        position="relative"
-                        style={{zIndex: 1 + previewAccounts.length}}
-                    >
-                        <AsyncTooltip
-                            placement="bottom-start"
-                            getContent={async () => {
-                                let remainingAccountCount = accountCount;
-                                const accounts = await getAllAccounts(100);
-
-                                const children = [];
-
-                                for (const account of accounts) {
-                                    remainingAccountCount--;
-                                    if (previewAccountIds.has(account.id)) continue;
-                                    children.push(
-                                        <AccountAvatarPileAccountName
-                                            key={account.id}
-                                            account={account}
-                                        />,
-                                    );
-                                }
-
-                                if (remainingAccountCount > 0) {
-                                    children.push(
-                                        <div key="more">
-                                            and <PrettyNumber number={remainingAccountCount} />{" "}
-                                            more…
-                                        </div>,
-                                    );
-                                }
-
-                                return <>{children}</>;
+                            style={{
+                                boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
                             }}
                         >
                             <Box
                                 height={avatarSize}
                                 width={avatarSize}
                                 borderRadius="full"
-                                style={{
-                                    boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
-                                }}
+                                backgroundColor="grey-10"
+                                fontSize={overflowFontSize}
+                                color="grey-70"
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
                             >
-                                <Box
-                                    height={avatarSize}
-                                    width={avatarSize}
-                                    borderRadius="full"
-                                    backgroundColor="grey-10"
-                                    color="grey-70"
-                                    display="flex"
-                                    justifyContent="center"
-                                    alignItems="center"
-                                    overflow="hidden"
-                                    fontSize={overflowFontSize}
+                                <span
+                                    style={{
+                                        transform: overflowScale
+                                            ? `scale(${overflowScale})`
+                                            : undefined,
+                                    }}
                                 >
-                                    <span
-                                        style={{
-                                            transform: overflowScale
-                                                ? `scale(${overflowScale})`
-                                                : undefined,
-                                        }}
-                                    >
-                                        +{accountCount - previewAccounts.length}
-                                    </span>
-                                </Box>
+                                    +{accountCount - previewAccounts.length}
+                                </span>
                             </Box>
-                        </AsyncTooltip>
-                    </Box>
-                )
+                        </Box>
+                    </AsyncTooltip>
+                </Box>
             )}
         </Box>
     );

@@ -597,11 +597,6 @@ export function ChatAccountPicker({
 
     return (
         <OverlayAnimated
-            // TODO(calebmer): It would be nice, from a design perspective, if while
-            // `selectedAccounts.length === 0` the overlay was always open! Not just when
-            // the input was selected. Since we have nothing else to show the user before
-            // they enter a chat. However, this seems impossible with `react-aria`'s
-            // combobox component. We'd have to implement our own combobox component.
             isVisible={comboBoxState.isOpen}
             disableAnimationIn={true}
             disableAnimationOut={!shouldOverlayAnimate}

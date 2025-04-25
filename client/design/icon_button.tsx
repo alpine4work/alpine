@@ -52,7 +52,6 @@ export type IconButtonVariant =
     | "quiet-above-content-file-viewer-modal"
     | "quiet-elevation-10"
     | "quiet-elevation-20"
-    | "quiet-darken"
     | "neutral"
     | "outline";
 
@@ -495,20 +494,6 @@ function IconButton(
                   };
             break;
         }
-        case "quiet-darken": {
-            isQuietVariant = true;
-
-            styles = !isDisabled
-                ? {
-                      backgroundColor: undefined,
-                      color: "grey-70",
-                  }
-                : {
-                      backgroundColor: undefined,
-                      color: "grey-30",
-                  };
-            break;
-        }
         case "neutral": {
             styles = !isDisabled
                 ? {
@@ -579,8 +564,7 @@ function IconButton(
     const isOutlineVariant = variant === "outline";
     const isBold = variant === "neutral" && !isDisabled;
 
-    const willDarkenWithOverlayOnPress =
-        (!isQuietVariant && !isOutlineVariant) || variant === "quiet-darken";
+    const willDarkenWithOverlayOnPress = !isQuietVariant && !isOutlineVariant;
 
     useEffect(() => {
         // Element is re-created when this prop changes.

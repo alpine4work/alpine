@@ -520,11 +520,7 @@ function Button(
         case "neutral-disabled": {
             styles = {
                 backgroundColor: "grey-5",
-                // Slightly darker text color than the usual disabled color (`grey-30`) since
-                // we want to make the button look a little more interactive. If you use
-                // `neutral-disabled` instead of `isDisabled` it's probably because you want
-                // the button to do something when pressed.
-                color: "grey-40",
+                color: "grey-30",
             };
             break;
         }
@@ -678,7 +674,6 @@ function Button(
                         // pressed down.
                         <span
                             className={sprinkles({
-                                zIndex: "50",
                                 position: "absolute",
                                 inset: "0",
                                 backgroundColor: "grey-100-const",

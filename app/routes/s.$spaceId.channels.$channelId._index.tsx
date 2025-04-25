@@ -29,7 +29,6 @@ import {
     getChannelAndMetadataPartitionKey,
     getChannelContributorsKey,
     getChannelPosts,
-    isSubscribedToChannel,
 } from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -67,7 +66,6 @@ const LoaderSchema = Schema.object({
             type: Schema.value("Exists"),
             channelResult: createDynamoGeneralRealtimeQuerySchema(ChannelOrMetadataModelSchema),
             postsResult: createDynamoGeneralRealtimeIndexQuerySchema(PostModel.schema()),
-            isSubscribed: Schema.boolean,
             isFavorite: Schema.boolean,
         }),
     }),
@@ -132,7 +130,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
 
     const clientInfo = context.loader.getClientInfo();
 
-    const [channelResult, postsResult, isSubscribed, isFavorite] = await runAllPromises([
+    const [channelResult, postsResult, isFavorite] = await runAllPromises([
         getDynamoGeneralRealtimeItem
             ? runAllPromises([
                   getDynamoGeneralRealtimeItem(context),
@@ -175,7 +173,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
             ),
             beforeCursor: null,
         }),
-        isSubscribedToChannel(context, channelId),
         isSearchFavoriteEntity(context, {
             spaceId,
             entityId: `Channel:${channelId}`,
@@ -193,7 +190,6 @@ export async function loader({request, params, context: unauthenticatedContext}:
                 type: "Exists",
                 channelResult,
                 postsResult,
-                isSubscribed,
                 isFavorite,
             },
         },
@@ -280,7 +276,6 @@ export default function ChannelRoute() {
                     key={channelId}
                     initialChannelResult={channelState.channelResult}
                     initialPostsResult={channelState.postsResult}
-                    initialIsSubscribed={channelState.isSubscribed}
                     initialIsFavorite={channelState.isFavorite}
                 />
             ) : platform === "mobile" ? (

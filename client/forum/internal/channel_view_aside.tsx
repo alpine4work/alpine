@@ -163,10 +163,7 @@ export function ChannelViewAside({
                             style={{
                                 display: "grid",
                                 gridTemplateColumns: `repeat(${channelViewAsidePostFileColumnCount}, 1fr)`,
-                                gridTemplateRows: `repeat(${Math.min(
-                                    Math.ceil(fileReferences.length / 2),
-                                    channelViewAsidePostFileRowCount,
-                                )}, ${channelViewAsideFileHeight})`,
+                                gridTemplateRows: `repeat(${channelViewAsidePostFileRowCount}, ${channelViewAsideFileHeight})`,
                             }}
                         >
                             {mapIterable(
