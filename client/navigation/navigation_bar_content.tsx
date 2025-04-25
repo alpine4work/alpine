@@ -31,7 +31,7 @@ import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.j
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {ShareMobileModal} from "~/client/navigation/internal/share_mobile_modal.js";
-import {ShareOverlay} from "~/client/navigation/internal/share_overlay.js";
+import {ShareOverlay, ShareOverlayRef} from "~/client/navigation/internal/share_overlay.js";
 import {useShareState} from "~/client/navigation/internal/use_share_state.js";
 import {NavigationBarShareButtonProps} from "~/client/navigation/navigation_bar_types.js";
 import {ShareButton} from "~/client/navigation/share_button.js";
@@ -480,7 +480,8 @@ function NavigationBarContentMoreButton({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
 
-    const overlayRef = useRef<HTMLDivElement>(null);
+    const overlayContainerRef = useRef<HTMLDivElement>(null);
+    const overlayRef = useRef<ShareOverlayRef>(null);
 
     const [showShareDesktopOverlay, setShowShareDesktopOverlay] = useState(false);
     if (!shareButton && showShareDesktopOverlay) setShowShareDesktopOverlay(false);
@@ -501,7 +502,7 @@ function NavigationBarContentMoreButton({
 
         if (!showShareDesktopOverlay) return;
 
-        const overlayElement = overlayRef.current;
+        const overlayElement = overlayContainerRef.current;
         if (!overlayElement) return;
 
         getNextFocusableElementIfExists(null, {
@@ -531,9 +532,10 @@ function NavigationBarContentMoreButton({
                     if (!isActuallyVisible) setShowShareDesktopOverlay(false);
                 }}
                 overlay={({isVisible, onCloseWithAnimation, onCloseWithoutAnimation}) => (
-                    <Box ref={overlayRef}>
+                    <Box ref={overlayContainerRef}>
                         {showShareDesktopOverlay && shareButton ? (
                             <ShareOverlay
+                                ref={overlayRef}
                                 id={shareState.overlayId}
                                 accessPolicy={shareButton.accessPolicy}
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
@@ -587,6 +589,19 @@ function NavigationBarContentMoreButton({
                     // Don't close the overlay when tab is pressed. Tab is needed to navigate
                     // internally within the share overlay.
                     return {allowDefault: true};
+                }}
+                onOverlayOutsidePress={() => {
+                    if (!showShareDesktopOverlay || !shareButton) return;
+
+                    const overlay = assertExists(overlayRef.current);
+
+                    // If the share overlay's account grant input combobox is open and the user
+                    // clicks outside of the overlay, instead of closing the entire overlay just
+                    // close the combobox. A second click will close the overlay too.
+                    if (overlay.isAccountGrantInputComboBoxOpen()) {
+                        overlay.closeAccountGrantInputComboBox();
+                        return {preventDefault: true};
+                    }
                 }}
             >
                 <IconButton
