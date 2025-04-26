@@ -114,6 +114,12 @@ export type NavigationBarProps = {
     readonly shareButton?: NavigationBarShareButtonProps;
 
     /**
+     * Always use the share menu item for the `shareButton` UI. Even on wide layouts
+     * that would normally put the share button directly in the navigation bar.
+     */
+    readonly withWideRouteLayoutShareMenuItem?: boolean;
+
+    /**
      * If provided, completely replace the actions in this navigation bar's content
      * (which includes `menuActions` and `shareButton`) with the contents of this
      * node.

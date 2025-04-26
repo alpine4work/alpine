@@ -140,6 +140,14 @@ export type MenuStandardAction = {
      */
     readonly pressErrorTitle?: string;
 
+    /**
+     * Render some UI outside of the menu item to the right of it. Clicking on this
+     * bit of UI won't select the menu item. It has its own rules. You also won't
+     * be able to keyboard navigate to this bit of UI since arrow up/down will
+     * still navigate menu items as normal.
+     */
+    readonly extraActions?: ReactNode;
+
     readonly withCustomLayout?: undefined;
     readonly hasChildren?: undefined;
 };
@@ -1072,7 +1080,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         </Box>
     );
 
-    return (
+    let node = (
         <FocusRing isVisible={isFocusRingVisible} offset="inset">
             <Box
                 {...mergeProps(hoverProps, pressProps)}
@@ -1088,7 +1096,8 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                           tabIndex: -1,
                       }
                     : {})}
-                minWidth={width}
+                minWidth={!action.extraActions ? width : undefined}
+                flexGrow={action.extraActions ? "1" : undefined}
                 paddingLeft={action.icon && action.iconPlacement === "start" ? "1.5" : "2"}
                 paddingRight="1.5"
                 paddingY="1.5"
@@ -1158,6 +1167,17 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
             </Box>
         </FocusRing>
     );
+
+    if (action.extraActions) {
+        node = (
+            <Box minWidth={width} display="flex" alignItems="center" gap="1">
+                {node}
+                {action.extraActions}
+            </Box>
+        );
+    }
+
+    return node;
 });
 
 function MenuCustomItem({

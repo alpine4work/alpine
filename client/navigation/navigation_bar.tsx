@@ -51,6 +51,7 @@ export function useNavigationBar({
     menuActions = emptyArray,
     contextMenuActions = emptyArray,
     shareButton,
+    withWideRouteLayoutShareMenuItem = false,
     replaceActions,
     titleJustifyContent,
     desktopControls = null,
@@ -177,6 +178,7 @@ export function useNavigationBar({
             menuActions={menuActions}
             contextMenuActions={contextMenuActions}
             shareButton={shareButton}
+            withWideRouteLayoutShareMenuItem={withWideRouteLayoutShareMenuItem}
             replaceActions={replaceActions}
             titleJustifyContent={titleJustifyContent}
             desktopControls={desktopControls}

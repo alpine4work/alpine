@@ -146,6 +146,7 @@ export function NavigationBar({
     menuActions,
     contextMenuActions,
     shareButton,
+    withWideRouteLayoutShareMenuItem,
     replaceActions,
     titleJustifyContent,
     desktopControls,
@@ -176,6 +177,7 @@ export function NavigationBar({
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     contextMenuActions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     shareButton: NavigationBarShareButtonProps | undefined;
+    withWideRouteLayoutShareMenuItem: boolean;
     replaceActions: ReactNode;
     titleJustifyContent: "center" | "flex-start" | undefined;
     desktopControls: ReactNode;
@@ -1091,6 +1093,7 @@ export function NavigationBar({
                             menuActions={menuActions}
                             contextMenuActions={contextMenuActions}
                             shareButton={shareButton}
+                            withWideRouteLayoutShareMenuItem={withWideRouteLayoutShareMenuItem}
                             replaceActions={replaceActions}
                             titleJustifyContent={titleJustifyContent}
                             desktopControls={desktopControls}

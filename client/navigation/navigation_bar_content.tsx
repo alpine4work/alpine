@@ -32,6 +32,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {ShareMobileModal} from "~/client/navigation/internal/share_mobile_modal.js";
 import {ShareOverlay, ShareOverlayRef} from "~/client/navigation/internal/share_overlay.js";
+import {ShareSwitch} from "~/client/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/navigation/internal/use_share_state.js";
 import {NavigationBarShareButtonProps} from "~/client/navigation/navigation_bar_types.js";
 import {ShareButton} from "~/client/navigation/share_button.js";
@@ -41,8 +42,8 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/styles/styles.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
@@ -69,6 +70,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions = emptyArray,
         contextMenuActions = emptyArray,
         shareButton,
+        withWideRouteLayoutShareMenuItem,
         replaceActions,
         titleJustifyContent,
         desktopControls,
@@ -90,6 +92,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
         contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: NavigationBarShareButtonProps;
+        withWideRouteLayoutShareMenuItem?: boolean;
         replaceActions?: ReactNode;
         titleJustifyContent?: "center" | "flex-start";
         desktopControls?: ReactNode;
@@ -414,17 +417,21 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                 {desktopAdditionalActions && platform === "desktop" && (
                                     <Box paddingRight="4">{desktopAdditionalActions}</Box>
                                 )}
-                                {shareButton && routeLayout !== "narrow" && (
-                                    <Box paddingRight="4">
-                                        <ShareButton
-                                            entityNoun={shareButton.entityNoun}
-                                            isReadOnly={shareButton.isReadOnly}
-                                            accessPolicy={shareButton.accessPolicy}
-                                            onAccessPolicyChange={shareButton.onAccessPolicyChange}
-                                            onCopyLink={shareButton.onCopyLink}
-                                        />
-                                    </Box>
-                                )}
+                                {shareButton &&
+                                    !withWideRouteLayoutShareMenuItem &&
+                                    routeLayout === "wide" && (
+                                        <Box paddingRight="4">
+                                            <ShareButton
+                                                entityNoun={shareButton.entityNoun}
+                                                isReadOnly={shareButton.isReadOnly}
+                                                accessPolicy={shareButton.accessPolicy}
+                                                onAccessPolicyChange={
+                                                    shareButton.onAccessPolicyChange
+                                                }
+                                                onCopyLink={shareButton.onCopyLink}
+                                            />
+                                        </Box>
+                                    )}
                                 {isTextInputFocused ? (
                                     // If a text input is focused then we hide menu actions and replace it with a
                                     // "Done" button. This helps the user see how to end their editing session.
@@ -452,12 +459,19 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                     </Box>
                                 ) : (
                                     (menuActions.length > 0 ||
-                                        (shareButton && routeLayout === "narrow")) && (
+                                        (shareButton &&
+                                            (routeLayout !== "wide" ||
+                                                withWideRouteLayoutShareMenuItem))) && (
                                         // We re-create `<MenuButton>` in this file since when clicking on the share
                                         // option we want to dynamically switch the menu for the `<ShareOverlay>`.
                                         <NavigationBarContentMoreButton
                                             menuActions={menuActions}
-                                            shareButton={shareButton}
+                                            shareButton={
+                                                routeLayout !== "wide" ||
+                                                withWideRouteLayoutShareMenuItem
+                                                    ? shareButton
+                                                    : undefined
+                                            }
                                         />
                                     )
                                 )}
@@ -478,7 +492,6 @@ function NavigationBarContentMoreButton({
     shareButton: NavigationBarShareButtonProps | undefined;
 }) {
     const platform = usePlatform();
-    const routeLayout = useRouteLayout();
 
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     const overlayRef = useRef<ShareOverlayRef>(null);
@@ -550,9 +563,10 @@ function NavigationBarContentMoreButton({
                                 onCloseWithAnimation={onCloseWithAnimation}
                                 onCloseWithoutAnimation={onCloseWithoutAnimation}
                                 actions={
-                                    shareButton && routeLayout === "narrow"
+                                    shareButton
                                         ? addShareMenuItem({
-                                              accessPolicy: shareButton.accessPolicy,
+                                              platform,
+                                              shareButton,
                                               actions: menuActions,
                                               onShare: () => {
                                                   if (platform === "desktop") {
@@ -643,51 +657,90 @@ function NavigationBarContentMoreButton({
 }
 
 function addShareMenuItem({
-    accessPolicy,
+    platform,
+    shareButton,
     actions,
     onShare,
 }: {
-    accessPolicy: AccessPolicy;
+    platform: Platform;
+    shareButton: NavigationBarShareButtonProps;
     actions: MenuActions;
     onShare: () => {withoutClose: boolean} | void;
 }): MenuActions {
-    const shareMenuItem = createShareMenuItem({accessPolicy, onShare});
+    const shareMenuItem = createShareMenuItem({platform, shareButton, onShare});
 
-    if (
-        !isReadonlyArray(actions[0]) &&
-        !actions[0]?.withCustomLayout &&
-        actions[0]?.label === "Copy link"
-    ) {
-        return [[shareMenuItem, actions[0]], ...actions.slice(1)];
-    } else if (
-        isReadonlyArray(actions[0]) &&
-        !actions[0][0]?.withCustomLayout &&
-        actions[0][0]?.label === "Copy link"
-    ) {
-        return [[shareMenuItem, ...actions[0]], ...actions.slice(1)];
+    // Merge with the "Copy link" section on mobile. But on desktop where the
+    // switch is a part of the menu item, the share menu item needs a divider
+    // to make it feel separate.
+    if (platform !== "desktop") {
+        if (
+            !isReadonlyArray(actions[0]) &&
+            !actions[0]?.withCustomLayout &&
+            actions[0]?.label === "Copy link"
+        ) {
+            return [[shareMenuItem, actions[0]], ...actions.slice(1)];
+        } else if (
+            isReadonlyArray(actions[0]) &&
+            !actions[0][0]?.withCustomLayout &&
+            actions[0][0]?.label === "Copy link"
+        ) {
+            return [[shareMenuItem, ...actions[0]], ...actions.slice(1)];
+        }
     }
 
     return [[shareMenuItem], ...actions];
 }
 
 function createShareMenuItem({
-    accessPolicy,
+    platform,
+    shareButton,
     onShare,
 }: {
-    accessPolicy: AccessPolicy;
+    platform: Platform;
+    shareButton: NavigationBarShareButtonProps;
     onShare: () => {withoutClose: boolean} | void;
 }): MenuAction {
     return {
         label: "Share",
-        icon: accessPolicy.urlGrant ? (
-            <Globe />
-        ) : accessPolicy.defaultGrant ? (
-            <BuildingsIcon />
-        ) : (
-            <Lock />
-        ),
+        icon:
+            platform !== "desktop" ? (
+                shareButton.accessPolicy.urlGrant ? (
+                    <Globe />
+                ) : shareButton.accessPolicy.defaultGrant ? (
+                    <BuildingsIcon />
+                ) : (
+                    <Lock />
+                )
+            ) : undefined,
         iconPlacement: "end",
         pressErrorTitle: "Couldn’t share",
         onPress: onShare,
+        extraActions:
+            platform === "desktop" ? (
+                <NavigationBarContentShareMenuItemSwitch shareButton={shareButton} />
+            ) : undefined,
     };
+}
+
+function NavigationBarContentShareMenuItemSwitch({
+    shareButton,
+}: {
+    shareButton: NavigationBarShareButtonProps;
+}) {
+    const {isReadOnly, changeAccessPolicy} = useShareState({
+        entityNoun: shareButton.entityNoun,
+        accessPolicy: shareButton.accessPolicy,
+        onAccessPolicyChangeWithoutValidations: shareButton.onAccessPolicyChange,
+    });
+
+    return (
+        <Box paddingX="0.5">
+            <ShareSwitch
+                isReadOnly={isReadOnly}
+                entityNoun={shareButton.entityNoun}
+                accessPolicy={shareButton.accessPolicy}
+                onAccessPolicyChange={changeAccessPolicy}
+            />
+        </Box>
+    );
 }
