@@ -12,11 +12,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {
-    accessLevelText,
-    noAccessLevelText,
-    removeAccessLevelText,
-} from "~/client/navigation/internal/access_level_text.js";
+import {noAccessLevelText, removeAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {
     ShareOverlayAccountGrantInput,
     ShareOverlayAccountGrantInputRef,
@@ -40,7 +36,13 @@ import {
     allAccessLevels,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
-import {RemLength, Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLength,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -66,6 +68,7 @@ export {ShareOverlayForwardRef as ShareOverlay};
 function ShareOverlay(
     {
         id,
+        accessLevelText,
         accessPolicy,
         onAccessPolicyChange,
         isVisible,
@@ -74,6 +77,7 @@ function ShareOverlay(
         onCloseWithoutAnimation,
     }: {
         id: string;
+        accessLevelText: Record<AccessLevel, string>;
         accessPolicy: AccessPolicy;
         onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => void;
         isVisible: boolean;
@@ -164,9 +168,14 @@ function ShareOverlay(
                 backgroundColor="grey-0"
                 borderRadius="2.5"
                 boxShadow="elevation-20"
-                width="96"
                 paddingTop={hasAccountGrantInput ? "5" : undefined}
                 paddingBottom="5"
+                style={{
+                    // Add just a little more width so it doesn't line up perfectly with other `96`
+                    // spaced elements. For example, in channel views where `<ChannelViewAside>` has
+                    // a width of `96` (see `postListViewAsideMaxWidth`).
+                    width: addRemLengths(spacing["96"], spacing["4"]),
+                }}
             >
                 <OverlayScopeContextProvider
                 // Make sure any overlays inside the share overlay are animated with the share
@@ -176,6 +185,7 @@ function ShareOverlay(
                         <Box position="relative" zIndex="10" paddingX="5">
                             <ShareOverlayAccountGrantInput
                                 ref={accountGrantInputRef}
+                                accessLevelText={accessLevelText}
                                 accountGrantById={accessPolicy.accountGrantById}
                                 onAccessPolicyChange={onAccessPolicyChange}
                                 allAccounts={allAccounts}
@@ -206,6 +216,7 @@ function ShareOverlay(
                         <Spacer space="5" />
                     ) : (
                         <ShareOverlayAccountGrantsScrollView
+                            accessLevelText={accessLevelText}
                             accountGrantById={accessPolicy.accountGrantById}
                             onAccessPolicyChange={onAccessPolicyChange}
                             accountById={accountById}
@@ -220,6 +231,7 @@ function ShareOverlay(
                         <Box height="border" backgroundColor="grey-5" />
                         <Spacer space="5" />
                         <ShareOverlayDefaultGrant
+                            accessLevelText={accessLevelText}
                             defaultGrant={accessPolicy.defaultGrant}
                             onAccessPolicyChange={onAccessPolicyChange}
                             isReadOnly={isReadOnly}
@@ -227,6 +239,7 @@ function ShareOverlay(
                         />
                         <Spacer space="3" />
                         <ShareOverlayUrlGrant
+                            accessLevelText={accessLevelText}
                             urlGrant={accessPolicy.urlGrant}
                             onAccessPolicyChange={onAccessPolicyChange}
                             isReadOnly={isReadOnly}
@@ -258,6 +271,7 @@ function ShareOverlay(
 }
 
 export function ShareOverlayAccountGrantsScrollView({
+    accessLevelText,
     accountGrantById,
     onAccessPolicyChange,
     accountById,
@@ -267,6 +281,7 @@ export function ShareOverlayAccountGrantsScrollView({
     height,
     maxHeight,
 }: {
+    accessLevelText: Record<AccessLevel, string>;
     accountGrantById: AccessPolicy["accountGrantById"];
     onAccessPolicyChange: (action: AccessPolicyAction) => void;
     accountById: ReadonlyMap<AccountId, AccountModel>;
@@ -288,6 +303,7 @@ export function ShareOverlayAccountGrantsScrollView({
         >
             <Box paddingX={paddingX} paddingTop="5" paddingBottom="5">
                 <ShareOverlayAccountGrants
+                    accessLevelText={accessLevelText}
                     accountGrantById={accountGrantById}
                     onAccessPolicyChange={onAccessPolicyChange}
                     accountById={accountById}
@@ -300,12 +316,14 @@ export function ShareOverlayAccountGrantsScrollView({
 }
 
 export function ShareOverlayAccountGrants({
+    accessLevelText,
     accountGrantById,
     onAccessPolicyChange,
     accountById,
     isReadOnly,
     isAltKeyDown,
 }: {
+    accessLevelText: Record<AccessLevel, string>;
     accountGrantById: AccessPolicy["accountGrantById"];
     onAccessPolicyChange: (action: AccessPolicyAction) => void;
     accountById: ReadonlyMap<AccountId, AccountModel>;
@@ -418,6 +436,7 @@ export function ShareOverlayAccountGrants({
             {sortedAccountGrants.map(({accountId, accountGrant, accountData}) => (
                 <ShareOverlayAccountGrant
                     key={accountId}
+                    accessLevelText={accessLevelText}
                     accountId={accountId}
                     accountData={accountData}
                     accountGrant={accountGrant}
@@ -433,6 +452,7 @@ export function ShareOverlayAccountGrants({
 const shareOverlayAccountGrantHeight = "6";
 
 function ShareOverlayAccountGrant({
+    accessLevelText,
     accountId,
     accountData,
     accountGrant,
@@ -440,6 +460,7 @@ function ShareOverlayAccountGrant({
     isReadOnly,
     isAltKeyDown,
 }: {
+    accessLevelText: Record<AccessLevel, string>;
     accountId: AccountId;
     accountData: AccountModelData | null;
     accountGrant: AccessPolicyAccountGrant;
@@ -447,8 +468,6 @@ function ShareOverlayAccountGrant({
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
-    const {currentAccount} = useSpaceContext();
-
     return (
         <Box
             data-testid={`ShareOverlayAccountGrant:${accountId}`}
@@ -477,7 +496,6 @@ function ShareOverlayAccountGrant({
                         color={accountData.space.wasRemoved ? "grey-60" : "grey-100"}
                     >
                         {accountData.name}
-                        {currentAccount?.id === accountId ? " (you)" : ""}
                     </Box>
                 </>
             )}
@@ -561,11 +579,13 @@ function ShareOverlayAccountGrant({
 }
 
 export function ShareOverlayDefaultGrant({
+    accessLevelText,
     defaultGrant,
     onAccessPolicyChange,
     isReadOnly,
     isAltKeyDown,
 }: {
+    accessLevelText: Record<AccessLevel, string>;
     defaultGrant: AccessPolicyDefaultGrant | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => void;
     isReadOnly: boolean;
@@ -699,10 +719,12 @@ export function ShareOverlayDefaultGrant({
 }
 
 export function ShareOverlayUrlGrant({
+    accessLevelText,
     urlGrant,
     onAccessPolicyChange,
     isReadOnly,
 }: {
+    accessLevelText: Record<AccessLevel, string>;
     urlGrant: AccessPolicyUrlGrant | null;
     onAccessPolicyChange: (action: AccessPolicyAction) => void;
     isReadOnly: boolean;

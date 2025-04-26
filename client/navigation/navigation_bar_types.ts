@@ -1,7 +1,7 @@
 import {Memo, ReactElement, ReactNode, Ref, RefCallback} from "react";
 import {MenuAction} from "~/client/design/menu.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -21,6 +21,7 @@ export type NavigationBarRef = {
 
 export type NavigationBarShareButtonProps = {
     readonly entityNoun: string;
+    readonly accessLevelText?: Record<AccessLevel, string>;
     readonly accessPolicy: AccessPolicy;
     readonly onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
     readonly isReadOnly?: boolean;
@@ -101,6 +102,18 @@ export type NavigationBarProps = {
      * doesn't make sense to give them their own screen space.
      */
     readonly menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+
+    /**
+     * Offset between the menu button and its menu. Defaults to
+     * `defaultTooltipOffset` (same as every other `<MenuButton>`). Generally, you
+     * shouldn't configure this so we maintain spacing consistency across the
+     * product.
+     *
+     * An example of where we use this: the subscribe button in channels is bigger
+     * than other buttons in the navigation bar and we want to move the menu
+     * further away from it.
+     */
+    readonly menuOffset?: Spacing;
 
     /**
      * Actions that the user sees if they right click on the navigation bar.

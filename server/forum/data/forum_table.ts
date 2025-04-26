@@ -99,6 +99,7 @@ import {
     maxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
 import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
+import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
 import {
     PostContent,
     PostContentSchema,
@@ -1238,16 +1239,6 @@ export async function createChannel(
         },
     };
 }
-
-const channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
-    AccessLevel,
-    ErrorDisplayMessage
-> = {
-    View: errorDisplayMessage`You aren’t allowed to access this channel. Ask someone with access to share it with you.`,
-    Comment: errorDisplayMessage`You aren’t allowed to comment in this channel. Ask someone who can share the channel to give you comment access.`,
-    Edit: errorDisplayMessage`You aren’t allowed to post in this channel. Ask someone who can share the channel to give you post access.`,
-    Manage: errorDisplayMessage`You aren’t allowed to share this channel. Ask someone who can share the channel to give you share access.`,
-};
 
 async function authorizeChannelItemAccess(
     context: ServerActionContext,

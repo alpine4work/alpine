@@ -4,6 +4,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
@@ -19,6 +20,7 @@ import {
 } from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {defaultAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -36,14 +38,21 @@ import {
 import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
+import {
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+} from "~/shared/access/access_policy.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeQueryResult,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
+import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
 import {PostModel} from "~/shared/forum/post_model.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {
@@ -53,6 +62,7 @@ import {
     getChannelPosts,
     subscribeToChannel,
     unsubscribeFromChannel,
+    updateChannelAccessPolicy,
     updateChannelDescription,
     updateChannelName,
     updateChannelNameAndDescription,
@@ -73,7 +83,8 @@ export function ChannelView({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
+    const reporter = useReporter();
+    const {space, currentAccount} = useSpaceContext();
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
 
@@ -114,6 +125,25 @@ export function ChannelView({
     const channelItem = channelAndMetadataQuery.getFirstItemIfExists();
     assert(channelItem?.model instanceof ChannelModel);
     const channel = channelItem.model;
+
+    const [optimisticAccessPolicyState, setOptimisticAccessPolicyState] = useState<{
+        readonly accessPolicy: AccessPolicy;
+    } | null>(null);
+
+    const accessLevel = useMemo(
+        () =>
+            getAccountAccessLevelAssumingSpaceAccess(
+                optimisticAccessPolicyState?.accessPolicy ?? channel.accessPolicy,
+                currentAccount?.id,
+            ),
+        [channel.accessPolicy, currentAccount?.id, optimisticAccessPolicyState?.accessPolicy],
+    );
+
+    if (accessLevel === null) {
+        throw new PermissionDeniedError("Current account lost access to channel", {
+            displayMessage: channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
+        });
+    }
 
     const [posts, setPosts] = useState(() => PostQueryList.new(initialPostsResult));
 
@@ -203,6 +233,11 @@ export function ChannelView({
         initialIsFavorite,
     );
 
+    const handleCopyLink = async () => {
+        const url = new URL(`/s/${channel.spaceId}/channels/${channel.id}`, window.location.href);
+        await writeTextToClipboard(url.toString());
+    };
+
     const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
         title: isEditingNameInline ? (
@@ -254,6 +289,57 @@ export function ChannelView({
                 initialIsSubscribed={initialIsSubscribed}
             />
         ),
+        // Always put the share UI in the more menu. You should add users to a channel
+        // by clicking the invite button in `<ChannelViewContributorsSection>`. Since
+        // in a public channel it doesn't make sense to invite people from the share
+        // overlay. Having both the share menu visible and the invite button in
+        // `<ChannelViewContributorsSection>` may make it unclear what to use for
+        // adding people to a channel.
+        withWideRouteLayoutShareMenuItem: true,
+        shareButton: {
+            entityNoun: "channel",
+            accessPolicy: optimisticAccessPolicyState?.accessPolicy ?? channel.accessPolicy,
+            onAccessPolicyChange: accessPolicy => {
+                runPromiseWithoutAwaiting(async () => {
+                    const ourOptimisticAccessPolicyState = {accessPolicy};
+
+                    setOptimisticAccessPolicyState(ourOptimisticAccessPolicyState);
+                    try {
+                        const event = await updateChannelAccessPolicy(context, {
+                            channelId,
+                            accessPolicy,
+                        });
+
+                        handleEventForChannel(event);
+                    } catch (error) {
+                        reporter.displayError("Couldn’t share channel", error);
+                    } finally {
+                        setOptimisticAccessPolicyState(optimisticAccessPolicyState => {
+                            // There was another `onAccessPolicyChange` while we were awaiting. Don't reset
+                            // to null.
+                            if (optimisticAccessPolicyState !== ourOptimisticAccessPolicyState)
+                                return optimisticAccessPolicyState;
+
+                            return null;
+                        });
+                    }
+                });
+            },
+            onCopyLink: handleCopyLink,
+            accessLevelText: {
+                Manage: "can post",
+                Edit: "can post (can’t share)",
+                Comment: defaultAccessLevelText.Comment,
+                View: defaultAccessLevelText.View,
+            },
+        },
+        // Move the menu further away from the subscribe button. It's quite large and
+        // the default offset renders our menu too close to the subscribe button in my
+        // design opinion.
+        //
+        // NOCOMMIT: We probably shouldn't do this on mobile since the subscribe button
+        // will be elsewhere.
+        menuOffset: "2.5",
         menuActions: [
             [
                 {
@@ -261,13 +347,7 @@ export function ChannelView({
                     icon: <LinkIcon />,
                     iconPlacement: "end",
                     pressErrorTitle: "Couldn’t copy channel link",
-                    onPress: async () => {
-                        const url = new URL(
-                            `/s/${channel.spaceId}/channels/${channel.id}`,
-                            window.location.href,
-                        );
-                        await writeTextToClipboard(url.toString());
-                    },
+                    onPress: handleCopyLink,
                 },
                 ...(favoriteMenuAction ? [favoriteMenuAction] : []),
             ],

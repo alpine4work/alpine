@@ -49,6 +49,7 @@ export function useNavigationBar({
     withoutDisappearingTitle = false,
     subtitle,
     menuActions = emptyArray,
+    menuOffset,
     contextMenuActions = emptyArray,
     shareButton,
     withWideRouteLayoutShareMenuItem = false,
@@ -176,6 +177,7 @@ export function useNavigationBar({
             withoutDisappearingTitle={withoutDisappearingTitle}
             subtitle={subtitle}
             menuActions={menuActions}
+            menuOffset={menuOffset}
             contextMenuActions={contextMenuActions}
             shareButton={shareButton}
             withWideRouteLayoutShareMenuItem={withWideRouteLayoutShareMenuItem}

@@ -30,6 +30,7 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useIsTextInputFocused} from "~/client/design/use_is_text_input_focused.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
+import {defaultAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {ShareMobileModal} from "~/client/navigation/internal/share_mobile_modal.js";
 import {ShareOverlay, ShareOverlayRef} from "~/client/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/navigation/internal/share_switch.js";
@@ -68,6 +69,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton = false,
         subtitle,
         menuActions = emptyArray,
+        menuOffset = defaultTooltipOffset,
         contextMenuActions = emptyArray,
         shareButton,
         withWideRouteLayoutShareMenuItem,
@@ -90,6 +92,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
         withoutFocusedTextInputDoneButton?: boolean;
         subtitle?: ReactNode;
         menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+        menuOffset?: Spacing;
         contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
         shareButton?: NavigationBarShareButtonProps;
         withWideRouteLayoutShareMenuItem?: boolean;
@@ -466,6 +469,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                         // option we want to dynamically switch the menu for the `<ShareOverlay>`.
                                         <NavigationBarContentMoreButton
                                             menuActions={menuActions}
+                                            menuOffset={menuOffset}
                                             shareButton={
                                                 routeLayout !== "wide" ||
                                                 withWideRouteLayoutShareMenuItem
@@ -486,9 +490,11 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
 
 function NavigationBarContentMoreButton({
     menuActions,
+    menuOffset,
     shareButton,
 }: {
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    menuOffset: Spacing;
     shareButton: NavigationBarShareButtonProps | undefined;
 }) {
     const platform = usePlatform();
@@ -526,9 +532,10 @@ function NavigationBarContentMoreButton({
     const shareState = useShareState(
         shareButton
             ? {
-                  entityNoun: shareButton?.entityNoun,
-                  accessPolicy: shareButton?.accessPolicy,
-                  onAccessPolicyChangeWithoutValidations: shareButton?.onAccessPolicyChange,
+                  entityNoun: shareButton.entityNoun,
+                  accessLevelText: shareButton.accessLevelText ?? defaultAccessLevelText,
+                  accessPolicy: shareButton.accessPolicy,
+                  onAccessPolicyChangeWithoutValidations: shareButton.onAccessPolicyChange,
                   isReadOnly: shareButton.isReadOnly,
               }
             : null,
@@ -540,7 +547,7 @@ function NavigationBarContentMoreButton({
             <OverlayTriggerButton
                 aria-haspopup="menu"
                 placement="bottom-end"
-                offset={defaultTooltipOffset}
+                offset={menuOffset}
                 onActuallyVisibleChange={isActuallyVisible => {
                     if (!isActuallyVisible) setShowShareDesktopOverlay(false);
                 }}
@@ -549,7 +556,10 @@ function NavigationBarContentMoreButton({
                         {showShareDesktopOverlay && shareButton ? (
                             <ShareOverlay
                                 ref={overlayRef}
-                                id={shareState.overlayId}
+                                id={shareState.modalOwnerId}
+                                accessLevelText={
+                                    shareButton.accessLevelText ?? defaultAccessLevelText
+                                }
                                 accessPolicy={shareButton.accessPolicy}
                                 onAccessPolicyChange={shareState.changeAccessPolicy}
                                 isVisible={isVisible}
@@ -727,20 +737,24 @@ function NavigationBarContentShareMenuItemSwitch({
 }: {
     shareButton: NavigationBarShareButtonProps;
 }) {
-    const {isReadOnly, changeAccessPolicy} = useShareState({
+    const {isReadOnly, changeAccessPolicy, modalOwnerId, modals} = useShareState({
         entityNoun: shareButton.entityNoun,
+        accessLevelText: shareButton.accessLevelText ?? defaultAccessLevelText,
         accessPolicy: shareButton.accessPolicy,
         onAccessPolicyChangeWithoutValidations: shareButton.onAccessPolicyChange,
     });
 
     return (
-        <Box paddingX="0.5">
-            <ShareSwitch
-                isReadOnly={isReadOnly}
-                entityNoun={shareButton.entityNoun}
-                accessPolicy={shareButton.accessPolicy}
-                onAccessPolicyChange={changeAccessPolicy}
-            />
-        </Box>
+        <>
+            {modals}
+            <Box id={modalOwnerId} paddingX="0.5">
+                <ShareSwitch
+                    isReadOnly={isReadOnly}
+                    entityNoun={shareButton.entityNoun}
+                    accessPolicy={shareButton.accessPolicy}
+                    onAccessPolicyChange={changeAccessPolicy}
+                />
+            </Box>
+        </>
     );
 }

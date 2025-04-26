@@ -1,4 +1,4 @@
-import {AccessLevelSchema} from "~/shared/access/access_policy.js";
+import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {
     createDynamoGeneralRealtimeBackfillResultSchema,
@@ -69,6 +69,20 @@ export const updateChannelNameAndDescription = defineRpc({
         channelId: Schema.id<ChannelId>(),
         name: Schema.string,
         description: MessageContentSchema,
+    },
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(
+            createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
+        ),
+    },
+});
+
+export const updateChannelAccessPolicy = defineRpc({
+    name: "updateChannelAccessPolicy",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        accessPolicy: AccessPolicySchema,
     },
     output: {
         readTime: Schema.date,

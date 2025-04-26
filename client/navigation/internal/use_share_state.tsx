@@ -1,9 +1,9 @@
 import {useId, useMemo, useState} from "react";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
-import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    AccessLevel,
     AccessPolicy,
     compareAccessLevel,
     getAccountAccessLevelAssumingSpaceAccess,
@@ -27,6 +27,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export function useShareState(
     props: {
         entityNoun: string;
+        accessLevelText: Record<AccessLevel, string>;
         accessPolicy: AccessPolicy;
         onAccessPolicyChangeWithoutValidations: (accessPolicy: AccessPolicy) => void;
         isReadOnly?: boolean;
@@ -35,7 +36,7 @@ export function useShareState(
     const {space, currentAccount} = useSpaceContext();
     const accountStore = useAccountClientStore();
 
-    const overlayId = useId();
+    const modalOwnerId = useId();
 
     // The share button must be read-only if we don't have the `Manage` access
     // level. Parent components may additionally make other considerations when
@@ -79,6 +80,7 @@ export function useShareState(
         if (!currentAccount) return;
 
         const {
+            accessLevelText,
             entityNoun,
             accessPolicy: oldAccessPolicy,
             onAccessPolicyChangeWithoutValidations,
@@ -212,7 +214,7 @@ export function useShareState(
 
                 case "Can't update access policy so that no one has manage access": {
                     title = "Can’t remove everyone who can change permissions";
-                    description = `If you ${changeDescription} then there won’t be anyone who can change permissions of the ${entityNoun} anymore. Try adding more people with “can edit” access.`;
+                    description = `If you ${changeDescription} then there won’t be anyone who can change permissions of the ${entityNoun} anymore. Try adding more people with “${props.accessLevelText.Manage}” access.`;
                     break;
                 }
 
@@ -291,11 +293,11 @@ export function useShareState(
     return {
         changeAccessPolicy,
         isReadOnly,
-        overlayId,
+        modalOwnerId,
         modals: warningDialogState ? (
             warningDialogState.isAllowed ? (
                 <ModalDialog
-                    data-ownedby={overlayId}
+                    data-ownedby={modalOwnerId}
                     title={warningDialogState.title}
                     description={warningDialogState.description}
                     primaryButtonLabel="Cancel"
@@ -316,7 +318,7 @@ export function useShareState(
                 />
             ) : (
                 <ModalDialog
-                    data-ownedby={overlayId}
+                    data-ownedby={modalOwnerId}
                     title={warningDialogState.title}
                     description={warningDialogState.description}
                     primaryButtonLabel="Ok"

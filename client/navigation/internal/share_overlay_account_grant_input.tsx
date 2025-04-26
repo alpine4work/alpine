@@ -34,7 +34,6 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {accessLevelText} from "~/client/navigation/internal/access_level_text.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -86,12 +85,14 @@ export {ShareOverlayAccountGrantInputForwardRef as ShareOverlayAccountGrantInput
 
 function ShareOverlayAccountGrantInput(
     {
+        accessLevelText,
         accountGrantById,
         onAccessPolicyChange,
         allAccounts,
         accountById,
         isAltKeyDown,
     }: {
+        accessLevelText: Record<AccessLevel, string>;
         accountGrantById: AccessPolicy["accountGrantById"];
         onAccessPolicyChange: (action: AccessPolicyAction) => void;
         allAccounts: ReadonlyArray<AccountModel>;

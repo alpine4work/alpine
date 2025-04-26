@@ -20,6 +20,7 @@ import {
     getPostCommentsFromStart,
     subscribeToChannel,
     unsubscribeFromChannel,
+    updateChannelAccessPolicy,
     updateChannelDescription,
     updateChannelName,
     updateChannelNameAndDescription,
@@ -69,6 +70,17 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             const {getDynamoGeneralRealtimeEventTransaction} =
                 await updateChannelNameAndDescription(context, input);
+            return getDynamoGeneralRealtimeEventTransaction(context);
+        },
+    },
+
+    updateChannelAccessPolicy: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {getDynamoGeneralRealtimeEventTransaction} = await updateChannelAccessPolicy(
+                context.actor.authorizeSession(),
+                input,
+            );
             return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },

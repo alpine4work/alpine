@@ -2,24 +2,27 @@ import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {defaultAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {ShareOverlay, ShareOverlayRef} from "~/client/navigation/internal/share_overlay.js";
 import {ShareSwitch} from "~/client/navigation/internal/share_switch.js";
 import {useShareState} from "~/client/navigation/internal/use_share_state.js";
 import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export function ShareButton({
     entityNoun,
+    accessLevelText = defaultAccessLevelText,
     accessPolicy,
     onAccessPolicyChange: onAccessPolicyChangeWithoutValidations,
     isReadOnly: isReadOnlyProp,
     onCopyLink,
 }: {
     entityNoun: string;
+    accessLevelText?: Record<AccessLevel, string>;
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
     isReadOnly?: boolean;
@@ -33,7 +36,8 @@ export function ShareButton({
     // them now.
     useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
-    const {changeAccessPolicy, isReadOnly, overlayId, modals} = useShareState({
+    const {changeAccessPolicy, isReadOnly, modalOwnerId, modals} = useShareState({
+        accessLevelText,
         entityNoun,
         accessPolicy,
         onAccessPolicyChangeWithoutValidations,
@@ -51,7 +55,8 @@ export function ShareButton({
                     <Box paddingX="3">
                         <ShareOverlay
                             ref={overlayRef}
-                            id={overlayId}
+                            id={modalOwnerId}
+                            accessLevelText={accessLevelText}
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={changeAccessPolicy}
                             isVisible={isVisible}
