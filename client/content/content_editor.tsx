@@ -205,6 +205,7 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
+import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
@@ -4770,6 +4771,9 @@ function handlePasteAfterResolvingReferences(
     event: ClipboardEvent,
     slice: Slice,
 ): void {
+    // Convert any links in text to link marks.
+    slice = transformPastedLinks(doc.type.schema, slice);
+
     // If pasting into a table, transform pasted content to make sure it matches
     // the expected content type for a table.
     {
@@ -4806,7 +4810,6 @@ function handlePasteAfterResolvingReferences(
     if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return;
 
     if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event)) return;
-    if (handleLinkPasteWithoutSelection(doc, selection, createTransaction, dispatch, event)) return;
 
     // If we're pasting into an empty paragraph at the top level, then paste the
     // entire slice content with `openStart` 0 to avoid losing our first node's
@@ -4889,6 +4892,80 @@ function handlePasteAfterResolvingReferences(
     }
 
     dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+}
+
+/**
+ * Iterate through all content in the slice and if we find a URL in the slice's
+ * text, add a link mark around the URL.
+ */
+function transformPastedLinks(schema: ProsemirrorSchema, slice: Slice): Slice {
+    const urlRegExp = getUrlRegExp();
+
+    const newFragment = transformFragment(slice.content);
+    if (slice.content === newFragment) return slice;
+    return new Slice(newFragment, slice.openStart, slice.openEnd);
+
+    function transformFragment(oldFragment: Fragment): Fragment {
+        let hasChanged = false;
+        const newNodes: Array<Node> = [];
+
+        for (const oldNode of oldFragment.content) {
+            const newNode = transformNode(oldNode);
+
+            if (newNode !== oldNode) hasChanged = true;
+
+            if (newNode instanceof Fragment) {
+                for (const actualNewChildNode of newNode.content) {
+                    newNodes.push(actualNewChildNode);
+                }
+            } else {
+                newNodes.push(newNode);
+            }
+        }
+
+        if (!hasChanged) return oldFragment;
+        return Fragment.fromArray(newNodes);
+    }
+
+    function transformNode(oldNode: Node): Node | Fragment {
+        if (
+            oldNode.type.name !== "text" ||
+            // If this text already has a link mark, then don't override the link mark.
+            schema.marks.link!.isInSet(oldNode.marks)
+        ) {
+            if (oldNode.content.content.length === 0) return oldNode;
+            const newFragment = transformFragment(oldNode.content);
+            if (oldNode.content === newFragment) return oldNode;
+            return oldNode.type.create(oldNode.attrs, newFragment, oldNode.marks);
+        }
+
+        const text = oldNode.text!;
+        const matches = Array.from(text.matchAll(urlRegExp));
+        if (matches.length === 0) return oldNode;
+
+        let lastIndex = 0;
+        const newNodes: Array<Node> = [];
+
+        for (const match of matches) {
+            const startIndex = assertExists(match.index);
+            const endIndex = startIndex + match[0].length;
+
+            if (lastIndex !== startIndex) {
+                newNodes.push(schema.text(text.slice(lastIndex, startIndex), oldNode.marks));
+            }
+
+            lastIndex = endIndex;
+
+            const url = text.slice(startIndex, endIndex);
+            newNodes.push(schema.text(url, schema.mark("link", {url}).addToSet(oldNode.marks)));
+        }
+
+        if (lastIndex !== text.length) {
+            newNodes.push(schema.text(text.slice(lastIndex, text.length), oldNode.marks));
+        }
+
+        return Fragment.fromArray(newNodes);
+    }
 }
 
 /**
@@ -5039,34 +5116,6 @@ function handleLinkPasteWithSelection(
     dispatch(
         createTransaction().addMark(range.from, range.to, doc.type.schema.mark("link", {url})),
     );
-    return true;
-}
-
-function handleLinkPasteWithoutSelection(
-    doc: Node,
-    selection: Selection,
-    createTransaction: () => Transaction,
-    dispatch: (transaction: Transaction) => void,
-    event: ClipboardEvent,
-): boolean {
-    const {from} = selection;
-
-    // 1. Check if current selection is empty
-    if (!selection.empty) {
-        return false;
-    }
-
-    // 2. Make sure the URL exists, starts with an allowed protocol and contains no whitespace.
-    const url = event.clipboardData?.getData("text/plain");
-    if (!url || !startsWithSafeUrlProtocol(url) || /\s/.test(url)) {
-        return false;
-    }
-
-    // 3. Insert URL text and apply link mark
-    const transaction = createTransaction();
-    transaction.insertText(url, from);
-    transaction.addMark(from, from + url.length, doc.type.schema.mark("link", {url}));
-    dispatch(transaction);
     return true;
 }
 
