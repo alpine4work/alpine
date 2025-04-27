@@ -270,9 +270,9 @@ export function TaskRealtimeClientContextProvider({
                 // any task loader data we need to load into our store. Since before
                 // initialization in `app_client_routes.ts` won't have loaded task data into
                 // the store.
-                if (isObject(loaderData.peekData)) {
+                if (isPlainObject(loaderData) && isObject(loaderData.peekData)) {
                     for (const peekLoaderData of Object.values<any>(
-                        loaderData.peekData.hydrationData.loaderData,
+                        (loaderData as any).peekData.hydrationData.loaderData,
                     )) {
                         loadTaskDataIntoClient(client, peekLoaderData);
                     }
