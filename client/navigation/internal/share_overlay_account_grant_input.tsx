@@ -4,9 +4,11 @@ import classNames from "classnames";
 import _Fuse from "fuse.js";
 import {CaretDown, MagnifyingGlass} from "phosphor-react";
 import {
+    Dispatch,
     KeyboardEvent,
     Ref,
     RefObject,
+    SetStateAction,
     createRef,
     forwardRef,
     useEffect,
@@ -16,12 +18,9 @@ import {
     useState,
 } from "react";
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
-import {flushSync} from "react-dom";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
-import {AccountShortName} from "~/client/accounts/account_short_name.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -36,7 +35,6 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     colorSchemeVars,
     greyElevated2ClassName,
@@ -44,11 +42,7 @@ import {
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {
-    AccessLevel,
-    AccessPolicy,
-    AccessPolicyAccountGrant,
-} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -58,10 +52,8 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -91,6 +83,8 @@ function ShareOverlayAccountGrantInput(
         allAccounts,
         accountById,
         isAltKeyDown,
+        selectedAccounts,
+        onSelectedAccountsChange,
     }: {
         accessLevelText: Record<AccessLevel, string>;
         accountGrantById: AccessPolicy["accountGrantById"];
@@ -98,13 +92,13 @@ function ShareOverlayAccountGrantInput(
         allAccounts: ReadonlyArray<AccountModel>;
         accountById: ReadonlyMap<AccountId, AccountModel>;
         isAltKeyDown: boolean;
+        selectedAccounts: ReadonlyArray<AccountModel>;
+        onSelectedAccountsChange: Dispatch<SetStateAction<ReadonlyArray<AccountModel>>>;
     },
     ref: Ref<ShareOverlayAccountGrantInputRef>,
 ) {
-    const context = useAppContext();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {space} = useSpaceContext();
     const accountStore = useAccountClientStore();
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -135,8 +129,6 @@ function ShareOverlayAccountGrantInput(
         }, [accountStore, allAccounts]),
     );
 
-    const [selectedAccounts, setSelectedAccounts] =
-        useState<ReadonlyArray<AccountModel>>(emptyArray);
     const [searchQuery, setSearchQuery] = useState("");
     const [accessLevel, setAccessLevel] = useState<AccessLevel>("Manage");
 
@@ -236,7 +228,7 @@ function ShareOverlayAccountGrantInput(
             if (typeof key === "string") {
                 const account = accountById.get(assertId(key));
                 if (account) {
-                    setSelectedAccounts(selectedAccounts => {
+                    onSelectedAccountsChange(selectedAccounts => {
                         // If the account already exists in the selection, don't add it a second time.
                         if (selectedAccounts.some(otherAccount => otherAccount.id === account.id)) {
                             return selectedAccounts;
@@ -309,7 +301,7 @@ function ShareOverlayAccountGrantInput(
                             event.preventDefault();
                             event.stopPropagation();
 
-                            setSelectedAccounts(selectedAccounts => {
+                            onSelectedAccountsChange(selectedAccounts => {
                                 if (selectedAccounts.length === 0) return selectedAccounts;
                                 return selectedAccounts.slice(0, -1);
                             });
@@ -357,7 +349,7 @@ function ShareOverlayAccountGrantInput(
 
     const selectedAccountsChildren = selectedAccountDatas.map((accountData, index) => {
         const deleteAccount = () => {
-            setSelectedAccounts(selectedAccounts => {
+            onSelectedAccountsChange(selectedAccounts => {
                 const newSelectedAccounts = selectedAccounts.filter(
                     otherAccount => otherAccount.id !== accountData.id,
                 );
@@ -443,11 +435,7 @@ function ShareOverlayAccountGrantInput(
                         <AccountAvatar size="5" account={accountData} />
                     </Box>
                     <Box paddingLeft="1.5" paddingRight="2" fontSize="75">
-                        {selectedAccounts.length <= 1 ? (
-                            accountData.name
-                        ) : (
-                            <AccountShortName account={accountData} />
-                        )}
+                        {accountData.name}
                     </Box>
                 </Box>
             </FocusRing>
@@ -489,8 +477,6 @@ function ShareOverlayAccountGrantInput(
             }
         },
     });
-
-    const addButtonWidth = "3rem";
 
     return (
         <OverlayAnimated
@@ -585,7 +571,7 @@ function ShareOverlayAccountGrantInput(
                                 flexGrow: "1",
                                 display: "block",
                                 minWidth:
-                                    searchQuery.length > 0 || selectedAccounts.length === 0
+                                    searchQuery.length > 10 || selectedAccounts.length === 0
                                         ? "full"
                                         : "4",
                                 paddingLeft:
@@ -660,7 +646,7 @@ function ShareOverlayAccountGrantInput(
                             // access level menus from account grants. We can do this thanks to the add
                             // button's fixed width. This helps the design especially on mobile where
                             // otherwise the overlay is pushed to the right side of the screen.
-                            offsetAlong={addRemLengths("2", addButtonWidth, "2")}
+                            offsetAlong={addRemLengths("2")}
                             actions={[
                                 {
                                     isSelected: accessLevel === "Manage",
@@ -697,7 +683,7 @@ function ShareOverlayAccountGrantInput(
                                 {accessLevelText[accessLevel]}
                             </Button>
                         </MenuButton>
-                        <Box style={{width: addButtonWidth}}>
+                        {/* NOCOMMIT: <Box style={{width: addButtonWidth}}>
                             <Button
                                 isDisabled={selectedAccounts.length === 0}
                                 variant="neutral"
@@ -742,7 +728,7 @@ function ShareOverlayAccountGrantInput(
                             >
                                 Add
                             </Button>
-                        </Box>
+                        </Box> */}
                     </Box>
                 </Box>
             </FocusRing>
@@ -776,7 +762,7 @@ function ShareOverlayAccountGrantInputListBox({
                     padding: "1",
                     backgroundColor: "grey-0",
                     boxShadow: "elevation-20",
-                    maxHeight: {desktop: "64", mobile: "48"},
+                    maxHeight: "48",
                     overflowX: "hidden",
                     overflowY: "auto",
                     position: "relative",

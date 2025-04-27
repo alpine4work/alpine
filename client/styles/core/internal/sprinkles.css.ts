@@ -96,6 +96,7 @@ const properties = defineProperties({
             grabbing: "grabbing",
             "col-resize": "col-resize",
             "row-resize": "row-resize",
+            "not-allowed": "not-allowed",
         },
         pointerEvents: {auto: "auto", none: "none"},
         userSelect: {

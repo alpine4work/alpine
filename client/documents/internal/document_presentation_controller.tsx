@@ -1,4 +1,4 @@
-import {ArrowRight, Check} from "phosphor-react";
+import {ArrowRight} from "phosphor-react";
 import {
     Memo,
     Ref,
@@ -16,6 +16,7 @@ import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
+import {Checkbox} from "~/client/design/checkbox.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {
@@ -29,7 +30,6 @@ import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {
-    buttonStyles,
     colorSchemeVars,
     contentStyles,
     documentPresentationStyles,
@@ -458,10 +458,7 @@ function DocumentPresentationInstructionalConfirmationModal({
                     alignItems="center"
                     gap="1.5"
                 >
-                    <DocumentPresentationCheckbox
-                        isChecked={hasPresentShortcut}
-                        isPressed={isShortcutTogglePressed}
-                    />
+                    <Checkbox isChecked={hasPresentShortcut} isPressed={isShortcutTogglePressed} />
                     <Box
                         position="relative"
                         style={{
@@ -571,46 +568,5 @@ function DocumentPresentationInstructionalConfirmationModal({
                 </Box>
             </Box>
         </ModalWithButtons>
-    );
-}
-
-// TODO(calebmer): We should probably use a general system-wide checkbox here
-// someday instead of a checkbox specifically for the task system. This was
-// copied from `<TaskCheckbox>`.
-function DocumentPresentationCheckbox({
-    isChecked,
-    isPressed,
-}: {
-    isChecked: boolean;
-    isPressed: boolean;
-}) {
-    return (
-        <Box
-            overflow="hidden"
-            position="relative"
-            width="3"
-            height="3"
-            border={!isChecked ? "grey-20" : undefined}
-            borderRadius="0.5"
-            backgroundColor={!isChecked ? (isPressed ? "grey-10" : "grey-0") : "grey-90"}
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-        >
-            {isChecked && (
-                <Check color={colorSchemeVars["grey-0"]} weight="bold" size={spacing["2.5"]} />
-            )}
-            {isChecked && isPressed && (
-                <span
-                    className={sprinkles({
-                        position: "absolute",
-                        inset: "0",
-                        backgroundColor: "grey-100-const",
-                        pointerEvents: "none",
-                    })}
-                    style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
-                />
-            )}
-        </Box>
     );
 }
