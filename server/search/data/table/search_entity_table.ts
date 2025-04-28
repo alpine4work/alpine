@@ -642,7 +642,10 @@ export async function scheduleIndexSearchEntityEmbeddingChunksJob(
     // We didn't schedule a new job.
     if (!scheduledJob) return;
 
-    await context.jobs.sendAndWait(
+    // Send the job immediately since the caller needs to wait for the job to be
+    // sent before continuing. Particularly, `IndexSearchEntity` must wait for the
+    // job to be sent before it can finish writing to the search index.
+    await context.jobs.sendImmediately(
         {
             type: "IndexSearchEntityEmbeddingChunks",
             id: jobId,

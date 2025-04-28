@@ -62,8 +62,12 @@ import {
 } from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
-import {DocumentCommentThreadReference} from "~/shared/documents/document_content_references.js";
+import {
+    DocumentCommentThreadReference,
+    DocumentContentWithReferences,
+} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -112,6 +116,7 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -322,6 +327,34 @@ const DocumentsTable = DynamoTableSchema.new({
                 documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
             },
             sortRanges: [
+                /**
+                 * A preview of the beginning of the document's content. This previewed content
+                 * may be stale. It's updated during by the `IndexSearchEntity` job. This
+                 * preview is used when you just want to show the beginning of the document
+                 * and, for performance reasons, you don't want to load the whole thing. For
+                 * example, in document `file` content previews.
+                 *
+                 * This exists in a sort range above `Attributes` so you can load
+                 * `ContentPreview` + `Attributes` in one query but you don't load
+                 * `ContentPreview` when reading `Attributes` and the rest of the document.
+                 */
+                {
+                    name: "ContentPreview",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The version of our preview. Will always be less than the `version` number of
+                         * `Attributes`.
+                         */
+                        version: Schema.integer,
+
+                        /**
+                         * The current previewed content.
+                         */
+                        contentPreview: DocumentContentSchema,
+                    }),
+                },
+
                 /**
                  * Any information about the document not stored in its content.
                  *
@@ -1731,6 +1764,7 @@ export async function getDocumentContent(
     content: DocumentContent;
     creatorId: AccountId | null;
     stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
+    updateContentPreview: (context: ServerActionContext) => Promise<void>;
 }> {
     const internalDocument = await getInternalDocumentIfExists(context, documentId, {consistency});
     if (!internalDocument) throw new NotFoundError("Document not found");
@@ -1750,6 +1784,198 @@ export async function getDocumentContent(
         // steps might include comment marks. We might allow viewers to call this
         // function in the future.
         stepCountByNonCreatorAccountId: internalDocument.attributes.stepCountByAccountId,
+
+        updateContentPreview: context =>
+            updateDocumentContentPreviewAfterGetDocumentContent(context, {
+                documentId,
+                version: internalDocument.version,
+                content: internalDocument.content,
+            }),
+    };
+}
+
+async function updateDocumentContentPreviewAfterGetDocumentContent(
+    context: ServerActionContext,
+    {
+        documentId,
+        version,
+        content,
+    }: {
+        documentId: DocumentId;
+        version: number;
+        content: DocumentContent;
+    },
+) {
+    // Double check the new context has document access. We don't authorize that
+    // `version` or `content` match what's in the document because we know
+    // `version` and `content` come from `getDocumentContent()`.
+    await authorizeDocumentAccess(context, documentId, "View");
+
+    // Get the first 30 lines of the document for the preview. We want enough lines
+    // that we can render a letter-sized paper preview for documents. See [this
+    // task][1] for images of the documents we used to figure out how many lines of
+    // text fill a letter sized paper. We count 37 lines then we add 1 for safety
+    // giving us 38 lines.
+    //
+    // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
+    const contentPreview = assertDocumentContent(
+        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 38}),
+    );
+
+    await DocumentsTable.updateItem(
+        context,
+        {
+            partitionType: "Document",
+            sortRangeType: "ContentPreview",
+            documentId,
+        },
+        item => {
+            // If the content preview is from a later version than noop.
+            if (item && item.version >= version) return item;
+
+            // If the existing content preview is the same as the new content preview than
+            // noop.
+            //
+            // There is a race condition bug here:
+            //
+            // 1. Document is at version `n`
+            // 2. Document is updated to version `n + 1` which has a different
+            //    `contentPreview` than version `n`
+            // 3. Document is updated to version `n + 2` which has the same
+            //    `contentPreview` as version `n`
+            // 4. We run this content preview update for version `n + 2` _before_ version
+            //    `n + 1` so we skip updating `version` because `contentPreview` is the
+            //    same
+            // 5. Now we run this content preview update for version `n + 1` which updates
+            //    `version` and `contentPreview`
+            //
+            // Now we have a stale content preview version!
+            //
+            // We don't expect this to be a big issue in practice since we only run
+            // `IndexSearchEntity` for the document every 10 seconds minimum. Since updates
+            // are spaced apart by 10-60 seconds, race conditions shouldn't be an issue in
+            // practice.
+            //
+            // Even if this race condition were to occur and we have stale data in
+            // `contentPreview`, likely the reason for the stale data is the user added a
+            // bit of text then immediately deleted it (or deleted a bit of text then
+            // immediately re-added it). Given the difference between the actual doc and
+            // the stale doc is likely fairly minor in practice we further don't mind this
+            // race condition.
+            //
+            // We expect this to be a meaningful optimization for large, frequently
+            // updated, documents. Since we don't need to pay write capacity units to
+            // update the content on every document change. So we accept this potentially
+            // benign race condition bug. In the future, we could choose to remove this
+            // optimization if we find the write cost acceptable to fix race condition bugs
+            // we're seeing.
+            if (item && item.contentPreview.eq(contentPreview)) return item;
+
+            return {
+                partitionType: "Document",
+                sortRangeType: "ContentPreview",
+                documentId,
+                version,
+                contentPreview,
+            };
+        },
+    );
+}
+
+/**
+ * Gets a content preview for the document. If the document doesn't exist then
+ * we return null. If we haven't generated the content preview for the document
+ * yet we also return null.
+ *
+ * The content preview is cheaper to load than the full document (with
+ * `getDocument()` or `getDocumentContent()`) and more expensive to load than
+ * the document preview which only contains the title (with
+ * `getDocumentPreview()`). However, the tradeoff is the content preview will be
+ * 10-60 seconds stale. We only update the content preview every 10-60 seconds
+ * as a part of the `IndexSearchEntity` job.
+ *
+ * This function is useful for rendering a preview of the document in other
+ * parts of the product. e.g. When hovering over a document mention or in a
+ * file preview.
+ *
+ * We strip comment marks from the content preview since they aren't
+ * interesting in a preview. Also, if you only have view access to the document
+ * you aren't allowed to see comment marks anyway.
+ */
+export async function getDocumentContentPreviewIfExists(
+    context: ServerContentActionContext,
+    documentId: DocumentId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+): Promise<{
+    version: number;
+    contentPreview: DocumentContentWithReferences;
+} | null> {
+    const itemsPromise = (async () => {
+        const items = await arrayFromAsyncIterable(
+            DocumentsTable.query(context, {
+                limit: 2,
+                consistency,
+                partitionKey: {
+                    partitionType: "Document",
+                    documentId,
+                },
+                startSortKey: {sortRangeType: "ContentPreview"},
+                endSortKey: {sortRangeType: "Attributes"},
+            }),
+        );
+
+        const attributesItem = findMapIterable(items, item =>
+            item.sortRangeType === "Attributes" ? item : undefined,
+        );
+
+        const contentPreviewItem = findMapIterable(items, item =>
+            item.sortRangeType === "ContentPreview" ? item : undefined,
+        );
+
+        return {attributesItem, contentPreviewItem};
+    })();
+
+    // Save the document attributes item to our context cache so if
+    // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
+    // references) the document preview is already available and can be used to
+    // authorize.
+    DocumentItemAuthorizationCache.set(
+        context,
+        consistency,
+        documentId,
+        itemsPromise.then(({attributesItem}) => attributesItem ?? null),
+    );
+
+    const {attributesItem, contentPreviewItem} = await itemsPromise;
+    if (!attributesItem) return null;
+
+    // Must have the view access level to read a document.
+    await authorizeDocumentItemAccess(context, attributesItem, "View");
+
+    if (!contentPreviewItem) return null;
+
+    // Remove comment marks from document preview. Since actor may only have the
+    // `View` permission level. But also since comment marks in a preview are
+    // distracting. We want the preview to be focused on the content. Must open the
+    // document to see comments.
+    const contentPreview = assertDocumentContent(
+        stripDocumentContentCommentMarks(contentPreviewItem.contentPreview),
+    );
+
+    return {
+        version: contentPreviewItem.version,
+        contentPreview: {
+            doc: contentPreview,
+            references: {
+                ...(await getContentReferencesForNode(
+                    context,
+                    attributesItem.spaceId,
+                    FileDocumentAuthorizer.bind({type: "Document", documentId}),
+                    contentPreview,
+                )),
+                commentThreadById: emptyMap,
+            },
+        },
     };
 }
 

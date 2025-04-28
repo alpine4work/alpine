@@ -33,6 +33,7 @@ import {
     getDocumentCommentsFromStart,
     getDocumentContent,
     getDocumentContentForCollaborationServiceInitialization,
+    getDocumentContentPreviewIfExists,
     getDocumentContentSteps,
     getDocumentContentWithOptionalComments,
     getDocumentPreview,
@@ -2451,6 +2452,9 @@ test("can not read a created document in a different space", async () => {
     await expect(getDocumentPreviewIfExists(session.action(), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
+    await expect(getDocumentContentPreviewIfExists(session.action(), documentId)).rejects.toThrow(
+        PermissionDeniedError,
+    );
 });
 
 test("can not update a document in a different space", async () => {
@@ -3978,6 +3982,36 @@ test("authorizing document access after getting document as session actor is cac
 
         expect(getCount()).toEqual(4);
     }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
+        await getDocumentContentPreviewIfExists(actionContext, document.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id, "Manage");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeDocumentAccess(actionContext, document.id, "Manage");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
 });
 
 test("authorizing document access after getting document as system actor is cached", async () => {
@@ -5339,6 +5373,18 @@ test("getting document without comments requires view access level", async () =>
         await expect(getDocumentTitle(otherSession.action(), document.id)).rejects.toThrow(
             "Account doesn't have access to space",
         );
+    }
+
+    {
+        await getDocumentContentPreviewIfExists(session1.action(), document.id);
+        await getDocumentContentPreviewIfExists(session2.action(), document.id);
+        await getDocumentContentPreviewIfExists(session3.action(), document.id);
+        await expect(
+            getDocumentContentPreviewIfExists(session4.action(), document.id),
+        ).rejects.toThrow('Actor doesn\'t have "View" access level to document');
+        await expect(
+            getDocumentContentPreviewIfExists(otherSession.action(), document.id),
+        ).rejects.toThrow("Account doesn't have access to space");
     }
 });
 
@@ -8294,6 +8340,321 @@ test("can add comment mark to `file` node in a document with comment access leve
                 schema.node("fileRow", {}, [schema.node("file", {fileId: file.id})]),
             ])
             .toJSON(),
+    });
+});
+
+test("can get and update document content preview", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+    const document = await TestDocument.create(session, {title: "Hello, world!"});
+
+    await document.type(session, "Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(null);
+
+    // Can update the content preview:
+    {
+        const {content, updateContentPreview} = await getDocumentContent(
+            session.action(),
+            document.id,
+        );
+
+        expect(content).toEqual(
+            schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit."),
+                ]),
+            ]),
+        );
+
+        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(
+            null,
+        );
+
+        await expect(updateContentPreview(otherSession.action())).rejects.toThrow(
+            PermissionDeniedError,
+        );
+        await expect(updateContentPreview(otherSpace.systemAction())).rejects.toThrow(
+            PermissionDeniedError,
+        );
+
+        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(
+            null,
+        );
+
+        await updateContentPreview(session.action());
+    }
+
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 1,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit."),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    await document.type(session, " ");
+    const {range} = await document.type(session, "Sed consequat");
+    await document.type(
+        session,
+        ", nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi.",
+    );
+
+    const commentThread = await document.createCommentThread(session, range, "Test comment");
+
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 1,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit."),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    // The content preview will strip comment marks:
+    {
+        const {content, updateContentPreview} = await getDocumentContent(
+            session.action(),
+            document.id,
+        );
+
+        expect(content).toEqual(
+            schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. "),
+                    schema.text("Sed consequat", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text(
+                        ", nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi.",
+                    ),
+                ]),
+            ]),
+        );
+
+        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+            version: 1,
+            contentPreview: {
+                doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                    schema.node("title", null, [schema.text("Hello, world!")]),
+                    schema.node("paragraph", null, [
+                        schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit."),
+                    ]),
+                ]),
+                references: emptyDocumentContentReferences,
+            },
+        });
+
+        await updateContentPreview(session.action());
+    }
+
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 5,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text(
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi.",
+                    ),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    await document.type(session, " " + "x".repeat(10_000));
+
+    // The content preview truncates the full document content:
+    {
+        const {content, updateContentPreview} = await getDocumentContent(
+            session.action(),
+            document.id,
+        );
+
+        expect(content).toEqual(
+            schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. "),
+                    schema.text("Sed consequat", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text(
+                        ", nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                            "x".repeat(10_000),
+                    ),
+                ]),
+            ]),
+        );
+
+        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+            version: 5,
+            contentPreview: {
+                doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                    schema.node("title", null, [schema.text("Hello, world!")]),
+                    schema.node("paragraph", null, [
+                        schema.text(
+                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi.",
+                        ),
+                    ]),
+                ]),
+                references: emptyDocumentContentReferences,
+            },
+        });
+
+        await updateContentPreview(session.action());
+    }
+
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 6,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text(
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                            "x".repeat(7_332),
+                    ),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    await document.type(session, "y");
+
+    // Won't update the content preview if the content preview doesn't change:
+    {
+        const {content, updateContentPreview} = await getDocumentContent(
+            session.action(),
+            document.id,
+        );
+
+        expect(content).toEqual(
+            schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. "),
+                    schema.text("Sed consequat", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text(
+                        ", nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                            "x".repeat(10_000) +
+                            "y",
+                    ),
+                ]),
+            ]),
+        );
+
+        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+            version: 6,
+            contentPreview: {
+                doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                    schema.node("title", null, [schema.text("Hello, world!")]),
+                    schema.node("paragraph", null, [
+                        schema.text(
+                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                                "x".repeat(7_332),
+                        ),
+                    ]),
+                ]),
+                references: emptyDocumentContentReferences,
+            },
+        });
+
+        await updateContentPreview(session.action());
+    }
+
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 6,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text(
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                            "x".repeat(7_332),
+                    ),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
+
+    await document.update(session, [new ReplaceStep(22, 22, textSlice("z"))]);
+
+    // Will update the content preview if the update falls inside the content preview:
+    {
+        const {content, updateContentPreview} = await getDocumentContent(
+            session.action(),
+            document.id,
+        );
+
+        expect(content).toEqual(
+            schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text("Lorem zipsum dolor sit amet, consectetur adipiscing elit. "),
+                    schema.text("Sed consequat", [
+                        schema.mark("comment", {commentThreadId: commentThread.id}),
+                    ]),
+                    schema.text(
+                        ", nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                            "x".repeat(10_000) +
+                            "y",
+                    ),
+                ]),
+            ]),
+        );
+
+        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+            version: 6,
+            contentPreview: {
+                doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                    schema.node("title", null, [schema.text("Hello, world!")]),
+                    schema.node("paragraph", null, [
+                        schema.text(
+                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                                "x".repeat(7_332),
+                        ),
+                    ]),
+                ]),
+                references: emptyDocumentContentReferences,
+            },
+        });
+
+        await updateContentPreview(session.action());
+    }
+
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 8,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hello, world!")]),
+                schema.node("paragraph", null, [
+                    schema.text(
+                        "Lorem zipsum dolor sit amet, consectetur adipiscing elit. Sed consequat, nunc convallis sodales porta, ipsum mi auctor turpis, nec sagittis nisi leo a mi. " +
+                            "x".repeat(7_330),
+                    ),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
     });
 });
 

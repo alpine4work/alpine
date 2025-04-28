@@ -2,6 +2,7 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
+    getDocumentContentPreviewIfExists,
     getGlobalDocumentContentCacheForUpdateForTest,
 } from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
@@ -19,7 +20,8 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -378,6 +380,7 @@ test("will index a document again if update happened after timeout with more upd
         title: null,
         body: null,
     });
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(null);
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
@@ -387,6 +390,18 @@ test("will index a document again if update happened after timeout with more upd
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+    });
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 0,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
+                schema.node("paragraph", null, [
+                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     await document.type(session, " This is the title of a game show from BoJack");
@@ -399,6 +414,18 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 0,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
+                schema.node("paragraph", null, [
+                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
@@ -408,6 +435,18 @@ test("will index a document again if update happened after timeout with more upd
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
+    });
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 0,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
+                schema.node("paragraph", null, [
+                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     await document.type(session, " Horseman hosted by the character Mr. Peanutbutter.");
@@ -420,6 +459,18 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 0,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
+                schema.node("paragraph", null, [
+                    schema.text("What Do They Know? Do They Know Things? Let’s Find Out."),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
+    });
 
     import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
@@ -429,6 +480,20 @@ test("will index a document again if update happened after timeout with more upd
     expect(await getIndexedSearchEntity(document)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+    });
+    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        version: 2,
+        contentPreview: {
+            doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
+                schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
+                schema.node("paragraph", null, [
+                    schema.text(
+                        "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+                    ),
+                ]),
+            ]),
+            references: emptyDocumentContentReferences,
+        },
     });
 
     // Make sure there are no more jobs in the queue.
@@ -475,11 +540,7 @@ test("will not schedule another indexing job if document title is updated after 
     });
 
     await document.update(session, [
-        new ReplaceStep(
-            9,
-            9,
-            new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("d (test)")), 0, 0),
-        ),
+        new ReplaceStep(9, 9, new Slice(Fragment.from(schema.text("d (test)")), 0, 0)),
     ]);
 
     await ProcessContextModule.waitForTestTasks();
@@ -566,11 +627,7 @@ test("will schedule another indexing job if document title is updated after cont
     });
 
     await document.update(session, [
-        new ReplaceStep(
-            9,
-            9,
-            new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("d (test)")), 0, 0),
-        ),
+        new ReplaceStep(9, 9, new Slice(Fragment.from(schema.text("d (test)")), 0, 0)),
     ]);
 
     await ProcessContextModule.waitForTestTasks();
@@ -670,11 +727,7 @@ test("will not schedule another indexing job if document title is updated twice 
     });
 
     await document.update(session, [
-        new ReplaceStep(
-            9,
-            9,
-            new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("d (test)")), 0, 0),
-        ),
+        new ReplaceStep(9, 9, new Slice(Fragment.from(schema.text("d (test)")), 0, 0)),
     ]);
 
     await ProcessContextModule.waitForTestTasks();
@@ -700,11 +753,7 @@ test("will not schedule another indexing job if document title is updated twice 
     await ProcessContextModule.waitForTestTasks();
 
     await document.update(session, [
-        new ReplaceStep(
-            9,
-            9,
-            new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("oooooo")), 0, 0),
-        ),
+        new ReplaceStep(9, 9, new Slice(Fragment.from(schema.text("oooooo")), 0, 0)),
     ]);
 
     await ProcessContextModule.waitForTestTasks();

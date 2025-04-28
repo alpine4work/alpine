@@ -1,4 +1,5 @@
 import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_table.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
     DocumentStepCountByAccountId,
     getDocumentCommentPayload,
@@ -165,6 +166,9 @@ interface TaskCollectionModelForAuthorization {
 class SearchEntityReadState {
     private readonly _context: SearchSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
+    public readonly registerAdditionalWrite: (
+        action: (context: SearchSystemActionContext) => Promise<void>,
+    ) => void;
     private readonly _targetId: SearchDynamicEntityId;
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
@@ -183,8 +187,16 @@ class SearchEntityReadState {
 
     constructor(
         context: SearchSystemActionContext,
-        tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
         targetId: SearchDynamicEntityId,
+        {
+            tokenizer,
+            registerAdditionalWrite,
+        }: {
+            tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
+            registerAdditionalWrite: (
+                action: (context: SearchSystemActionContext) => Promise<void>,
+            ) => void;
+        },
     ) {
         // Makes sure all reads use strong consistency. We need strong consistency so
         // that we don't miss recent updates when indexing. Throws an error (in
@@ -192,6 +204,7 @@ class SearchEntityReadState {
         this._context = context.dynamo.expectStrongReadConsistency();
 
         this.tokenizer = tokenizer;
+        this.registerAdditionalWrite = registerAdditionalWrite;
         this._targetId = targetId;
     }
 
@@ -278,6 +291,7 @@ class SearchEntityReadState {
         content: DocumentContent;
         creatorId: AccountId | null;
         stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
+        updateContentPreview: (context: ServerActionContext) => Promise<void>;
     }> {
         this._recordDependencyId(`Document:${documentId}`);
 
@@ -544,18 +558,28 @@ function getSearchEntityIndexAccessPolicy(
  * function guarantees read-after-write consistency. If you've waited for a
  * write to commit then this function will read it (this means all DynamoDB
  * reads are made with strong consistency).
+ *
+ * While reading we may optionally register a function to perform additional
+ * write actions. If we call this function as a part of the `IndexSearchEntity`
+ * job then the additional writes will be run alongside updating our OpenSearch
+ * index.
  */
 export async function getSearchEntity(
     context: SearchSystemActionContext,
     idObject: SearchDynamicEntityIdObject,
-    tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
+    options: {
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
+        registerAdditionalWrite: (
+            action: (context: SearchSystemActionContext) => Promise<void>,
+        ) => void;
+    },
 ): Promise<{
     dependencyIds: Iterable<SearchEntityDependencyId>;
     entity: SearchEntity;
 }> {
     const id = printSearchDynamicEntityId(idObject);
 
-    const state = new SearchEntityReadState(context, tokenizer, id);
+    const state = new SearchEntityReadState(context, id, options);
 
     const entity = await actuallyGetSearchEntity(state, idObject);
 
@@ -632,8 +656,19 @@ async function getDocumentSearchEntity(
     state: SearchEntityReadState,
     documentId: DocumentId,
 ): Promise<SearchEntity> {
-    const {createdTime, version, content, creatorId, stepCountByNonCreatorAccountId} =
-        await state.getDocumentContent(documentId);
+    const {
+        createdTime,
+        version,
+        content,
+        creatorId,
+        stepCountByNonCreatorAccountId,
+        updateContentPreview,
+    } = await state.getDocumentContent(documentId);
+
+    // If we're running an `IndexSearchEntity` job then we also want to update the
+    // document's content preview alongside updating the OpenSearch index.
+    state.registerAdditionalWrite(updateContentPreview);
+
     await getDocumentSearchEntityTestCheckpoint.waitForTest(documentId);
 
     const {title, getFullText, getEmbeddingChunks} = await chunkDocumentSearchContent(

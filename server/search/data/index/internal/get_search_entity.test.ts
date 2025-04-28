@@ -5,6 +5,7 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
@@ -24,7 +25,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Account", accountId: session.account.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set(),
@@ -69,7 +70,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Document", documentId: document.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set(),
@@ -124,7 +125,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                         commentThreadId: commentThread.id,
                         commentIndex: 0,
                     },
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set([`Document:${document.id}:Authorization`]),
@@ -163,7 +164,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Channel", channelId: channel.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set([]),
@@ -204,7 +205,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Post", postId: post.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set([`Channel:${channel.id}:Preview`]),
@@ -248,7 +249,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "PostComment", postId: post.id, commentIndex: 0},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set([`Channel:${channel.id}:Authorization`]),
@@ -285,7 +286,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Chat", chatId: chat.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set(),
@@ -311,7 +312,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Chat", chatId: chat.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set(),
@@ -345,7 +346,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Chat", chatId: chat.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set(),
@@ -371,7 +372,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "Chat", chatId: chat.id},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set(
@@ -424,7 +425,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 await getSearchEntity(
                     space.systemAction(),
                     {type: "ChatMessage", chatId: chat.id, messageIndex: 0},
-                    tokenizer,
+                    {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
                 dependencyIds: new Set([`Chat:${chat.id}`]),
