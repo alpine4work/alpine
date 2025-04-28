@@ -1,9 +1,9 @@
+import {BlockInference} from "~/shared/helpers/types/block_inference.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     SchemaBackwardsIncompatibleError,
     checkSchemaBackwardsCompatibility,
-} from "~/server/schema/check_schema_backwards_compatibility.js";
-import {BlockInference} from "~/shared/helpers/types/block_inference.js";
-import {generateId} from "~/shared/id/id.js";
+} from "~/shared/schema/check_schema_backwards_compatibility.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 function testCase<LastValue, NextValue>({

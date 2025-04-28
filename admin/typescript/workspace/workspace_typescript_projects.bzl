@@ -106,7 +106,6 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/opensearch:opensearch",
     "//server/remix:remix",
     "//server/rpc:rpc",
-    "//server/schema:schema",
     "//server/search/core:core",
     "//server/search/data/index:index",
     "//server/search/data/table:table",

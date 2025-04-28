@@ -9,6 +9,7 @@ import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.js";
@@ -18,7 +19,9 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Optionalize} from "~/shared/helpers/types/optionalize.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {Id, isId} from "~/shared/id/id.js";
+import {checkPropertySchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
 import {
     SchemaSerializedObjectValuePropertyDescription,
     SchemaSerializedValueDescription,
@@ -827,6 +830,11 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
      *
      * The validation is checked at serialization and deserialization time.
      */
+    public validation<NewValue extends Value>(
+        message: string,
+        validate: (value: Value) => value is NewValue,
+    ): Schema<NewValue>;
+    public validation(message: string, validate: (value: Value) => boolean): Schema<Value>;
     public validation(message: string, validate: (value: Value) => boolean): Schema<Value> {
         return new Schema<Value>({
             getDescription: () => this.getDescription(),
@@ -906,6 +914,183 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 schema = definedSchema;
             },
         });
+    }
+
+    /**
+     * Schema for an open ended interface. Generally prefer using `union()` as its
+     * more ergonomic. However, if you need to a union-like schema with
+     * implementations spread across multiple packages then `interface()` is for
+     * you. We borrow the language of TypeScript interfaces for this schema kind.
+     *
+     * You can think of `union()` as a "closed" type class where we know all
+     * variants when the schema is constructed (e.g. a [Kotlin "sealed" class][1]
+     * or a [Haskell algebraic data type][2] or a [Rust enum][3]). You can think of
+     * `interface()` as an "open" type class where other implementations can be
+     * added later (e.g. a [Kotlin "open" class][4] or a [Haskell type class][5] or
+     * a [Rust trait][6]). Closed/open unions are both useful for expressing data
+     * types and have different tradeoffs. Generally, in our codebase we prefer
+     * closed unions since you can exhaustively switch on them.
+     *
+     * The way you use this is you declare an interface:
+     *
+     * ```ts
+     * const Animal = Schema.interface({
+     *     type: Schema.string,
+     *     age: Schema.integer,
+     * });
+     *
+     * // Recommended: `Animal` is a class so define `Animal` in type space as well
+     * // as value space.
+     * type Animal = InstanceType<Animal>;
+     * ```
+     *
+     * ...then later you add implementors of the interface:
+     *
+     * ```ts
+     * const CatSchema = Animal.implement({
+     *     type: Schema.value("Cat"),
+     *     breed: Schema.enum(["Calico", "Siamese", "Tabby", "Tuxedo"],
+     * )});
+     *
+     * const DogSchema = Animal.implement({
+     *     type: Schema.value("Dog"),
+     *     breed: Schema.enum(["Bulldog", "Labrador", "Beagle", "Poodle"]),
+     * });
+     * ```
+     *
+     * The implementors can be in different files. This is the main advantage over
+     * `union()`! You don't need to collect all types in your union together in one
+     * package. You can instead distribute the schemas across multiple packages.
+     *
+     * The tradeoff is you must provide the schema when you initialize an interface
+     * and when you deserialize an interface value. For example, to construct a dog
+     * that's compatible with the `Animal` interface you must write the following:
+     *
+     * ```ts
+     * const myDog = new Animal(DogSchema, {type: "Dog", breed: "Labrador"});
+     * ```
+     *
+     * Notice how you had to use `new Animal()` and pass in `DogSchema`. If you get an
+     * `Animal` back from the network you're responsible for figuring out what
+     * implementation it uses and calling `deserialize()` on the animal with the
+     * correct schema.
+     *
+     * For example, in the `Animal` case we include the animal's type in a `type`
+     * property. However, `type` is not a required property (like it is for
+     * `union()`). You can hint the type of your interface in any way you want.
+     * Here's how we use the `type` property to figure out our animal is a cat
+     * then deserialize the cat:
+     *
+     * ```ts
+     * if (animal.type === "Cat") {
+     *     console.log(animal.deserialize(CatSchema).breed);
+     * }
+     * ```
+     *
+     * Once you've deserialized an interface instance with some schema you must
+     * always use that schema if you call `deserialize()` again! Otherwise an error
+     * will be thrown. In our above example, calling
+     * `animal.deserialize(DogSchema)` after you've already called
+     * `animal.deserialize(CatSchema)` throws an error.
+     *
+     * The way this schema works is we associate interface instances with a
+     * specific schema object that never changes. If you use your interface
+     * constructor to create the instance (e.g. `new Animal()` in this example) the
+     * schema you pass in is the one associated with the instance. If you're
+     * deserializing a value from the network, we don't know which schema to use.
+     * So we construct an instance with no associated schema. Once you call
+     * `instance.deserialize(schema)` we associate the provided `schema` with the
+     * instance.
+     *
+     * [1]: https://kotlinlang.org/docs/sealed-classes.html
+     * [2]: https://learnyouahaskell.com/making-our-own-types-and-typeclasses#algebraic-data-types
+     * [3]: https://doc.rust-lang.org/book/ch06-01-defining-an-enum.html
+     * [4]: https://kotlinlang.org/docs/inheritance.html#overriding-methods
+     * [5]: https://learnyouahaskell.com/making-our-own-types-and-typeclasses#typeclasses-102
+     * [6]: https://doc.rust-lang.org/book/ch10-02-traits.html
+     */
+    public static interface<Config extends ObjectSchemaConfigBase>(
+        config: Config,
+    ): InterfaceSchemaInstanceClass<ObjectSchemaConfigType<Config>> {
+        const schemaBase = Schema.object(config);
+
+        class InterfaceSchemaInstance<
+            Value extends InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>,
+        > extends InterfaceSchemaInstanceBase {
+            public static readonly schema = new Schema<
+                InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>
+            >({
+                // TODO(calebmer): This doesn't consider evolution of schemas implementing this
+                // schema! Ideally we'd keep track of all implementor schemas too and track
+                // their evolution.
+                getDescription: schemaBase._getDescription,
+                serialize: value => value.serialize(),
+                deserialize: serializedValue => {
+                    const valueBase = schemaBase.deserialize(serializedValue);
+
+                    return Object.assign(
+                        new InterfaceSchemaInstanceBase(null, serializedValue),
+                        valueBase,
+                    );
+                },
+                validate: schemaBase.validate,
+            });
+
+            public static implement<OtherConfig extends ObjectSchemaConfigBase>(
+                config: OtherConfig,
+            ): ObjectSchema<
+                Replace<ObjectSchemaConfigType<Config>, ObjectSchemaConfigType<OtherConfig>>
+            > {
+                return Object.assign(schemaBase.merge(Schema.object(config)), {
+                    _interfaceSchema: InterfaceSchemaInstance.schema,
+                });
+            }
+
+            constructor(
+                schema: ObjectSchema<Value> & {
+                    readonly _interfaceSchema: Schema<
+                        InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>
+                    >;
+                },
+                value: Value,
+            ) {
+                // Make sure the schema we're using is a valid implementor of our interface.
+                if (schema._interfaceSchema !== InterfaceSchemaInstance.schema) {
+                    throw new InternalError(
+                        "The schema provided to `InterfaceSchemaInstance` is not an implementation (created with `implement()`) of the interface",
+                    );
+                }
+
+                super(schema, value);
+
+                // Serialize only the keys from `valueBase` but using the schemas from
+                // `schema`. In case `schema` adds any `transform()`s that `valueBase` wouldn't
+                // recognize.
+                //
+                // This is guaranteed to be safe since the `schemaBase.merge()` operation we
+                // use to create `schema` checks that share properties between `schemaBase` and
+                // `schema` are backwards compatible with one another.
+                {
+                    const serializedValueBase: any = {};
+
+                    for (const key of schemaBase.propertySchemaByKey.keys()) {
+                        const propertySchema = assertExists(schema.propertySchemaByKey.get(key));
+                        const serializedKey = propertySchema.serializedKey ?? key;
+                        propertySchema.serializeProperty(
+                            serializedValueBase,
+                            serializedKey,
+                            (value as any)[key],
+                        );
+                    }
+
+                    Object.assign(this, schemaBase.deserialize(serializedValueBase));
+                }
+            }
+        }
+
+        return InterfaceSchemaInstance as InterfaceSchemaInstanceClass<
+            ObjectSchemaConfigType<Config>
+        >;
     }
 }
 
@@ -1205,21 +1390,30 @@ export class ObjectSchema<Value> extends Schema<Value> {
 
     /**
      * Takes two object schemas and creates a new object schema with both of their
-     * properties. Keys in both schemas must be unique. Will throw an error if both
-     * schemas contain the same key.
+     * properties.
+     *
+     * If you have the same key in both schema, then we check that the old property
+     * is backwards compatible with the new property. That way, you can use `this`
+     * schema to deserialize values from the merged schema since `this` schema is
+     * a supertype of the merged schema.
      */
     public merge<OtherValue>(
         otherSchema: ObjectSchema<OtherValue>,
-    ): ObjectSchema<Value & OtherValue> {
+    ): ObjectSchema<Replace<Value, OtherValue>> {
         const propertySchemaByKey = new Map(this.propertySchemaByKey);
 
-        for (const [key, propertySchema] of otherSchema.propertySchemaByKey) {
-            if (propertySchemaByKey.has(key))
-                throw new InternalError(
-                    quote`Can not merge object schemas which both contain key ${key}`,
-                );
+        for (const [key, newPropertySchema] of otherSchema.propertySchemaByKey) {
+            const oldPropertySchema = propertySchemaByKey.get(key);
 
-            propertySchemaByKey.set(key, propertySchema);
+            if (oldPropertySchema) {
+                checkPropertySchemaBackwardsCompatibility(
+                    key,
+                    newPropertySchema.getDescription(),
+                    oldPropertySchema.getDescription(),
+                );
+            }
+
+            propertySchemaByKey.set(key, newPropertySchema);
         }
 
         return new ObjectSchema(propertySchemaByKey);
@@ -2856,6 +3050,86 @@ export class MapSchema<Key, Value> extends Schema<ReadonlyMap<Key, Value>> {
                     );
             },
         });
+    }
+}
+
+type InterfaceSchemaInstanceClass<ValueBase> = {
+    /**
+     * The interface schema. This schema lazily deserializes. It returns an
+     * interface instance you must later call `deserialize()` on.
+     */
+    readonly schema: Schema<InterfaceSchemaInstance<ValueBase>>;
+
+    /**
+     * Add a new implementation of the interface.
+     */
+    implement<Config extends ObjectSchemaConfigBase>(
+        config: Config,
+    ): ObjectSchema<ValueBase & ObjectSchemaConfigType<Config>> & {
+        readonly _interfaceSchema: Schema<InterfaceSchemaInstance<ValueBase>>;
+    };
+
+    /**
+     * Construct a new interface instance with an associated schema. Shared
+     * properties are made available on the interface.
+     */
+    new <Value extends ValueBase>(
+        schema: Schema<Value>,
+        value: Value,
+    ): InterfaceSchemaInstance<ValueBase>;
+};
+
+type InterfaceSchemaInstance<ValueBase> = InterfaceSchemaInstanceBase & Readonly<ValueBase>;
+
+class InterfaceSchemaInstanceBase {
+    private _schema: Schema<any> | null;
+    private _value: any;
+
+    constructor(schema: Schema<any> | null, value: any) {
+        this._schema = schema;
+        this._value = value;
+    }
+
+    /**
+     * Serialize the interface instance using the associated schema. If there's no
+     * associated schema (when we've deserialized this instance from the network)
+     * then we never deserialized the value so return the serialized value we got
+     * from the network.
+     */
+    public serialize(): SchemaSerializedValue {
+        if (this._schema === null) {
+            return this._value;
+        } else {
+            return this._schema.serialize(this._value);
+        }
+    }
+
+    /**
+     * Deserialize the interface instance using the associated schema. If there's
+     * no associated schema then we set the provided schema as the associated
+     * schema (but only if there's no deserialization errors). If there's already
+     * an associated schema and it's different from the schema you provide then
+     * this function will throw an error.
+     */
+    public deserialize<Value>(schema: Schema<Value>): Value {
+        if (this._schema === null) {
+            const value = schema.deserialize(this._value);
+
+            // Don't update `this._schema` until after we deserialize in case there's a
+            // deserialization error.
+            this._schema = schema;
+            this._value = value;
+
+            return this._value;
+        }
+
+        if (schema !== this._schema) {
+            throw new InternalError(
+                "Can't deserialize `InterfaceSchemaInstance` with different schemas",
+            );
+        }
+
+        return this._value;
     }
 }
 

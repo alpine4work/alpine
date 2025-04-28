@@ -3,12 +3,15 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
+import {
+    SchemaSerializedObjectValuePropertyDescription,
+    SchemaSerializedValueDescription,
+} from "~/shared/schema/types/schema_description_types.js";
 
-const checkingNextSchemasByLastSchema = new Map<
+let checkingNextSchemasByLastSchema: Map<
     SchemaSerializedValueDescription,
     Set<SchemaSerializedValueDescription>
->();
+> | null;
 
 /**
  * Takes two `SchemaSerializedValueDescription`s and verifies that the second
@@ -25,7 +28,7 @@ export function checkSchemaBackwardsCompatibility(
     nextSchema: SchemaSerializedValueDescription,
 ): void {
     const checkingNextSchemas = getOrSetDefaultMapValue(
-        checkingNextSchemasByLastSchema,
+        (checkingNextSchemasByLastSchema ??= new Map()),
         lastSchema,
         () => new Set(),
     );
@@ -194,19 +197,10 @@ export function checkSchemaBackwardsCompatibility(
                                 `Required \`${key}\` property not found`,
                             );
                     } else {
-                        if (lastPropertySchema.optional && !nextPropertySchema.optional)
-                            throw new SchemaBackwardsIncompatibleError(
-                                `Optional \`${key}\` property can not be made required`,
-                            );
-
-                        withSchemaSerializedValueDescriptionStackFrame(
-                            {type: "ObjectProperty", key},
-                            () => {
-                                checkSchemaBackwardsCompatibility(
-                                    lastPropertySchema.valueSchema,
-                                    nextPropertySchema.valueSchema,
-                                );
-                            },
+                        checkPropertySchemaBackwardsCompatibility(
+                            key,
+                            lastPropertySchema,
+                            nextPropertySchema,
                         );
                     }
                 }
@@ -425,6 +419,24 @@ export function checkSchemaBackwardsCompatibility(
         checkingNextSchemas.delete(nextSchema);
         if (checkingNextSchemas.size === 0) checkingNextSchemasByLastSchema.delete(lastSchema);
     }
+}
+
+export function checkPropertySchemaBackwardsCompatibility(
+    key: string,
+    lastPropertySchema: SchemaSerializedObjectValuePropertyDescription,
+    nextPropertySchema: SchemaSerializedObjectValuePropertyDescription,
+) {
+    if (lastPropertySchema.optional && !nextPropertySchema.optional)
+        throw new SchemaBackwardsIncompatibleError(
+            `Optional \`${key}\` property can not be made required`,
+        );
+
+    withSchemaSerializedValueDescriptionStackFrame({type: "ObjectProperty", key}, () => {
+        checkSchemaBackwardsCompatibility(
+            lastPropertySchema.valueSchema,
+            nextPropertySchema.valueSchema,
+        );
+    });
 }
 
 /**
