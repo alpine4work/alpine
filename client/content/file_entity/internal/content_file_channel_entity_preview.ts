@@ -9,13 +9,13 @@ import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/conten
 import {AppContext} from "~/client/context/app_context.js";
 import {bellIconSvg} from "~/client/icons/bell_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
-import {
-    channelSubscribeButtonFontWeight,
-    channelViewMetadataSectionTitleColor,
-    channelViewMetadataSectionTitleFontSize,
-    channelViewMetadataSectionTitleMarginBottom,
-} from "~/client/styles/forum_shared_styles.js";
+import {channelSubscribeButtonFontWeight} from "~/client/styles/forum_shared_styles.js";
 import {backgroundColorVar, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    taskDetailViewDenseFieldGap,
+    taskDetailViewFieldLabelColor,
+    taskDetailViewFieldLabelFontSize,
+} from "~/client/styles/tasks_shared_styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -59,11 +59,15 @@ export function renderContentFileChannelEntityPreview(
         fileEntityRenderers: ContentFileEntityRenderers | null;
     },
 ) {
-    // If our width is less than a third of the max block width (e.g. when there
-    // are three file entities in a row) then shrink the content a bit.
-    const isSmall =
+    const isSmallerThanHalfOfBlockWidth =
         layout.width <=
-        (contentStyles.blockMaxWidthRem[platform] / 3) * remPxBySpacingScale[spacingScale];
+        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
+            remPxBySpacingScale[spacingScale];
+
+    const isSmallerThanThirdOfBlockWidth =
+        layout.width <=
+        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
+            remPxBySpacingScale[spacingScale];
 
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
 
@@ -78,7 +82,7 @@ export function renderContentFileChannelEntityPreview(
             paddingY: containerPaddingY,
             display: "flex",
             flexDirection: "column",
-            gap: "4",
+            gap: isSmallerThanThirdOfBlockWidth ? "6" : "7",
         }),
     );
 
@@ -89,7 +93,6 @@ export function renderContentFileChannelEntityPreview(
             "class",
             sprinkles({
                 display: "flex",
-                flexWrap: "wrap",
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: "3",
@@ -106,16 +109,9 @@ export function renderContentFileChannelEntityPreview(
         nameHtml.setAttribute(
             "class",
             sprinkles({
-                fontSize: isSmall ? "500" : "600",
+                fontSize: isSmallerThanThirdOfBlockWidth ? "500" : "600",
                 fontStyle: "truncate-bold",
             }),
-        );
-
-        nameHtml.setAttribute(
-            "style",
-            // `max-width` should be just enough for the subscribe button to render when
-            // the entity is rendered at block width.
-            `min-width: min(100%, ${spacing["64"]}); max-width: min(100%, 28rem)`,
         );
 
         nameHtml.appendChild(new HtmlTextGenerator(fileEntity.name));
@@ -129,7 +125,9 @@ export function renderContentFileChannelEntityPreview(
 
         subscribeButtonHtml.setAttribute(
             "style",
-            `font-weight: ${channelSubscribeButtonFontWeight}`,
+            `display: ${
+                isSmallerThanHalfOfBlockWidth ? "none" : "flex"
+            }; font-weight: ${channelSubscribeButtonFontWeight}`,
         );
 
         subscribeButtonHtml.appendChild(
@@ -145,37 +143,48 @@ export function renderContentFileChannelEntityPreview(
     }
 
     {
-        const peopleSection = containerHtml.appendChild(new HtmlElementGenerator("div"));
+        const fieldGridHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
+
+        fieldGridHtml.setAttribute(
+            "style",
+            [
+                "display: grid",
+                `gap: ${spacing[taskDetailViewDenseFieldGap]}`,
+                `grid-template-columns: auto minmax(0, 1fr)`,
+                `grid-template-rows: repeat(auto-fill, auto)`,
+                `grid-auto-flow: row dense`,
+            ].join("; "),
+        );
 
         {
-            const peopleSectionTitleHtml = peopleSection.appendChild(
+            const avatarSize = isSmallerThanThirdOfBlockWidth ? "6" : "7";
+            const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
+                accountAvatarPileSizes[avatarSize];
+
+            const peopleSectionTitleHtml = fieldGridHtml.appendChild(
                 new HtmlElementGenerator("div"),
             );
 
             peopleSectionTitleHtml.setAttribute(
                 "class",
                 sprinkles({
-                    color: channelViewMetadataSectionTitleColor,
-                    fontSize: channelViewMetadataSectionTitleFontSize,
-                    marginBottom: channelViewMetadataSectionTitleMarginBottom,
+                    height: avatarSize,
+                    display: "flex",
+                    alignItems: "center",
+                    color: taskDetailViewFieldLabelColor,
+                    fontSize: taskDetailViewFieldLabelFontSize,
                 }),
             );
 
             peopleSectionTitleHtml.appendChild(new HtmlTextGenerator("People"));
 
-            const avatarSize = isSmall ? "6" : "7";
-            const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
-                accountAvatarPileSizes[avatarSize];
-
-            const peopleSectionAvatarPileHtml = peopleSection.appendChild(
+            const peopleSectionAvatarPileHtml = fieldGridHtml.appendChild(
                 new HtmlElementGenerator("div"),
             );
 
             peopleSectionAvatarPileHtml.setAttribute(
                 "class",
                 sprinkles({
-                    position: "relative",
-                    zIndex: "0",
                     height: avatarSize,
                     display: "flex",
                 }),
@@ -304,30 +313,28 @@ export function renderContentFileChannelEntityPreview(
                 );
             }
         }
-    }
-
-    {
-        const descriptionSectionHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
 
         {
-            const descriptionSectionTitleHtml = descriptionSectionHtml.appendChild(
+            const descriptionSectionTitleHtml = fieldGridHtml.appendChild(
                 new HtmlElementGenerator("div"),
             );
 
             descriptionSectionTitleHtml.setAttribute(
                 "class",
                 sprinkles({
-                    color: channelViewMetadataSectionTitleColor,
-                    fontSize: channelViewMetadataSectionTitleFontSize,
-                    marginBottom: channelViewMetadataSectionTitleMarginBottom,
+                    color: taskDetailViewFieldLabelColor,
+                    fontSize: taskDetailViewFieldLabelFontSize,
                 }),
+            );
+
+            descriptionSectionTitleHtml.setAttribute(
+                "style",
+                `line-height: ${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
             );
 
             descriptionSectionTitleHtml.appendChild(new HtmlTextGenerator("About"));
 
-            const descriptionHtml = descriptionSectionHtml.appendChild(
-                new HtmlElementGenerator("div"),
-            );
+            const descriptionHtml = fieldGridHtml.appendChild(new HtmlElementGenerator("div"));
 
             descriptionHtml.setAttribute("class", contentStyles.docClassName);
 

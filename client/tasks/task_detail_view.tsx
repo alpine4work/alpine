@@ -48,6 +48,7 @@ import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
     taskDetailViewDenseFieldGap,
     taskDetailViewDenseFieldMinHeight,
+    taskDetailViewFieldLabelColor,
     taskDetailViewFieldLabelFontSize,
     taskDetailViewMainMinHeightPx,
     taskDetailViewSectionGap,
@@ -1569,7 +1570,7 @@ function TaskDetailViewMain(
                                     gap: "3",
                                     paddingX: screenPaddingX,
                                     paddingBottom: taskDetailViewSubtasksFieldLabelPaddingBottom,
-                                    color: "grey-60",
+                                    color: taskDetailViewFieldLabelColor,
                                 })}
                                 // Affordance for mouse users. Clicking on a label focuses child tasks.
                                 onClick={focusChildrenGridViewStart}
