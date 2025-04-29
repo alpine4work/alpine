@@ -7,9 +7,11 @@ import {
 import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {isId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 const actuallyLayoutContentFileParent = createCachedFunction(
@@ -17,7 +19,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
         node: Node,
         blockWidth: number,
         spacingScale: SpacingScale,
-        ...files: Array<FileModelData | null>
+        ...files: Array<FileModelData | FileEntityId | null>
     ) => {
         switch (node.type.name) {
             case "fileRow":
@@ -73,9 +75,10 @@ export function layoutContentFileParent(
             );
         }
 
-        const fileId: FileId | null = childNode.attrs.fileId;
+        const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
         if (fileId === null) return null;
-        return getFile(fileId);
+        if (isId<FileId>(fileId)) return getFile(fileId);
+        return fileId;
     });
 
     return actuallyLayoutContentFileParent(node, blockWidth, spacingScale, ...files);

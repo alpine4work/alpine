@@ -152,27 +152,7 @@ export function renderContentFilePreview({
         html.setAttribute("data-testid", `ContentFilePreview:${file.contentType}`);
     }
 
-    // This space helps Chrome's selection logic. In many cases we've observed that
-    // when selecting an element's contents instead of ending the selection at the
-    // end of the element, Chrome will end the selection at the beginning of the
-    // next selectable text node it finds! So when we don't have this text nodes,
-    // Chrome automatically selects all files until the next selectable text node
-    // underneath.
-    //
-    // To test this case but two files on top of each other with some text
-    // above/below. Then start dragging from the text above down. Without this
-    // text, Chrome selects both files immediately once the paragraph at the top
-    // has been selected. Since it's ending its selection in the next selectable
-    // text node (the paragraph below).
-    {
-        const selectionBoundaryHtml = new HtmlElementGenerator("span");
-        selectionBoundaryHtml.setAttribute(
-            "style",
-            "position: absolute; opacity: 0; user-select: text; -webkit-user-select: text",
-        );
-        html.appendChild(selectionBoundaryHtml);
-        selectionBoundaryHtml.appendChild(new HtmlTextGenerator(" "));
-    }
+    appendSelectionBoundaryHtml(html);
 
     if (!file) {
         const blankHtml = new HtmlElementGenerator("div");
@@ -312,6 +292,30 @@ export function renderContentFilePreview({
 }
 
 /**
+ * This space helps Chrome's selection logic. In many cases we've observed that
+ * when selecting an element's contents instead of ending the selection at the
+ * end of the element, Chrome will end the selection at the beginning of the
+ * next selectable text node it finds! So when we don't have this text nodes,
+ * Chrome automatically selects all files until the next selectable text node
+ * underneath.
+ *
+ * To test this case put two files on top of each other with some text
+ * above/below. Then start dragging from the text above down. Without this
+ * text, Chrome selects both files immediately once the paragraph at the top
+ * has been selected. Since it's ending its selection in the next selectable
+ * text node (the paragraph below).
+ */
+export function appendSelectionBoundaryHtml(containerHtml: HtmlElementGenerator) {
+    const selectionBoundaryHtml = new HtmlElementGenerator("span");
+    selectionBoundaryHtml.setAttribute(
+        "style",
+        "position: absolute; opacity: 0; user-select: text; -webkit-user-select: text",
+    );
+    containerHtml.appendChild(selectionBoundaryHtml);
+    selectionBoundaryHtml.appendChild(new HtmlTextGenerator(" "));
+}
+
+/**
  * We add a transparent, invisible, image with `user-select: text` so that the
  * browser renders a selection highlight over the image when it's selected.
  * Since browsers like Chrome will render selection highlights over images.
@@ -320,7 +324,10 @@ export function renderContentFilePreview({
  * selectable image in `contenteditable="true"`. This is consistent with our
  * `user-select` style for `fileImagePreviewContentClassName`.
  */
-function appendImageHtmlForSelection(containerHtml: HtmlElementGenerator, platform: Platform) {
+export function appendImageHtmlForSelection(
+    containerHtml: HtmlElementGenerator,
+    platform: Platform,
+) {
     if (platform === "mobile") return;
 
     const imageHtmlForSelection = new HtmlElementGenerator("img");
@@ -1328,46 +1335,25 @@ function renderFileProcessingPreviewPlaceholder(
     return svg;
 }
 
-export function addContentFilePreviewBehavior(
-    getContext: () => AppContext,
+export function addContentFilePreviewBehaviorBase(
     element: HTMLElement,
     {
-        spaceId,
-        node,
-        file,
-        attachmentTarget,
         isInert = false,
-        isInitialAppRender,
-        isEditorInitialAppRender = false,
-        rootNavigate,
-        getReporter,
+        onPress,
         onShiftMouseDown,
         isLongPressDisabled,
         onLongPress,
-        onDrag,
-        onOpenViewer,
+        onDragStart,
     }: {
-        spaceId: SpaceId;
-        node: Node;
-        file: FileClientStoreData | undefined;
-        attachmentTarget: FileAttachmentTarget | "Uploader";
         isInert?: boolean;
-        isInitialAppRender: boolean;
-        isEditorInitialAppRender?: boolean;
-        rootNavigate: NavigateFunction;
-        getReporter: () => Reporter;
+        onPress?: () => void;
         onShiftMouseDown?: (event: PointerEvent) => void;
         isLongPressDisabled?: () => boolean;
         onLongPress?: () => void;
-        onDrag?: (dragPromise: Promise<void>) => void;
-        onOpenViewer?: () => {preventDefault: boolean} | void;
+        onDragStart?: (dataTransfer: DataTransfer) => void;
     },
 ): () => void {
     assert(element.classList.contains(fileClassName));
-
-    let hasCleanedUp = false;
-    let pollTimeout: Timeout | null = null;
-    let unsubscribeFromRefreshTimer: (() => void) | null = null;
 
     /* ========================================================================== *\
      *                                Press event                                 *
@@ -1488,64 +1474,7 @@ export function addContentFilePreviewBehavior(
         if (!wasPointerDownAndOver) return;
         if (wasLongPress) return;
 
-        // If this is a video, then click doesn't open the file viewer but rather
-        // plays/pauses the video.
-        if (videoPlayerBehavior) {
-            const result = videoPlayerBehavior?.onPress();
-            if (result?.preventDefault) return;
-        }
-
-        // If this is audio, then click doesn't open the file viewer but rather
-        // plays/pauses the audio.
-        if (audioPlayerBehavior) {
-            const result = audioPlayerBehavior?.onPress();
-            if (result?.preventDefault) return;
-        }
-
-        openViewer();
-    };
-
-    const openViewer = () => {
-        if (onOpenViewer) {
-            const result = onOpenViewer();
-            if (result?.preventDefault) return;
-        }
-
-        if (!file) return;
-
-        handoffContentFilePreviewState({
-            ownedByElement: element,
-            signedUrlSearch: file.signedUrlSearch,
-            file: new FileModel(file),
-        });
-
-        rootNavigate(location => {
-            const searchParams = new URLSearchParams(location.search);
-
-            searchParams.set(
-                "file",
-                // Space separator was chosen since it's encoded as a `+` which looks nice in
-                // the URL.
-                attachmentTarget === "Uploader"
-                    ? file.id
-                    : `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
-            );
-
-            return [
-                {...location, search: searchParams.toString()},
-                {
-                    replace: true,
-                    // Don't fetch route data from the server. We don't need any new route data.
-                    //
-                    // NOTE(calebmer, 2024-10-15): I just realized, instead of adding this private
-                    // API with a patch it might be better to add the `shouldRevalidate` function to
-                    // every route, look for specific changes, and ignore everything else. Like the
-                    // `s.$spaceId.tsx` revalidation function which only returns true if the
-                    // `SpaceId` changes.
-                    unstable_shouldRevalidate: false,
-                },
-            ];
-        });
+        onPress?.();
     };
 
     const handlePointerLeave = resetPointerState;
@@ -1577,7 +1506,6 @@ export function addContentFilePreviewBehavior(
             return;
         }
 
-        if (!file) return;
         if (!event.dataTransfer) return;
 
         // Don't propagate to ProseMirror. If the user starts dragging on a file and
@@ -1585,58 +1513,7 @@ export function addContentFilePreviewBehavior(
         // Not the selection HTML which might be something different.
         event.stopPropagation();
 
-        const clipboardSerializer =
-            ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
-                node.type.schema,
-                () => spaceId,
-                () => ({
-                    ...emptyContentReferences,
-                    fileById: new Map([
-                        [
-                            file.id,
-                            {signedUrlSearch: file.signedUrlSearch, file: new FileModel(file)},
-                        ],
-                    ]),
-                }),
-                () => attachmentTarget,
-            );
-
-        const serializedNode = clipboardSerializer.serializeNode(node);
-        assert(serializedNode instanceof HTMLElement);
-
-        // See https://github.com/ProseMirror/prosemirror/issues/1156
-        event.dataTransfer.effectAllowed = onDrag ? "copyMove" : "copy";
-
-        event.dataTransfer.clearData();
-        event.dataTransfer.setData("text/html", serializedNode.outerHTML);
-
-        // NOTE(calebmer, 2024-10-15): I'd love to also include `image/png` here with a
-        // `Blob` of the preview image like we do when copying (see the copy
-        // implementation in our `contextmenu` handler). Unfortunately, generating a
-        // `Blob` from a canvas is asynchronous. We could optimistically generate
-        // `Blob`s in the background so they're available synchronously here but that's
-        // too complicated for a feature that's not that important.
-
-        // We check for this content type in the `dragenter` event to know if we need
-        // to show file drop targets. If this is set then it's assumed `text/html` will
-        // be parsed to `fileRow` or `file` nodes.
-        event.dataTransfer.setData("application/x.alpine.file", "");
-
-        if (onDrag) {
-            const dragPromiseResolver = createPromiseResolver();
-
-            const handleDragEnd = () => {
-                element.removeEventListener("dragend", handleDragEnd);
-                dragPromiseResolver.resolve();
-            };
-
-            // Attach `dragend` handler here since even if this content file's behavior is
-            // cleaned up (say `reference` changes) we don't want to remove our `dragend`
-            // event listener.
-            element.addEventListener("dragend", handleDragEnd);
-
-            onDrag(dragPromiseResolver.promise);
-        }
+        onDragStart?.(event.dataTransfer);
     };
 
     const scrollEventTargets: Array<EventTarget> = [window];
@@ -1683,6 +1560,185 @@ export function addContentFilePreviewBehavior(
             scrollEventTarget.addEventListener("scroll", handleScroll, true);
         }
     }
+
+    return () => {
+        if (!isInert) {
+            element.removeEventListener("pointerdown", handlePointerDown);
+            element.removeEventListener("pointerup", handlePointerUp);
+            element.removeEventListener("pointerleave", handlePointerLeave);
+            element.removeEventListener("pointercancel", handlePointerCancel);
+            element.removeEventListener("dragstart", handleDragStart);
+
+            for (const scrollEventTarget of scrollEventTargets) {
+                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
+            }
+        }
+
+        resetPointerState();
+    };
+}
+
+export function addContentFilePreviewBehavior(
+    getContext: () => AppContext,
+    element: HTMLElement,
+    {
+        spaceId,
+        node,
+        file,
+        attachmentTarget,
+        isInert = false,
+        isInitialAppRender,
+        isEditorInitialAppRender = false,
+        rootNavigate,
+        getReporter,
+        onShiftMouseDown,
+        isLongPressDisabled,
+        onLongPress,
+        onDrag,
+        onOpenViewer,
+    }: {
+        spaceId: SpaceId;
+        node: Node;
+        file: FileClientStoreData | undefined;
+        attachmentTarget: FileAttachmentTarget | "Uploader";
+        isInert?: boolean;
+        isInitialAppRender: boolean;
+        isEditorInitialAppRender?: boolean;
+        rootNavigate: NavigateFunction;
+        getReporter: () => Reporter;
+        onShiftMouseDown?: (event: PointerEvent) => void;
+        isLongPressDisabled?: () => boolean;
+        onLongPress?: () => void;
+        onDrag?: (dragPromise: Promise<void>) => void;
+        onOpenViewer?: () => {preventDefault: boolean} | void;
+    },
+): () => void {
+    let hasCleanedUp = false;
+    let pollTimeout: Timeout | null = null;
+    let unsubscribeFromRefreshTimer: (() => void) | null = null;
+
+    const cleanupBase = addContentFilePreviewBehaviorBase(element, {
+        isInert,
+        onShiftMouseDown,
+        isLongPressDisabled,
+        onLongPress,
+        onPress: () => {
+            // If this is a video, then click doesn't open the file viewer but rather
+            // plays/pauses the video.
+            if (videoPlayerBehavior) {
+                const result = videoPlayerBehavior?.onPress();
+                if (result?.preventDefault) return;
+            }
+
+            // If this is audio, then click doesn't open the file viewer but rather
+            // plays/pauses the audio.
+            if (audioPlayerBehavior) {
+                const result = audioPlayerBehavior?.onPress();
+                if (result?.preventDefault) return;
+            }
+
+            openViewer();
+        },
+        onDragStart: dataTransfer => {
+            if (!file) return;
+
+            const clipboardSerializer =
+                ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                    node.type.schema,
+                    () => spaceId,
+                    () => ({
+                        ...emptyContentReferences,
+                        fileById: new Map([
+                            [
+                                file.id,
+                                {signedUrlSearch: file.signedUrlSearch, file: new FileModel(file)},
+                            ],
+                        ]),
+                    }),
+                    () => attachmentTarget,
+                );
+
+            const serializedNode = clipboardSerializer.serializeNode(node);
+            assert(serializedNode instanceof HTMLElement);
+
+            // See https://github.com/ProseMirror/prosemirror/issues/1156
+            dataTransfer.effectAllowed = onDrag ? "copyMove" : "copy";
+
+            dataTransfer.clearData();
+            dataTransfer.setData("text/html", serializedNode.outerHTML);
+
+            // NOTE(calebmer, 2024-10-15): I'd love to also include `image/png` here with a
+            // `Blob` of the preview image like we do when copying (see the copy
+            // implementation in our `contextmenu` handler). Unfortunately, generating a
+            // `Blob` from a canvas is asynchronous. We could optimistically generate
+            // `Blob`s in the background so they're available synchronously here but that's
+            // too complicated for a feature that's not that important.
+
+            // We check for this content type in the `dragenter` event to know if we need
+            // to show file drop targets. If this is set then it's assumed `text/html` will
+            // be parsed to `fileRow` or `file` nodes.
+            dataTransfer.setData("application/x.alpine.file", "");
+
+            if (onDrag) {
+                const dragPromiseResolver = createPromiseResolver();
+
+                const handleDragEnd = () => {
+                    element.removeEventListener("dragend", handleDragEnd);
+                    dragPromiseResolver.resolve();
+                };
+
+                // Attach `dragend` handler here since even if this content file's behavior is
+                // cleaned up (say `reference` changes) we don't want to remove our `dragend`
+                // event listener.
+                element.addEventListener("dragend", handleDragEnd);
+
+                onDrag(dragPromiseResolver.promise);
+            }
+        },
+    });
+
+    const openViewer = () => {
+        if (onOpenViewer) {
+            const result = onOpenViewer();
+            if (result?.preventDefault) return;
+        }
+
+        if (!file) return;
+
+        handoffContentFilePreviewState({
+            ownedByElement: element,
+            signedUrlSearch: file.signedUrlSearch,
+            file: new FileModel(file),
+        });
+
+        rootNavigate(location => {
+            const searchParams = new URLSearchParams(location.search);
+
+            searchParams.set(
+                "file",
+                // Space separator was chosen since it's encoded as a `+` which looks nice in
+                // the URL.
+                attachmentTarget === "Uploader"
+                    ? file.id
+                    : `${file.id} ${serializeFileAttachmentTargetString(attachmentTarget)}`,
+            );
+
+            return [
+                {...location, search: searchParams.toString()},
+                {
+                    replace: true,
+                    // Don't fetch route data from the server. We don't need any new route data.
+                    //
+                    // NOTE(calebmer, 2024-10-15): I just realized, instead of adding this private
+                    // API with a patch it might be better to add the `shouldRevalidate` function to
+                    // every route, look for specific changes, and ignore everything else. Like the
+                    // `s.$spaceId.tsx` revalidation function which only returns true if the
+                    // `SpaceId` changes.
+                    unstable_shouldRevalidate: false,
+                },
+            ];
+        });
+    };
 
     /* ========================================================================== *\
      *                             Context menu event                             *
@@ -1837,25 +1893,14 @@ export function addContentFilePreviewBehavior(
     return () => {
         hasCleanedUp = true;
 
+        cleanupBase();
+
         stopMaintainingFile?.();
 
         videoPlayerBehavior?.cleanup();
         audioPlayerBehavior?.cleanup();
 
-        if (!isInert) {
-            element.removeEventListener("pointerdown", handlePointerDown);
-            element.removeEventListener("pointerup", handlePointerUp);
-            element.removeEventListener("pointerleave", handlePointerLeave);
-            element.removeEventListener("pointercancel", handlePointerCancel);
-            element.removeEventListener("dragstart", handleDragStart);
-            element.removeEventListener("contextmenu", handleContextMenu);
-
-            for (const scrollEventTarget of scrollEventTargets) {
-                scrollEventTarget.removeEventListener("scroll", handleScroll, true);
-            }
-        }
-
-        resetPointerState();
+        element.removeEventListener("contextmenu", handleContextMenu);
 
         pollTimeout?.clear();
         pollTimeout = null;

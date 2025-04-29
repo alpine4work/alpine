@@ -22,12 +22,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
  *
  * You can use this to add a button-like element to a code block that doesn't
  * take focus away from the code block when interacting with it.
- *
- * For example,
- *
- * @param element - The element to add unfocusable button behavior to.
- * @param options - Options for the unfocusable button behavior.
- * @returns A function to remove the unfocusable button behavior.
  */
 export function addUnfocusableButtonBehaviorToElement(
     element: HTMLElement,

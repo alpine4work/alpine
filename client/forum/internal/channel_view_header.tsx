@@ -64,6 +64,11 @@ export function ChannelViewHeader({
                     flexDirection="column"
                     gap={channelViewHeaderSectionGap}
                 >
+                    <ChannelViewContributorsSection
+                        channel={channelHeader.channel}
+                        contributors={contributors}
+                        withoutTitle={true}
+                    />
                     {(channelHeader.isEditingDescription ||
                         !isContentEmpty(channelHeader.channel.description.doc)) && (
                         <Box marginBottom="-1.5">
@@ -81,11 +86,6 @@ export function ChannelViewHeader({
                             )}
                         </Box>
                     )}
-                    <ChannelViewContributorsSection
-                        channel={channelHeader.channel}
-                        contributors={contributors}
-                        withoutTitle={true}
-                    />
                 </Box>
             )}
             <Box

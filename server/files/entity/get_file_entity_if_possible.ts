@@ -38,6 +38,10 @@ export async function getFileEntityIfPossible(
                 ok: true,
                 value: new FileEntityModel(FileDocumentEntityModelSchema, {
                     type: "Document",
+                    // Always prefer the model with the higher preview version. If the preview
+                    // version is the same then use the document version (only applies to the
+                    // title).
+                    versions: [document.preview?.version ?? -1, document.version],
                     id: documentId,
                     version: document.version,
                     titleWithoutFallback: document.titleWithoutFallback,
@@ -98,7 +102,9 @@ export async function getFileEntityIfPossible(
 
             const channel = assertExists(
                 findMapIterable(channelQuery.items, item =>
-                    item.model instanceof ChannelModel ? item.model : undefined,
+                    item.model instanceof ChannelModel
+                        ? (item as {readonly version: number; readonly model: ChannelModel})
+                        : undefined,
                 ),
             );
             const channelContributors = findMapIterable(channelQuery.items, item =>
@@ -109,9 +115,10 @@ export async function getFileEntityIfPossible(
                 ok: true,
                 value: new FileEntityModel(FileChannelEntityModelSchema, {
                     type: "Channel",
+                    versions: [channel.version],
                     id: channelId,
-                    name: channel.name,
-                    description: channel.description,
+                    name: channel.model.name,
+                    description: channel.model.description,
                     contributorCount: channelContributors?.contributorCount ?? 0,
                     topContributors: channelContributors?.topContributors ?? emptyArray,
                 }),

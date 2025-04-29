@@ -107,6 +107,7 @@ export function ChannelViewAside({
                 gap={channelViewAsideSectionGap}
                 style={{paddingTop: channelViewAsidePaddingTop}}
             >
+                <ChannelViewContributorsSection channel={channel} contributors={contributors} />
                 {(isEditingDescription || !isContentEmpty(channel.description.doc)) && (
                     <Box
                         // Negative margin bottom to optically align our description. Visually, the
@@ -133,7 +134,6 @@ export function ChannelViewAside({
                         )}
                     </Box>
                 )}
-                <ChannelViewContributorsSection channel={channel} contributors={contributors} />
                 {fileReferences.length > 0 && (
                     <Box>
                         <Box

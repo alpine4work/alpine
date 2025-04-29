@@ -20,6 +20,7 @@ export const parentScrollWhenPointerDownAndOverClassNames = [
     contentStyles.codeBlockLanguagePickerClassName,
     contentStyles.codeBlockCopyButtonClassName,
     contentStyles.tableAddRowBumperClassName,
+    contentStyles.fileChannelEntityPreviewSubscribeButtonClassName,
     contentViewStyles.seeButtonClassName,
     contentFileVideoAndAudioPlayerControlsStyles.playButtonClassName,
     contentFileVideoAndAudioPlayerControlsStyles.playbackRateButtonClassName,

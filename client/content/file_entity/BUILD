@@ -1,0 +1,38 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "file_entity",
+    visibility = [
+        "//app:__subpackages__",
+        "//client:__subpackages__",
+    ],
+    deps = [
+        "//:node_modules/@types/react",
+        "//:node_modules/phosphor-react",
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-state",
+        "//:node_modules/prosemirror-transform",
+        "//:node_modules/prosemirror-view",
+        "//:node_modules/react",
+        "//client/accounts",
+        "//client/content",
+        "//client/design",
+        "//client/documents",
+        "//client/forum",
+        "//client/helpers",
+        "//client/spaces",
+        "//client/styles",
+        "//client/tasks",
+        "//client/tracer",
+        "//shared/content",
+        "//shared/design",
+        "//shared/documents",
+        "//shared/files",
+        "//shared/forum",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/messaging",
+        "//shared/prosemirror",
+        "//shared/tasks",
+    ],
+)

@@ -7,7 +7,8 @@ import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.js";
 
 const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     [
@@ -483,6 +484,140 @@ test("layouts two audio files in a row on mobile", () => {
     ).toEqual([
         {height: 95, width: 175, widthFr: 0.5},
         {height: 95, width: 175, widthFr: 0.5},
+    ]);
+});
+
+test("layouts file entity", () => {
+    expect(
+        computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
+            blockWidth: 600,
+            spacingScale: "small",
+        }),
+    ).toEqual([{height: 192, width: 600, widthFr: 1}]);
+});
+
+test("layouts two file entities", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [`Document:${generateId<DocumentId>()}`, `Document:${generateId<DocumentId>()}`],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 225.412, width: 296, widthFr: 0.5},
+        {height: 225.412, width: 296, widthFr: 0.5},
+    ]);
+});
+
+test("layouts file entity and standard image", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [`Document:${generateId<DocumentId>()}`, standardFile.initialData],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 223.618, width: 293.644, widthFr: 0.49602},
+        {height: 223.618, width: 298.356, widthFr: 0.50398},
+    ]);
+});
+
+test("layouts file entity and tall image", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [`Document:${generateId<DocumentId>()}`, tallFile.initialData],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 225.412, width: 422.925, widthFr: 0.714401},
+        {height: 225.412, width: 169.075, widthFr: 0.285599},
+    ]);
+});
+
+test("layouts three file entities", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [
+                `Document:${generateId<DocumentId>()}`,
+                `Document:${generateId<DocumentId>()}`,
+                `Document:${generateId<DocumentId>()}`,
+            ],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 258.824, width: 194.667, widthFr: 0.333333},
+        {height: 258.824, width: 194.667, widthFr: 0.333333},
+        {height: 258.824, width: 194.667, widthFr: 0.333333},
+    ]);
+});
+
+test("layouts two file entities and standard image", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [
+                `Document:${generateId<DocumentId>()}`,
+                `Document:${generateId<DocumentId>()}`,
+                standardFile.initialData,
+            ],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 205.745, width: 154.745, widthFr: 0.264974},
+        {height: 205.745, width: 154.745, widthFr: 0.264974},
+        {height: 205.745, width: 274.51, widthFr: 0.470051},
+    ]);
+});
+
+test("layouts two file entities and tall image", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [
+                `Document:${generateId<DocumentId>()}`,
+                `Document:${generateId<DocumentId>()}`,
+                tallFile.initialData,
+            ],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 258.824, width: 194.932, widthFr: 0.333788},
+        {height: 258.824, width: 194.932, widthFr: 0.333788},
+        {height: 258.824, width: 194.136, widthFr: 0.332424},
+    ]);
+});
+
+test("layouts file entity, standard image, and tall image", () => {
+    expect(
+        computeContentFileRowLikeLayout(
+            [
+                `Document:${generateId<DocumentId>()}`,
+                standardFile.initialData,
+                tallFile.initialData,
+            ],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
+    ).toEqual([
+        {height: 205.894, width: 154.857, widthFr: 0.265166},
+        {height: 205.894, width: 274.708, widthFr: 0.470391},
+        {height: 205.894, width: 154.435, widthFr: 0.264443},
     ]);
 });
 

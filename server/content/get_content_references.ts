@@ -14,7 +14,7 @@ import {
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {FileEntityMergeableModel} from "~/shared/files/file_entity_model.js";
+import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel, getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -203,20 +203,12 @@ export async function getContentReferences(
         runAllPromises(
             mapIterable(
                 referencedIds.fileEntityIds,
-                async (
-                    entityId,
-                ): Promise<[FileEntityId, Result<FileEntityMergeableModel>] | null> => {
+                async (entityId): Promise<[FileEntityId, Result<FileEntityModel>] | null> => {
                     // NOCOMMIT: Consider protection against infinite recursion! If there's a cycle
                     // between documents above the fold, for example.
                     const entityResult = await context.fileEntity.getIfPossible(spaceId, entityId);
                     if (!entityResult) return null;
-
-                    return [
-                        entityId,
-                        entityResult.ok
-                            ? {ok: true, value: FileEntityMergeableModel.new(entityResult.value)}
-                            : entityResult,
-                    ];
+                    return [entityId, entityResult];
                 },
             ),
         ),

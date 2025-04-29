@@ -32,6 +32,7 @@ import {
 } from "prosemirror-view";
 import {
     FocusEvent,
+    Key,
     Memo,
     PropsWithoutRef,
     ReactElement,
@@ -39,6 +40,7 @@ import {
     RefAttributes,
     forwardRef,
     useCallback,
+    useContext,
     useEffect,
     useImperativeHandle,
     useInsertionEffect,
@@ -57,6 +59,7 @@ import {
     setContentEditorFloaterState,
     updateContentEditorReferences,
 } from "~/client/content/content_editor_state.js";
+import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
@@ -864,6 +867,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
 
     // We choose our interaction mode based on whether the device's primary input
     // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
@@ -914,6 +918,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const contextRef = useRef(context);
     const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
     const spaceContextRef = useRef(spaceContext);
+    const fileEntityRenderersRef = useRef(fileEntityRenderers);
     useInsertionEffect(() => {
         propsRef.current = props;
         routeLayoutRef.current = routeLayout;
@@ -925,6 +930,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         contextRef.current = context;
         addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
         spaceContextRef.current = spaceContext;
+        fileEntityRenderersRef.current = fileEntityRenderers;
     });
 
     /* ========================================================================== *\
@@ -1247,11 +1253,14 @@ function ContentEditor<Content extends ContentWithReferences>(
             }),
             file: createContentEditorFileNodeViewConstructor({
                 rootNavigate: (...args) => (rootNavigateRef as any).current(...args),
+                navigate: (...args) => (navigateRef as any).current(...args),
                 getContext: () => assertExists(contextRef.current),
                 getReporter: () => reporterRef.current,
                 getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getCurrentAccount: () => assertExists(spaceContextRef.current).currentAccount,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
+                getFileEntityRenderers: () => fileEntityRenderersRef.current,
                 getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
@@ -3277,7 +3286,10 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                 ProseMirror/React reconciliation (part 2)                  *
     \* ========================================================================== */
 
-    const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
+    const [selectedNodeState, setSelectedNodeState] = useState<{
+        readonly key: Key;
+        readonly element: HTMLElement;
+    } | null>(null);
 
     // Reconcile our imperative `EditorView` state with state from React. If this
     // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
@@ -3348,15 +3360,20 @@ function ContentEditor<Content extends ContentWithReferences>(
         // `ProseMirror-selectednode` CSS class so that we can render our own custom
         // ring around it.
         if (!(state.getSelection() instanceof NodeSelection)) {
-            setSelectedNodeElement(null);
+            setSelectedNodeState(null);
         } else {
             const selectedNodeElement = viewElement.getElementsByClassName(
                 "ProseMirror-selectednode",
             )[0];
             if (selectedNodeElement instanceof HTMLElement) {
-                setSelectedNodeElement(selectedNodeElement);
+                setSelectedNodeState(selectedNodeState => {
+                    if (selectedNodeState?.element === selectedNodeElement)
+                        return selectedNodeState;
+
+                    return {key: generateId(), element: selectedNodeElement};
+                });
             } else {
-                setSelectedNodeElement(null);
+                setSelectedNodeState(null);
             }
         }
 
@@ -4497,7 +4514,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 viewRef={viewRef}
                 accessLevel={accessLevel}
                 floaterState={floaterState}
-                selectedNodeElement={selectedNodeElement}
+                selectedNodeElement={selectedNodeState?.element ?? null}
                 hasFileDropTarget={!!fileDropTarget}
                 onInsertFiles={(insertionSelection, files) =>
                     viewRef.current?.insertFiles(insertionSelection, files)
@@ -4507,7 +4524,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }}
             />
             {!fileDropTarget &&
-                selectedNodeElement &&
+                selectedNodeState &&
                 // Only show the focus ring for selected nodes while editing. Unless we have
                 // comment access and we've selected a file node. Since we still show the
                 // toolbar for selected files with the only option being "Comment".
@@ -4515,7 +4532,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     (hasAccessLevel(accessLevel, "Comment") &&
                         unwrappedState.selection instanceof NodeSelection &&
                         unwrappedState.selection.node.type.name === "file")) && (
-                    <FocusRing isVisible={true} targetElement={selectedNodeElement} />
+                    <FocusRing
+                        key={selectedNodeState.key}
+                        isVisible={true}
+                        targetElement={selectedNodeState.element}
+                    />
                 )}
             {phantomSelections?.map(phantomSelection => (
                 <ContentEditorPhantomSelectionCursor

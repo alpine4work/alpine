@@ -2,7 +2,9 @@ import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
+import {renderContentFileEntityPreview} from "~/client/content/internal/content_file_entity_preview.js";
 import {
     layoutContentFile,
     layoutContentFileParent,
@@ -31,6 +33,7 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
@@ -39,6 +42,7 @@ import {
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     ProsemirrorHtmlSerializationDecoration,
@@ -68,6 +72,7 @@ export function renderContentToHtmlStore(
         routeLayout,
         clientInfo,
         isInitialAppRender,
+        fileEntityRenderers,
         withPosAttribute,
         placeholder,
     }: {
@@ -80,6 +85,7 @@ export function renderContentToHtmlStore(
         routeLayout: RouteLayout;
         clientInfo: ClientInfo;
         isInitialAppRender: boolean;
+        fileEntityRenderers: ContentFileEntityRenderers | null;
         withPosAttribute?: boolean;
         placeholder?: string;
     },
@@ -99,6 +105,7 @@ export function renderContentToHtmlStore(
         platform,
         spacingScale,
         isInitialAppRender,
+        fileEntityRenderers,
         withPosAttribute,
         placeholder,
     }).map(fragmentHtmlGenerator => {
@@ -122,6 +129,16 @@ export function renderContentToHtmlStore(
  */
 export function renderContentFragmentToHtmlGeneratorStore(
     content: ContentWithReferences,
+    options: Parameters<typeof actuallyRenderContentFragmentToHtmlGeneratorStore>[2],
+): Store<HtmlFragmentGenerator> {
+    return computeStore(get => {
+        return actuallyRenderContentFragmentToHtmlGeneratorStore(get, content, options);
+    });
+}
+
+export function actuallyRenderContentFragmentToHtmlGeneratorStore(
+    get: <Value>(store: Store<Value>) => Value,
+    content: ContentWithReferences,
     {
         spaceId,
         accountStore,
@@ -132,6 +149,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
         platform,
         spacingScale,
         isInitialAppRender,
+        fileEntityRenderers,
         withPosAttribute,
         isInert,
         placeholder,
@@ -147,298 +165,307 @@ export function renderContentFragmentToHtmlGeneratorStore(
         platform: Platform;
         spacingScale: SpacingScale;
         isInitialAppRender: boolean;
+        fileEntityRenderers: ContentFileEntityRenderers | null;
         withPosAttribute?: boolean;
         isInert?: boolean;
         placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
     },
-): Store<HtmlFragmentGenerator> {
-    return computeStore(get => {
-        assert(content.doc.type.schema.topNodeType === content.doc.type);
+): HtmlFragmentGenerator {
+    assert(content.doc.type.schema.topNodeType === content.doc.type);
 
-        const isTitleEmpty = isContentTitleEmpty(content.doc);
-        const isBodyEmpty = isContentBodyEmpty(content.doc);
+    const isTitleEmpty = isContentTitleEmpty(content.doc);
+    const isBodyEmpty = isContentBodyEmpty(content.doc);
 
-        const orderedListItemNumberByNode = new Map<Node, number>();
+    const orderedListItemNumberByNode = new Map<Node, number>();
 
-        return serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
-            withPosAttribute,
-            startPos: 1,
-            decorations,
+    return serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
+        withPosAttribute,
+        startPos: 1,
+        decorations,
 
-            // IMPORTANT: If you have a custom renderer in `nodeRenderers` here you should
-            // also have a matching custom view in `nodeViews` in `<ContentEditor>`.
-            nodeRenderers: {
-                orderedListItem: (node, pos) => {
-                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                        node.type.spec.toDOM!(node),
-                    );
-                    assert(html instanceof HtmlElementGenerator);
+        // IMPORTANT: If you have a custom renderer in `nodeRenderers` here you should
+        // also have a matching custom view in `nodeViews` in `<ContentEditor>`.
+        nodeRenderers: {
+            orderedListItem: (node, pos) => {
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                    node.type.spec.toDOM!(node),
+                );
+                assert(html instanceof HtmlElementGenerator);
 
-                    let listItemNumber = orderedListItemNumberByNode.get(node);
+                let listItemNumber = orderedListItemNumberByNode.get(node);
 
-                    // If we do not have the number for this list item, then compute the number for
-                    // all list items in this node's parent and try checking for the number again.
-                    // The number must be present.
-                    if (listItemNumber === undefined) {
-                        const $pos = content.doc.resolve(pos + 1);
-                        assert($pos.parent === node && $pos.parentOffset === 0);
+                // If we do not have the number for this list item, then compute the number for
+                // all list items in this node's parent and try checking for the number again.
+                // The number must be present.
+                if (listItemNumber === undefined) {
+                    const $pos = content.doc.resolve(pos + 1);
+                    assert($pos.parent === node && $pos.parentOffset === 0);
 
-                        const parentNode = $pos.node($pos.depth - 1);
-                        computeContentOrderedListItemNumbers(
-                            parentNode,
-                            orderedListItemNumberByNode,
-                        );
+                    const parentNode = $pos.node($pos.depth - 1);
+                    computeContentOrderedListItemNumbers(parentNode, orderedListItemNumberByNode);
 
-                        listItemNumber = orderedListItemNumberByNode.get(node);
-                        assert(listItemNumber !== undefined);
-                    }
+                    listItemNumber = orderedListItemNumberByNode.get(node);
+                    assert(listItemNumber !== undefined);
+                }
 
-                    html.setAttribute("data-list-number", listItemNumber);
+                html.setAttribute("data-list-number", listItemNumber);
 
-                    return {html, contentHtml};
-                },
-                checkListItem: node => {
-                    const {html} = renderProsemirrorDomOutputSpec(node.type.spec.toDOM!(node));
-                    assert(html instanceof HtmlElementGenerator);
+                return {html, contentHtml};
+            },
+            checkListItem: node => {
+                const {html} = renderProsemirrorDomOutputSpec(node.type.spec.toDOM!(node));
+                assert(html instanceof HtmlElementGenerator);
 
-                    const checkboxContainerHtml = new HtmlElementGenerator("div");
-                    html.appendChild(checkboxContainerHtml);
-                    checkboxContainerHtml.setAttribute(
+                const checkboxContainerHtml = new HtmlElementGenerator("div");
+                html.appendChild(checkboxContainerHtml);
+                checkboxContainerHtml.setAttribute(
+                    "class",
+                    contentStyles.checkListItemCheckboxContainerClassName,
+                );
+
+                const checkboxHtml = new HtmlElementGenerator("div");
+                checkboxContainerHtml.appendChild(checkboxHtml);
+                checkboxHtml.setAttribute("class", contentStyles.checkListItemCheckboxClassName);
+                checkboxHtml.appendChild(
+                    createSvgHtmlGenerator(
+                        checkIconSvg({
+                            className: contentStyles.checkListItemCheckboxIconClassName,
+                        }),
+                    ),
+                );
+
+                const contentHtml = new HtmlElementGenerator("div");
+                html.appendChild(contentHtml);
+                contentHtml.setAttribute("class", contentStyles.checkListItemContentClassName);
+
+                return {html, contentHtml};
+            },
+            codeBlock: node => {
+                // IMPORTANT: Any change you make to this function also likely must be made to
+                // the `codeBlock` node view in `content_editor_code_block_node_view.ts`.
+
+                const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
+                const language = contentCodeBlockLanguageById[languageId];
+
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                    node.type.spec.toDOM!(node),
+                );
+
+                assert(html instanceof HtmlElementGenerator && html.tagName === "pre");
+                assert(
+                    contentHtml instanceof HtmlElementGenerator && contentHtml.tagName === "code",
+                );
+                assert(html.childElementCount === 1);
+                assert(html.firstElementChild === contentHtml);
+
+                const toolbarHtml = new HtmlElementGenerator("div");
+                html.insertBefore(toolbarHtml, contentHtml);
+                toolbarHtml.setAttribute("class", contentStyles.codeBlockToolbarClassName);
+
+                const toolbarFlexHtml = new HtmlElementGenerator("div");
+                toolbarHtml.appendChild(toolbarFlexHtml);
+                toolbarFlexHtml.setAttribute("class", contentStyles.codeBlockToolbarFlexClassName);
+
+                const toolbarOverflowGradientHtml = new HtmlElementGenerator("div");
+                toolbarFlexHtml.appendChild(toolbarOverflowGradientHtml);
+                toolbarOverflowGradientHtml.setAttribute(
+                    "class",
+                    contentStyles.codeBlockToolbarOverflowGradientClassName,
+                );
+
+                {
+                    const languagePickerHtml = new HtmlElementGenerator("div");
+                    toolbarFlexHtml.appendChild(languagePickerHtml);
+                    languagePickerHtml.setAttribute(
                         "class",
-                        contentStyles.checkListItemCheckboxContainerClassName,
+                        contentStyles.codeBlockLanguagePickerClassName,
                     );
 
-                    const checkboxHtml = new HtmlElementGenerator("div");
-                    checkboxContainerHtml.appendChild(checkboxHtml);
-                    checkboxHtml.setAttribute(
+                    const languagePickerTextHtml = new HtmlElementGenerator("div");
+                    languagePickerHtml.appendChild(languagePickerTextHtml);
+                    languagePickerTextHtml.setAttribute(
                         "class",
-                        contentStyles.checkListItemCheckboxClassName,
+                        contentStyles.codeBlockLanguagePickerTextClassName,
                     );
-                    checkboxHtml.appendChild(
+
+                    languagePickerTextHtml.appendChild(new HtmlTextGenerator(language.name));
+                }
+
+                {
+                    const copyButtonHtml = new HtmlElementGenerator("div");
+                    toolbarFlexHtml.appendChild(copyButtonHtml);
+                    copyButtonHtml.setAttribute(
+                        "class",
+                        classNames(
+                            contentStyles.codeBlockCopyButtonClassName,
+                            // This class will be removed when the copy button is pressed and replaced
+                            // with a `grey-100` class. We need to add the class here for server rendering.
+                            sprinkles({color: "grey-60"}),
+                        ),
+                    );
+                    copyButtonHtml.appendChild(
                         createSvgHtmlGenerator(
-                            checkIconSvg({
-                                className: contentStyles.checkListItemCheckboxIconClassName,
+                            clipboardTextIconSvg({
+                                className: contentStyles.codeBlockCopyButtonIconClassName,
                             }),
                         ),
                     );
+                }
 
-                    const contentHtml = new HtmlElementGenerator("div");
-                    html.appendChild(contentHtml);
-                    contentHtml.setAttribute("class", contentStyles.checkListItemContentClassName);
+                return {html, contentHtml};
+            },
+            mention: node => {
+                const mention: ContentMention = node.attrs.mention;
+                const isCurrentAccountMention = currentAccount?.id === mention.accountId;
 
-                    return {html, contentHtml};
-                },
-                codeBlock: node => {
-                    // IMPORTANT: Any change you make to this function also likely must be made to
-                    // the `codeBlock` node view in `content_editor_code_block_node_view.ts`.
+                // We need a container element for highlight styles to be applied to. Our
+                // mention element may have a background color when mentioning the
+                // current account.
+                const containerElement = new HtmlElementGenerator("span");
 
-                    const languageId: ContentCodeBlockLanguageId = node.attrs.language ?? "text";
-                    const language = contentCodeBlockLanguageById[languageId];
+                const element = new HtmlElementGenerator("span");
+                containerElement.appendChild(element);
+                element.setAttribute(
+                    "class",
+                    classNames(
+                        contentStyles.mentionClassName,
+                        isCurrentAccountMention && contentStyles.currentAccountMentionClassName,
+                    ),
+                );
 
-                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                        node.type.spec.toDOM!(node),
-                    );
+                const atElement = new HtmlElementGenerator("span");
+                element.appendChild(atElement);
+                atElement.setAttribute("class", contentStyles.mentionAtClassName);
+                atElement.appendChild(new HtmlTextGenerator("@"));
 
-                    assert(html instanceof HtmlElementGenerator && html.tagName === "pre");
-                    assert(
-                        contentHtml instanceof HtmlElementGenerator &&
-                            contentHtml.tagName === "code",
-                    );
-                    assert(html.childElementCount === 1);
-                    assert(html.firstElementChild === contentHtml);
-
-                    const toolbarHtml = new HtmlElementGenerator("div");
-                    html.insertBefore(toolbarHtml, contentHtml);
-                    toolbarHtml.setAttribute("class", contentStyles.codeBlockToolbarClassName);
-
-                    const toolbarFlexHtml = new HtmlElementGenerator("div");
-                    toolbarHtml.appendChild(toolbarFlexHtml);
-                    toolbarFlexHtml.setAttribute(
-                        "class",
-                        contentStyles.codeBlockToolbarFlexClassName,
-                    );
-
-                    const toolbarOverflowGradientHtml = new HtmlElementGenerator("div");
-                    toolbarFlexHtml.appendChild(toolbarOverflowGradientHtml);
-                    toolbarOverflowGradientHtml.setAttribute(
-                        "class",
-                        contentStyles.codeBlockToolbarOverflowGradientClassName,
-                    );
-
-                    {
-                        const languagePickerHtml = new HtmlElementGenerator("div");
-                        toolbarFlexHtml.appendChild(languagePickerHtml);
-                        languagePickerHtml.setAttribute(
-                            "class",
-                            contentStyles.codeBlockLanguagePickerClassName,
-                        );
-
-                        const languagePickerTextHtml = new HtmlElementGenerator("div");
-                        languagePickerHtml.appendChild(languagePickerTextHtml);
-                        languagePickerTextHtml.setAttribute(
-                            "class",
-                            contentStyles.codeBlockLanguagePickerTextClassName,
-                        );
-
-                        languagePickerTextHtml.appendChild(new HtmlTextGenerator(language.name));
-                    }
-
-                    {
-                        const copyButtonHtml = new HtmlElementGenerator("div");
-                        toolbarFlexHtml.appendChild(copyButtonHtml);
-                        copyButtonHtml.setAttribute(
-                            "class",
-                            classNames(
-                                contentStyles.codeBlockCopyButtonClassName,
-                                // This class will be removed when the copy button is pressed and replaced
-                                // with a `grey-100` class. We need to add the class here for server rendering.
-                                sprinkles({color: "grey-60"}),
-                            ),
-                        );
-                        copyButtonHtml.appendChild(
-                            createSvgHtmlGenerator(
-                                clipboardTextIconSvg({
-                                    className: contentStyles.codeBlockCopyButtonIconClassName,
-                                }),
-                            ),
-                        );
-                    }
-
-                    return {html, contentHtml};
-                },
-                mention: node => {
-                    const mention: ContentMention = node.attrs.mention;
-                    const isCurrentAccountMention = currentAccount?.id === mention.accountId;
-
-                    // We need a container element for highlight styles to be applied to. Our
-                    // mention element may have a background color when mentioning the
-                    // current account.
-                    const containerElement = new HtmlElementGenerator("span");
-
-                    const element = new HtmlElementGenerator("span");
-                    containerElement.appendChild(element);
-                    element.setAttribute(
-                        "class",
-                        classNames(
-                            contentStyles.mentionClassName,
-                            isCurrentAccountMention && contentStyles.currentAccountMentionClassName,
-                        ),
-                    );
-
-                    const atElement = new HtmlElementGenerator("span");
-                    element.appendChild(atElement);
-                    atElement.setAttribute("class", contentStyles.mentionAtClassName);
-                    atElement.appendChild(new HtmlTextGenerator("@"));
-
-                    const textElement = new HtmlElementGenerator("span");
-                    element.appendChild(textElement);
-                    textElement.setAttribute("class", contentStyles.mentionTextClassName);
-                    textElement.appendChild(
-                        new HtmlTextGenerator(
-                            get(
-                                createContentMentionTextStore(
-                                    accountStore,
-                                    content.references,
-                                    mention,
-                                ),
+                const textElement = new HtmlElementGenerator("span");
+                element.appendChild(textElement);
+                textElement.setAttribute("class", contentStyles.mentionTextClassName);
+                textElement.appendChild(
+                    new HtmlTextGenerator(
+                        get(
+                            createContentMentionTextStore(
+                                accountStore,
+                                content.references,
+                                mention,
                             ),
                         ),
-                    );
+                    ),
+                );
 
-                    return {html: containerElement};
-                },
-                fileRow: node => {
-                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                        node.type.spec.toDOM!(node),
-                    );
+                return {html: containerElement};
+            },
+            fileRow: node => {
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                    node.type.spec.toDOM!(node),
+                );
 
-                    assert(html instanceof HtmlElementGenerator);
+                assert(html instanceof HtmlElementGenerator);
 
-                    const layouts = layoutContentFileParent(node, {
+                const layouts = layoutContentFileParent(node, {
+                    blockWidth,
+                    spacingScale,
+                    getFile: fileId => {
+                        const fileReference = content.references.fileById?.get(fileId);
+                        if (!fileReference) return null;
+
+                        return get(fileStore.getFileStore(fileReference));
+                    },
+                });
+
+                html.setAttribute(
+                    "style",
+                    [
+                        `height: ${Math.max(...layouts.map(({height}) => height))}px`,
+                        `grid-template-columns: ${layouts
+                            .map(({widthFr}) => `${widthFr}fr`)
+                            .join(" ")}`,
+                    ].join("; "),
+                );
+
+                return {
+                    html,
+                    contentHtml,
+                };
+            },
+            fileFloat: node => {
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                    node.type.spec.toDOM!(node),
+                );
+
+                assert(html instanceof HtmlElementGenerator);
+
+                const childNode = node.content.content[0]!;
+                assert(childNode.type.name === "file");
+
+                const layouts = layoutContentFileParent(node, {
+                    blockWidth,
+                    spacingScale,
+                    getFile: fileId => {
+                        const fileReference = content.references.fileById?.get(fileId);
+                        if (!fileReference) return null;
+
+                        return get(fileStore.getFileStore(fileReference));
+                    },
+                });
+
+                html.setAttribute(
+                    "style",
+                    [`width: ${layouts[0]!.width}px`, `height: ${layouts[0]!.height}px`].join("; "),
+                );
+
+                return {
+                    html,
+                    contentHtml,
+                };
+            },
+            file: (node, pos) => {
+                const fileId: FileId | FileEntityId | null = node.attrs.fileId;
+                const isFileEntity = fileId && !isId<FileId>(fileId);
+
+                const fileReference =
+                    fileId && !isFileEntity ? content.references.fileById?.get(fileId) : undefined;
+
+                const fileEntityResult = isFileEntity
+                    ? content.references.fileEntityById?.get(fileId)
+                    : undefined;
+
+                const file = fileReference ? get(fileStore.getFileStore(fileReference)) : undefined;
+
+                const layout = layoutContentFile(content.doc, pos, node, {
+                    blockWidth,
+                    spacingScale,
+                    getFile: otherFileId => {
+                        if (otherFileId === fileId) return file ?? null;
+
+                        const otherFileReference = content.references.fileById?.get(otherFileId);
+                        if (!otherFileReference) return null;
+
+                        return get(fileStore.getFileStore(otherFileReference));
+                    },
+                });
+
+                if (fileEntityResult) {
+                    const html = renderContentFileEntityPreview(get, {
+                        node,
+                        fileEntityResult,
+                        fileEntityRenderers,
+                        layout,
+                        spaceId: assertExists(spaceId),
+                        accountStore,
+                        fileStore,
+                        currentAccount,
                         blockWidth,
+                        transformScale,
+                        platform,
                         spacingScale,
-                        getFile: fileId => {
-                            const fileReference = content.references.fileById?.get(fileId);
-                            if (!fileReference) return null;
-
-                            return get(fileStore.getFileStore(fileReference));
-                        },
+                        isInitialAppRender,
                     });
 
-                    html.setAttribute(
-                        "style",
-                        [
-                            `height: ${Math.max(...layouts.map(({height}) => height))}px`,
-                            `grid-template-columns: ${layouts
-                                .map(({widthFr}) => `${widthFr}fr`)
-                                .join(" ")}`,
-                        ].join("; "),
-                    );
-
-                    return {
-                        html,
-                        contentHtml,
-                    };
-                },
-                fileFloat: node => {
-                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                        node.type.spec.toDOM!(node),
-                    );
-
-                    assert(html instanceof HtmlElementGenerator);
-
-                    const childNode = node.content.content[0]!;
-                    assert(childNode.type.name === "file");
-
-                    const layouts = layoutContentFileParent(node, {
-                        blockWidth,
-                        spacingScale,
-                        getFile: fileId => {
-                            const fileReference = content.references.fileById?.get(fileId);
-                            if (!fileReference) return null;
-
-                            return get(fileStore.getFileStore(fileReference));
-                        },
-                    });
-
-                    html.setAttribute(
-                        "style",
-                        [`width: ${layouts[0]!.width}px`, `height: ${layouts[0]!.height}px`].join(
-                            "; ",
-                        ),
-                    );
-
-                    return {
-                        html,
-                        contentHtml,
-                    };
-                },
-                file: (node, pos) => {
-                    const fileId: FileId | null = node.attrs.fileId;
-                    const fileReference = fileId
-                        ? content.references.fileById?.get(fileId)
-                        : undefined;
-
-                    const file = fileReference
-                        ? get(fileStore.getFileStore(fileReference))
-                        : undefined;
-
-                    const layout = layoutContentFile(content.doc, pos, node, {
-                        blockWidth,
-                        spacingScale,
-                        getFile: otherFileId => {
-                            if (otherFileId === fileId) return file ?? null;
-
-                            const otherFileReference =
-                                content.references.fileById?.get(otherFileId);
-                            if (!otherFileReference) return null;
-
-                            return get(fileStore.getFileStore(otherFileReference));
-                        },
-                    });
-
+                    return {html};
+                } else {
                     const html = renderContentFilePreview({
                         spaceId: assertExists(spaceId),
                         node,
@@ -452,155 +479,155 @@ export function renderContentFragmentToHtmlGeneratorStore(
                     });
 
                     return {html};
-                },
-                table: node => {
-                    const tableWrapperElement = new HtmlElementGenerator("div");
-                    tableWrapperElement.setAttribute("class", tableWrapperClassName);
+                }
+            },
+            table: node => {
+                const tableWrapperElement = new HtmlElementGenerator("div");
+                tableWrapperElement.setAttribute("class", tableWrapperClassName);
 
-                    const tableWrapper2Element = new HtmlElementGenerator("div");
-                    tableWrapperElement.appendChild(tableWrapper2Element);
-                    tableWrapper2Element.setAttribute("class", tableWrapper2ClassName);
-                    tableWrapper2Element.setAttribute("data-scrollbar", "false");
+                const tableWrapper2Element = new HtmlElementGenerator("div");
+                tableWrapperElement.appendChild(tableWrapper2Element);
+                tableWrapper2Element.setAttribute("class", tableWrapper2ClassName);
+                tableWrapper2Element.setAttribute("data-scrollbar", "false");
 
-                    const tableWrapper3Element = new HtmlElementGenerator("div");
-                    tableWrapper2Element.appendChild(tableWrapper3Element);
-                    tableWrapper3Element.setAttribute("class", tableWrapper3ClassName);
+                const tableWrapper3Element = new HtmlElementGenerator("div");
+                tableWrapper2Element.appendChild(tableWrapper3Element);
+                tableWrapper3Element.setAttribute("class", tableWrapper3ClassName);
 
-                    const tableElement = new HtmlElementGenerator("table");
-                    tableWrapper3Element.appendChild(tableElement);
+                const tableElement = new HtmlElementGenerator("table");
+                tableWrapper3Element.appendChild(tableElement);
 
-                    const tableClasses = classNames({
-                        [contentStyles.tableWithHeaderRowClassName]: node.attrs.hasHeaderRow,
-                        [contentStyles.tableWithHeaderColumnClassName]: node.attrs.hasHeaderColumn,
-                    });
+                const tableClasses = classNames({
+                    [contentStyles.tableWithHeaderRowClassName]: node.attrs.hasHeaderRow,
+                    [contentStyles.tableWithHeaderColumnClassName]: node.attrs.hasHeaderColumn,
+                });
 
-                    if (tableClasses) {
-                        tableElement.setAttribute("class", tableClasses);
-                    }
+                if (tableClasses) {
+                    tableElement.setAttribute("class", tableClasses);
+                }
 
-                    const tableMap = ContentTableMap.get(node);
-                    const tableWidth = tableMap.tableWidth;
-                    const columnWidths = tableMap.columnWidths;
-                    const totalColumnWidth = tableMap.totalColumnWidth;
+                const tableMap = ContentTableMap.get(node);
+                const tableWidth = tableMap.tableWidth;
+                const columnWidths = tableMap.columnWidths;
+                const totalColumnWidth = tableMap.totalColumnWidth;
 
-                    const tableOverflowGradientWidthPx = convertRemLengthToPx(
-                        contentStyles.tableOverflowGradientWidth,
-                        spacingScale,
-                    );
+                const tableOverflowGradientWidthPx = convertRemLengthToPx(
+                    contentStyles.tableOverflowGradientWidth,
+                    spacingScale,
+                );
 
-                    const resolvedColumnWidthPxs = resolveContentTableColumnWidthPx(
-                        spacingScale,
-                        blockWidth,
-                        {
-                            columnWidths,
-                            tableWidth,
-                            totalColumnWidth,
-                        },
-                    );
+                const resolvedColumnWidthPxs = resolveContentTableColumnWidthPx(
+                    spacingScale,
+                    blockWidth,
+                    {
+                        columnWidths,
+                        tableWidth,
+                        totalColumnWidth,
+                    },
+                );
 
-                    const totalColumnWidthPx = resolvedColumnWidthPxs.reduce(
-                        (totalWidthPx, columnWidthPx) => totalWidthPx + columnWidthPx,
-                        0,
-                    );
+                const totalColumnWidthPx = resolvedColumnWidthPxs.reduce(
+                    (totalWidthPx, columnWidthPx) => totalWidthPx + columnWidthPx,
+                    0,
+                );
 
-                    tableWrapper3Element.setAttribute(
-                        "style",
-                        `width: ${
-                            totalColumnWidthPx + tableOverflowGradientWidthPx * 2
-                        }px; max-width: none`,
-                    );
+                tableWrapper3Element.setAttribute(
+                    "style",
+                    `width: ${
+                        totalColumnWidthPx + tableOverflowGradientWidthPx * 2
+                    }px; max-width: none`,
+                );
 
-                    tableElement.setAttribute(
-                        "style",
-                        `grid-template-columns: ${resolvedColumnWidthPxs
-                            .map(columnWidthPx => `${columnWidthPx}px`)
-                            .join(" ")}`,
-                    );
+                tableElement.setAttribute(
+                    "style",
+                    `grid-template-columns: ${resolvedColumnWidthPxs
+                        .map(columnWidthPx => `${columnWidthPx}px`)
+                        .join(" ")}`,
+                );
 
-                    const tableBodyElement = new HtmlElementGenerator("tbody");
-                    tableElement.appendChild(tableBodyElement);
+                const tableBodyElement = new HtmlElementGenerator("tbody");
+                tableElement.appendChild(tableBodyElement);
 
-                    return {html: tableWrapperElement, contentHtml: tableBodyElement};
-                },
+                return {html: tableWrapperElement, contentHtml: tableBodyElement};
+            },
 
-                // Add custom renderers which add the `data-placeholder` attribute when our
-                // content is empty.
-                //
-                // The `title` node always renders a placeholder even if the `placeholder` prop
-                // isn't set. This behavior is used by document presentation mode. Which
-                // doesn't set a `placeholder` prop but does render "Untitled" when there's no
-                // title.
-                title: isTitleEmpty
+            // Add custom renderers which add the `data-placeholder` attribute when our
+            // content is empty.
+            //
+            // The `title` node always renders a placeholder even if the `placeholder` prop
+            // isn't set. This behavior is used by document presentation mode. Which
+            // doesn't set a `placeholder` prop but does render "Untitled" when there's no
+            // title.
+            title: isTitleEmpty
+                ? node => {
+                      const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                          node.type.spec.toDOM!(node),
+                      );
+                      assert(html instanceof HtmlElementGenerator);
+
+                      html.setAttribute("data-placeholder", documentFallbackTitle);
+                      // For accessibility, if the title is empty add the fallback title as an
+                      // `aria-label`. axe complains when we have an empty `<h1>`.
+                      html.setAttribute("aria-label", documentFallbackTitle);
+
+                      return {html, contentHtml};
+                  }
+                : undefined,
+            paragraph:
+                placeholder && isBodyEmpty
                     ? node => {
                           const {html, contentHtml} = renderProsemirrorDomOutputSpec(
                               node.type.spec.toDOM!(node),
                           );
                           assert(html instanceof HtmlElementGenerator);
 
-                          html.setAttribute("data-placeholder", documentFallbackTitle);
-                          // For accessibility, if the title is empty add the fallback title as an
-                          // `aria-label`. axe complains when we have an empty `<h1>`.
-                          html.setAttribute("aria-label", documentFallbackTitle);
+                          html.setAttribute("data-placeholder", placeholder);
 
                           return {html, contentHtml};
                       }
                     : undefined,
-                paragraph:
-                    placeholder && isBodyEmpty
-                        ? node => {
-                              const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                                  node.type.spec.toDOM!(node),
-                              );
-                              assert(html instanceof HtmlElementGenerator);
+        },
 
-                              html.setAttribute("data-placeholder", placeholder);
+        // IMPORTANT: If you have a custom renderer in `markRenderers` here you should
+        // also have a matching custom view in `markViews` in `<ContentEditor>`.
+        markRenderers: {
+            // The link view in `<ContentEditor>` does not change the visual presentation
+            // of links. Instead it does two things:
+            //
+            // 1. Opens the page in the current tab on click if it is a link within the
+            //    current space. Otherwise opens in a new tab.
+            // 2. Opens a link editor on hover.
+            //
+            // 1 is implemented by `<ContentView>` and 2 we don't need since you don't need
+            // to edit a link when reading.
+            link: (mark, inline) => {
+                const markSpec = mark.type.spec.toDOM!(mark, inline);
+                assert(Array.isArray(markSpec) && markSpec[0] === "a");
 
-                              return {html, contentHtml};
-                          }
-                        : undefined,
+                const actualMarkSpec: DOMOutputSpec = isInert
+                    ? ["span", omitObject(markSpec[1], ["href", "target", "rel"]), 0]
+                    : markSpec;
+
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
+                assert(html instanceof HtmlElementGenerator);
+                return {html, contentHtml};
             },
 
-            // IMPORTANT: If you have a custom renderer in `markRenderers` here you should
-            // also have a matching custom view in `markViews` in `<ContentEditor>`.
-            markRenderers: {
-                // The link view in `<ContentEditor>` does not change the visual presentation
-                // of links. Instead it does two things:
-                //
-                // 1. Opens the page in the current tab on click if it is a link within the
-                //    current space. Otherwise opens in a new tab.
-                // 2. Opens a link editor on hover.
-                //
-                // 1 is implemented by `<ContentView>` and 2 we don't need since you don't need
-                // to edit a link when reading.
-                link: (mark, inline) => {
-                    const markSpec = mark.type.spec.toDOM!(mark, inline);
-                    assert(Array.isArray(markSpec) && markSpec[0] === "a");
+            // Only highlight comments in a read-only comment view if
+            // `shouldHighlightComment` returns true.
+            comment: (mark, inline) => {
+                const markSpec = mark.type.spec.toDOM!(mark, inline);
 
-                    const actualMarkSpec: DOMOutputSpec = isInert
-                        ? ["span", omitObject(markSpec[1], ["href", "target", "rel"]), 0]
-                        : markSpec;
+                const actualMarkSpec: DOMOutputSpec = !shouldHighlightComment?.(
+                    mark.attrs.commentThreadId,
+                )
+                    ? ["span", {}, 0]
+                    : markSpec;
 
-                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
-                    assert(html instanceof HtmlElementGenerator);
-                    return {html, contentHtml};
-                },
-
-                // Only highlight comments in a read-only comment view if
-                // `shouldHighlightComment` returns true.
-                comment: (mark, inline) => {
-                    const markSpec = mark.type.spec.toDOM!(mark, inline);
-
-                    const actualMarkSpec: DOMOutputSpec = !shouldHighlightComment?.(
-                        mark.attrs.commentThreadId,
-                    )
-                        ? ["span", {}, 0]
-                        : markSpec;
-
-                    const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
-                    assert(html instanceof HtmlElementGenerator);
-                    return {html, contentHtml};
-                },
+                const {html, contentHtml} = renderProsemirrorDomOutputSpec(actualMarkSpec);
+                assert(html instanceof HtmlElementGenerator);
+                return {html, contentHtml};
             },
-        });
+        },
     });
 }

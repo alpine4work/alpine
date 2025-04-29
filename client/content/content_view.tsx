@@ -2,16 +2,28 @@ import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {CSSProperties, Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {
+    CSSProperties,
+    Memo,
+    useCallback,
+    useContext,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {addContentFileEntityPreviewBehavior} from "~/client/content/internal/content_file_entity_preview.js";
 import {addContentFilePreviewBehavior} from "~/client/content/internal/content_file_preview.js";
 import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
@@ -61,6 +73,7 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -71,7 +84,7 @@ import {
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -261,6 +274,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const accountStore = useAccountClientStore();
     const fileStore = useFileClientStore();
     const reporter = useReporter();
+    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
 
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
@@ -470,6 +484,7 @@ export function ContentView<Content extends ContentWithReferences>({
                     platform,
                     spacingScale,
                     isInitialAppRender,
+                    fileEntityRenderers,
                     isInert,
                     withPosAttribute: true,
                     placeholder,
@@ -503,6 +518,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 platform,
                 spacingScale,
                 isInitialAppRender,
+                fileEntityRenderers,
                 isInert,
                 withPosAttribute: true,
                 placeholder,
@@ -535,6 +551,7 @@ export function ContentView<Content extends ContentWithReferences>({
         platform,
         spacingScale,
         isInitialAppRender,
+        fileEntityRenderers,
         isInert,
         placeholder,
         shouldHighlightComment,
@@ -924,44 +941,68 @@ export function ContentView<Content extends ContentWithReferences>({
                 assert($pos.nodeAfter?.type.name === "file");
                 const node = $pos.nodeAfter;
 
-                const fileId: FileId | null = node.attrs.fileId;
-                const fileReference = fileId ? content.references.fileById?.get(fileId) : undefined;
+                const fileId: FileId | FileEntityId | null = node.attrs.fileId;
+                const isFileEntity = fileId && !isId<FileId>(fileId);
 
-                const actualFileStore = fileReference
-                    ? fileStore.getFileStore(fileReference)
-                    : undefinedStore;
+                const fileReference =
+                    fileId && !isFileEntity ? content.references.fileById?.get(fileId) : undefined;
 
-                let cleanupBehavior: (() => void) | null = null;
+                const fileEntityResult = isFileEntity
+                    ? content.references.fileEntityById?.get(fileId)
+                    : undefined;
 
-                const update = () => {
-                    cleanupBehavior?.();
-                    cleanupBehavior = null;
-
-                    cleanupBehavior = addContentFilePreviewBehavior(
+                if (fileEntityResult) {
+                    const cleanupBehavior = addContentFileEntityPreviewBehavior(
                         () => assertExists(context),
                         element,
                         {
                             spaceId: assertExists(spaceContext).space.id,
-                            node,
-                            file: actualFileStore.getSnapshot(),
-                            attachmentTarget: assertExists(fileAttachmentTarget),
+                            fileEntityId: fileId as FileEntityId,
+                            fileEntityResult,
+                            fileEntityRenderers,
+                            navigate,
                             isInert,
-                            isInitialAppRender,
-                            isEditorInitialAppRender,
-                            rootNavigate,
-                            getReporter: () => reporter,
                         },
                     );
-                };
 
-                const unsubscribeFromStore = actualFileStore.subscribe(update);
-                update();
+                    cleanupFunctions.push(cleanupBehavior);
+                } else {
+                    const actualFileStore = fileReference
+                        ? fileStore.getFileStore(fileReference)
+                        : undefinedStore;
 
-                cleanupFunctions.push(() => {
-                    unsubscribeFromStore();
-                    cleanupBehavior?.();
-                    cleanupBehavior = null;
-                });
+                    let cleanupBehavior: (() => void) | null = null;
+
+                    const update = () => {
+                        cleanupBehavior?.();
+                        cleanupBehavior = null;
+
+                        cleanupBehavior = addContentFilePreviewBehavior(
+                            () => assertExists(context),
+                            element,
+                            {
+                                spaceId: assertExists(spaceContext).space.id,
+                                node,
+                                file: actualFileStore.getSnapshot(),
+                                attachmentTarget: assertExists(fileAttachmentTarget),
+                                isInert,
+                                isInitialAppRender,
+                                isEditorInitialAppRender,
+                                rootNavigate,
+                                getReporter: () => reporter,
+                            },
+                        );
+                    };
+
+                    const unsubscribeFromStore = actualFileStore.subscribe(update);
+                    update();
+
+                    cleanupFunctions.push(() => {
+                        unsubscribeFromStore();
+                        cleanupBehavior?.();
+                        cleanupBehavior = null;
+                    });
+                }
             }
         }
 
@@ -988,6 +1029,7 @@ export function ContentView<Content extends ContentWithReferences>({
         rootNavigate,
         isInitialAppRender,
         fileStore,
+        fileEntityRenderers,
     ]);
 
     // Watch all parent elements of our content view for scroll events. When a

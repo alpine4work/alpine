@@ -1,4 +1,4 @@
-import {FileEntityType, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
+import {getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -31,49 +31,23 @@ import {Schema} from "~/shared/schema/schema.js";
 export type FileEntityModel = InstanceType<typeof FileEntityModel>;
 
 export const FileEntityModel = Schema.interface({
+    /**
+     * The type of this file entity.
+     */
     type: Schema.enum(getFileEntityTypes()),
+
+    /**
+     * Version numbers associated with this entity. When we call
+     * `mergeContentReferences()` we use `versions` to pick a winner. We iterate
+     * through the version array of both models and the first time we find a
+     * version number that's different we pick the model with a higher version
+     * number out of the two. If one version array is a prefix of another than we
+     * pick the model with the longer version array.
+     *
+     * This is a generic conflict resolution mechanism. Different entities will
+     * have fundamentally different ways of resolving conflicts. But we need a
+     * generic way to merge multiple entities together. So that's what we have
+     * here.
+     */
+    versions: Schema.array(Schema.integer),
 });
-
-export class FileEntityMergeableModel {
-    public static readonly schema = Schema.array(FileEntityModel.schema)
-        .minLength(1)
-        .validation("Must have a single `type`", models => {
-            const type = models[0]?.type;
-
-            for (let i = 1; i < models.length; i++) {
-                if (type !== models[i]!.type) return false;
-            }
-
-            return true;
-        })
-        .transform<FileEntityMergeableModel>({
-            serialize: model => model._models,
-            deserialize: models => new FileEntityMergeableModel(models[0]!.type, models),
-        });
-
-    public readonly type: FileEntityType;
-    private readonly _models: ReadonlyArray<FileEntityModel>;
-
-    private constructor(type: FileEntityType, models: ReadonlyArray<FileEntityModel>) {
-        this.type = type;
-        this._models = models;
-    }
-
-    public static new(model: FileEntityModel): FileEntityMergeableModel {
-        return new FileEntityMergeableModel(model.type, [model]);
-    }
-
-    public merge(otherModel: FileEntityMergeableModel): FileEntityMergeableModel {
-        // If `otherModel`'s type is different from our current model's type then
-        // select the one with a larger type lexicographically. This really shouldn't
-        // happen in practice. The types of file entity models don't change since a
-        // `FileEntityId` only ever has one type.
-        if (otherModel.type > this.type) return otherModel;
-        if (otherModel.type < this.type) return this;
-
-        // We don't know how to merge specific file entity model implementations at
-        // this point in the code. The deserializer is therefore responsible for
-        // defining merge logic.
-        return new FileEntityMergeableModel(this.type, this._models.concat(otherModel._models));
-    }
-}

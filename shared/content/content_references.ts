@@ -1,7 +1,7 @@
 import {Node} from "prosemirror-model";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileEntityId, FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {FileEntityMergeableModel} from "~/shared/files/file_entity_model.js";
+import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -80,7 +80,7 @@ export const ContentReferencesSchema = Schema.object({
     fileEntityById: Schema.map(
         FileEntityIdSchema,
         Schema.result(
-            Schema.object({ok: Schema.value(true), value: FileEntityMergeableModel.schema}),
+            Schema.object({ok: Schema.value(true), value: FileEntityModel.schema}),
             Schema.object({ok: Schema.value(false), error: ErrorSchema}),
         ),
     )
@@ -200,7 +200,7 @@ function mergeContentReferencesFileEntityById(
     fileEntityById1: ContentReferences["fileEntityById"],
     fileEntityById2: ContentReferences["fileEntityById"],
 ): ContentReferences["fileEntityById"] {
-    let newFileEntityById: Map<FileEntityId, Result<FileEntityMergeableModel>> | undefined;
+    let newFileEntityById: Map<FileEntityId, Result<FileEntityModel>> | undefined;
 
     // Merge file entities together...
     if (fileEntityById2 !== undefined) {
@@ -213,7 +213,7 @@ function mergeContentReferencesFileEntityById(
                 continue;
             }
 
-            let newFileEntityResult: Result<FileEntityMergeableModel>;
+            let newFileEntityResult: Result<FileEntityModel> | undefined;
             if (!fileEntityResult1.ok) {
                 if (!fileEntityResult2.ok) {
                     // Prefer the first result if neither are ok
@@ -227,11 +227,37 @@ function mergeContentReferencesFileEntityById(
                     // Prefer the `ok: true` result
                     newFileEntityResult = fileEntityResult1;
                 } else {
-                    const newFileEntity = fileEntityResult1.value.merge(fileEntityResult2.value);
-                    if (newFileEntity === fileEntityResult1.value) {
-                        newFileEntityResult = fileEntityResult1;
-                    } else {
-                        newFileEntityResult = {ok: true, value: newFileEntity};
+                    const minVersionsLength = Math.min(
+                        fileEntityResult1.value.versions.length,
+                        fileEntityResult2.value.versions.length,
+                    );
+
+                    // Pick the entity with the highest version number. Stop at the first version
+                    // that's not equal to the other entity's version. This is a generic conflict
+                    // resolution mechanism designed to work without us knowing how to interpret the
+                    // underlying file entity data.
+                    for (let i = 0; i < minVersionsLength; i++) {
+                        const version1 = fileEntityResult1.value.versions[i]!;
+                        const version2 = fileEntityResult2.value.versions[i]!;
+
+                        if (version1 > version2) {
+                            newFileEntityResult = fileEntityResult1;
+                            break;
+                        } else if (version1 < version2) {
+                            newFileEntityResult = fileEntityResult2;
+                            break;
+                        }
+                    }
+
+                    if (!newFileEntityResult) {
+                        if (
+                            fileEntityResult1.value.versions.length >
+                            fileEntityResult2.value.versions.length
+                        ) {
+                            newFileEntityResult = fileEntityResult1;
+                        } else {
+                            newFileEntityResult = fileEntityResult2;
+                        }
                     }
                 }
             }

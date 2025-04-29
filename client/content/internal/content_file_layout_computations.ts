@@ -1,7 +1,9 @@
 import * as kiwi from "@lume/kiwi";
+import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {
     maxFilePreviewAspectRatio,
@@ -26,6 +28,10 @@ const largeFallbackFileSize = {width: largeFallbackFileWidth, height: largeFallb
 const smallFallbackFileWidth = 200;
 const smallFallbackFileHeight = smallFallbackFileWidth / fallbackFileAspectRatio;
 const smallFallbackFileSize = {width: smallFallbackFileWidth, height: smallFallbackFileHeight};
+
+// Aspect ratio of letter paper.
+// https://en.wikipedia.org/wiki/Letter_(paper_size)
+const letterPaperAspectRatio = 17 / 22;
 
 // Round numbers to 3 decimal places so we sending less data over the
 // network in our generated HTML.
@@ -66,13 +72,11 @@ export type ContentFileLayout = {
  * [2]: https://github.com/lume/kiwi
  * [3]: https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html
  */
-export function computeContentFileRowLikeLayout<Files extends Array<FileModelData | null>>(
+export function computeContentFileRowLikeLayout<
+    Files extends Array<FileModelData | FileEntityId | null>,
+>(
     files: Files,
-    {
-        blockWidth,
-        spacingScale,
-        maxHeight: rowMaxHeight = spacing[contentStyles.fileRowMaxHeight],
-    }: {
+    options: {
         blockWidth: number;
         spacingScale: SpacingScale;
         maxHeight?: RemLength;
@@ -81,7 +85,17 @@ export function computeContentFileRowLikeLayout<Files extends Array<FileModelDat
     assert(files.length >= 1);
     assert(files.length <= 3);
 
+    const {
+        blockWidth,
+        spacingScale,
+        maxHeight: rowMaxHeight = spacing[contentStyles.fileRowMaxHeight],
+    } = options;
+
     const remPx = remPxBySpacingScale[spacingScale];
+
+    const fairlySplitBlockWidth =
+        blockWidth / files.length -
+        (contentStyles.fileRowGapWidthRem * remPx * (files.length - 1)) / files.length;
 
     const solver = new kiwi.Solver();
 
@@ -90,7 +104,7 @@ export function computeContentFileRowLikeLayout<Files extends Array<FileModelDat
     let firstHeightVariable: kiwi.Variable | null = null;
 
     for (const file of files) {
-        const {width, height} = getFilePreviewSize(file);
+        const {width, height} = getFileOrFileEntityPreviewSize(files.length, file, options);
 
         const widthVariable = new kiwi.Variable();
         const heightVariable = new kiwi.Variable();
@@ -98,7 +112,9 @@ export function computeContentFileRowLikeLayout<Files extends Array<FileModelDat
         sizeVariables.push({
             width: widthVariable,
             height: heightVariable,
-            actualSize: width * height,
+            // If `width` isn't set then assume `width` as close is an even share of the
+            // `blockWidth`.
+            actualSize: (width ?? fairlySplitBlockWidth) * height,
         });
 
         // All files in a row must have the same height.
@@ -124,7 +140,7 @@ export function computeContentFileRowLikeLayout<Files extends Array<FileModelDat
         // than our file row's width.
         {
             const minWidth = contentStyles.fileMinSizeRem * remPx;
-            const maxWidth = Math.max(minWidth, width);
+            const maxWidth = width !== null ? Math.max(minWidth, width) : null;
 
             if (minWidth === maxWidth) {
                 solver.addConstraint(
@@ -145,14 +161,28 @@ export function computeContentFileRowLikeLayout<Files extends Array<FileModelDat
                     ),
                 );
 
-                solver.addConstraint(
-                    new kiwi.Constraint(
-                        widthVariable,
-                        kiwi.Operator.Le,
-                        maxWidth,
-                        kiwi.Strength.required,
-                    ),
-                );
+                if (maxWidth !== null) {
+                    solver.addConstraint(
+                        new kiwi.Constraint(
+                            widthVariable,
+                            kiwi.Operator.Le,
+                            maxWidth,
+                            kiwi.Strength.required,
+                        ),
+                    );
+                } else {
+                    // If there's no `maxWidth` (because there's no `width`) then we want the file
+                    // to be close to a fair share of the block width. But it's perfectly fine to
+                    // break this constraint.
+                    solver.addConstraint(
+                        new kiwi.Constraint(
+                            widthVariable,
+                            kiwi.Operator.Eq,
+                            fairlySplitBlockWidth,
+                            kiwi.Strength.weak,
+                        ),
+                    );
+                }
             }
         }
 
@@ -195,18 +225,39 @@ export function computeContentFileRowLikeLayout<Files extends Array<FileModelDat
                     ),
                 );
             }
+
+            // If there's no width then we want the file's height to be as close to the
+            // declared height as possible.
+            if (width === null) {
+                solver.addConstraint(
+                    new kiwi.Constraint(
+                        heightVariable,
+                        kiwi.Operator.Eq,
+                        height,
+                        kiwi.Strength.strong,
+                    ),
+                );
+            }
         }
 
         // Maintain the aspect ratio of the file as best we can. This constraint isn't
         // required, the solver may break it if necessary.
+        //
+        // If there's no `width` then the aspect ratio is flexible. But we still add
+        // this constraint with a `>=` operator to make sure the file doesn't get
+        // squished next to other files.
         solver.addConstraint(
             new kiwi.Constraint(
                 widthVariable.minus(
                     heightVariable.multiply(
-                        clamp(minFilePreviewAspectRatio, width / height, maxFilePreviewAspectRatio),
+                        clamp(
+                            minFilePreviewAspectRatio,
+                            (width ?? fairlySplitBlockWidth) / height,
+                            maxFilePreviewAspectRatio,
+                        ),
                     ),
                 ),
-                kiwi.Operator.Eq,
+                width !== null ? kiwi.Operator.Eq : kiwi.Operator.Ge,
                 0,
                 kiwi.Strength.strong,
             ),
@@ -338,16 +389,15 @@ export function computeContentFileRowLikeLayout<Files extends Array<FileModelDat
 export function computeContentFileFloatLayout(
     direction: "left" | "right",
     file: FileModelData | null,
-    {
-        blockWidth,
-        spacingScale,
-    }: {
+    options: {
         blockWidth: number;
         spacingScale: SpacingScale;
     },
 ): ContentFileLayout {
+    const {blockWidth, spacingScale} = options;
+
     const remPx = remPxBySpacingScale[spacingScale];
-    const {width, height} = getFilePreviewSize(file);
+    const {width, height} = getFileOrFileEntityPreviewSize(1, file, options);
 
     const fileFloatMaxWidth = Math.round(blockWidth * contentStyles.fileFloatMaxWidthPercent);
 
@@ -554,7 +604,52 @@ const fileImagePreviewSizeDownScale = 2;
  * this function but we will shrink files to fit in our available space if
  * necessary.
  */
-export function getFilePreviewSize(file: FileModelData | null): {width: number; height: number} {
+function getFileOrFileEntityPreviewSize(
+    fileCount: number,
+    file: FileModelData | FileEntityId | null,
+    {spacingScale, blockWidth}: {spacingScale: SpacingScale; blockWidth: number},
+): {
+    width: number | null;
+    height: number;
+} {
+    // The file entity width is flexible. We want it to be as near the block width
+    // as possible. But the file entity's height when there's:
+    //
+    // - One file should be the same as `<DocumentCommentThreadPreview>`.
+    // - Three files should be a height that gives a letter paper aspect ratio
+    //   assuming there are two other entities in the row.
+    // - Two files should be in between the height of one file and three files.
+    if (typeof file === "string") {
+        const height1 = convertRemLengthToPx(documentCommentThreadPreviewHeight, spacingScale);
+
+        if (fileCount <= 1) {
+            return {width: null, height: height1};
+        }
+
+        const height3 = blockWidth / 3 / letterPaperAspectRatio;
+        const height2 = height1 + (height3 - height1) / 2;
+
+        if (fileCount <= 2) {
+            return {width: null, height: height2};
+        }
+
+        return {width: null, height: height3};
+    }
+
+    return getFilePreviewSize(file);
+}
+
+/**
+ * Get the original size of the file's preview in pixels. When laying out files
+ * we'll try to preserve the width/height aspect ratio from this function. We
+ * also won't grow the file to a size larger than the width/height returned by
+ * this function but we will shrink files to fit in our available space if
+ * necessary.
+ */
+export function getFilePreviewSize(file: FileModelData | null): {
+    width: number;
+    height: number;
+} {
     if (!file?.preview) {
         return smallFallbackFileSize;
     }
