@@ -27,7 +27,7 @@ const fileImagePreviewPlaceholder = new FileImagePreviewPlaceholder([
     ],
 ]);
 
-const file1 = new FileModel({
+const standardFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -42,7 +42,7 @@ const file1 = new FileModel({
     },
 });
 
-const file2 = new FileModel({
+const largeFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -57,7 +57,7 @@ const file2 = new FileModel({
     },
 });
 
-const file3 = new FileModel({
+const tallFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -73,7 +73,7 @@ const file3 = new FileModel({
 });
 
 // iPhone screenshot size
-const file4 = new FileModel({
+const phoneScreenshotFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -89,7 +89,7 @@ const file4 = new FileModel({
 });
 
 // Cinema "scope" 4k resolution
-const file5 = new FileModel({
+const cinemaScopeFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -105,7 +105,7 @@ const file5 = new FileModel({
 });
 
 // Cinema "scope" 4k resolution (vertical)
-const file6 = new FileModel({
+const cinemaScopeVerticalFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -120,7 +120,7 @@ const file6 = new FileModel({
     },
 });
 
-const file7 = new FileModel({
+const iconFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -135,7 +135,7 @@ const file7 = new FileModel({
     },
 });
 
-const file8 = new FileModel({
+const moderateVerticalFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -150,7 +150,7 @@ const file8 = new FileModel({
     },
 });
 
-const file9 = new FileModel({
+const moderateHorizontalFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -165,7 +165,7 @@ const file9 = new FileModel({
     },
 });
 
-const file10 = new FileModel({
+const extremeVerticalFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -180,7 +180,7 @@ const file10 = new FileModel({
     },
 });
 
-const file11 = new FileModel({
+const extremeHorizontalFile = new FileModel({
     id: generateChronologicalId<FileId>(),
     contentType: "image/png",
     contentLength: 100,
@@ -227,7 +227,7 @@ const audioFile2 = new FileModel({
 
 test("layouts single standard image", () => {
     expect(
-        computeContentFileRowLikeLayout([file1.initialData], {
+        computeContentFileRowLikeLayout([standardFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -236,7 +236,7 @@ test("layouts single standard image", () => {
 
 test("layouts single large image", () => {
     expect(
-        computeContentFileRowLikeLayout([file2.initialData], {
+        computeContentFileRowLikeLayout([largeFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -245,7 +245,7 @@ test("layouts single large image", () => {
 
 test("layouts single tall image", () => {
     expect(
-        computeContentFileRowLikeLayout([file3.initialData], {
+        computeContentFileRowLikeLayout([tallFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -254,7 +254,7 @@ test("layouts single tall image", () => {
 
 test("layouts iPhone screenshot", () => {
     expect(
-        computeContentFileRowLikeLayout([file4.initialData], {
+        computeContentFileRowLikeLayout([phoneScreenshotFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -263,7 +263,7 @@ test("layouts iPhone screenshot", () => {
 
 test("layouts cinema scope image", () => {
     expect(
-        computeContentFileRowLikeLayout([file5.initialData], {
+        computeContentFileRowLikeLayout([cinemaScopeFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -272,7 +272,7 @@ test("layouts cinema scope image", () => {
 
 test("layouts vertical cinema scope image", () => {
     expect(
-        computeContentFileRowLikeLayout([file6.initialData], {
+        computeContentFileRowLikeLayout([cinemaScopeVerticalFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -281,25 +281,25 @@ test("layouts vertical cinema scope image", () => {
 
 test("layouts small icon image", () => {
     expect(
-        computeContentFileRowLikeLayout([file7.initialData], {
+        computeContentFileRowLikeLayout([iconFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 76, width: 76, widthFr: 0.126667}]);
 });
 
-test("layouts vertical banner image", () => {
+test("layouts moderate vertical image", () => {
     expect(
-        computeContentFileRowLikeLayout([file8.initialData], {
+        computeContentFileRowLikeLayout([moderateVerticalFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
 });
 
-test("layouts horizontal banner image", () => {
+test("layouts moderate horizontal image", () => {
     expect(
-        computeContentFileRowLikeLayout([file9.initialData], {
+        computeContentFileRowLikeLayout([moderateHorizontalFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -308,7 +308,7 @@ test("layouts horizontal banner image", () => {
 
 test("layouts extreme vertical image", () => {
     expect(
-        computeContentFileRowLikeLayout([file10.initialData], {
+        computeContentFileRowLikeLayout([extremeVerticalFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -317,7 +317,7 @@ test("layouts extreme vertical image", () => {
 
 test("layouts extreme horizontal image", () => {
     expect(
-        computeContentFileRowLikeLayout([file11.initialData], {
+        computeContentFileRowLikeLayout([extremeHorizontalFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -326,7 +326,7 @@ test("layouts extreme horizontal image", () => {
 
 test("layouts two similar images in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file1.initialData, file2.initialData], {
+        computeContentFileRowLikeLayout([standardFile.initialData, largeFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -338,10 +338,13 @@ test("layouts two similar images in a row", () => {
 
 test("layouts three images in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file1.initialData, file3.initialData, file2.initialData], {
-            blockWidth: 600,
-            spacingScale: "small",
-        }),
+        computeContentFileRowLikeLayout(
+            [standardFile.initialData, tallFile.initialData, largeFile.initialData],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
     ).toEqual([
         {height: 170.879, width: 227.991, widthFr: 0.390395},
         {height: 170.879, width: 128.171, widthFr: 0.219471},
@@ -351,7 +354,7 @@ test("layouts three images in a row", () => {
 
 test("layouts standard and tall image in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file1.initialData, file3.initialData], {
+        computeContentFileRowLikeLayout([standardFile.initialData, tallFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -363,7 +366,7 @@ test("layouts standard and tall image in a row", () => {
 
 test("layouts tall and standard image in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file3.initialData, file1.initialData], {
+        computeContentFileRowLikeLayout([tallFile.initialData, standardFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -375,7 +378,7 @@ test("layouts tall and standard image in a row", () => {
 
 test("layouts standard and wide image in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file1.initialData, file5.initialData], {
+        computeContentFileRowLikeLayout([standardFile.initialData, cinemaScopeFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -387,10 +390,13 @@ test("layouts standard and wide image in a row", () => {
 
 test("layouts standard and vertical cinema image in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file1.initialData, file6.initialData], {
-            blockWidth: 600,
-            spacingScale: "small",
-        }),
+        computeContentFileRowLikeLayout(
+            [standardFile.initialData, cinemaScopeVerticalFile.initialData],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
     ).toEqual([
         {height: 337.471, width: 450.262, widthFr: 0.760578},
         {height: 337.471, width: 141.738, widthFr: 0.239422},
@@ -399,10 +405,13 @@ test("layouts standard and vertical cinema image in a row", () => {
 
 test("layouts two iPhone screenshots in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file4.initialData, file4.initialData], {
-            blockWidth: 600,
-            spacingScale: "small",
-        }),
+        computeContentFileRowLikeLayout(
+            [phoneScreenshotFile.initialData, phoneScreenshotFile.initialData],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
     ).toEqual([
         {height: 512, width: 236.571, widthFr: 0.399614},
         {height: 512, width: 236.571, widthFr: 0.399614},
@@ -411,10 +420,17 @@ test("layouts two iPhone screenshots in a row", () => {
 
 test("layouts three iPhone screenshots in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file4.initialData, file4.initialData, file4.initialData], {
-            blockWidth: 600,
-            spacingScale: "small",
-        }),
+        computeContentFileRowLikeLayout(
+            [
+                phoneScreenshotFile.initialData,
+                phoneScreenshotFile.initialData,
+                phoneScreenshotFile.initialData,
+            ],
+            {
+                blockWidth: 600,
+                spacingScale: "small",
+            },
+        ),
     ).toEqual([
         {height: 421.308, width: 194.667, widthFr: 0.333333},
         {height: 421.308, width: 194.667, widthFr: 0.333333},
@@ -424,7 +440,7 @@ test("layouts three iPhone screenshots in a row", () => {
 
 test("layouts small icon and standard image in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file7.initialData, file1.initialData], {
+        computeContentFileRowLikeLayout([iconFile.initialData, standardFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -436,7 +452,7 @@ test("layouts small icon and standard image in a row", () => {
 
 test("layouts small icon and tall image in a row", () => {
     expect(
-        computeContentFileRowLikeLayout([file7.initialData, file3.initialData], {
+        computeContentFileRowLikeLayout([iconFile.initialData, tallFile.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -472,7 +488,7 @@ test("layouts two audio files in a row on mobile", () => {
 
 test("floats standard image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file1.initialData, {
+        computeContentFileFloatLayout("left", standardFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -485,7 +501,7 @@ test("floats standard image left", () => {
 
 test("floats large image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file2.initialData, {
+        computeContentFileFloatLayout("left", largeFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -498,7 +514,7 @@ test("floats large image left", () => {
 
 test("floats tall image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file3.initialData, {
+        computeContentFileFloatLayout("left", tallFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -511,7 +527,7 @@ test("floats tall image left", () => {
 
 test("floats iPhone screenshot left", () => {
     expect(
-        computeContentFileFloatLayout("left", file4.initialData, {
+        computeContentFileFloatLayout("left", phoneScreenshotFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -524,7 +540,7 @@ test("floats iPhone screenshot left", () => {
 
 test("floats cinema scope image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file5.initialData, {
+        computeContentFileFloatLayout("left", cinemaScopeFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -537,7 +553,7 @@ test("floats cinema scope image left", () => {
 
 test("floats vertical cinema scope image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file6.initialData, {
+        computeContentFileFloatLayout("left", cinemaScopeVerticalFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -550,7 +566,7 @@ test("floats vertical cinema scope image left", () => {
 
 test("floats small icon image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file7.initialData, {
+        computeContentFileFloatLayout("left", iconFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -563,7 +579,7 @@ test("floats small icon image left", () => {
 
 test("floats vertical banner image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file8.initialData, {
+        computeContentFileFloatLayout("left", moderateVerticalFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -576,7 +592,7 @@ test("floats vertical banner image left", () => {
 
 test("floats horizontal banner image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file9.initialData, {
+        computeContentFileFloatLayout("left", moderateHorizontalFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -589,7 +605,7 @@ test("floats horizontal banner image left", () => {
 
 test("floats extreme vertical image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file10.initialData, {
+        computeContentFileFloatLayout("left", extremeVerticalFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
@@ -602,7 +618,7 @@ test("floats extreme vertical image left", () => {
 
 test("floats extreme horizontal image left", () => {
     expect(
-        computeContentFileFloatLayout("left", file11.initialData, {
+        computeContentFileFloatLayout("left", extremeHorizontalFile.initialData, {
             blockWidth: 600,
             spacingScale: "small",
         }),
