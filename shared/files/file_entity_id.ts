@@ -1,11 +1,12 @@
 import {InternalError} from "~/shared/error/error.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {isId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DocumentId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -97,4 +98,65 @@ export function isFileEntityId(id: string): id is FileEntityId {
     }
 
     return idTest(idRest);
+}
+
+/**
+ * Get the path corresponding to the provided `FileEntityId`.
+ */
+export function printFileEntityIdIntoPath(spaceId: SpaceId, id: FileEntityId): string {
+    const idObject = parseFileEntityId(id);
+
+    switch (idObject.type) {
+        case "Document":
+            return `/s/${spaceId}/documents/${idObject.documentId}`;
+        case "TaskCollection":
+            return `/s/${spaceId}/tasks/collections/${idObject.collectionId}`;
+        case "Channel":
+            return `/s/${spaceId}/channels/${idObject.channelId}`;
+        default:
+            throw exhaustive(idObject);
+    }
+}
+
+/**
+ * Parses a `FileEntityId` from a URL.
+ */
+export function parseFileEntityIdFromUrl(spaceId: SpaceId, urlString: string): FileEntityId | null {
+    if (!urlString || !/^https?:\/\//.test(urlString) || /\s/.test(urlString)) return null;
+
+    // Make sure it's a valid URL.
+    let url: URL;
+    try {
+        url = new URL(urlString);
+    } catch {
+        return null;
+    }
+
+    // Make sure the URL is from the same host that we're currently on.
+    if (url.host !== window.location.host) return null;
+
+    let fileId: FileEntityId | null = null;
+
+    const documentMatch = url.pathname.match(/^\/s\/([^/]+)\/documents\/([^/]+)\/?$/);
+    if (documentMatch && documentMatch[1] === spaceId && isId<DocumentId>(documentMatch[2]!)) {
+        fileId = `Document:${documentMatch[2]}`;
+    } else {
+        const channelMatch = url.pathname.match(/^\/s\/([^/]+)\/channels\/([^/]+)\/?$/);
+        if (channelMatch && channelMatch[1] === spaceId && isId<ChannelId>(channelMatch[2]!)) {
+            fileId = `Channel:${channelMatch[2]}`;
+        } else {
+            const taskCollectionMatch = url.pathname.match(
+                /^\/s\/([^/]+)\/tasks\/collections\/([^/]+)\/?$/,
+            );
+            if (
+                taskCollectionMatch &&
+                taskCollectionMatch[1] === spaceId &&
+                isId<TaskCollectionId>(taskCollectionMatch[2]!)
+            ) {
+                fileId = `TaskCollection:${taskCollectionMatch[2]}`;
+            }
+        }
+    }
+
+    return fileId;
 }

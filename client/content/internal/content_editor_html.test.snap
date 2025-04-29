@@ -5028,6 +5028,53 @@ exports[`file row (one file, audio type): clipboard 1`] = `
 
 exports[`file row (one file, audio type): clipboard text 1`] = `""`;
 
+exports[`file row (one file, channel entity) 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <div
+    class="content_fileRowLike"
+    style="height: 192px; grid-template-columns: 1fr;"
+  >
+    <div
+      class="content_file"
+    >
+      <span
+        style="position: absolute; opacity: 0; user-select: text; -webkit-user-select: text"
+      >
+         
+      </span>
+      <img
+        aria-hidden="true"
+        src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`file row (one file, channel entity): clipboard 1`] = `
+<div>
+  <div
+    style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;"
+  >
+    <iframe
+      height="192"
+      src="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/channels/xh0gwk1xajfh6s7fat4c1f0hyr"
+      style="display: block;"
+      width="600"
+    />
+  </div>
+</div>
+`;
+
+exports[`file row (one file, channel entity): clipboard text 1`] = `""`;
+
 exports[`file row (one file, image type) 1`] = `
 <div
   aria-label="Test"

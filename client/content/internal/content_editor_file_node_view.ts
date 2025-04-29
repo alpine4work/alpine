@@ -289,9 +289,25 @@ export function createContentEditorFileNodeViewConstructor({
                         NativeMobileBridge?.haptic.playMediumImpact();
                     };
 
+                    const onDrag = (dragPromise: Promise<void>) => {
+                        const ourDraggingFile = rememberContentEditorPosWhileLoading(
+                            view,
+                            getPos(),
+                            dragPromise,
+                        );
+
+                        draggingFileRef.current = ourDraggingFile;
+
+                        void dragPromise.finally(() => {
+                            if (draggingFileRef.current === ourDraggingFile)
+                                draggingFileRef.current = null;
+                        });
+                    };
+
                     if (fileEntityResult) {
                         cleanupBehavior = addContentFileEntityPreviewBehavior(getContext, dom, {
                             spaceId,
+                            node,
                             fileEntityId: fileId as FileEntityId,
                             fileEntityResult,
                             fileEntityRenderers: getFileEntityRenderers(),
@@ -299,6 +315,7 @@ export function createContentEditorFileNodeViewConstructor({
                             onShiftMouseDown,
                             isLongPressDisabled,
                             onLongPress,
+                            onDrag,
                         });
                     } else {
                         cleanupBehavior = addContentFilePreviewBehavior(getContext, dom, {
@@ -312,20 +329,7 @@ export function createContentEditorFileNodeViewConstructor({
                             onShiftMouseDown,
                             isLongPressDisabled,
                             onLongPress,
-                            onDrag: dragPromise => {
-                                const ourDraggingFile = rememberContentEditorPosWhileLoading(
-                                    view,
-                                    getPos(),
-                                    dragPromise,
-                                );
-
-                                draggingFileRef.current = ourDraggingFile;
-
-                                void dragPromise.finally(() => {
-                                    if (draggingFileRef.current === ourDraggingFile)
-                                        draggingFileRef.current = null;
-                                });
-                            },
+                            onDrag,
                         });
                     }
                 };

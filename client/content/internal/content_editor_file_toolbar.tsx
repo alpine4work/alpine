@@ -31,12 +31,13 @@ import {
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 let isDisablingContentEditorFileToolbarInitialAnimation = false;
@@ -172,6 +173,11 @@ function ContentEditorFileToolbar({
 
     const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
+    // Don't render the replace button for file entities. It would be weird to open
+    // a file selector when clicking the replace button on a file entity.
+    const hasReplaceButton =
+        !selection.node.attrs.fileId || isId<FileId>(selection.node.attrs.fileId);
+
     const hasAlignmentButtons =
         state.schema.nodes.fileFloat &&
         ((selection.$anchor.parent.type.name === "fileRow" &&
@@ -181,7 +187,7 @@ function ContentEditorFileToolbar({
     const references = getContentEditorReferences(state).references;
 
     const file = useMemo(() => {
-        const fileId: FileId | null | undefined = selection.node.attrs.fileId;
+        const fileId: FileId | FileEntityId | null | undefined = selection.node.attrs.fileId;
         return fileId ? references.fileById?.get(fileId)?.file : undefined;
     }, [references.fileById, selection.node.attrs.fileId]);
 
@@ -411,36 +417,41 @@ function ContentEditorFileToolbar({
                         )}
                         {hasEditAccessLevel && (
                             <>
-                                <ContentEditorFileToolbarButton
-                                    dividerLeft={hasAlignmentButtons}
-                                    description={`Replace ${getFileContentTypeNoun(
-                                        file?.contentType,
-                                    )}`}
-                                    viewRef={viewRef}
-                                    isActive={false}
-                                    command={() => {
-                                        const toolbarElement = assertExists(toolbarRef.current);
+                                {hasReplaceButton && (
+                                    <ContentEditorFileToolbarButton
+                                        dividerLeft={hasAlignmentButtons}
+                                        description={`Replace ${getFileContentTypeNoun(
+                                            file?.contentType,
+                                        )}`}
+                                        viewRef={viewRef}
+                                        isActive={false}
+                                        command={() => {
+                                            const toolbarElement = assertExists(toolbarRef.current);
 
-                                        selectFiles(toolbarElement, {
-                                            multiple: false,
-                                        })
-                                            .then(files => {
-                                                if (files.length !== 1) return;
-
-                                                // If the component unmounted while we were waiting on a selection then don't
-                                                // try replacing this file.
-                                                if (!selectionRef.current) return;
-
-                                                onInsertFiles(selectionRef.current, [files[0]!]);
+                                            selectFiles(toolbarElement, {
+                                                multiple: false,
                                             })
-                                            .catch(scheduleUncaughtError);
+                                                .then(files => {
+                                                    if (files.length !== 1) return;
 
-                                        return true;
-                                    }}
-                                >
-                                    <Swap />
-                                </ContentEditorFileToolbarButton>
+                                                    // If the component unmounted while we were waiting on a selection then don't
+                                                    // try replacing this file.
+                                                    if (!selectionRef.current) return;
+
+                                                    onInsertFiles(selectionRef.current, [
+                                                        files[0]!,
+                                                    ]);
+                                                })
+                                                .catch(scheduleUncaughtError);
+
+                                            return true;
+                                        }}
+                                    >
+                                        <Swap />
+                                    </ContentEditorFileToolbarButton>
+                                )}
                                 <ContentEditorFileToolbarButton
+                                    dividerLeft={!hasReplaceButton && hasAlignmentButtons}
                                     dividerRight={!!state.schema.marks.comment}
                                     description={`Delete ${getFileContentTypeNoun(
                                         file?.contentType,

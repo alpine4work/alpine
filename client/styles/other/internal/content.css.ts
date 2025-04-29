@@ -1230,7 +1230,6 @@ globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
 globalStyle(`${fileClassName}${fileEntityClassName}:not(${fileImageViewerClassName})::before`, {
     borderRadius: spacing["1.5"],
     boxShadow: "none",
-    // NOCOMMIT: Darken this color when pressed?
     border: `solid 1px ${grey10SemiTransparentColorVar}`,
 });
 

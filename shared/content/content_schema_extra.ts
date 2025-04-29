@@ -11,10 +11,14 @@ import {
     headingLevel2ClassName,
     headingLevel3ClassName,
 } from "~/shared/content/content_styles.js";
-import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
+import {
+    FileEntityId,
+    isFileEntityId,
+    parseFileEntityIdFromUrl,
+} from "~/shared/files/file_entity_id.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -151,8 +155,10 @@ export const createContentFileProsemirrorNodeSpecs = ({
                     let hasDirectFileChildNode = false;
                     for (const childNode of node.childNodes) {
                         if (
-                            childNode instanceof HTMLElement &&
-                            childNode.hasAttribute("data-cy-tmp-file")
+                            (childNode instanceof HTMLElement &&
+                                childNode.hasAttribute("data-cy-tmp-file")) ||
+                            (childNode instanceof HTMLIFrameElement &&
+                                childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
                         ) {
                             hasDirectFileChildNode = true;
                             break;
@@ -184,7 +190,6 @@ export const createContentFileProsemirrorNodeSpecs = ({
                 // at least one file node. `fileId: null` files will always render with an
                 // error. You should always provide a `FileId`.
                 fileId: {
-                    // NOCOMMIT: Copy/paste tests for file entity IDs
                     schema: Schema.string
                         .validation(
                             "Is `FileId` or `FileEntityId`",
@@ -212,6 +217,29 @@ export const createContentFileProsemirrorNodeSpecs = ({
                         if (fileId === "null") return {fileId: null};
                         if (!isId<FileId>(fileId)) return false;
                         return {fileId};
+                    },
+                },
+                {
+                    // The clipboard serializer converts entity files to `<iframe>`s. Parse the
+                    // `<iframe>` back into a file node. `<ContentEditor>` will fetch the referenced
+                    // entity before rendering.
+                    tag: "iframe",
+                    getAttrs: node => {
+                        if (!(node instanceof HTMLIFrameElement)) return false;
+
+                        // NOTE(calebmer): Matching `spaceId` from the current URL is a little hacky.
+                        // What if someday you can view content from two spaces at a time? (e.g. In
+                        // a peek.)
+                        const spaceIdMatch = window.location.pathname.match(/^\/s\/([^/]+)/);
+                        if (!spaceIdMatch) return false;
+
+                        const spaceId = spaceIdMatch[1]!;
+                        if (!isId<SpaceId>(spaceId)) return false;
+
+                        const fileEntityId = parseFileEntityIdFromUrl(spaceId, node.src);
+                        if (fileEntityId === null) return false;
+
+                        return {fileId: fileEntityId};
                     },
                 },
             ],
@@ -259,8 +287,10 @@ export const createContentFileProsemirrorNodeSpecs = ({
                     let hasDirectFileChildNode = false;
                     for (const childNode of node.childNodes) {
                         if (
-                            childNode instanceof HTMLElement &&
-                            childNode.hasAttribute("data-cy-tmp-file")
+                            (childNode instanceof HTMLElement &&
+                                childNode.hasAttribute("data-cy-tmp-file")) ||
+                            (childNode instanceof HTMLIFrameElement &&
+                                childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
                         ) {
                             hasDirectFileChildNode = true;
                             break;
@@ -348,9 +378,10 @@ export const createContentFileFloatProsemirrorNodeSpecs = ({
 
                         for (const childNode of node.childNodes) {
                             if (
-                                childNode instanceof HTMLElement &&
-                                childNode.tagName === "DIV" &&
-                                childNode.hasAttribute("data-cy-tmp-file")
+                                (childNode instanceof HTMLElement &&
+                                    childNode.hasAttribute("data-cy-tmp-file")) ||
+                                (childNode instanceof HTMLIFrameElement &&
+                                    childNode.src.match(/^[a-zA-Z0-9]+:\/\/[^/]+\/s\/[^/]+/))
                             ) {
                                 return {direction: node.style.float};
                             }

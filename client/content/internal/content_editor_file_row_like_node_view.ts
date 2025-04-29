@@ -25,6 +25,7 @@ import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -124,7 +125,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             const {references} = getContentEditorReferences(view.state);
 
             const fileReferences = node.content.content.map(childNode => {
-                const fileId: FileId | null = childNode.attrs.fileId;
+                const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
                 const fileReference = fileId ? references.fileById?.get(fileId) : undefined;
                 return fileReference;
             });

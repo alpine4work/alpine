@@ -5,6 +5,7 @@ import {createElement} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
+import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     addContentFilePreviewBehaviorBase,
@@ -16,12 +17,14 @@ import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {FileEntityId, printFileEntityIdIntoPath} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -117,6 +120,7 @@ export function addContentFileEntityPreviewBehavior(
     element: HTMLElement,
     {
         spaceId,
+        node,
         fileEntityId,
         fileEntityResult,
         fileEntityRenderers,
@@ -125,8 +129,10 @@ export function addContentFileEntityPreviewBehavior(
         onShiftMouseDown,
         isLongPressDisabled,
         onLongPress,
+        onDrag,
     }: {
         spaceId: SpaceId;
+        node: Node;
         fileEntityId: FileEntityId;
         fileEntityResult: Result<FileEntityModel>;
         fileEntityRenderers: ContentFileEntityRenderers | null;
@@ -135,33 +141,57 @@ export function addContentFileEntityPreviewBehavior(
         onShiftMouseDown?: (event: PointerEvent) => void;
         isLongPressDisabled?: () => boolean;
         onLongPress?: () => void;
+        onDrag?: (dragPromise: Promise<void>) => void;
     },
 ): () => void {
-    const getPath = (): string => {
-        const fileEntityIdObject = parseFileEntityId(fileEntityId);
-
-        switch (fileEntityIdObject.type) {
-            case "Document":
-                return `/s/${spaceId}/documents/${fileEntityIdObject.documentId}`;
-            case "TaskCollection":
-                return `/s/${spaceId}/tasks/collections/${fileEntityIdObject.collectionId}`;
-            case "Channel":
-                return `/s/${spaceId}/channels/${fileEntityIdObject.channelId}`;
-            default:
-                throw exhaustive(fileEntityIdObject);
-        }
-    };
-
     const cleanupBase = addContentFilePreviewBehaviorBase(element, {
         isInert,
         onShiftMouseDown,
         isLongPressDisabled,
         onLongPress,
         onPress: () => {
-            navigate(getPath());
+            navigate(printFileEntityIdIntoPath(spaceId, fileEntityId));
         },
-        onDragStart: () => {
-            // NOCOMMIT
+        onDragStart: dataTransfer => {
+            const clipboardSerializer =
+                ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
+                    node.type.schema,
+                    () => spaceId,
+                    () => emptyContentReferences,
+                    () => {
+                        throw new UnimplementedError("Shouldn't need file attachment target");
+                    },
+                );
+
+            const serializedNode = clipboardSerializer.serializeNode(node);
+            assert(serializedNode instanceof HTMLElement);
+
+            // See https://github.com/ProseMirror/prosemirror/issues/1156
+            dataTransfer.effectAllowed = onDrag ? "copyMove" : "copy";
+
+            dataTransfer.clearData();
+            dataTransfer.setData("text/html", serializedNode.outerHTML);
+
+            // We check for this content type in the `dragenter` event to know if we need
+            // to show file drop targets. If this is set then it's assumed `text/html` will
+            // be parsed to `fileRow` or `file` nodes.
+            dataTransfer.setData("application/x.alpine.file", "");
+
+            if (onDrag) {
+                const dragPromiseResolver = createPromiseResolver();
+
+                const handleDragEnd = () => {
+                    element.removeEventListener("dragend", handleDragEnd);
+                    dragPromiseResolver.resolve();
+                };
+
+                // Attach `dragend` handler here since even if this content file's behavior is
+                // cleaned up (say `reference` changes) we don't want to remove our `dragend`
+                // event listener.
+                element.addEventListener("dragend", handleDragEnd);
+
+                onDrag(dragPromiseResolver.promise);
+            }
         },
     });
 
@@ -176,7 +206,10 @@ export function addContentFileEntityPreviewBehavior(
                     iconPlacement: "end",
                     pressErrorTitle: "Couldn’t copy link",
                     onPress: async () => {
-                        const url = new URL(getPath(), window.location.href);
+                        const url = new URL(
+                            printFileEntityIdIntoPath(spaceId, fileEntityId),
+                            window.location.href,
+                        );
                         await writeTextToClipboard(url.toString());
                     },
                 },

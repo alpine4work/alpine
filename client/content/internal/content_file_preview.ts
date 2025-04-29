@@ -1513,6 +1513,16 @@ export function addContentFilePreviewBehaviorBase(
         // Not the selection HTML which might be something different.
         event.stopPropagation();
 
+        const elementRect = element.getBoundingClientRect();
+
+        // Make sure we use the current element as the drag image. I've found sometimes
+        // Chrome picks the wrong drag image otherwise.
+        event.dataTransfer.setDragImage(
+            element,
+            event.clientX - elementRect.left,
+            event.clientY - elementRect.top,
+        );
+
         onDragStart?.(event.dataTransfer);
     };
 

@@ -957,6 +957,7 @@ export function ContentView<Content extends ContentWithReferences>({
                         element,
                         {
                             spaceId: assertExists(spaceContext).space.id,
+                            node,
                             fileEntityId: fileId as FileEntityId,
                             fileEntityResult,
                             fileEntityRenderers,
