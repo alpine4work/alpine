@@ -9,6 +9,7 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
+import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContext,
@@ -164,6 +165,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 type ForumActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
     files: FilesContextModuleBase;
+    fileEntity: FileEntityContextModuleBase;
     r2: CloudflareR2ContextModule;
 };
 
@@ -1517,7 +1519,7 @@ export function getChannelAndMetadataPartitionKey(channelId: ChannelId): DynamoI
  * Get a `ChannelModel` and post files in the channel all at once. Executes a
  * realtime query so the data can be kept up-to-date in realtime.
  */
-export function getChannelAndMetadata(
+export function getChannelAndMetadataIfPossible(
     context: ServerContentActionContext,
     {
         channelId,
@@ -1530,13 +1532,13 @@ export function getChannelAndMetadata(
         afterItemKey?: DynamoItemKey | null;
         consistency?: DynamoReadConsistency;
     },
-): Promise<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>> {
+): Promise<Result<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>, ErrorBase> | null> {
     if (afterItemKey) {
         return (async () => {
-            const [, result] = await runAllPromises([
+            const [channelResult, queryResult] = await runAllPromises([
                 // Get the channel preview separately to make sure we're authorized to make
                 // this request.
-                getChannelPreview(context, channelId, {consistency}),
+                getChannelPreviewIfPossible(context, channelId, {consistency}),
 
                 ForumRealtimeTable.realtimeQuery(context, {
                     consistency,
@@ -1547,12 +1549,18 @@ export function getChannelAndMetadata(
                 }),
             ]);
 
-            return result;
+            if (channelResult === null) return null;
+            if (!channelResult.ok) return channelResult;
+
+            return {ok: true, value: queryResult};
         })();
     } else {
         const channelPromiseResolver = createPromiseResolver<ChannelModel | null>();
 
-        const promise = (async () => {
+        const promise = (async (): Promise<Result<
+            DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>,
+            ErrorBase
+        > | null> => {
             const result = await ForumRealtimeTable.realtimeQuery(context, {
                 consistency,
                 partitionKey: {partitionType: "Channel", channelId},
@@ -1582,18 +1590,27 @@ export function getChannelAndMetadata(
                 channel.model,
             );
 
-            await authorizeChannelItemAccess(context, channel.model, "View");
+            const authorizationResult = await authorizeChannelItemAccessIfPossible(
+                context,
+                channel.model,
+                "View",
+            );
+            if (!authorizationResult.ok) return authorizationResult;
 
-            return result;
+            return {ok: true, value: result};
         })().then(
             result => {
                 // All of these promise resolvers MUST have either been resolved or rejected by
                 // the end of this promise. So any promise resolvers that haven't been settled
                 // yet reject with an error as a safety mechanism.
                 if (!channelPromiseResolver.isSettled()) {
-                    channelPromiseResolver.reject(
-                        new InternalError("Promise resolver wasn't resolved"),
-                    );
+                    if (result && !result.ok) {
+                        channelPromiseResolver.reject(result.error);
+                    } else {
+                        channelPromiseResolver.reject(
+                            new InternalError("Promise resolver wasn't resolved"),
+                        );
+                    }
                 }
 
                 return result;
@@ -1630,14 +1647,26 @@ export function getChannelAndMetadata(
             channelPromiseResolver.promise,
         );
 
-        return promise.then(result => {
-            if (!result) {
-                throw new NotFoundError("Channel not found");
-            }
-
-            return result;
-        });
+        return promise;
     }
+}
+
+/**
+ * Get a `ChannelModel` and post files in the channel all at once. Executes a
+ * realtime query so the data can be kept up-to-date in realtime.
+ */
+export async function getChannelAndMetadata(
+    context: ServerContentActionContext,
+    options: {
+        channelId: ChannelId;
+        postFilesLimit: number;
+        afterItemKey?: DynamoItemKey | null;
+        consistency?: DynamoReadConsistency;
+    },
+): Promise<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>> {
+    const result = await getChannelAndMetadataIfPossible(context, options);
+    if (!result) throw new NotFoundError("Channel not found");
+    return unwrapResult(result);
 }
 
 /**

@@ -14,6 +14,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/jobs/core",
         "//shared/context",
+        "//shared/files",
         "//shared/helpers",
         "//shared/tracer",
     ],

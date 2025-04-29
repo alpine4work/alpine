@@ -179,6 +179,7 @@ import {
     getFileImageContentTypes,
     getFileVideoContentTypes,
 } from "~/shared/files/file_content_type.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -207,8 +208,15 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {Id, generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {Id, generateId, isId} from "~/shared/id/id.js";
+import {
+    ChannelId,
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
@@ -1878,7 +1886,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // been loaded and we have the requisite permissions for it. No file loading
                             // needed.
                             if (
-                                getContentEditorReferences(view.state).references.fileById.has(
+                                getContentEditorReferences(view.state).references.fileById?.has(
                                     fileId,
                                 )
                             ) {
@@ -2069,6 +2077,26 @@ function ContentEditor<Content extends ContentWithReferences>(
                             );
                         }
                     }
+                }
+            }
+
+            // If we're pasting a URL for a `FileEntityId` in an empty paragraph then
+            // instead of pasting the URL text we want to paste a file node.
+            if (schema.nodes.fileRow && schema.nodes.file && spaceContextRef.current) {
+                const fileId = getFileEntityIdFromPasteEvent(
+                    spaceContextRef.current.space.id,
+                    selection,
+                    event,
+                );
+
+                if (fileId !== null) {
+                    slice = new Slice(
+                        Fragment.from(
+                            schema.nodes.fileRow.create(null, [schema.nodes.file.create({fileId})]),
+                        ),
+                        0,
+                        0,
+                    );
                 }
             }
 
@@ -2873,7 +2901,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     const fileId: FileId | null = view.state.selection.node.attrs.fileId;
 
                     const fileReference = fileId
-                        ? getContentEditorReferences(view.state).references.fileById.get(fileId)
+                        ? getContentEditorReferences(view.state).references.fileById?.get(fileId)
                         : undefined;
 
                     const file = fileReference
@@ -5117,6 +5145,73 @@ function handleLinkPasteWithSelection(
         createTransaction().addMark(range.from, range.to, doc.type.schema.mark("link", {url})),
     );
     return true;
+}
+
+/**
+ * If our paste event is a URL that can be embedded in a `file` node then this
+ * function will return `FileEntityId`.
+ */
+function getFileEntityIdFromPasteEvent(
+    spaceId: SpaceId,
+    selection: Selection,
+    event: ClipboardEvent,
+): FileEntityId | null {
+    // 1. The selection should be empty.
+    if (selection.from !== selection.to) return null;
+
+    const node = selection.$from.node();
+    const parentNode = selection.$from.node(-1);
+
+    const isEmptyParagraphInDoc =
+        node.type.name === "paragraph" &&
+        node.childCount === 0 &&
+        (parentNode.type.name === "doc" || parentNode.type.name === "tableCell");
+
+    // 2. The selection should be in an empty paragraph directly in the `doc` node
+    //    (or `tableCell`). The paragraph shouldn't be in a list item or quote
+    //    block node.
+    if (!isEmptyParagraphInDoc) return null;
+
+    // 3. Make sure its an HTTP URL.
+    const urlString = event.clipboardData?.getData("text/plain");
+    if (!urlString || !/^https?:\/\//.test(urlString) || /\s/.test(urlString)) return null;
+
+    // 4. Make sure it's a valid URL.
+    let url: URL;
+    try {
+        url = new URL(urlString);
+    } catch {
+        return null;
+    }
+
+    // 5. Make sure the URL is from the same host that we're currently on.
+    if (url.host !== window.location.host) return null;
+
+    // 6. Parse the `fileId` from the URL if we support the URL.
+    let fileId: FileEntityId | null = null;
+
+    const documentMatch = url.pathname.match(/^\/s\/([^/]+)\/documents\/([^/]+)\/?$/);
+    if (documentMatch && documentMatch[1] === spaceId && isId<DocumentId>(documentMatch[2]!)) {
+        fileId = `Document:${documentMatch[2]}`;
+    } else {
+        const channelMatch = url.pathname.match(/^\/s\/([^/]+)\/channels\/([^/]+)\/?$/);
+        if (channelMatch && channelMatch[1] === spaceId && isId<ChannelId>(channelMatch[2]!)) {
+            fileId = `Channel:${channelMatch[2]}`;
+        } else {
+            const taskCollectionMatch = url.pathname.match(
+                /^\/s\/([^/]+)\/tasks\/collections\/([^/]+)\/?$/,
+            );
+            if (
+                taskCollectionMatch &&
+                taskCollectionMatch[1] === spaceId &&
+                isId<TaskCollectionId>(taskCollectionMatch[2]!)
+            ) {
+                fileId = `TaskCollection:${taskCollectionMatch[2]}`;
+            }
+        }
+    }
+
+    return fileId;
 }
 
 /**

@@ -73,7 +73,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
             const fileReferences = node.content.content.map(childNode => {
                 const fileId: FileId | null = childNode.attrs.fileId;
-                const fileReference = fileId ? references.fileById.get(fileId) : undefined;
+                const fileReference = fileId ? references.fileById?.get(fileId) : undefined;
                 return fileReference;
             });
 
@@ -113,7 +113,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
                     spacingScale,
                     blockWidth,
                     getFile: fileId => {
-                        const fileReference = references.fileById.get(fileId);
+                        const fileReference = references.fileById?.get(fileId);
                         if (!fileReference) return null;
                         return get(getFileClientStore(getSpaceId()).getFileStore(fileReference));
                     },

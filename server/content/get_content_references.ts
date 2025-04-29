@@ -13,9 +13,14 @@ import {
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {InternalError} from "~/shared/error/error.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityMergeableModel} from "~/shared/files/file_entity_model.js";
 import {FileModel, getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {Result} from "~/shared/helpers/control/result.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -94,8 +99,6 @@ export async function getContentReferences(
     referencedIds: ContentReferencedIds,
     {withPreloadedFiles = false}: {withPreloadedFiles?: boolean} = {},
 ): Promise<ContentReferences> {
-    let preloadedSmallFileContentLength = 0;
-
     // IMPORTANT: This function may be called multiple times on the same content in
     // an action. So all data loading functions are cached.
     //
@@ -106,7 +109,7 @@ export async function getContentReferences(
     //
     // File preloading is not cached. If the caller explicitly opts in with
     // `withPreloadedFiles` then they shouldn't expect results to be cached.
-    const [accounts, fileReferences] = await runAllPromises([
+    const [accounts, fileReferences, fileEntities] = await runAllPromises([
         runAllPromises(
             mapIterable(referencedIds.accountIds, accountId => {
                 // You may have copy/pasted some content from a different space. In that case a
@@ -123,6 +126,8 @@ export async function getContentReferences(
             }),
         ).then(fileReferences => {
             if (!withPreloadedFiles) return fileReferences;
+
+            let preloadedSmallFileContentLength = 0;
 
             return runAllPromises(
                 // Go through `fileReferences` in order and preload small files up to our
@@ -195,6 +200,26 @@ export async function getContentReferences(
                 }),
             );
         }),
+        runAllPromises(
+            mapIterable(
+                referencedIds.fileEntityIds,
+                async (
+                    entityId,
+                ): Promise<[FileEntityId, Result<FileEntityMergeableModel>] | null> => {
+                    // NOCOMMIT: Consider protection against infinite recursion! If there's a cycle
+                    // between documents above the fold, for example.
+                    const entityResult = await context.fileEntity.getIfPossible(spaceId, entityId);
+                    if (!entityResult) return null;
+
+                    return [
+                        entityId,
+                        entityResult.ok
+                            ? {ok: true, value: FileEntityMergeableModel.new(entityResult.value)}
+                            : entityResult,
+                    ];
+                },
+            ),
+        ),
     ]);
 
     const accountById = new Map(
@@ -211,7 +236,13 @@ export async function getContentReferences(
         }),
     );
 
-    return {accountById, fileById};
+    const fileEntityById = new Map(filterIterable(fileEntities, isNonNullable));
+
+    return {
+        accountById,
+        fileById: fileById.size > 0 ? fileById : undefined,
+        fileEntityById: fileEntityById.size > 0 ? fileEntityById : undefined,
+    };
 }
 
 export async function getContentFileReference(

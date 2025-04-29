@@ -25,6 +25,7 @@ import {
     UnimplementedSchedulerContextModule,
 } from "~/server/deploy/data/scheduler_context_module.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {FileEntityContextModule} from "~/server/files/entity/file_entity_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.js";
@@ -309,6 +310,7 @@ export async function run({
                             router: taskRealtimeServiceRouter,
                             dangerouslyEscalateToSystemContext,
                         }),
+                        fileEntity: new FileEntityContextModule(),
                     },
                     action,
                 );
@@ -326,6 +328,7 @@ export async function run({
                     router: taskRealtimeServiceRouter,
                     dangerouslyEscalateToSystemContext,
                 }),
+                fileEntity: new FileEntityContextModule(),
             });
 
             return processJob(actionContext, job, jobStartTime, span);
@@ -374,6 +377,7 @@ export async function run({
                             router: taskRealtimeServiceRouter,
                             dangerouslyEscalateToSystemContext,
                         }),
+                        fileEntity: new FileEntityContextModule(),
                     },
                     action,
                 );
@@ -391,6 +395,7 @@ export async function run({
                     router: taskRealtimeServiceRouter,
                     dangerouslyEscalateToSystemContext,
                 }),
+                fileEntity: new FileEntityContextModule(),
             });
 
             return processMaintenanceJob(actionContext, job, jobStartTime, span);

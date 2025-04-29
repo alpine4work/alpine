@@ -11,6 +11,7 @@ import {
     headingLevel2ClassName,
     headingLevel3ClassName,
 } from "~/shared/content/content_styles.js";
+import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -183,7 +184,14 @@ export const createContentFileProsemirrorNodeSpecs = ({
                 // at least one file node. `fileId: null` files will always render with an
                 // error. You should always provide a `FileId`.
                 fileId: {
-                    schema: Schema.id<FileId>().nullable(),
+                    // NOCOMMIT: Copy/paste tests for file entity IDs
+                    schema: Schema.string
+                        .validation(
+                            "Is `FileId` or `FileEntityId`",
+                            (value): value is FileId | FileEntityId =>
+                                isId<FileId>(value) || isFileEntityId(value),
+                        )
+                        .nullable(),
                     default: null,
                 },
             },

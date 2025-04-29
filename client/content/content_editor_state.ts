@@ -890,7 +890,7 @@ export function reduceContentReferencesShared<References extends ContentReferenc
             return {...references, accountById: newAccountById};
         }
         case "SetFile": {
-            const oldFileReference = references.fileById.get(action.file.id);
+            const oldFileReference = references.fileById?.get(action.file.id);
 
             // Prefer `oldFile` in `FileModel.minLoadingCount()` to avoid unnecessary
             // re-renders.
@@ -918,7 +918,7 @@ export function reduceContentReferencesShared<References extends ContentReferenc
             return {...references, fileById: newFileById};
         }
         case "SetFileSignedUrlSearch": {
-            const oldFileReference = references.fileById.get(action.fileId);
+            const oldFileReference = references.fileById?.get(action.fileId);
             if (!oldFileReference) return references;
 
             // Pick the `signedUrlSearch` that expires later.

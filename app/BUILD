@@ -96,6 +96,7 @@ ts_project(
         "//server/deploy/data",
         "//server/documents/data",
         "//server/emails",
+        "//server/files/entity",
         "//server/forum/data",
         "//server/node",
         "//server/notifications/data",

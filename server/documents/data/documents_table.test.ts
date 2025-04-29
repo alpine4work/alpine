@@ -34,6 +34,7 @@ import {
     getDocumentContent,
     getDocumentContentForCollaborationServiceInitialization,
     getDocumentContentPreviewIfExists,
+    getDocumentContentPreviewIfPossible,
     getDocumentContentSteps,
     getDocumentContentWithOptionalComments,
     getDocumentPreview,
@@ -2455,6 +2456,9 @@ test("can not read a created document in a different space", async () => {
     await expect(getDocumentContentPreviewIfExists(session.action(), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
+    expect(
+        (await getDocumentContentPreviewIfPossible(session.action(), documentId))?.error,
+    ).toBeInstanceOf(PermissionDeniedError);
 });
 
 test("can not update a document in a different space", async () => {
@@ -5385,6 +5389,24 @@ test("getting document without comments requires view access level", async () =>
         await expect(
             getDocumentContentPreviewIfExists(otherSession.action(), document.id),
         ).rejects.toThrow("Account doesn't have access to space");
+    }
+
+    {
+        expect(
+            (await getDocumentContentPreviewIfPossible(session1.action(), document.id))?.ok,
+        ).toEqual(true);
+        expect(
+            (await getDocumentContentPreviewIfPossible(session2.action(), document.id))?.ok,
+        ).toEqual(true);
+        expect(
+            (await getDocumentContentPreviewIfPossible(session3.action(), document.id))?.ok,
+        ).toEqual(true);
+        expect(
+            (await getDocumentContentPreviewIfPossible(session4.action(), document.id))?.ok,
+        ).toEqual(false);
+        expect(
+            (await getDocumentContentPreviewIfPossible(otherSession.action(), document.id))?.ok,
+        ).toEqual(false);
     }
 });
 

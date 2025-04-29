@@ -178,7 +178,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
                 spacingScale,
                 getFile: fileId => {
-                    const fileReference = contentReferences.fileById.get(fileId);
+                    const fileReference = contentReferences.fileById?.get(fileId);
                     if (!fileReference) return null;
                     return fileStore.getFileStore(fileReference).getSnapshot();
                 },
@@ -243,7 +243,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         if (node.type.name === "file") {
             const fileId: FileId | null = node.attrs.fileId;
             const fileReference = fileId
-                ? this._getContentReferences().fileById.get(fileId)
+                ? this._getContentReferences().fileById?.get(fileId)
                 : undefined;
 
             // If the file is a web safe image then let's use an `<img>` element in our

@@ -1,0 +1,18 @@
+import {FileEntityModel} from "~/shared/files/file_entity_model.js";
+import {maxChannelTopContributorCount} from "~/shared/forum/channel_model.js";
+import {ChannelId} from "~/shared/id/types/id_types.js";
+import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
+import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
+
+export const FileChannelEntityModelSchema = FileEntityModel.implement({
+    type: Schema.value("Channel"),
+    id: Schema.id<ChannelId>(),
+    name: LabelStringSchema,
+    description: MessageContentWithReferencesSchema,
+    contributorCount: Schema.integer,
+    topContributors: Schema.array(AccountModel.schema)
+        .minLength(1)
+        .maxLength(maxChannelTopContributorCount),
+});

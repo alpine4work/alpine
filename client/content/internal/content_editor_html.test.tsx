@@ -691,7 +691,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
                 if (execution.outputPromiseResolver.isSettled()) continue;
 
                 const {file} = assertExists(
-                    sourceContentReferences.fileById.get(execution.input.fileId),
+                    sourceContentReferences.fileById?.get(execution.input.fileId),
                 );
 
                 execution.outputPromiseResolver.resolve({

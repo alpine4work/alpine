@@ -925,7 +925,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 const node = $pos.nodeAfter;
 
                 const fileId: FileId | null = node.attrs.fileId;
-                const fileReference = fileId ? content.references.fileById.get(fileId) : undefined;
+                const fileReference = fileId ? content.references.fileById?.get(fileId) : undefined;
 
                 const actualFileStore = fileReference
                     ? fileStore.getFileStore(fileReference)

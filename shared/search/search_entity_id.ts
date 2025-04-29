@@ -5,6 +5,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
+import {isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -214,7 +215,9 @@ export function parseSearchDynamicEntityId(id: SearchDynamicEntityId): SearchDyn
                 commentIndex: parseInt(idPayloadParts[1]!, 10),
             };
         default:
-            throw new InternalError(quote`Unrecognized search entity ID type ${idType ?? ""}`);
+            throw new InternalError(
+                quote`Unrecognized \`SearchDynamicEntityId\` type ${idType ?? ""}`,
+            );
     }
 }
 
@@ -253,37 +256,39 @@ export function printSearchDynamicEntityId(
     }
 }
 
-type GetSearchAffinityEntityIdTestMapUnionType<Id extends string> =
-    Id extends `${infer IdType}:${string}` ? Record<IdType, true> : Record<Id, false>;
+type GetSearchEntityIdTestMapUnionType<Id extends string> = Id extends `${infer IdType}:${string}`
+    ? Record<IdType, (idRest: string) => boolean>
+    : Record<Id, null>;
 
-type GetSearchAffinityEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
-    UnionToIntersection<GetSearchAffinityEntityIdTestMapUnionType<Id>>
+type GetSearchEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
+    UnionToIntersection<GetSearchEntityIdTestMapUnionType<Id>>
 >;
 
-const searchAffinityEntityIdTestMap: GetSearchAffinityEntityIdTestMapType<SearchAffinityEntityId> =
-    {
-        Account: true,
-        Document: true,
-        Channel: true,
-        Chat: true,
-        Task: true,
-        TaskCollection: true,
-        TaskPersonal: false,
-    };
+const searchAffinityEntityIdTestMap: GetSearchEntityIdTestMapType<SearchAffinityEntityId> = {
+    Account: isId,
+    Document: isId,
+    Channel: isId,
+    Chat: isId,
+    Task: isId,
+    TaskCollection: isId,
+    TaskPersonal: null,
+};
 
 /**
  * Is the provided `SearchEntityId` a valid `SearchAffinityEntityId`?
  */
 export function isSearchAffinityEntityId(id: SearchEntityId): id is SearchAffinityEntityId {
     const [idType = "", idRest = ""] = id.split(":", 2);
-    const idTest = cast<{[key: string]: boolean}>(searchAffinityEntityIdTestMap)[idType];
+    const idTest = cast<{[key: string]: ((idRest: string) => boolean) | null}>(
+        searchAffinityEntityIdTestMap,
+    )[idType];
 
     if (idTest === undefined) return false;
 
-    if (idTest) {
-        return idRest.length > 0;
-    } else {
+    if (idTest === null) {
         // Implies that `idRest` is an empty string.
         return id === idType;
     }
+
+    return idTest(idRest);
 }

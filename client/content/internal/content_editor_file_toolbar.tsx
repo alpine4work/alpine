@@ -182,7 +182,7 @@ function ContentEditorFileToolbar({
 
     const file = useMemo(() => {
         const fileId: FileId | null | undefined = selection.node.attrs.fileId;
-        return fileId ? references.fileById.get(fileId)?.file : undefined;
+        return fileId ? references.fileById?.get(fileId)?.file : undefined;
     }, [references.fileById, selection.node.attrs.fileId]);
 
     const isContextMenuOpen = useIsContextMenuOpen();

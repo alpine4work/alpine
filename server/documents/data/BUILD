@@ -16,6 +16,7 @@ ts_project(
         "//admin/crawl:__pkg__",
         "//app:__pkg__",
         "//server/documents/test_helpers:__pkg__",
+        "//server/files/entity:__pkg__",
         "//server/migration:__pkg__",
         "//server/notifications/data:__pkg__",
         "//server/rpc:__pkg__",

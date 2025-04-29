@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//server/apns",
         "//server/deploy/data",
+        "//server/files/entity",
         "//server/jobs/core",
         "//server/jobs/queue/consumer",
         "//server/language_models/all_mini_lm_l6_v2",

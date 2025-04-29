@@ -1390,7 +1390,7 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "contentPreview": {
+                                    "content": {
                                         "valueSchema": {
                                             "type": "Object",
                                             "referenceId": "d072e1be",
@@ -2190,7 +2190,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Nullable",
                                                                                                     "schema": {
-                                                                                                        "type": "Id"
+                                                                                                        "type": "String"
                                                                                                     },
                                                                                                     "referenceId": "f43dfa49"
                                                                                                 },
@@ -6210,7 +6210,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Nullable",
                                                                                                     "schema": {
-                                                                                                        "type": "Id"
+                                                                                                        "type": "String"
                                                                                                     }
                                                                                                 },
                                                                                                 "optional": true
@@ -10419,7 +10419,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 "valueSchema": {
                                                                                                     "type": "Nullable",
                                                                                                     "schema": {
-                                                                                                        "type": "Id"
+                                                                                                        "type": "String"
                                                                                                     }
                                                                                                 },
                                                                                                 "optional": true

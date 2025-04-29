@@ -20,6 +20,10 @@ import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
 import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_cloudflare_r2_client.js";
 import {
+    FileEntityContextModuleBase,
+    TestFileEntityContextModule,
+} from "~/server/context/file_entity_context_module_base.js";
+import {
     FilesContextModuleBase,
     TestFilesContextModule,
 } from "~/server/context/files_context_module.js";
@@ -82,6 +86,7 @@ type TestContextExtraModules = {
     opensearch: OpensearchContextModule;
     edge: EdgeServiceContextModuleBase;
     files: FilesContextModuleBase;
+    fileEntity: FileEntityContextModuleBase;
     r2: CloudflareR2ContextModule;
 };
 
@@ -428,6 +433,7 @@ export function createTestContext({
         edge: new TestLocalEdgeServiceContextModule(),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
+        fileEntity: new TestFileEntityContextModule(),
     });
 
     const helpers: TestContextHelpers<any> = {

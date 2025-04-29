@@ -1015,7 +1015,9 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
         const schemaBase = Schema.object(config);
 
         class InterfaceSchemaInstance<
-            Value extends InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>,
+            Value extends InterfaceSchemaInstanceBase &
+                Readonly<ObjectSchemaConfigType<Config>> = InterfaceSchemaInstanceBase &
+                Readonly<ObjectSchemaConfigType<Config>>,
         > extends InterfaceSchemaInstanceBase {
             public static readonly schema = new Schema<
                 InterfaceSchemaInstanceBase & Readonly<ObjectSchemaConfigType<Config>>
@@ -1088,9 +1090,7 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
             }
         }
 
-        return InterfaceSchemaInstance as InterfaceSchemaInstanceClass<
-            ObjectSchemaConfigType<Config>
-        >;
+        return InterfaceSchemaInstance as any;
     }
 }
 
@@ -3079,7 +3079,10 @@ type InterfaceSchemaInstanceClass<ValueBase> = {
     ): InterfaceSchemaInstance<ValueBase>;
 };
 
-type InterfaceSchemaInstance<ValueBase> = InterfaceSchemaInstanceBase & Readonly<ValueBase>;
+type InterfaceSchemaInstance<ValueBase> = {
+    serialize(): SchemaSerializedValue;
+    deserialize<Value>(schema: Schema<Value>): Value;
+} & Readonly<ValueBase>;
 
 class InterfaceSchemaInstanceBase {
     private _schema: Schema<any> | null;

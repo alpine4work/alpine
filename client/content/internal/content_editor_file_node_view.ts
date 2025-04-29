@@ -136,7 +136,7 @@ export function createContentEditorFileNodeViewConstructor({
             const {references} = getContentEditorReferences(view.state);
             const spaceId = getSpaceId();
             const fileId: FileId | null = node.attrs.fileId;
-            const fileReference = fileId ? references.fileById.get(fileId) : undefined;
+            const fileReference = fileId ? references.fileById?.get(fileId) : undefined;
 
             if (
                 lastSpacingScale !== spacingScale ||
@@ -165,7 +165,7 @@ export function createContentEditorFileNodeViewConstructor({
                         getFile: otherFileId => {
                             if (otherFileId === fileId) return file ?? null;
 
-                            const otherFileReference = references.fileById.get(otherFileId);
+                            const otherFileReference = references.fileById?.get(otherFileId);
                             if (!otherFileReference) return null;
 
                             return get(

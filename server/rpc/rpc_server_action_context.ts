@@ -1,5 +1,6 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
+import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
@@ -22,5 +23,6 @@ export type RpcServerActionExtraContextModules = {
     languageModel: LanguageModelContextModule;
     apns: ApnsContextModuleBase;
     files: FilesContextModuleBase;
+    fileEntity: FileEntityContextModuleBase;
     r2: CloudflareR2ContextModule;
 };

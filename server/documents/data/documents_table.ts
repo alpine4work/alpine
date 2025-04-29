@@ -351,7 +351,7 @@ const DocumentsTable = DynamoTableSchema.new({
                         /**
                          * The current previewed content.
                          */
-                        contentPreview: DocumentContentSchema,
+                        content: DocumentContentSchema,
                     }),
                 },
 
@@ -1818,7 +1818,7 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
     // giving us 38 lines.
     //
     // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
-    const contentPreview = assertDocumentContent(
+    const previewContent = assertDocumentContent(
         getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 38}),
     );
 
@@ -1839,15 +1839,15 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             // There is a race condition bug here:
             //
             // 1. Document is at version `n`
-            // 2. Document is updated to version `n + 1` which has a different
-            //    `contentPreview` than version `n`
+            // 2. Document is updated to version `n + 1` which has different
+            //    `previewContent` than version `n`
             // 3. Document is updated to version `n + 2` which has the same
-            //    `contentPreview` as version `n`
+            //    `previewContent` as version `n`
             // 4. We run this content preview update for version `n + 2` _before_ version
-            //    `n + 1` so we skip updating `version` because `contentPreview` is the
+            //    `n + 1` so we skip updating `version` because `previewContent` is the
             //    same
             // 5. Now we run this content preview update for version `n + 1` which updates
-            //    `version` and `contentPreview`
+            //    `version` and `previewContent`
             //
             // Now we have a stale content preview version!
             //
@@ -1857,7 +1857,7 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             // practice.
             //
             // Even if this race condition were to occur and we have stale data in
-            // `contentPreview`, likely the reason for the stale data is the user added a
+            // `previewContent`, likely the reason for the stale data is the user added a
             // bit of text then immediately deleted it (or deleted a bit of text then
             // immediately re-added it). Given the difference between the actual doc and
             // the stale doc is likely fairly minor in practice we further don't mind this
@@ -1869,14 +1869,14 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             // benign race condition bug. In the future, we could choose to remove this
             // optimization if we find the write cost acceptable to fix race condition bugs
             // we're seeing.
-            if (item && item.contentPreview.eq(contentPreview)) return item;
+            if (item && item.content.eq(previewContent)) return item;
 
             return {
                 partitionType: "Document",
                 sortRangeType: "ContentPreview",
                 documentId,
                 version,
-                contentPreview,
+                content: previewContent,
             };
         },
     );
@@ -1885,7 +1885,8 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
 /**
  * Gets a content preview for the document. If the document doesn't exist then
  * we return null. If we haven't generated the content preview for the document
- * yet we also return null.
+ * yet we also return null. If you don't have access to the document we return
+ * a result with `ok: false`.
  *
  * The content preview is cheaper to load than the full document (with
  * `getDocument()` or `getDocumentContent()`) and more expensive to load than
@@ -1902,14 +1903,21 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
  * interesting in a preview. Also, if you only have view access to the document
  * you aren't allowed to see comment marks anyway.
  */
-export async function getDocumentContentPreviewIfExists(
+export async function getDocumentContentPreviewIfPossible(
     context: ServerContentActionContext,
     documentId: DocumentId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
-): Promise<{
-    version: number;
-    contentPreview: DocumentContentWithReferences;
-} | null> {
+): Promise<Result<
+    {
+        version: number;
+        titleWithoutFallback: string;
+        preview: {
+            version: number;
+            content: DocumentContentWithReferences;
+        } | null;
+    },
+    ErrorBase
+> | null> {
     const itemsPromise = (async () => {
         const items = await arrayFromAsyncIterable(
             DocumentsTable.query(context, {
@@ -1950,33 +1958,87 @@ export async function getDocumentContentPreviewIfExists(
     if (!attributesItem) return null;
 
     // Must have the view access level to read a document.
-    await authorizeDocumentItemAccess(context, attributesItem, "View");
+    const result = await authorizeDocumentItemAccessIfPossible(context, attributesItem, "View");
+    if (!result.ok) return result;
 
-    if (!contentPreviewItem) return null;
+    if (!contentPreviewItem)
+        return {
+            ok: true,
+            value: {
+                version: attributesItem.version,
+                titleWithoutFallback: attributesItem.titleWithoutFallback,
+                preview: null,
+            },
+        };
 
     // Remove comment marks from document preview. Since actor may only have the
     // `View` permission level. But also since comment marks in a preview are
     // distracting. We want the preview to be focused on the content. Must open the
     // document to see comments.
-    const contentPreview = assertDocumentContent(
-        stripDocumentContentCommentMarks(contentPreviewItem.contentPreview),
+    const previewContent = assertDocumentContent(
+        stripDocumentContentCommentMarks(contentPreviewItem.content),
     );
 
     return {
-        version: contentPreviewItem.version,
-        contentPreview: {
-            doc: contentPreview,
-            references: {
-                ...(await getContentReferencesForNode(
-                    context,
-                    attributesItem.spaceId,
-                    FileDocumentAuthorizer.bind({type: "Document", documentId}),
-                    contentPreview,
-                )),
-                commentThreadById: emptyMap,
+        ok: true,
+        value: {
+            version: attributesItem.version,
+            titleWithoutFallback: attributesItem.titleWithoutFallback,
+            preview: {
+                version: contentPreviewItem.version,
+                content: {
+                    doc: previewContent,
+                    references: {
+                        ...(await getContentReferencesForNode(
+                            context,
+                            attributesItem.spaceId,
+                            FileDocumentAuthorizer.bind({type: "Document", documentId}),
+                            previewContent,
+                        )),
+                        commentThreadById: emptyMap,
+                    },
+                },
             },
         },
     };
+}
+
+/**
+ * Gets a content preview for the document. If the document doesn't exist then
+ * we return null. If we haven't generated the content preview for the document
+ * yet we also return null. If you don't have access to the document we throw
+ * an error.
+ *
+ * The content preview is cheaper to load than the full document (with
+ * `getDocument()` or `getDocumentContent()`) and more expensive to load than
+ * the document preview which only contains the title (with
+ * `getDocumentPreview()`). However, the tradeoff is the content preview will be
+ * 10-60 seconds stale. We only update the content preview every 10-60 seconds
+ * as a part of the `IndexSearchEntity` job.
+ *
+ * This function is useful for rendering a preview of the document in other
+ * parts of the product. e.g. When hovering over a document mention or in a
+ * file preview.
+ *
+ * We strip comment marks from the content preview since they aren't
+ * interesting in a preview. Also, if you only have view access to the document
+ * you aren't allowed to see comment marks anyway.
+ */
+export async function getDocumentContentPreviewIfExists(
+    context: ServerContentActionContext,
+    documentId: DocumentId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{
+    version: number;
+    titleWithoutFallback: string;
+    preview: {
+        version: number;
+        content: DocumentContentWithReferences;
+    } | null;
+} | null> {
+    const result = await getDocumentContentPreviewIfPossible(context, documentId, options);
+    if (result === null) return null;
+    return unwrapResult(result);
 }
 
 /**

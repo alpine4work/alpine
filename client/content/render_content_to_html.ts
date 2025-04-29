@@ -360,7 +360,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         blockWidth,
                         spacingScale,
                         getFile: fileId => {
-                            const fileReference = content.references.fileById.get(fileId);
+                            const fileReference = content.references.fileById?.get(fileId);
                             if (!fileReference) return null;
 
                             return get(fileStore.getFileStore(fileReference));
@@ -396,7 +396,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         blockWidth,
                         spacingScale,
                         getFile: fileId => {
-                            const fileReference = content.references.fileById.get(fileId);
+                            const fileReference = content.references.fileById?.get(fileId);
                             if (!fileReference) return null;
 
                             return get(fileStore.getFileStore(fileReference));
@@ -418,7 +418,7 @@ export function renderContentFragmentToHtmlGeneratorStore(
                 file: (node, pos) => {
                     const fileId: FileId | null = node.attrs.fileId;
                     const fileReference = fileId
-                        ? content.references.fileById.get(fileId)
+                        ? content.references.fileById?.get(fileId)
                         : undefined;
 
                     const file = fileReference
@@ -431,7 +431,8 @@ export function renderContentFragmentToHtmlGeneratorStore(
                         getFile: otherFileId => {
                             if (otherFileId === fileId) return file ?? null;
 
-                            const otherFileReference = content.references.fileById.get(otherFileId);
+                            const otherFileReference =
+                                content.references.fileById?.get(otherFileId);
                             if (!otherFileReference) return null;
 
                             return get(fileStore.getFileStore(otherFileReference));

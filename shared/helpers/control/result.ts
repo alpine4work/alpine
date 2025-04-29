@@ -5,6 +5,7 @@ export type Result<T, E = unknown> =
     | {
           readonly ok: true;
           readonly value: T;
+          readonly error?: undefined;
       }
     | {
           readonly ok: false;
