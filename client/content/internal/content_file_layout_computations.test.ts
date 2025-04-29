@@ -225,84 +225,106 @@ const audioFile2 = new FileModel({
     },
 });
 
-test("can layout a file row", () => {
+test("layouts single standard image", () => {
     expect(
         computeContentFileRowLikeLayout([file1.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 449.699, width: 600, widthFr: 1}]);
+});
 
+test("layouts single large image", () => {
     expect(
         computeContentFileRowLikeLayout([file2.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 450, width: 600, widthFr: 1}]);
+});
 
+test("layouts single tall image", () => {
     expect(
         computeContentFileRowLikeLayout([file3.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 384.036, widthFr: 0.64006}]);
+});
 
+test("layouts iPhone screenshot", () => {
     expect(
         computeContentFileRowLikeLayout([file4.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 236.571, widthFr: 0.394286}]);
+});
 
+test("layouts cinema scope image", () => {
     expect(
         computeContentFileRowLikeLayout([file5.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 251.367, width: 600, widthFr: 1}]);
+});
 
+test("layouts vertical cinema scope image", () => {
     expect(
         computeContentFileRowLikeLayout([file6.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
+});
 
+test("layouts small icon image", () => {
     expect(
         computeContentFileRowLikeLayout([file7.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 76, width: 76, widthFr: 0.126667}]);
+});
 
+test("layouts vertical banner image", () => {
     expect(
         computeContentFileRowLikeLayout([file8.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
+});
 
+test("layouts horizontal banner image", () => {
     expect(
         computeContentFileRowLikeLayout([file9.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 100, width: 318, widthFr: 0.53}]);
+});
 
+test("layouts extreme vertical image", () => {
     expect(
         computeContentFileRowLikeLayout([file10.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
+});
 
+test("layouts extreme horizontal image", () => {
     expect(
         computeContentFileRowLikeLayout([file11.initialData], {
             blockWidth: 600,
             spacingScale: "small",
         }),
     ).toEqual([{height: 188.679, width: 600, widthFr: 1}]);
+});
 
+test("layouts two similar images in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file1.initialData, file2.initialData], {
             blockWidth: 600,
@@ -312,7 +334,9 @@ test("can layout a file row", () => {
         {height: 221.926, width: 296.099, widthFr: 0.500167},
         {height: 221.926, width: 295.901, widthFr: 0.499833},
     ]);
+});
 
+test("layouts three images in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file1.initialData, file3.initialData, file2.initialData], {
             blockWidth: 600,
@@ -323,7 +347,9 @@ test("can layout a file row", () => {
         {height: 170.879, width: 128.171, widthFr: 0.219471},
         {height: 170.879, width: 227.838, widthFr: 0.390134},
     ]);
+});
 
+test("layouts standard and tall image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file1.initialData, file3.initialData], {
             blockWidth: 600,
@@ -333,7 +359,9 @@ test("can layout a file row", () => {
         {height: 284.029, width: 378.958, widthFr: 0.640132},
         {height: 284.029, width: 213.042, widthFr: 0.359868},
     ]);
+});
 
+test("layouts tall and standard image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file3.initialData, file1.initialData], {
             blockWidth: 600,
@@ -343,7 +371,9 @@ test("can layout a file row", () => {
         {height: 284.029, width: 213.042, widthFr: 0.359868},
         {height: 284.029, width: 378.958, widthFr: 0.640132},
     ]);
+});
 
+test("layouts standard and wide image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file1.initialData, file5.initialData], {
             blockWidth: 600,
@@ -353,7 +383,9 @@ test("can layout a file row", () => {
         {height: 159.09, width: 212.261, widthFr: 0.35855},
         {height: 159.09, width: 379.739, widthFr: 0.64145},
     ]);
+});
 
+test("layouts standard and vertical cinema image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file1.initialData, file6.initialData], {
             blockWidth: 600,
@@ -363,7 +395,9 @@ test("can layout a file row", () => {
         {height: 337.471, width: 450.262, widthFr: 0.760578},
         {height: 337.471, width: 141.738, widthFr: 0.239422},
     ]);
+});
 
+test("layouts two iPhone screenshots in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file4.initialData, file4.initialData], {
             blockWidth: 600,
@@ -373,7 +407,9 @@ test("can layout a file row", () => {
         {height: 512, width: 236.571, widthFr: 0.399614},
         {height: 512, width: 236.571, widthFr: 0.399614},
     ]);
+});
 
+test("layouts three iPhone screenshots in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file4.initialData, file4.initialData, file4.initialData], {
             blockWidth: 600,
@@ -384,7 +420,9 @@ test("can layout a file row", () => {
         {height: 421.308, width: 194.667, widthFr: 0.333333},
         {height: 421.308, width: 194.667, widthFr: 0.333333},
     ]);
+});
 
+test("layouts small icon and standard image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file7.initialData, file1.initialData], {
             blockWidth: 600,
@@ -394,7 +432,9 @@ test("can layout a file row", () => {
         {height: 76, width: 76, widthFr: 0.128378},
         {height: 76, width: 101.401, widthFr: 0.171286},
     ]);
+});
 
+test("layouts small icon and tall image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([file7.initialData, file3.initialData], {
             blockWidth: 600,
@@ -404,7 +444,9 @@ test("can layout a file row", () => {
         {height: 76, width: 76, widthFr: 0.128378},
         {height: 76, width: 76, widthFr: 0.128378},
     ]);
+});
 
+test("layouts two audio files in a row", () => {
     expect(
         computeContentFileRowLikeLayout([audioFile1.initialData, audioFile2.initialData], {
             blockWidth: 600,
@@ -414,7 +456,9 @@ test("can layout a file row", () => {
         {height: 93.082, width: 296, widthFr: 0.5},
         {height: 93.082, width: 296, widthFr: 0.5},
     ]);
+});
 
+test("layouts two audio files in a row on mobile", () => {
     expect(
         computeContentFileRowLikeLayout([audioFile1.initialData, audioFile2.initialData], {
             blockWidth: 390 - screenPaddingXRem.mobile * remPxBySpacingScale.large * 2,
@@ -426,7 +470,7 @@ test("can layout a file row", () => {
     ]);
 });
 
-test("can layout a file float", () => {
+test("floats standard image left", () => {
     expect(
         computeContentFileFloatLayout("left", file1.initialData, {
             blockWidth: 600,
@@ -437,7 +481,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 140.7,
     });
+});
 
+test("floats large image left", () => {
     expect(
         computeContentFileFloatLayout("left", file2.initialData, {
             blockWidth: 600,
@@ -448,7 +494,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 140.7,
     });
+});
 
+test("floats tall image left", () => {
     expect(
         computeContentFileFloatLayout("left", file3.initialData, {
             blockWidth: 600,
@@ -459,7 +507,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 266.7,
     });
+});
 
+test("floats iPhone screenshot left", () => {
     expect(
         computeContentFileFloatLayout("left", file4.initialData, {
             blockWidth: 600,
@@ -470,7 +520,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 329.7,
     });
+});
 
+test("floats cinema scope image left", () => {
     expect(
         computeContentFileFloatLayout("left", file5.initialData, {
             blockWidth: 600,
@@ -481,7 +533,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 92,
     });
+});
 
+test("floats vertical cinema scope image left", () => {
     expect(
         computeContentFileFloatLayout("left", file6.initialData, {
             blockWidth: 600,
@@ -492,7 +546,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 329.7,
     });
+});
 
+test("floats small icon image left", () => {
     expect(
         computeContentFileFloatLayout("left", file7.initialData, {
             blockWidth: 600,
@@ -503,7 +559,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 92,
     });
+});
 
+test("floats vertical banner image left", () => {
     expect(
         computeContentFileFloatLayout("left", file8.initialData, {
             blockWidth: 600,
@@ -514,7 +572,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 245.7,
     });
+});
 
+test("floats horizontal banner image left", () => {
     expect(
         computeContentFileFloatLayout("left", file9.initialData, {
             blockWidth: 600,
@@ -525,7 +585,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 92,
     });
+});
 
+test("floats extreme vertical image left", () => {
     expect(
         computeContentFileFloatLayout("left", file10.initialData, {
             blockWidth: 600,
@@ -536,7 +598,9 @@ test("can layout a file float", () => {
         widthFr: 1,
         height: 329.7,
     });
+});
 
+test("floats extreme horizontal image left", () => {
     expect(
         computeContentFileFloatLayout("left", file11.initialData, {
             blockWidth: 600,
