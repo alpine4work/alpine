@@ -9,15 +9,15 @@ import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/conten
 import {AppContext} from "~/client/context/app_context.js";
 import {bellIconSvg} from "~/client/icons/bell_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
-import {channelSubscribeButtonFontWeight} from "~/client/styles/forum_shared_styles.js";
-import {backgroundColorVar, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
-    taskDetailViewDenseFieldGap,
-    taskDetailViewFieldLabelColor,
-    taskDetailViewFieldLabelFontSize,
-} from "~/client/styles/tasks_shared_styles.js";
+    channelSubscribeButtonFontWeight,
+    channelViewMetadataSectionTitleColor,
+    channelViewMetadataSectionTitleFontSize,
+    channelViewMetadataSectionTitleMarginBottom,
+} from "~/client/styles/forum_shared_styles.js";
+import {backgroundColorVar, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {renderedMaxChannelTopContributorCount} from "~/shared/forum/channel_model.js";
@@ -82,7 +82,7 @@ export function renderContentFileChannelEntityPreview(
             paddingY: containerPaddingY,
             display: "flex",
             flexDirection: "column",
-            gap: isSmallerThanThirdOfBlockWidth ? "6" : "7",
+            gap: "4",
         }),
     );
 
@@ -143,48 +143,22 @@ export function renderContentFileChannelEntityPreview(
     }
 
     {
-        const fieldGridHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
-
-        fieldGridHtml.setAttribute(
-            "style",
-            [
-                "display: grid",
-                `gap: ${spacing[taskDetailViewDenseFieldGap]}`,
-                `grid-template-columns: auto minmax(0, 1fr)`,
-                `grid-template-rows: repeat(auto-fill, auto)`,
-                `grid-auto-flow: row dense`,
-            ].join("; "),
-        );
+        const peopleSection = containerHtml.appendChild(new HtmlElementGenerator("div"));
 
         {
             const avatarSize = isSmallerThanThirdOfBlockWidth ? "6" : "7";
             const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
                 accountAvatarPileSizes[avatarSize];
 
-            const peopleSectionTitleHtml = fieldGridHtml.appendChild(
-                new HtmlElementGenerator("div"),
-            );
-
-            peopleSectionTitleHtml.setAttribute(
-                "class",
-                sprinkles({
-                    height: avatarSize,
-                    display: "flex",
-                    alignItems: "center",
-                    color: taskDetailViewFieldLabelColor,
-                    fontSize: taskDetailViewFieldLabelFontSize,
-                }),
-            );
-
-            peopleSectionTitleHtml.appendChild(new HtmlTextGenerator("People"));
-
-            const peopleSectionAvatarPileHtml = fieldGridHtml.appendChild(
+            const peopleSectionAvatarPileHtml = peopleSection.appendChild(
                 new HtmlElementGenerator("div"),
             );
 
             peopleSectionAvatarPileHtml.setAttribute(
                 "class",
                 sprinkles({
+                    position: "relative",
+                    zIndex: "0",
                     height: avatarSize,
                     display: "flex",
                 }),
@@ -313,28 +287,30 @@ export function renderContentFileChannelEntityPreview(
                 );
             }
         }
+    }
+
+    {
+        const descriptionSectionHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
 
         {
-            const descriptionSectionTitleHtml = fieldGridHtml.appendChild(
+            const descriptionSectionTitleHtml = descriptionSectionHtml.appendChild(
                 new HtmlElementGenerator("div"),
             );
 
             descriptionSectionTitleHtml.setAttribute(
                 "class",
                 sprinkles({
-                    color: taskDetailViewFieldLabelColor,
-                    fontSize: taskDetailViewFieldLabelFontSize,
+                    color: channelViewMetadataSectionTitleColor,
+                    fontSize: channelViewMetadataSectionTitleFontSize,
+                    marginBottom: channelViewMetadataSectionTitleMarginBottom,
                 }),
-            );
-
-            descriptionSectionTitleHtml.setAttribute(
-                "style",
-                `line-height: ${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
             );
 
             descriptionSectionTitleHtml.appendChild(new HtmlTextGenerator("About"));
 
-            const descriptionHtml = fieldGridHtml.appendChild(new HtmlElementGenerator("div"));
+            const descriptionHtml = descriptionSectionHtml.appendChild(
+                new HtmlElementGenerator("div"),
+            );
 
             descriptionHtml.setAttribute("class", contentStyles.docClassName);
 
