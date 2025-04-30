@@ -1,6 +1,5 @@
 import {InternalError} from "~/shared/error/error.js";
 import {
-    HybridLogicalClock,
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -224,7 +223,7 @@ export class TaskModel {
      * Make sure the hybrid logical clock's time is beyond any time observed by
      * this task.
      */
-    public tick(clock: HybridLogicalClock) {
+    public tick(clock: {tick(time: HybridLogicalTime): void}) {
         return tickTaskModelData(this.rawData, clock);
     }
 
@@ -334,7 +333,7 @@ export class TaskModel {
     }
 }
 
-function tickTaskModelData(task: TaskModelData, clock: HybridLogicalClock) {
+function tickTaskModelData(task: TaskModelData, clock: {tick(time: HybridLogicalTime): void}) {
     clock.tick(task.createdTime.absoluteTime);
     if (task.deletedTime !== null) clock.tick(task.deletedTime);
     if (task.undeletedTime !== null) clock.tick(task.undeletedTime);

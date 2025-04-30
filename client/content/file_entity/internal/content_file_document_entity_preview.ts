@@ -17,7 +17,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model.js";
+import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -57,6 +57,8 @@ export function renderContentFileDocumentEntityPreview(
         fileEntityRenderers: ContentFileEntityRenderers | null;
     },
 ) {
+    const fileEntity = unknownFileEntity.deserialize(FileDocumentEntityModelSchema);
+
     const isSmallerThanHalfOfBlockWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
@@ -66,8 +68,6 @@ export function renderContentFileDocumentEntityPreview(
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
             remPxBySpacingScale[spacingScale];
-
-    const fileEntity = unknownFileEntity.deserialize(FileDocumentEntityModelSchema);
 
     const transformScale =
         fontSizesBySpacingScale[

@@ -181,7 +181,7 @@ export class TaskCollectionSet {
         return this._entries.isEqual(other._entries);
     }
 
-    public tick(clock: HybridLogicalClock) {
+    public tick(clock: {tick(time: HybridLogicalTime): void}) {
         this._entries.tick(clock);
     }
 }

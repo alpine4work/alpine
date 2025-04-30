@@ -108,7 +108,7 @@ export interface CrdtMap<Key extends string | number, Value extends {}> {
      * Make sure the clock's time is after the time observed by every entry in
      * this map.
      */
-    tick(clock: HybridLogicalClock): void;
+    tick(clock: {tick(time: HybridLogicalTime): void}): void;
 }
 
 /**

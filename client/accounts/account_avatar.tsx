@@ -4,7 +4,7 @@ import {
     accountAvatarClassName,
     accountAvatarInitialsClassName,
     getAccountAvatarInitials,
-} from "~/client/accounts/render_account_avatar.js";
+} from "~/client/accounts/account_avatar_html.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";

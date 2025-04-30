@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {renderAccountAvatar} from "~/client/accounts/render_account_avatar.js";
+import {renderAccountAvatar} from "~/client/accounts/account_avatar_html.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
 import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
@@ -12,6 +12,7 @@ import {bellIconSvg} from "~/client/icons/bell_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {
     channelSubscribeButtonFontWeight,
+    channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
@@ -60,6 +61,8 @@ export function renderContentFileChannelEntityPreview(
         fileEntityRenderers: ContentFileEntityRenderers | null;
     },
 ) {
+    const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
+
     const isSmallerThanHalfOfBlockWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
@@ -70,8 +73,6 @@ export function renderContentFileChannelEntityPreview(
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
             remPxBySpacingScale[spacingScale];
 
-    const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
-
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
     const containerPadding = "5";
 
@@ -81,7 +82,7 @@ export function renderContentFileChannelEntityPreview(
             padding: containerPadding,
             display: "flex",
             flexDirection: "column",
-            gap: "4",
+            gap: channelViewHeaderSectionGap,
         }),
     );
 
@@ -95,6 +96,8 @@ export function renderContentFileChannelEntityPreview(
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: "3",
+                // Bring the people section a little closer to the channel name.
+                marginBottom: "-1",
             }),
         );
 
@@ -103,7 +106,7 @@ export function renderContentFileChannelEntityPreview(
         nameHtml.setAttribute(
             "class",
             sprinkles({
-                fontSize: isSmallerThanThirdOfBlockWidth ? "500" : "600",
+                fontSize: isSmallerThanThirdOfBlockWidth ? "400" : "500",
                 fontStyle: "truncate-bold",
             }),
         );
