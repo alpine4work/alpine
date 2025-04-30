@@ -292,6 +292,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                 checkboxHtml.appendChild(
                     createSvgHtmlGenerator(
                         checkIconSvg({
+                            weight: "bold",
                             className: contentStyles.checkListItemCheckboxIconClassName,
                         }),
                     ),

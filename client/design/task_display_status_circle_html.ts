@@ -142,11 +142,7 @@ export function renderTaskDisplayStatusCircle({
             createSvgHtmlGenerator(
                 checkIconSvg({
                     weight: "bold",
-                    className: sprinkles({
-                        width: "2.5",
-                        height: "2.5",
-                        fill: accentThemeForegroundColor,
-                    }),
+                    className: sprinkles({width: "2.5", height: "2.5"}),
                     style: `transform: scale(${sizeInt / 4})`,
                 }),
             ),

@@ -23,6 +23,7 @@ export function createContentEditorCheckListItemNodeViewConstructor({
         checkboxContainerDom.appendChild(checkboxDom);
         checkboxDom.className = contentStyles.checkListItemCheckboxClassName;
         checkboxDom.innerHTML = checkIconSvg({
+            weight: "bold",
             className: contentStyles.checkListItemCheckboxIconClassName,
         });
 

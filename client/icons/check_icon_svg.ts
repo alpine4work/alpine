@@ -11,18 +11,16 @@ import {Check} from "phosphor-react";
 Check;
 
 export const checkIconSvg = ({
-    weight = "regular",
+    // Only the `bold` weight is supported right now.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    weight,
     className = "",
     style,
 }: {
-    weight?: "regular" | "bold";
+    weight: "bold";
     className?: string;
     style?: string;
-} = {}) =>
-    weight === "bold"
-        ? `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeHtml(className)}"${
-              style !== undefined ? ` style="${escapeHtml(style)}"` : ""
-          } viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeHtml(className)}"${
-              style !== undefined ? ` style="${escapeHtml(style)}"` : ""
-          } viewBox="0 0 256 256"><rect width="256" height="256" fill="none"/><polyline points="216 72 104 184 48 128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/></svg>`;
+}) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" class="${escapeHtml(className)}"${
+        style !== undefined ? ` style="${escapeHtml(style)}"` : ""
+    } viewBox="0 0 256 256"><rect width="256" height="256" fill="none"/><polyline points="216 72 104 184 48 128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/></svg>`;
