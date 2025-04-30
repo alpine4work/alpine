@@ -218,7 +218,7 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
@@ -2921,30 +2921,34 @@ function ContentEditor<Content extends ContentWithReferences>(
                 view.state.selection instanceof NodeSelection &&
                 view.state.selection.node.type.name === "file"
             ) {
-                const selectedNodeElement = view.dom.getElementsByClassName(
-                    "ProseMirror-selectednode",
-                )[0];
+                const spaceId = assertExists(spaceContextRef.current?.space.id);
+                const fileId: FileId | FileEntityId | null = view.state.selection.node.attrs.fileId;
 
-                if (selectedNodeElement) {
-                    const spaceId = assertExists(spaceContextRef.current?.space.id);
-                    const fileId: FileId | FileEntityId | null =
-                        view.state.selection.node.attrs.fileId;
+                if (fileId && isId<FileId>(fileId)) {
+                    const selectedNodeElement = view.dom.getElementsByClassName(
+                        "ProseMirror-selectednode",
+                    )[0];
 
-                    const fileReference = fileId
-                        ? getContentEditorReferences(view.state).references.fileById?.get(fileId)
-                        : undefined;
+                    if (selectedNodeElement) {
+                        const fileReference = fileId
+                            ? getContentEditorReferences(view.state).references.fileById?.get(
+                                  fileId,
+                              )
+                            : undefined;
 
-                    const file = fileReference
-                        ? getFileClientStore(spaceId).getFileStore(fileReference).getSnapshot()
-                        : null;
+                        const file = fileReference
+                            ? getFileClientStore(spaceId).getFileStore(fileReference).getSnapshot()
+                            : null;
 
-                    handleCopyContentFile(selectedNodeElement, {
-                        spaceId,
-                        file,
-                        attachmentTarget: assertExists(propsRef.current.fileAttachmentTarget),
-                    }).catch(scheduleUncaughtError);
+                        handleCopyContentFile(selectedNodeElement, {
+                            spaceId,
+                            file,
+                            attachmentTarget: assertExists(propsRef.current.fileAttachmentTarget),
+                        }).catch(scheduleUncaughtError);
+                    }
+
+                    return true;
                 }
-                return true;
             }
 
             return false;
