@@ -97,6 +97,10 @@ export function renderContentFileDocumentEntityPreview(
             `transform: translateY(${marginXPx}px) scale(${transformScale}) translateY(-${
                 contentStyles.titlePaddingTop[getPlatformRouteLayout(platform, "narrow")]
             })`,
+            // Document title top margin is computed using safe area inset. So zero out
+            // safe area inset which shouldn't apply here.
+            "--safe-area-inset-top-base: 0px",
+            "--safe-area-inset-top: 0px",
         ].join("; "),
     );
 
