@@ -1002,7 +1002,7 @@ globalStyle(`${fileRowLikeClassName} + ${fileRowLikeClassName}`, {
     marginTop: fileRowGapWidth,
 });
 
-export const fileFloatMaxWidthPercent = 1 / 3;
+export const fileFloatMaxWidthAsIfFairlySplitFileCount = 3;
 
 const fileFloatLeftMarginX = spacing["5"];
 export const fileFloatLeftMarginXRem = parseRemLength(fileFloatLeftMarginX);

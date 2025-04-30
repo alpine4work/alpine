@@ -94,8 +94,7 @@ export function computeContentFileRowLikeLayout<
     const remPx = remPxBySpacingScale[spacingScale];
 
     const fairlySplitBlockWidth =
-        blockWidth / files.length -
-        (contentStyles.fileRowGapWidthRem * remPx * (files.length - 1)) / files.length;
+        (blockWidth - contentStyles.fileRowGapWidthRem * remPx * (files.length - 1)) / files.length;
 
     const solver = new kiwi.Solver();
 
@@ -397,9 +396,21 @@ export function computeContentFileFloatLayout(
     const {blockWidth, spacingScale} = options;
 
     const remPx = remPxBySpacingScale[spacingScale];
-    const {width, height} = getFileOrFileEntityPreviewSize(1, file, options);
 
-    const fileFloatMaxWidth = Math.round(blockWidth * contentStyles.fileFloatMaxWidthPercent);
+    // We pass in 3 for the file count since we want to treat a floating file as if
+    // it's one third of the block width at most.
+    const {width, height} = getFileOrFileEntityPreviewSize(
+        contentStyles.fileFloatMaxWidthAsIfFairlySplitFileCount,
+        file,
+        options,
+    );
+
+    const fileFloatMaxWidth =
+        (blockWidth -
+            contentStyles.fileRowGapWidthRem *
+                remPx *
+                (contentStyles.fileFloatMaxWidthAsIfFairlySplitFileCount - 1)) /
+        contentStyles.fileFloatMaxWidthAsIfFairlySplitFileCount;
 
     const solver = new kiwi.Solver();
 
@@ -415,7 +426,7 @@ export function computeContentFileFloatLayout(
     // than our file row's width.
     {
         const minWidth = contentStyles.fileMinSizeRem * remPx;
-        const maxWidth = clamp(minWidth, width, fileFloatMaxWidth);
+        const maxWidth = width !== null ? clamp(minWidth, width, fileFloatMaxWidth) : null;
 
         if (minWidth === maxWidth) {
             solver.addConstraint(
@@ -436,20 +447,34 @@ export function computeContentFileFloatLayout(
                 ),
             );
 
-            solver.addConstraint(
-                new kiwi.Constraint(
-                    widthVariable,
-                    kiwi.Operator.Le,
-                    maxWidth,
-                    kiwi.Strength.required,
-                ),
-            );
+            if (width !== null && maxWidth !== null) {
+                solver.addConstraint(
+                    new kiwi.Constraint(
+                        widthVariable,
+                        kiwi.Operator.Le,
+                        maxWidth,
+                        kiwi.Strength.required,
+                    ),
+                );
 
-            // Ideally we match the file's width. But it's not required. If our width is
-            // larger than the max width the solver will maximize our width variable.
-            solver.addConstraint(
-                new kiwi.Constraint(widthVariable, kiwi.Operator.Eq, width, kiwi.Strength.weak),
-            );
+                // Ideally we match the file's width. But it's not required. If our width is
+                // larger than the max width the solver will maximize our width variable.
+                solver.addConstraint(
+                    new kiwi.Constraint(widthVariable, kiwi.Operator.Eq, width, kiwi.Strength.weak),
+                );
+            } else {
+                // If there's no `maxWidth` (because there's no `width`) then we want the file
+                // to be close to a 1/3 of the block width. But it's perfectly fine to break
+                // this constraint.
+                solver.addConstraint(
+                    new kiwi.Constraint(
+                        widthVariable,
+                        kiwi.Operator.Eq,
+                        fileFloatMaxWidth,
+                        kiwi.Strength.weak,
+                    ),
+                );
+            }
         }
     }
 
@@ -506,10 +531,14 @@ export function computeContentFileFloatLayout(
         new kiwi.Constraint(
             widthVariable.minus(
                 heightVariable.multiply(
-                    clamp(minFilePreviewAspectRatio, width / height, maxFilePreviewAspectRatio),
+                    clamp(
+                        minFilePreviewAspectRatio,
+                        (width ?? fileFloatMaxWidth) / height,
+                        maxFilePreviewAspectRatio,
+                    ),
                 ),
             ),
-            kiwi.Operator.Eq,
+            width !== null ? kiwi.Operator.Eq : kiwi.Operator.Ge,
             0,
             kiwi.Strength.strong,
         ),
@@ -555,19 +584,10 @@ export function computeContentFileFloatLayout(
 
     solver.updateVariables();
 
-    const widthSolution =
-        widthVariable.value() +
-        (direction === "left"
-            ? contentStyles.fileFloatLeftMarginXRem
-            : contentStyles.fileFloatRightMarginXRem) *
-            remPx;
-
-    const heightSolution = heightVariable.value() + contentStyles.fileFloatMarginYRem * remPx * 2;
-
     return {
-        width: round3(widthSolution),
+        width: round3(widthVariable.value()),
         widthFr: 1,
-        height: round3(heightSolution),
+        height: round3(heightVariable.value()),
     };
 }
 

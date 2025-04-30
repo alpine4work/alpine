@@ -15,9 +15,10 @@ import {
     getSpacingScaleWithoutListening,
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
@@ -127,8 +128,18 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 if (lastLayouts !== layouts) {
                     lastLayouts = layouts;
 
-                    dom.style.width = `${layouts[0]!.width}px`;
-                    dom.style.height = `${layouts[0]!.height}px`;
+                    const remPx = remPxBySpacingScale[spacingScale];
+
+                    dom.style.width = `${
+                        layouts[0]!.width +
+                        (direction === "left"
+                            ? contentStyles.fileFloatLeftMarginXRem
+                            : contentStyles.fileFloatRightMarginXRem) *
+                            remPx
+                    }px`;
+                    dom.style.height = `${
+                        layouts[0]!.height + contentStyles.fileFloatMarginYRem * remPx * 2
+                    }px`;
                 }
             };
 
