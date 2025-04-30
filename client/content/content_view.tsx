@@ -396,17 +396,16 @@ export function ContentView<Content extends ContentWithReferences>({
         }
 
         if (shouldShowSeeMoreContentButton || shouldShowSeeLessContentButton) {
-            const result = getContentViewLastParagraphChild(content.doc);
+            const result = shouldShowSeeLessContentButton
+                ? // Always render "See less" on its own line. Don't put it inline with the last
+                  // paragraph.
+                  null
+                : getContentViewLastParagraphChild(content.doc);
 
             const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
 
             let html: HtmlElementGenerator;
-            if (
-                result !== null &&
-                // Always render "See less" on its own line. Don't put it inline with the last
-                // paragraph.
-                !shouldShowSeeLessContentButton
-            ) {
+            if (result !== null) {
                 const shouldAddEllipsis =
                     result.node.childCount > 0 &&
                     !isTextEndedWithPunctuation(result.node.lastChild!.text!);
