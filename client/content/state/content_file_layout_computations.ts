@@ -1,6 +1,7 @@
 import * as kiwi from "@lume/kiwi";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -77,7 +78,9 @@ export function computeContentFileRowLikeLayout<
 >(
     files: Files,
     options: {
+        maxFileCount: number;
         blockWidth: number;
+        platform: Platform;
         spacingScale: SpacingScale;
         maxHeight?: RemLength;
     },
@@ -387,9 +390,10 @@ export function computeContentFileRowLikeLayout<
  */
 export function computeContentFileFloatLayout(
     direction: "left" | "right",
-    file: FileModelData | null,
+    file: FileModelData | FileEntityId | null,
     options: {
         blockWidth: number;
+        platform: Platform;
         spacingScale: SpacingScale;
     },
 ): ContentFileLayout {
@@ -402,7 +406,7 @@ export function computeContentFileFloatLayout(
     const {width, height} = getFileOrFileEntityPreviewSize(
         contentStyles.fileFloatMaxWidthAsIfFairlySplitFileCount,
         file,
-        options,
+        {...options, maxFileCount: contentStyles.fileFloatMaxWidthAsIfFairlySplitFileCount},
     );
 
     const fileFloatMaxWidth =
@@ -627,7 +631,17 @@ const fileImagePreviewSizeDownScale = 2;
 function getFileOrFileEntityPreviewSize(
     fileCount: number,
     file: FileModelData | FileEntityId | null,
-    {spacingScale, blockWidth}: {spacingScale: SpacingScale; blockWidth: number},
+    {
+        maxFileCount,
+        platform,
+        spacingScale,
+        blockWidth,
+    }: {
+        maxFileCount: number;
+        platform: Platform;
+        spacingScale: SpacingScale;
+        blockWidth: number;
+    },
 ): {
     width: number | null;
     height: number;
@@ -640,20 +654,34 @@ function getFileOrFileEntityPreviewSize(
     //   assuming there are two other entities in the row.
     // - Two files should be in between the height of one file and three files.
     if (typeof file === "string") {
-        const height1 = convertRemLengthToPx(documentCommentThreadPreviewHeight, spacingScale);
+        const maxBlockWidthPercent =
+            blockWidth /
+            (contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale]);
 
-        if (fileCount <= 1) {
-            return {width: null, height: height1};
+        const startHeight = convertRemLengthToPx(documentCommentThreadPreviewHeight, spacingScale);
+
+        if (
+            fileCount <= 1 &&
+            // To better support tables, we only permit this short height if the block
+            // width is at least half of the max block width.
+            maxBlockWidthPercent > 1 / 2
+        ) {
+            return {width: null, height: startHeight};
         }
 
-        const height3 = blockWidth / 3 / letterPaperAspectRatio;
-        const height2 = height1 + (height3 - height1) / 2;
+        const endHeight = blockWidth / maxFileCount / letterPaperAspectRatio;
 
-        if (fileCount <= 2) {
-            return {width: null, height: height2};
+        if (
+            fileCount <= 2 &&
+            // To better support tables, we only permit this medium height if the block
+            // width is at least a third of the max block width.
+            maxBlockWidthPercent > 1 / 3
+        ) {
+            const middleHeight = startHeight + (endHeight - startHeight) / 2;
+            return {width: null, height: middleHeight};
         }
 
-        return {width: null, height: height3};
+        return {width: null, height: endHeight};
     }
 
     return getFilePreviewSize(file);

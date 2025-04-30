@@ -229,7 +229,9 @@ const audioFile2 = new FileModel({
 test("layouts single standard image", () => {
     expect(
         computeContentFileRowLikeLayout([standardFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 449.699, width: 600, widthFr: 1}]);
@@ -238,7 +240,9 @@ test("layouts single standard image", () => {
 test("layouts single large image", () => {
     expect(
         computeContentFileRowLikeLayout([largeFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 450, width: 600, widthFr: 1}]);
@@ -247,7 +251,9 @@ test("layouts single large image", () => {
 test("layouts single tall image", () => {
     expect(
         computeContentFileRowLikeLayout([tallFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 384.036, widthFr: 0.64006}]);
@@ -256,7 +262,9 @@ test("layouts single tall image", () => {
 test("layouts iPhone screenshot", () => {
     expect(
         computeContentFileRowLikeLayout([phoneScreenshotFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 236.571, widthFr: 0.394286}]);
@@ -265,7 +273,9 @@ test("layouts iPhone screenshot", () => {
 test("layouts cinema scope image", () => {
     expect(
         computeContentFileRowLikeLayout([cinemaScopeFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 251.367, width: 600, widthFr: 1}]);
@@ -274,7 +284,9 @@ test("layouts cinema scope image", () => {
 test("layouts vertical cinema scope image", () => {
     expect(
         computeContentFileRowLikeLayout([cinemaScopeVerticalFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
@@ -283,7 +295,9 @@ test("layouts vertical cinema scope image", () => {
 test("layouts small icon image", () => {
     expect(
         computeContentFileRowLikeLayout([iconFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 76, width: 76, widthFr: 0.126667}]);
@@ -292,7 +306,9 @@ test("layouts small icon image", () => {
 test("layouts moderate vertical image", () => {
     expect(
         computeContentFileRowLikeLayout([moderateVerticalFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 238.095, width: 100, widthFr: 0.166667}]);
@@ -301,7 +317,9 @@ test("layouts moderate vertical image", () => {
 test("layouts moderate horizontal image", () => {
     expect(
         computeContentFileRowLikeLayout([moderateHorizontalFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 100, width: 318, widthFr: 0.53}]);
@@ -310,7 +328,9 @@ test("layouts moderate horizontal image", () => {
 test("layouts extreme vertical image", () => {
     expect(
         computeContentFileRowLikeLayout([extremeVerticalFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 512, width: 215.04, widthFr: 0.3584}]);
@@ -319,7 +339,9 @@ test("layouts extreme vertical image", () => {
 test("layouts extreme horizontal image", () => {
     expect(
         computeContentFileRowLikeLayout([extremeHorizontalFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 188.679, width: 600, widthFr: 1}]);
@@ -328,7 +350,9 @@ test("layouts extreme horizontal image", () => {
 test("layouts two similar images in a row", () => {
     expect(
         computeContentFileRowLikeLayout([standardFile.initialData, largeFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([
@@ -342,7 +366,9 @@ test("layouts three images in a row", () => {
         computeContentFileRowLikeLayout(
             [standardFile.initialData, tallFile.initialData, largeFile.initialData],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -356,7 +382,9 @@ test("layouts three images in a row", () => {
 test("layouts standard and tall image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([standardFile.initialData, tallFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([
@@ -368,7 +396,9 @@ test("layouts standard and tall image in a row", () => {
 test("layouts tall and standard image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([tallFile.initialData, standardFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([
@@ -380,7 +410,9 @@ test("layouts tall and standard image in a row", () => {
 test("layouts standard and wide image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([standardFile.initialData, cinemaScopeFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([
@@ -394,7 +426,9 @@ test("layouts standard and vertical cinema image in a row", () => {
         computeContentFileRowLikeLayout(
             [standardFile.initialData, cinemaScopeVerticalFile.initialData],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -409,7 +443,9 @@ test("layouts two iPhone screenshots in a row", () => {
         computeContentFileRowLikeLayout(
             [phoneScreenshotFile.initialData, phoneScreenshotFile.initialData],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -428,7 +464,9 @@ test("layouts three iPhone screenshots in a row", () => {
                 phoneScreenshotFile.initialData,
             ],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -442,7 +480,9 @@ test("layouts three iPhone screenshots in a row", () => {
 test("layouts small icon and standard image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([iconFile.initialData, standardFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([
@@ -454,7 +494,9 @@ test("layouts small icon and standard image in a row", () => {
 test("layouts small icon and tall image in a row", () => {
     expect(
         computeContentFileRowLikeLayout([iconFile.initialData, tallFile.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([
@@ -466,7 +508,9 @@ test("layouts small icon and tall image in a row", () => {
 test("layouts two audio files in a row", () => {
     expect(
         computeContentFileRowLikeLayout([audioFile1.initialData, audioFile2.initialData], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([
@@ -478,7 +522,9 @@ test("layouts two audio files in a row", () => {
 test("layouts two audio files in a row on mobile", () => {
     expect(
         computeContentFileRowLikeLayout([audioFile1.initialData, audioFile2.initialData], {
+            maxFileCount: 3,
             blockWidth: 390 - screenPaddingXRem.mobile * remPxBySpacingScale.large * 2,
+            platform: "mobile",
             spacingScale: "large",
         }),
     ).toEqual([
@@ -490,7 +536,9 @@ test("layouts two audio files in a row on mobile", () => {
 test("layouts file entity", () => {
     expect(
         computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
+            maxFileCount: 3,
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual([{height: 192, width: 600, widthFr: 1}]);
@@ -501,7 +549,9 @@ test("layouts two file entities", () => {
         computeContentFileRowLikeLayout(
             [`Document:${generateId<DocumentId>()}`, `Document:${generateId<DocumentId>()}`],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -516,7 +566,9 @@ test("layouts file entity and standard image", () => {
         computeContentFileRowLikeLayout(
             [`Document:${generateId<DocumentId>()}`, standardFile.initialData],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -531,7 +583,9 @@ test("layouts file entity and tall image", () => {
         computeContentFileRowLikeLayout(
             [`Document:${generateId<DocumentId>()}`, tallFile.initialData],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -550,7 +604,9 @@ test("layouts three file entities", () => {
                 `Document:${generateId<DocumentId>()}`,
             ],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -570,7 +626,9 @@ test("layouts two file entities and standard image", () => {
                 standardFile.initialData,
             ],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -590,7 +648,9 @@ test("layouts two file entities and tall image", () => {
                 tallFile.initialData,
             ],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -610,7 +670,9 @@ test("layouts file entity, standard image, and tall image", () => {
                 tallFile.initialData,
             ],
             {
+                maxFileCount: 3,
                 blockWidth: 600,
+                platform: "desktop",
                 spacingScale: "small",
             },
         ),
@@ -621,16 +683,70 @@ test("layouts file entity, standard image, and tall image", () => {
     ]);
 });
 
+test("layouts file entity in table with a column width that's half the block width", () => {
+    expect(
+        computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
+            maxFileCount: 1,
+            blockWidth: 276,
+            platform: "desktop",
+            spacingScale: "small",
+        }),
+    ).toEqual([{height: 274.588, width: 276, widthFr: 1}]);
+});
+
+test("layouts file entity in table with a column width that's more than half the block width", () => {
+    expect(
+        computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
+            maxFileCount: 1,
+            blockWidth: 326,
+            platform: "desktop",
+            spacingScale: "small",
+        }),
+    ).toEqual([{height: 192, width: 326, widthFr: 1}]);
+
+    expect(
+        computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
+            maxFileCount: 1,
+            blockWidth: 476,
+            platform: "desktop",
+            spacingScale: "small",
+        }),
+    ).toEqual([{height: 192, width: 476, widthFr: 1}]);
+});
+
+test("layouts file entity in table with a column width that's more less than half the block width", () => {
+    expect(
+        computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
+            maxFileCount: 1,
+            blockWidth: 226,
+            platform: "desktop",
+            spacingScale: "small",
+        }),
+    ).toEqual([{height: 242.235, width: 226, widthFr: 1}]);
+});
+
+test("layouts file entity in table with a column width that's more less than a third of the block width", () => {
+    expect(
+        computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
+            maxFileCount: 1,
+            blockWidth: 176,
+            platform: "desktop",
+            spacingScale: "small",
+        }),
+    ).toEqual([{height: 227.765, width: 176, widthFr: 1}]);
+});
+
 test("floats standard image left", () => {
     expect(
         computeContentFileFloatLayout("left", standardFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 197.052,
+        width: 177.052,
         widthFr: 1,
-        height: 140.7,
+        height: 132.7,
     });
 });
 
@@ -638,12 +754,13 @@ test("floats large image left", () => {
     expect(
         computeContentFileFloatLayout("left", largeFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 196.933,
+        width: 176.933,
         widthFr: 1,
-        height: 140.7,
+        height: 132.7,
     });
 });
 
@@ -651,12 +768,13 @@ test("floats tall image left", () => {
     expect(
         computeContentFileFloatLayout("left", tallFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 214.043,
+        width: 194.043,
         widthFr: 1,
-        height: 266.7,
+        height: 258.7,
     });
 });
 
@@ -664,12 +782,13 @@ test("floats iPhone screenshot left", () => {
     expect(
         computeContentFileFloatLayout("left", phoneScreenshotFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 168.643,
+        width: 148.643,
         widthFr: 1,
-        height: 329.7,
+        height: 321.7,
     });
 });
 
@@ -677,12 +796,13 @@ test("floats cinema scope image left", () => {
     expect(
         computeContentFileFloatLayout("left", cinemaScopeFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 220,
+        width: 194.667,
         widthFr: 1,
-        height: 92,
+        height: 84,
     });
 });
 
@@ -690,12 +810,13 @@ test("floats vertical cinema scope image left", () => {
     expect(
         computeContentFileFloatLayout("left", cinemaScopeVerticalFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 155.114,
+        width: 135.114,
         widthFr: 1,
-        height: 329.7,
+        height: 321.7,
     });
 });
 
@@ -703,12 +824,13 @@ test("floats small icon image left", () => {
     expect(
         computeContentFileFloatLayout("left", iconFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 96,
+        width: 76,
         widthFr: 1,
-        height: 92,
+        height: 84,
     });
 });
 
@@ -716,12 +838,13 @@ test("floats vertical banner image left", () => {
     expect(
         computeContentFileFloatLayout("left", moderateVerticalFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 119.834,
+        width: 99.834,
         widthFr: 1,
-        height: 245.7,
+        height: 237.7,
     });
 });
 
@@ -729,12 +852,13 @@ test("floats horizontal banner image left", () => {
     expect(
         computeContentFileFloatLayout("left", moderateHorizontalFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 220,
+        width: 194.667,
         widthFr: 1,
-        height: 92,
+        height: 84,
     });
 });
 
@@ -742,12 +866,13 @@ test("floats extreme vertical image left", () => {
     expect(
         computeContentFileFloatLayout("left", extremeVerticalFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 155.114,
+        width: 135.114,
         widthFr: 1,
-        height: 329.7,
+        height: 321.7,
     });
 });
 
@@ -755,11 +880,26 @@ test("floats extreme horizontal image left", () => {
     expect(
         computeContentFileFloatLayout("left", extremeHorizontalFile.initialData, {
             blockWidth: 600,
+            platform: "desktop",
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 220,
+        width: 194.667,
         widthFr: 1,
-        height: 92,
+        height: 84,
+    });
+});
+
+test("floats file entity", () => {
+    expect(
+        computeContentFileFloatLayout("left", `Document:${generateId<DocumentId>()}`, {
+            blockWidth: 600,
+            platform: "desktop",
+            spacingScale: "small",
+        }),
+    ).toEqual({
+        width: 194.667,
+        widthFr: 1,
+        height: 258.7,
     });
 });

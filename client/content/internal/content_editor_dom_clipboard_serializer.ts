@@ -178,6 +178,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const layouts = layoutContentFileParent(node, {
                 blockWidth:
                     contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
+                platform,
                 spacingScale,
                 getFile: fileId => {
                     const fileReference = contentReferences.fileById?.get(fileId);

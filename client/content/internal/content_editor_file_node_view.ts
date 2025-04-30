@@ -192,6 +192,7 @@ export function createContentEditorFileNodeViewConstructor({
                     );
 
                     const layout = layoutContentFile(view.state.doc, pos, node, {
+                        platform,
                         spacingScale,
                         blockWidth: blockWidthPx,
                         getFile: otherFileId => {

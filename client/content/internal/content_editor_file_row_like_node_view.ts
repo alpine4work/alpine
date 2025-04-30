@@ -154,6 +154,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             const layoutsStore = computeStore(get =>
                 layoutContentFileParent(node, {
                     blockWidth: blockWidthPx,
+                    platform,
                     spacingScale,
                     getFile: fileId => {
                         const fileReference = references.fileById?.get(fileId);

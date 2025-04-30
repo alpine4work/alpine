@@ -5,6 +5,7 @@ import {
     computeContentFileRowLikeLayout,
 } from "~/client/content/state/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/content/state/internal/create_cached_function.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -18,14 +19,24 @@ const actuallyLayoutContentFileParent = createCachedFunction(
     (
         node: Node,
         blockWidth: number,
+        platform: Platform,
         spacingScale: SpacingScale,
         ...files: Array<FileModelData | FileEntityId | null>
     ) => {
         switch (node.type.name) {
-            case "fileRow":
+            case "fileRow": {
+                return computeContentFileRowLikeLayout(files, {
+                    maxFileCount: 3,
+                    blockWidth,
+                    platform,
+                    spacingScale,
+                });
+            }
             case "fileRowTable": {
                 return computeContentFileRowLikeLayout(files, {
+                    maxFileCount: 1,
                     blockWidth,
+                    platform,
                     spacingScale,
                 });
             }
@@ -36,6 +47,7 @@ const actuallyLayoutContentFileParent = createCachedFunction(
                 return [
                     computeContentFileFloatLayout(node.attrs.direction, files[0], {
                         blockWidth,
+                        platform,
                         spacingScale,
                     }),
                 ];
@@ -60,10 +72,12 @@ export function layoutContentFileParent(
     node: Node,
     {
         blockWidth,
+        platform,
         spacingScale,
         getFile,
     }: {
         blockWidth: number;
+        platform: Platform;
         spacingScale: SpacingScale;
         getFile: (fileId: FileId) => FileModelData | null;
     },
@@ -81,7 +95,7 @@ export function layoutContentFileParent(
         return fileId;
     });
 
-    return actuallyLayoutContentFileParent(node, blockWidth, spacingScale, ...files);
+    return actuallyLayoutContentFileParent(node, blockWidth, platform, spacingScale, ...files);
 }
 
 /**
@@ -101,6 +115,7 @@ export function layoutContentFile(
     node: Node,
     options: {
         blockWidth: number;
+        platform: Platform;
         spacingScale: SpacingScale;
         getFile: (fileId: FileId) => FileModelData | null;
     },

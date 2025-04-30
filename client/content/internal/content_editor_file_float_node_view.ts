@@ -112,6 +112,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
             const layoutsStore = computeStore(get =>
                 layoutContentFileParent(node, {
+                    platform,
                     spacingScale,
                     blockWidth,
                     getFile: fileId => {

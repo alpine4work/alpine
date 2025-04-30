@@ -217,6 +217,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
 
         const layouts = layoutContentFileParent(node, {
             blockWidth: currentBlockWidth,
+            platform,
             spacingScale,
             getFile: fileId => {
                 const fileReference = content.references.fileById?.get(fileId);
@@ -431,6 +432,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
 
                 const layouts = layoutContentFileParent(node, {
                     blockWidth,
+                    platform,
                     spacingScale,
                     getFile: fileId => {
                         const fileReference = content.references.fileById?.get(fileId);
@@ -480,8 +482,6 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                     }
                 }
 
-                console.log({currentBlockWidth});
-
                 const fileId: FileId | FileEntityId | null = node.attrs.fileId;
                 const isFileEntity = fileId && !isId<FileId>(fileId);
 
@@ -496,6 +496,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
 
                 const layout = layoutContentFile(content.doc, pos, node, {
                     blockWidth: currentBlockWidth,
+                    platform,
                     spacingScale,
                     getFile: otherFileId => {
                         if (otherFileId === fileId) return file ?? null;
