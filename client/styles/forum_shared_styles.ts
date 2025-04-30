@@ -34,7 +34,7 @@ export const postContentViewOuterMarginY = "4";
 // We also use this value as the padding X and Y padding for our post content
 // editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing
 // values in addition to Y axis spacing values.
-export const postContentViewInnerMarginY = "2";
+export const postContentViewInnerMarginY = "4";
 
 export const postContentViewHeaderAvatarSize = "8";
 export const postContentViewHeaderHeight = "8";

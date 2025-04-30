@@ -3893,6 +3893,31 @@ function ContentEditor<Content extends ContentWithReferences>(
                         newDecorationCallbacks.delete(blurDecorationCallback);
                         return newDecorationCallbacks;
                     });
+
+                    // Keep track of the element ProseMirror marks as selected with the
+                    // `ProseMirror-selectednode` CSS class so that we can render our own custom
+                    // ring around it.
+                    //
+                    // We have this code here in addition to in the state update `useLayoutEffect()`
+                    // because we've observed sometimes ProseMirror doesn't set the
+                    // `ProseMirror-selectednode` class until after a focus event.
+                    if (!(view.state.selection instanceof NodeSelection)) {
+                        setSelectedNodeState(null);
+                    } else {
+                        const selectedNodeElement = viewElement.getElementsByClassName(
+                            "ProseMirror-selectednode",
+                        )[0];
+                        if (selectedNodeElement instanceof HTMLElement) {
+                            setSelectedNodeState(selectedNodeState => {
+                                if (selectedNodeState?.element === selectedNodeElement)
+                                    return selectedNodeState;
+
+                                return {key: generateId(), element: selectedNodeElement};
+                            });
+                        } else {
+                            setSelectedNodeState(null);
+                        }
+                    }
                 } else {
                     setIsFocused(false);
 

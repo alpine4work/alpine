@@ -216,6 +216,9 @@ function ContentEditorFileToolbar({
                 fallbackPlacements={emptyArray}
                 offset="4"
                 targetElement={targetElement}
+                // Render above `<FocusRing>` overlays. For example, the `<FocusRing>` overlay
+                // around a post when editing content on desktop.
+                overlayZIndex="10"
                 overlay={
                     <Box
                         ref={toolbarRef}
