@@ -308,8 +308,14 @@ export function renderContentFileChannelEntityPreview(
 
             descriptionHtml.setAttribute(
                 "class",
-                classNames(contentStyles.docClassName, contentStyles.narrowRouteLayoutDocClassName),
+                classNames(
+                    contentStyles.docClassName,
+                    contentStyles.narrowRouteLayoutDocClassName,
+                    contentStyles.withUserSelectNoneDocClassName,
+                ),
             );
+
+            descriptionHtml.setAttribute("style", "user-select: none; -webkit-user-select: none");
 
             // NOCOMMIT: Render empty description. Perhaps with placeholder?
             const descriptionFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(

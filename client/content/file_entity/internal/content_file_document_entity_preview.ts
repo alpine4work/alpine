@@ -103,12 +103,16 @@ export function renderContentFileDocumentEntityPreview(
     const docHtml = scaledDocHtml.appendChild(new HtmlElementGenerator("div"));
     docHtml.setAttribute(
         "class",
-        classNames(contentStyles.docClassName, contentStyles.narrowRouteLayoutDocClassName),
+        classNames(
+            contentStyles.docClassName,
+            contentStyles.narrowRouteLayoutDocClassName,
+            contentStyles.withUserSelectNoneDocClassName,
+        ),
     );
 
     docHtml.setAttribute(
         "style",
-        [`padding-left: ${scaledPaddingPx}px`, `padding-right: ${scaledPaddingPx}px`].join("; "),
+        `padding-left: ${scaledPaddingPx}px; padding-right: ${scaledPaddingPx}px`,
     );
 
     const docFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(

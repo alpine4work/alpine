@@ -181,8 +181,20 @@ export const narrowRouteLayoutDocClassName = style({});
 export const isDraggingSelectionDocClassName = style({});
 
 export const withoutBlockMaxWidthDocClassName = style({
-    vars: {
-        [blockMaxWidthVar]: "none",
+    selectors: {
+        [`${docClassName}&`]: {
+            vars: {
+                [blockMaxWidthVar]: "none",
+            },
+        },
+    },
+});
+
+export const withUserSelectNoneDocClassName = style({
+    selectors: {
+        [`${docClassName}&`]: {
+            userSelect: "none",
+        },
     },
 });
 

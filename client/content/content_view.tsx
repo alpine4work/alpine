@@ -1385,15 +1385,12 @@ export function ContentView<Content extends ContentWithReferences>({
                         ? contentStyles.narrowRouteLayoutDocClassName
                         : undefined,
                     withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
+                    withUserSelectNone && contentStyles.withUserSelectNoneDocClassName,
                     className,
                     isTitleEmpty && contentStyles.emptyTitleClassName,
                     isBodyEmpty && contentStyles.emptyBodyClassName,
                 )}
-                style={
-                    withUserSelectNone
-                        ? {userSelect: "none", WebkitUserSelect: "none", ...style}
-                        : style
-                }
+                style={style}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
                 dangerouslySetInnerHTML={
