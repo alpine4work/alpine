@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {renderAccountAvatar} from "~/client/accounts/render_account_avatar.js";
@@ -17,7 +18,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {backgroundColorVar, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {convertRemLengthToPx, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {renderedMaxChannelTopContributorCount} from "~/shared/forum/channel_model.js";
@@ -72,14 +73,12 @@ export function renderContentFileChannelEntityPreview(
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
 
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
-    const containerPaddingX = "5";
-    const containerPaddingY = "4";
+    const containerPadding = "5";
 
     containerHtml.setAttribute(
         "class",
         sprinkles({
-            paddingX: containerPaddingX,
-            paddingY: containerPaddingY,
+            padding: containerPadding,
             display: "flex",
             flexDirection: "column",
             gap: "4",
@@ -97,11 +96,6 @@ export function renderContentFileChannelEntityPreview(
                 alignItems: "center",
                 gap: "3",
             }),
-        );
-
-        nameContainerHtml.setAttribute(
-            "style",
-            `margin-right: -${subtractRemLengths(containerPaddingX, containerPaddingY)}`,
         );
 
         const nameHtml = nameContainerHtml.appendChild(new HtmlElementGenerator("div"));
@@ -168,7 +162,7 @@ export function renderContentFileChannelEntityPreview(
             // amount of available space then divides by the avatar overlap width.
             const maxPreviewAccountCount = Math.floor(
                 (layout.width -
-                    (convertRemLengthToPx(containerPaddingX, spacingScale) * 2 +
+                    (convertRemLengthToPx(containerPadding, spacingScale) * 2 +
                         convertRemLengthToPx(avatarSize, spacingScale))) /
                     convertRemLengthToPx(avatarOverlapWidth, spacingScale),
             );
@@ -312,8 +306,12 @@ export function renderContentFileChannelEntityPreview(
                 new HtmlElementGenerator("div"),
             );
 
-            descriptionHtml.setAttribute("class", contentStyles.docClassName);
+            descriptionHtml.setAttribute(
+                "class",
+                classNames(contentStyles.docClassName, contentStyles.narrowRouteLayoutDocClassName),
+            );
 
+            // NOCOMMIT: Render empty description. Perhaps with placeholder?
             const descriptionFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(
                 get,
                 fileEntity.description,

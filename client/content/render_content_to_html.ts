@@ -109,9 +109,10 @@ export function renderContentToHtmlStore(
         withPosAttribute,
         placeholder,
     }).map(fragmentHtmlGenerator => {
-        return `<div class="${
-            contentStyles.docClassName
-        }">${fragmentHtmlGenerator.generateHtml()}</div>`;
+        return `<div class="${classNames(
+            contentStyles.docClassName,
+            routeLayout === "narrow" ? contentStyles.narrowRouteLayoutDocClassName : undefined,
+        )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
     });
 }
 
