@@ -4940,13 +4940,16 @@ function handlePasteAfterResolvingReferences(
         selection.$from.parent.type.name === "paragraph" &&
         selection.$from.parent.nodeSize === 2
     ) {
-        dispatch(
-            createTransaction().replace(
-                selection.$from.pos - 1,
-                selection.$from.pos + 1,
-                new Slice(slice.content, 0, slice.openEnd),
-            ),
+        const transaction = createTransaction();
+
+        transaction.replace(
+            selection.$from.pos - 1,
+            selection.$from.pos + 1,
+            new Slice(slice.content, 0, slice.openEnd),
         );
+
+        fixNodeSelectionAfterPaste(slice, transaction);
+        dispatch(transaction.setMeta("paste", true).setMeta("uiEvent", "paste"));
         return;
     }
 
@@ -4986,6 +4989,7 @@ function handlePasteAfterResolvingReferences(
             selection.replace(transaction, slice);
         }
 
+        fixNodeSelectionAfterPaste(slice, transaction);
         dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
         return;
     }
@@ -5005,7 +5009,55 @@ function handlePasteAfterResolvingReferences(
         selection.replace(transaction, slice);
     }
 
+    fixNodeSelectionAfterPaste(slice, transaction);
     dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+}
+
+/**
+ * When pasting a slice that ends in a selectable node, ProseMirror puts the
+ * selection into the next text block instead of in the pasted selectable node!
+ * This function runs after the ProseMirror `replace()` which performs the
+ * paste to detect if the last node of our slice was a selectable node and if
+ * so, make sure the selection after the paste has selected the new node.
+ *
+ * To reproduce this try selecting a divider, copying, then pasting the
+ * divider. The divider should be selected after the paste.
+ */
+function fixNodeSelectionAfterPaste(slice: Slice, transaction: Transaction) {
+    let lastSelectableChild = slice.content.lastChild;
+    while (
+        lastSelectableChild?.lastChild &&
+        !lastSelectableChild.inlineContent &&
+        !lastSelectableChild.type.spec.selectable
+    ) {
+        lastSelectableChild = lastSelectableChild.lastChild;
+    }
+
+    // The last selectable child is text content. ProseMirror will correctly place
+    // the selection at the end of the pasted content.
+    if (!lastSelectableChild || lastSelectableChild.inlineContent) return;
+
+    // We already have a `NodeSelection`. ProseMirror correctly placed the
+    // selection in the last pasted node.
+    if (
+        transaction.selection instanceof NodeSelection &&
+        transaction.selection.node.eq(lastSelectableChild)
+    ) {
+        return;
+    }
+
+    // Find a selection moving backwards from before the current selected node.
+    // This should be the last node in the pasted slice.
+    const newSelection = Selection.findFrom(
+        transaction.doc.resolve(transaction.selection.$from.before()),
+        -1,
+    );
+
+    // The new selection isn't the node selection we were hoping for...
+    if (!(newSelection instanceof NodeSelection && newSelection.node.eq(lastSelectableChild)))
+        return;
+
+    transaction.setSelection(newSelection);
 }
 
 /**
