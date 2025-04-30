@@ -1,4 +1,4 @@
-import {resolveContentTableColumnWidthPxWithoutCacheForTest} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {resolveContentTableColumnWidthPxWithoutCacheForTest} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";

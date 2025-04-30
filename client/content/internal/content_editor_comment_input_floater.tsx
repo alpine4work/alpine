@@ -16,11 +16,6 @@ import {
 } from "react";
 import {createPortal} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {
-    ContentEditorState,
-    createContentCommentThreadMetaKey,
-    updateContentEditorReferences,
-} from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
     FileInfo,
@@ -33,6 +28,11 @@ import {
 import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
 import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {
+    ContentEditorState,
+    createContentCommentThreadMetaKey,
+    updateContentEditorReferences,
+} from "~/client/content/state/content_editor_state.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";

@@ -14,8 +14,8 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
-import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
-import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/state/shared/build_shared_content_editor_input_rules_plugin.js";
+import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";

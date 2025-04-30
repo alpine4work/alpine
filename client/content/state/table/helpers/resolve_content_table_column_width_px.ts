@@ -1,5 +1,5 @@
 import * as kiwi from "@lume/kiwi";
-import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
+import {createCachedFunction} from "~/client/content/state/internal/create_cached_function.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";

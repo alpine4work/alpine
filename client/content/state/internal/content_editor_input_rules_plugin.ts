@@ -7,13 +7,12 @@ import {
 import {MarkType, NodeType} from "prosemirror-model";
 import {TextSelection} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
-import {addSharedContentEditorInputRules} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
-import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
+import {contentEditorOpenMentionFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {addSharedContentEditorInputRules} from "~/client/content/state/shared/build_shared_content_editor_input_rules_plugin.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-
-export const openMentionFloaterMetaKey = "openMentionFloater";
 
 export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSchema) {
     const rules: Array<InputRule> = [];
@@ -36,7 +35,7 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
             return state.tr
                 .replaceSelectionWith(schema.text("@"))
-                .setMeta(openMentionFloaterMetaKey, true);
+                .setMeta(contentEditorOpenMentionFloaterMetaKey, true);
         }),
     );
 

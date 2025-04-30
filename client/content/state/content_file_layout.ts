@@ -3,8 +3,8 @@ import {
     ContentFileLayout,
     computeContentFileFloatLayout,
     computeContentFileRowLikeLayout,
-} from "~/client/content/internal/content_file_layout_computations.js";
-import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
+} from "~/client/content/state/content_file_layout_computations.js";
+import {createCachedFunction} from "~/client/content/state/internal/create_cached_function.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";

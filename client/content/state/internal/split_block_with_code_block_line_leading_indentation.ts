@@ -37,7 +37,7 @@
 import {Attrs, ContentMatch, Fragment, Node, NodeType, ResolvedPos, Slice} from "prosemirror-model";
 import {AllSelection, Command, NodeSelection, TextSelection, Transaction} from "prosemirror-state";
 import {ReplaceStep, canSplit} from "prosemirror-transform";
-import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
+import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/state/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
 import {contentCodeBlockIndentationSpaceCount} from "~/shared/content/content_schema.js";
 
 function defaultBlockAt(match: ContentMatch) {

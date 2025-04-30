@@ -1,15 +1,15 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
-import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/internal/content_editor_file_node_view.js";
-import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
-import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
+import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
+import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
-} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {

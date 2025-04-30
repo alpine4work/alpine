@@ -1,6 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
-import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";

@@ -2,7 +2,7 @@ import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosem
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
-import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
+import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";

@@ -1,7 +1,7 @@
 import {chainCommands, deleteSelection} from "prosemirror-commands";
 import {keydownHandler} from "prosemirror-keymap";
 import {Command, Plugin} from "prosemirror-state";
-import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
+import {addSharedContentEditorKeymapCommands} from "~/client/content/state/shared/add_shared_content_editor_keymap_commands.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 
 export function buildTaskTitleInputKeymapPlugin() {

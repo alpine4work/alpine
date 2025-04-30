@@ -15,7 +15,6 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
@@ -25,16 +24,17 @@ import {ContentEditorDomParser} from "~/client/content/internal/content_editor_d
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {addContentFileEntityPreviewBehavior} from "~/client/content/internal/content_file_entity_preview.js";
 import {addContentFilePreviewBehavior} from "~/client/content/internal/content_file_preview.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
+import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
     removeParentScrollWhenPointerDownAndOverListener,
-} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
+} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";

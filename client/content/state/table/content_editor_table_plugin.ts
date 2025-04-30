@@ -41,20 +41,21 @@
 import {Node, ResolvedPos} from "prosemirror-model";
 import {Command, EditorState, Plugin, PluginKey, Transaction} from "prosemirror-state";
 import {Decoration, DecorationSet, EditorView} from "prosemirror-view";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
-import {dispatchOptimisticContentEditableTableLayoutEvent} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {contentTableCellAround} from "~/client/content/internal/table/content_table_client_util.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
+import {contentTableCellAround} from "~/client/content/state/table/content_table_client_util.js";
 import {
     addContentTableRowAtIndex,
     moveContentTableColumn,
     moveContentTableRow,
     selectContentTableColumn,
     selectContentTableRow,
-} from "~/client/content/internal/table/content_table_commands.js";
-import {fixContentTables} from "~/client/content/internal/table/content_table_fix_tables.js";
-import {handleContentTableKeyDown} from "~/client/content/internal/table/content_table_input.js";
-import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/internal/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
+} from "~/client/content/state/table/content_table_commands.js";
+import {fixContentTables} from "~/client/content/state/table/content_table_fix_tables.js";
+import {handleContentTableKeyDown} from "~/client/content/state/table/content_table_input.js";
+import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/state/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
+import {ContentEditorTableLayout} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {forceUpdateAllChildOverlayPositions} from "~/client/design/overlay_helpers.js";
+import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {dotsSixIconSvg} from "~/client/icons/dots_six_icon_svg.js";
 import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.js";
 import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
@@ -90,6 +91,20 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 const contentEditorTablePluginKey = new PluginKey<ContentEditorTablePluginState>(
     "contentEditorTable",
 );
+
+const optimisticContentEditorTableLayoutEventEmitter = new ElementEventEmitter<
+    ContentEditorTableLayout & {scrollLeftPx?: number}
+>("optimistictablelayout");
+
+/**
+ * Subscribe to optimistic table layouts for the provided `<table>` element.
+ */
+export function subscribeToOptimisticContentEditableTableLayoutEvent(
+    element: HTMLTableElement,
+    listener: (layout: ContentEditorTableLayout & {scrollLeftPx?: number}) => void,
+): () => void {
+    return optimisticContentEditorTableLayoutEventEmitter.subscribe(element, listener);
+}
 
 /**
  * Creates a [plugin](http://prosemirror.net/docs/ref/#state.Plugin)
@@ -1345,7 +1360,7 @@ function handleColumnResizeHandleMouseDown(
             pluginState.hovering.dragging,
         );
 
-        dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
+        optimisticContentEditorTableLayoutEventEmitter.emit(tableElement, newTableLayout);
 
         // If you're dragging the edge of a table to make the table larger while you
         // also have a selected file inside the table then we need to make sure the
@@ -1421,7 +1436,7 @@ function handleColumnResizeHandleMouseDown(
                 pluginState.hovering.dragging,
             );
 
-            dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
+            optimisticContentEditorTableLayoutEventEmitter.emit(tableElement, newTableLayout);
 
             // If you're dragging the edge of a table to make the table larger while you
             // also have a selected file inside the table then we need to make sure the
@@ -1460,7 +1475,7 @@ function handleColumnResizeHandleMouseDown(
                 pluginState.hovering.dragging,
             );
 
-            dispatchOptimisticContentEditableTableLayoutEvent(tableElement, newTableLayout);
+            optimisticContentEditorTableLayoutEventEmitter.emit(tableElement, newTableLayout);
 
             // If you're dragging the edge of a table to make the table larger while you
             // also have a selected file inside the table then we need to make sure the

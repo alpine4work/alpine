@@ -38,14 +38,14 @@ import {
     isSelectionInContentTable,
     nextContentTableCell,
     selectionContentTableCell,
-} from "~/client/content/internal/table/content_table_client_util.js";
-import {deleteContentTableCellSelection} from "~/client/content/internal/table/content_table_commands.js";
+} from "~/client/content/state/table/content_table_client_util.js";
+import {deleteContentTableCellSelection} from "~/client/content/state/table/content_table_commands.js";
 import {
     clipContentTableCells,
     fitSlice,
     insertContentTableCells,
     pastedContentTableCells,
-} from "~/client/content/internal/table/content_table_copy_paste.js";
+} from "~/client/content/state/table/content_table_copy_paste.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 

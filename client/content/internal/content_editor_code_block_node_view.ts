@@ -1,6 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeViewConstructor, serializeForClipboard} from "prosemirror-view";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";

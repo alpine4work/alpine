@@ -1,7 +1,7 @@
 import {render, screen} from "@testing-library/react";
 import {ReactNode, useState} from "react";
 import {ContentEditor} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";

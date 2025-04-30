@@ -4,7 +4,6 @@ import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
-import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     getFileImagePreviewRenderingAdjustments,
     handleCopyContentFile,
@@ -23,6 +22,7 @@ import {
     contentFileViewerLargeProcessingIndicatorWeight,
 } from "~/client/content/internal/content_file_viewer_shared_styles.js";
 import {ContentFileViewerLoaderData} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {getFilePreviewSize} from "~/client/content/state/content_file_layout_computations.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {MenuAction} from "~/client/design/menu.js";

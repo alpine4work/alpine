@@ -12,10 +12,10 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";

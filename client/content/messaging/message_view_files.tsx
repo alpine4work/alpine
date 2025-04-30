@@ -2,7 +2,6 @@ import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
 import {Memo, useMemo, useRef} from "react";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
@@ -11,14 +10,15 @@ import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/con
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {
-    ContentFileLayout,
-    computeContentFileRowLikeLayout,
-} from "~/client/content/internal/content_file_layout_computations.js";
-import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
+import {
+    ContentFileLayout,
+    computeContentFileRowLikeLayout,
+} from "~/client/content/state/content_file_layout_computations.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";

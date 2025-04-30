@@ -11,7 +11,7 @@ import {
     createContentCommentThreadMetaKey,
     intentionallyUpdateContentAccessPolicyMetaKey,
     reduceContentReferencesShared,
-} from "~/client/content/content_editor_state.js";
+} from "~/client/content/state/content_editor_state.js";
 import {
     AccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,

@@ -1,4 +1,4 @@
-import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/internal/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
+import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/state/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
 
 test("making last column in 4-column table larger increases table width", () => {
     expect(

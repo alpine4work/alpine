@@ -12,20 +12,18 @@ import {
 } from "prosemirror-state";
 import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
-import {contentEditorCodeBlockPlugin} from "~/client/content/internal/content_editor_code_block_plugin.js";
-import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
+import {ContentEditorFloaterState} from "~/client/content/state/content_editor_floater_state.js";
 import {
-    buildContentEditorInputRulesPlugin,
-    openMentionFloaterMetaKey,
-} from "~/client/content/internal/content_editor_input_rules_plugin.js";
-import {
-    buildContentEditorKeymapPlugin,
-    openCommentInputFloaterMetaKey,
-    openKeyboardHighlightFloaterMetaKey,
-    openKeyboardLinkFloaterMetaKey,
-} from "~/client/content/internal/content_editor_keymap_plugin.js";
-import {contentEditorTablePlugin} from "~/client/content/internal/table/content_editor_table_plugin.js";
-import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+    contentEditorOpenCommentInputFloaterMetaKey,
+    contentEditorOpenKeyboardHighlightFloaterMetaKey,
+    contentEditorOpenKeyboardLinkFloaterMetaKey,
+    contentEditorOpenMentionFloaterMetaKey,
+} from "~/client/content/state/content_editor_meta_keys.js";
+import {contentEditorCodeBlockPlugin} from "~/client/content/state/internal/content_editor_code_block_plugin.js";
+import {buildContentEditorInputRulesPlugin} from "~/client/content/state/internal/content_editor_input_rules_plugin.js";
+import {buildContentEditorKeymapPlugin} from "~/client/content/state/internal/content_editor_keymap_plugin.js";
+import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
+import {contentEditorTablePlugin} from "~/client/content/state/table/content_editor_table_plugin.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
     ContentReferences,
@@ -592,19 +590,19 @@ function contentEditorFloaterStatePlugin() {
 
                 // Open our toolbars on the current selection when certain meta is set on
                 // our transaction.
-                if (transaction.getMeta(openKeyboardHighlightFloaterMetaKey)) {
+                if (transaction.getMeta(contentEditorOpenKeyboardHighlightFloaterMetaKey)) {
                     return {
                         type: "KeyboardHighlight",
                         range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
                     };
                 }
-                if (transaction.getMeta(openKeyboardLinkFloaterMetaKey)) {
+                if (transaction.getMeta(contentEditorOpenKeyboardLinkFloaterMetaKey)) {
                     return {
                         type: "KeyboardLink",
                         range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
                     };
                 }
-                if (transaction.getMeta(openCommentInputFloaterMetaKey)) {
+                if (transaction.getMeta(contentEditorOpenCommentInputFloaterMetaKey)) {
                     return {
                         type: "CommentInput",
                         range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
@@ -613,7 +611,10 @@ function contentEditorFloaterStatePlugin() {
 
                 // Double check that we can only open the `Mention` floater if the character
                 // preceding our selection is `@`.
-                if (transaction.getMeta(openMentionFloaterMetaKey) && newState.selection.head > 0) {
+                if (
+                    transaction.getMeta(contentEditorOpenMentionFloaterMetaKey) &&
+                    newState.selection.head > 0
+                ) {
                     const $from = newState.doc.resolve(newState.selection.head - 1);
                     if (
                         $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) === "@"

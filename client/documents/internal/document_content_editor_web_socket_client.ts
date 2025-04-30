@@ -1,5 +1,5 @@
 import {Selection} from "prosemirror-state";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {
     DocumentContentEditorAction,

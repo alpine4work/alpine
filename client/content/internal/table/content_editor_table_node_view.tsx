@@ -31,11 +31,12 @@ import {Trash} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {dispatchContentEditorFileRowTableParentUpdatedEvent} from "~/client/content/internal/content_editor_file_row_like_node_view.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
+import {subscribeToOptimisticContentEditableTableLayoutEvent} from "~/client/content/state/table/content_editor_table_plugin.js";
 import {
     isInContentTable,
     selectedContentTableRect,
-} from "~/client/content/internal/table/content_table_client_util.js";
+} from "~/client/content/state/table/content_table_client_util.js";
 import {
     addContentTableColumnAfterSelection,
     addContentTableColumnBeforeSelection,
@@ -46,13 +47,12 @@ import {
     deleteContentTableRow,
     toggleContentTableHeaderColumn,
     toggleContentTableHeaderRow,
-} from "~/client/content/internal/table/content_table_commands.js";
+} from "~/client/content/state/table/content_table_commands.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
-} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
-import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {ColumnsPlusLeftIcon} from "~/client/icons/columns_plus_left_icon.js";
 import {ColumnsPlusRightIcon} from "~/client/icons/columns_plus_right_icon.js";
 import {RowsPlusBottomIcon} from "~/client/icons/rows_plus_bottom_icon.js";
@@ -80,21 +80,6 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
-
-const optimisticContentEditorTableLayoutEventEmitter = new ElementEventEmitter<
-    ContentEditorTableLayout & {scrollLeftPx?: number}
->("optimistictablelayout");
-
-/**
- * Called to update the optimistic table layout used by the provided
- * `<table>` element.
- */
-export function dispatchOptimisticContentEditableTableLayoutEvent(
-    element: HTMLTableElement,
-    layout: ContentEditorTableLayout & {scrollLeftPx?: number},
-) {
-    optimisticContentEditorTableLayoutEventEmitter.emit(element, layout);
-}
 
 export function createContentEditorTableNodeView({
     getRouteLayout,
@@ -137,7 +122,7 @@ export function createContentEditorTableNodeView({
         const unsubscribeFromSpacingScaleChange = subscribeToSpacingScaleChange(updateTableLayout);
 
         const unsubscribeFromOptimisticLayout =
-            optimisticContentEditorTableLayoutEventEmitter.subscribe(tableElement, layout => {
+            subscribeToOptimisticContentEditableTableLayoutEvent(tableElement, layout => {
                 optimisticTableLayout = layout;
 
                 updateTableLayout();

@@ -20,11 +20,11 @@ import {
 import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
     setContentEditorQuickUndo,
     updateContentEditorReferences,
-} from "~/client/content/content_editor_state.js";
-import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
+} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Menu} from "~/client/design/menu.js";

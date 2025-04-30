@@ -1,8 +1,8 @@
 import classNames from "classnames";
 import {Memo, Ref, forwardRef, useId, useImperativeHandle, useMemo, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useStore} from "~/client/helpers/use_store.js";

@@ -1,7 +1,7 @@
 import {
     addParentScrollWhenPointerDownAndOverListener,
     removeParentScrollWhenPointerDownAndOverListener,
-} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
 import {
     subscribeToTriggeredOverlayCloseEvent,
     subscribeToTriggeredOverlayOpenEvent,

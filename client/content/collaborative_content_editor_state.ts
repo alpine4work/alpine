@@ -3,7 +3,7 @@ import {Step} from "prosemirror-transform";
 import {
     ContentEditorReferencesAction,
     ContentEditorState,
-} from "~/client/content/content_editor_state.js";
+} from "~/client/content/state/content_editor_state.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

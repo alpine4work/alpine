@@ -1,7 +1,7 @@
 import {
     computeContentFileFloatLayout,
     computeContentFileRowLikeLayout,
-} from "~/client/content/internal/content_file_layout_computations.js";
+} from "~/client/content/state/content_file_layout_computations.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";

@@ -3,10 +3,6 @@ import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {MutableRefObject} from "react";
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
-import {
-    getContentEditorReferences,
-    rememberContentEditorPosWhileLoading,
-} from "~/client/content/content_editor_state.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
@@ -14,16 +10,20 @@ import {
     addContentFileEntityPreviewBehavior,
     renderContentFileEntityPreview,
 } from "~/client/content/internal/content_file_entity_preview.js";
-import {layoutContentFile} from "~/client/content/internal/content_file_layout.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {
+    getContentEditorReferences,
+    rememberContentEditorPosWhileLoading,
+} from "~/client/content/state/content_editor_state.js";
+import {layoutContentFile} from "~/client/content/state/content_file_layout.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
-} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";

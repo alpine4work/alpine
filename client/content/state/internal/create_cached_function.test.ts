@@ -1,4 +1,4 @@
-import {createCachedFunction} from "~/client/content/internal/helpers/create_cached_function.js";
+import {createCachedFunction} from "~/client/content/state/internal/create_cached_function.js";
 
 test("cached function returns the exact same value when provided the same arguments", () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -3,7 +3,7 @@ import {EditorState} from "prosemirror-state";
 import {
     isContentEditorRetypingInputRule,
     trackContentEditorRetypedInputRule,
-} from "~/client/content/content_editor_state.js";
+} from "~/client/content/state/content_editor_state.js";
 import {generateId} from "~/shared/id/id.js";
 
 /**

@@ -5,13 +5,13 @@ import {createContentMentionTextStore} from "~/client/accounts/create_content_me
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
 import {renderContentFileEntityPreview} from "~/client/content/internal/content_file_entity_preview.js";
+import {renderContentFilePreview} from "~/client/content/internal/content_file_preview.js";
 import {
     layoutContentFile,
     layoutContentFileParent,
-} from "~/client/content/internal/content_file_layout.js";
-import {renderContentFilePreview} from "~/client/content/internal/content_file_preview.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+} from "~/client/content/state/content_file_layout.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";

@@ -12,10 +12,10 @@ import {Command, EditorState, NodeSelection, Selection} from "prosemirror-state"
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {ContentEditorFloaterState} from "~/client/content/state/content_editor_floater_state.js";
+import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -484,7 +484,10 @@ function ContentEditorFileToolbar({
                                         onMobileCommentInputOpen();
                                     } else {
                                         dispatch?.(
-                                            state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                            state.tr.setMeta(
+                                                contentEditorOpenCommentInputFloaterMetaKey,
+                                                true,
+                                            ),
                                         );
                                     }
                                     return true;

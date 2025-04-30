@@ -5,7 +5,6 @@ import {DownloadSimple, SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
-import {getFilePreviewSize} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     getFileImagePreviewRenderingAdjustments,
     renderFileImagePreviewPlaceholder,
@@ -23,6 +22,7 @@ import {
     hammerModulePromise,
     maxContentFileImageViewerMobilePreviewSize,
 } from "~/client/content/internal/load_content_file_viewer_data.js";
+import {getFilePreviewSize} from "~/client/content/state/content_file_layout_computations.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";

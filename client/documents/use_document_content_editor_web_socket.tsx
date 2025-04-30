@@ -1,7 +1,7 @@
 import {StepMap} from "prosemirror-transform";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {
     DocumentContentEditorState,

@@ -6,12 +6,12 @@ import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
-import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
 import {
     addContentFilePreviewBehaviorBase,
     appendImageHtmlForSelection,
     appendSelectionBoundaryHtml,
 } from "~/client/content/internal/content_file_preview.js";
+import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";

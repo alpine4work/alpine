@@ -7,7 +7,7 @@ import {
 import {
     ContentEditorState,
     reduceContentReferences,
-} from "~/client/content/content_editor_state.js";
+} from "~/client/content/state/content_editor_state.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";

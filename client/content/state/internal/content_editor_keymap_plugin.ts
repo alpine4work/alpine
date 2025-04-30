@@ -23,17 +23,22 @@ import {
 } from "prosemirror-state";
 import {liftTarget} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
-import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
-import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
-import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
+import {
+    contentEditorOpenCommentInputFloaterMetaKey,
+    contentEditorOpenKeyboardHighlightFloaterMetaKey,
+    contentEditorOpenKeyboardLinkFloaterMetaKey,
+} from "~/client/content/state/content_editor_meta_keys.js";
+import {contentEditorQuickUndoCommand} from "~/client/content/state/content_editor_state.js";
+import {createToggleMarkCommand} from "~/client/content/state/create_toggle_mark_command.js";
 import {
     dedentListItemCommand,
     indentListItemCommand,
-} from "~/client/content/internal/helpers/indent_and_dedent_list_item_commands.js";
-import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/internal/helpers/split_block_with_code_block_line_leading_indentation.js";
-import {isSelectionInContentTable} from "~/client/content/internal/table/content_table_client_util.js";
-import {addSharedContentEditorKeymapCommands} from "~/client/content/shared/add_shared_content_editor_keymap_commands.js";
-import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
+} from "~/client/content/state/indent_and_dedent_list_item_commands.js";
+import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/state/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
+import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/state/internal/split_block_with_code_block_line_leading_indentation.js";
+import {addSharedContentEditorKeymapCommands} from "~/client/content/state/shared/add_shared_content_editor_keymap_commands.js";
+import {isSelectionInContentTable} from "~/client/content/state/table/content_table_client_util.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -71,10 +76,6 @@ function indentationToRemove(lineText: string): number {
     }
     return indentationToRemove;
 }
-
-export const openKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
-export const openKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
-export const openCommentInputFloaterMetaKey = "openCommentInputFloater";
 
 export function buildContentEditorKeymapPlugin(
     schema: ContentProsemirrorSchema,
@@ -2002,7 +2003,7 @@ export function buildContentEditorKeymapPlugin(
 
             if (!isHighlightSupported) return false;
 
-            dispatch?.(state.tr.setMeta(openKeyboardHighlightFloaterMetaKey, true));
+            dispatch?.(state.tr.setMeta(contentEditorOpenKeyboardHighlightFloaterMetaKey, true));
             return true;
         });
     }
@@ -2023,7 +2024,7 @@ export function buildContentEditorKeymapPlugin(
 
         if (!isLinkSupported) return false;
 
-        dispatch?.(state.tr.setMeta(openKeyboardLinkFloaterMetaKey, true));
+        dispatch?.(state.tr.setMeta(contentEditorOpenKeyboardLinkFloaterMetaKey, true));
         return true;
     };
 
@@ -2052,7 +2053,7 @@ export function buildContentEditorKeymapPlugin(
 
             if (!isCommentSupported) return false;
 
-            dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+            dispatch?.(state.tr.setMeta(contentEditorOpenCommentInputFloaterMetaKey, true));
             return true;
         });
     }

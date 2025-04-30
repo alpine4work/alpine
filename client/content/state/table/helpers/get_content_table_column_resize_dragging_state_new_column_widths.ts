@@ -1,5 +1,5 @@
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";

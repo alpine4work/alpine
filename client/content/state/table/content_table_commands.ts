@@ -35,9 +35,9 @@ import {
     moveContentTableCellForward,
     selectedContentTableRect,
     selectionContentTableCell,
-} from "~/client/content/internal/table/content_table_client_util.js";
-import type {ContentTableInputDirection} from "~/client/content/internal/table/content_table_input.js";
-import {resolveContentTableColumnWidthPx} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+} from "~/client/content/state/table/content_table_client_util.js";
+import type {ContentTableInputDirection} from "~/client/content/state/table/content_table_input.js";
+import {resolveContentTableColumnWidthPx} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";

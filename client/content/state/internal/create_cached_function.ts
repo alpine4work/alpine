@@ -27,7 +27,7 @@ import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
  * collected so will any associated cached values.
  */
 // NOTE(calebmer, 2024-09-28): Currently this lives in
-// `client/content/internal/helpers` instead of `shared/helpers` since it only
+// `client/content/state/internal` instead of `shared/helpers` since it only
 // has one usage (in `content_file_layout.ts`) and must be used carefully or
 // else we'll have a memory leak.
 //

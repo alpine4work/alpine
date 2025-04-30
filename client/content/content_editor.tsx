@@ -49,16 +49,6 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {
-    ContentEditorReferencesSharedAction,
-    ContentEditorState,
-    getContentEditorFloaterState,
-    getContentEditorReferences,
-    rememberContentEditorPosWhileLoading,
-    rememberContentEditorSelectionWhileLoading,
-    setContentEditorFloaterState,
-    updateContentEditorReferences,
-} from "~/client/content/content_editor_state.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
@@ -86,7 +76,6 @@ import {
     insertContentUnorderedListItem,
     isContentTableBlockNode,
 } from "~/client/content/internal/content_editor_insert.js";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
@@ -107,20 +96,31 @@ import {
     FileInfo,
     iterateFileInfosInElement,
 } from "~/client/content/internal/iterate_file_infos_in_element.js";
-import {
-    dispatchParentScrollWhenPointerDownAndOverEvent,
-    parentScrollWhenPointerDownAndOverClassNames,
-} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {
-    isPosInContentTable,
-    isSelectionInContentTable,
-} from "~/client/content/internal/table/content_table_client_util.js";
-import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {
+    ContentEditorReferencesSharedAction,
+    ContentEditorState,
+    getContentEditorFloaterState,
+    getContentEditorReferences,
+    rememberContentEditorPosWhileLoading,
+    rememberContentEditorSelectionWhileLoading,
+    setContentEditorFloaterState,
+    updateContentEditorReferences,
+} from "~/client/content/state/content_editor_state.js";
+import {
+    dispatchParentScrollWhenPointerDownAndOverEvent,
+    parentScrollWhenPointerDownAndOverClassNames,
+} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
+import {
+    isPosInContentTable,
+    isSelectionInContentTable,
+} from "~/client/content/state/table/content_table_client_util.js";
+import {handleContentTablePaste} from "~/client/content/state/table/content_table_input.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
@@ -4827,7 +4827,10 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                 if (isCommentSupported) {
                                     view.dispatch(
-                                        state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                        state.tr.setMeta(
+                                            contentEditorOpenCommentInputFloaterMetaKey,
+                                            true,
+                                        ),
                                     );
                                 }
                             }

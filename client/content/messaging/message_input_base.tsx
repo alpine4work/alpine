@@ -21,7 +21,6 @@ import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
@@ -38,6 +37,7 @@ import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messag
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/internal/message_input_mobile_keyboard_toolbar.js";
 import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
