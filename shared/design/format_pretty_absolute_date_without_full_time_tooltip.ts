@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {
     IntlDateTimeFormatOptions,
     getIntlDateTimeFormat,
@@ -12,25 +13,29 @@ import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
     locale: Locale,
     timeZone: TimeZone,
-    currentTime: Date,
+    currentDate: CalendarDate,
     time: Date,
     {
         withoutDay,
         withoutTime,
         withSeconds,
         withWeekday,
+        withLongMonth,
+        withLongWeekday,
     }: {
         withoutDay?: boolean;
         withoutTime?: boolean;
         withSeconds?: boolean;
         withWeekday?: boolean;
+        withLongMonth?: boolean;
+        withLongWeekday?: boolean;
     } = {},
 ): string {
     const baseOptions: IntlDateTimeFormatOptions = {
         locale,
         timeZone,
         day: !withoutDay ? "numeric" : undefined,
-        weekday: withWeekday ? "short" : undefined,
+        weekday: withLongWeekday ? "long" : withWeekday ? "short" : undefined,
         hour: !withoutTime ? "numeric" : undefined,
         minute: !withoutTime ? "2-digit" : undefined,
         second: withSeconds ? "2-digit" : undefined,
@@ -46,17 +51,17 @@ export function formatPrettyAbsoluteDateWithoutFullTimeTooltip(
 
     const formatterWithoutYear = getIntlDateTimeFormat({
         ...baseOptions,
-        month: "short",
+        month: withLongMonth ? "long" : "short",
     });
 
     const formatterWithYear = getIntlDateTimeFormat({
         ...baseOptions,
         year: "numeric",
         // If we include a short weekday, always use short months as well.
-        month: !withWeekday ? "long" : "short",
+        month: withLongMonth || !withWeekday ? "long" : "short",
     });
 
-    const isCurrentYear = currentTime.getFullYear() === time.getFullYear();
+    const isCurrentYear = currentDate.year === time.getFullYear();
 
     const formatter = isCurrentYear ? formatterWithoutYear : formatterWithYear;
 

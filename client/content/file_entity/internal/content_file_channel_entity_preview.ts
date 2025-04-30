@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {renderAccountAvatar} from "~/client/accounts/account_avatar_html.js";
 import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
@@ -18,15 +19,18 @@ import {
     channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/styles/forum_shared_styles.js";
 import {backgroundColorVar, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {renderedMaxChannelTopContributorCount} from "~/shared/forum/channel_model.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -37,6 +41,7 @@ export function renderContentFileChannelEntityPreview(
         fileEntity: unknownFileEntity,
         layout,
         getContext,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -46,11 +51,13 @@ export function renderContentFileChannelEntityPreview(
         platform,
         spacingScale,
         isInitialAppRender,
+        currentDate,
         fileEntityRenderers,
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
         getContext: () => AppContext;
+        clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -60,6 +67,7 @@ export function renderContentFileChannelEntityPreview(
         platform: Platform;
         spacingScale: SpacingScale;
         isInitialAppRender: boolean;
+        currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
     },
 ) {
@@ -317,18 +325,30 @@ export function renderContentFileChannelEntityPreview(
                     contentStyles.docClassName,
                     contentStyles.narrowRouteLayoutDocClassName,
                     contentStyles.withUserSelectNoneDocClassName,
+                    isContentBodyEmpty(fileEntity.description.doc) &&
+                        contentStyles.emptyBodyClassName,
                 ),
             );
 
             descriptionHtml.setAttribute("style", "user-select: none; -webkit-user-select: none");
 
-            // NOCOMMIT: Render empty description. Perhaps with placeholder?
             const descriptionFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(
                 get,
                 fileEntity.description,
                 {
+                    // If the description is empty then we render a dummy placeholder to incentivize
+                    // adding a description to the channel.
+                    placeholder: `Created ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                        clientInfo.locale,
+                        clientInfo.timeZone,
+                        currentDate,
+                        fileEntity.createdTime,
+                        {withLongMonth: true, withLongWeekday: true, withoutTime: true},
+                    )}`,
+
                     isInert: true,
                     getContext,
+                    clientInfo,
                     spaceId,
                     accountStore,
                     fileStore,
@@ -338,6 +358,7 @@ export function renderContentFileChannelEntityPreview(
                     platform,
                     spacingScale,
                     isInitialAppRender,
+                    currentDate,
                     fileEntityRenderers,
                 },
             );

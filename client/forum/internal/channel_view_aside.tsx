@@ -14,7 +14,9 @@ import {ChannelViewContentFileMiniPreview} from "~/client/forum/internal/channel
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -32,8 +34,8 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -108,32 +110,30 @@ export function ChannelViewAside({
                 style={{paddingTop: channelViewAsidePaddingTop}}
             >
                 <ChannelViewContributorsSection channel={channel} contributors={contributors} />
-                {(isEditingDescription || !isContentEmpty(channel.description.doc)) && (
-                    <Box
-                        // Negative margin bottom to optically align our description. Visually, the
-                        // bottom of the text in our `<ContentView>` should be the bottom of our
-                        // element.
-                        marginBottom="-1.5"
+                <Box
+                    // Negative margin bottom to optically align our description. Visually, the
+                    // bottom of the text in our `<ContentView>` should be the bottom of our
+                    // element.
+                    marginBottom="-1.5"
+                >
+                    <h3
+                        className={sprinkles({
+                            color: channelViewMetadataSectionTitleColor,
+                            fontSize: channelViewMetadataSectionTitleFontSize,
+                        })}
                     >
-                        <h3
-                            className={sprinkles({
-                                color: channelViewMetadataSectionTitleColor,
-                                fontSize: channelViewMetadataSectionTitleFontSize,
-                            })}
-                        >
-                            About
-                        </h3>
-                        {isEditingDescription ? (
-                            <ChannelViewAsideDescriptionEditor
-                                initialDescription={channel.description}
-                                onCancel={onCancelEditingDescription}
-                                onSave={onSaveDescription}
-                            />
-                        ) : (
-                            <ChannelViewAsideDescription description={channel.description} />
-                        )}
-                    </Box>
-                )}
+                        About
+                    </h3>
+                    {isEditingDescription ? (
+                        <ChannelViewAsideDescriptionEditor
+                            channel={channel}
+                            onCancel={onCancelEditingDescription}
+                            onSave={onSaveDescription}
+                        />
+                    ) : (
+                        <ChannelViewAsideDescription channel={channel} />
+                    )}
+                </Box>
                 {fileReferences.length > 0 && (
                     <Box>
                         <Box
@@ -188,12 +188,15 @@ export function ChannelViewAside({
     );
 }
 
-function ChannelViewAsideDescription({description}: {description: MessageContentWithReferences}) {
+function ChannelViewAsideDescription({channel}: {channel: ChannelModel}) {
+    const clientInfo = useClientInfo();
+    const currentDate = useCurrentDate();
+
     const descriptionSnippet = useMemo(() => {
         return {
             doc: assertMessageContent(
                 getContentSnippet(
-                    description.doc.resolve(0),
+                    channel.description.doc.resolve(0),
                     {linesAbove: 0, linesBelow: 7},
                     {
                         // 1.125x the number of "x"s we can fit in a single line in the channel aside
@@ -204,15 +207,24 @@ function ChannelViewAsideDescription({description}: {description: MessageContent
                     },
                 ),
             ),
-            references: description.references,
+            references: channel.description.references,
         };
-    }, [description.doc, description.references]);
+    }, [channel.description.doc, channel.description.references]);
 
     return (
         <Box paddingTop="1">
             <ContentViewWithSeeMoreToggle
-                content={description}
+                content={channel.description}
                 contentSnippet={descriptionSnippet}
+                // If the description is empty then we render a dummy placeholder to incentivize
+                // adding a description to the channel.
+                placeholder={`Created ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                    clientInfo.locale,
+                    clientInfo.timeZone,
+                    currentDate,
+                    channel.createdTime,
+                    {withLongMonth: true, withLongWeekday: true, withoutTime: true},
+                )}`}
             />
         </Box>
     );
@@ -223,20 +235,22 @@ function ChannelViewAsideDescription({description}: {description: MessageContent
 // `<ChannelViewHeaderMobileDescriptionEditor>`. Any changes made here should
 // probably be made there too.
 function ChannelViewAsideDescriptionEditor({
-    initialDescription,
+    channel,
     onCancel,
     onSave,
 }: {
-    initialDescription: MessageContentWithReferences;
+    channel: ChannelModel;
     onCancel: () => void;
     onSave: (description: MessageContent) => Promise<void>;
 }) {
     const reporter = useReporter();
+    const clientInfo = useClientInfo();
+    const currentDate = useCurrentDate();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(initialDescription, {selection: "end"}),
+        ContentEditorState.create(channel.description, {selection: "end"}),
     );
 
     const [isSaving, setIsSaving] = useState(false);
@@ -281,7 +295,7 @@ function ChannelViewAsideDescriptionEditor({
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
-                        shouldConfirmSave: state.getDoc() !== initialDescription.doc,
+                        shouldConfirmSave: state.getDoc() !== channel.description.doc,
                         isConfirmingSave: shouldShowConfirmSaveDialog,
                         onCancelSave: onCancel,
                         onConfirmSave: () => setShouldShowConfirmSaveDialog(true),
@@ -290,6 +304,15 @@ function ChannelViewAsideDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
+                        // If the description is empty then we render a dummy placeholder to incentivize
+                        // adding a description to the channel.
+                        placeholder={`Created ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                            clientInfo.locale,
+                            clientInfo.timeZone,
+                            currentDate,
+                            channel.createdTime,
+                            {withLongMonth: true, withLongWeekday: true, withoutTime: true},
+                        )}`}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;

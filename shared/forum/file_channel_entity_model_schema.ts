@@ -9,6 +9,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export const FileChannelEntityModelSchema = FileEntityModel.implement({
     type: Schema.value("Channel"),
     id: Schema.id<ChannelId>(),
+    createdTime: Schema.date,
     name: LabelStringSchema,
     description: MessageContentWithReferencesSchema,
     contributorCount: Schema.integer,

@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {createContext} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
@@ -9,6 +10,7 @@ import {FileEntityType} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -28,6 +30,8 @@ export type ContentFileEntityRenderers = {
             options: {
                 fileEntity: FileEntityModel;
                 layout: ContentFileLayout;
+                getContext: () => AppContext;
+                clientInfo: ClientInfo;
                 spaceId: SpaceId | null;
                 accountStore: AccountClientStore;
                 fileStore: FileClientStore;
@@ -37,6 +41,7 @@ export type ContentFileEntityRenderers = {
                 platform: Platform;
                 spacingScale: SpacingScale;
                 isInitialAppRender: boolean;
+                currentDate: CalendarDate;
                 fileEntityRenderers: ContentFileEntityRenderers | null;
             },
         ) => void

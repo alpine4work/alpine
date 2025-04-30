@@ -52,6 +52,10 @@ import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.j
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {
+    useCurrentDate,
+    useCurrentTimeRoundedToHour,
+} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
@@ -275,6 +279,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const fileStore = useFileClientStore();
     const reporter = useReporter();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const currentDate = useCurrentDate();
 
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
@@ -475,6 +480,7 @@ export function ContentView<Content extends ContentWithReferences>({
             htmlGeneratorStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
                 renderContentFragmentToHtmlGeneratorStore(content, {
                     getContext: () => assertExists(context),
+                    clientInfo,
                     spaceId,
                     accountStore,
                     fileStore,
@@ -484,6 +490,7 @@ export function ContentView<Content extends ContentWithReferences>({
                     platform,
                     spacingScale,
                     isInitialAppRender,
+                    currentDate,
                     fileEntityRenderers,
                     isInert,
                     withPosAttribute: true,
@@ -510,6 +517,7 @@ export function ContentView<Content extends ContentWithReferences>({
 
             htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
                 getContext: () => assertExists(context),
+                clientInfo,
                 spaceId,
                 accountStore,
                 fileStore,
@@ -519,6 +527,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 platform,
                 spacingScale,
                 isInitialAppRender,
+                currentDate,
                 fileEntityRenderers,
                 isInert,
                 withPosAttribute: true,
@@ -543,6 +552,7 @@ export function ContentView<Content extends ContentWithReferences>({
         content,
         initialCodeBlockDecorations,
         id,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -552,6 +562,7 @@ export function ContentView<Content extends ContentWithReferences>({
         platform,
         spacingScale,
         isInitialAppRender,
+        currentDate,
         fileEntityRenderers,
         isInert,
         placeholder,

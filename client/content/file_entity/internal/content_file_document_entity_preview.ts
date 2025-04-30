@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
@@ -24,6 +25,7 @@ import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -34,6 +36,7 @@ export function renderContentFileDocumentEntityPreview(
         fileEntity: unknownFileEntity,
         layout,
         getContext,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -43,11 +46,13 @@ export function renderContentFileDocumentEntityPreview(
         platform,
         spacingScale,
         isInitialAppRender,
+        currentDate,
         fileEntityRenderers,
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
         getContext: () => AppContext;
+        clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -57,6 +62,7 @@ export function renderContentFileDocumentEntityPreview(
         platform: Platform;
         spacingScale: SpacingScale;
         isInitialAppRender: boolean;
+        currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
     },
 ) {
@@ -135,6 +141,7 @@ export function renderContentFileDocumentEntityPreview(
         {
             isInert: true,
             getContext,
+            clientInfo,
             spaceId,
             accountStore,
             fileStore,
@@ -144,6 +151,7 @@ export function renderContentFileDocumentEntityPreview(
             platform,
             spacingScale,
             isInitialAppRender,
+            currentDate,
             fileEntityRenderers,
         },
     );

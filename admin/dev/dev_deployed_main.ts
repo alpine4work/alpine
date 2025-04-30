@@ -1,3 +1,4 @@
+import {fromDate, getLocalTimeZone, toCalendarDate} from "@internationalized/date";
 import chalk from "chalk";
 import {differenceInHours} from "date-fns";
 import {isProcessExitErrorWithCode, runProcess} from "~/server/helpers/node/run_process.js";
@@ -14,6 +15,7 @@ const githubRepo = "cyberworlds";
 
 async function main(): Promise<{exitCode: number}> {
     const currentTime = new Date();
+    const currentDate = toCalendarDate(fromDate(currentTime, getLocalTimeZone()));
 
     let compareCommitSha = process.argv[2];
 
@@ -141,7 +143,7 @@ async function main(): Promise<{exitCode: number}> {
                             )} from now on ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
                                 defaultLocale,
                                 getCurrentTimeZone(),
-                                currentTime,
+                                currentDate,
                                 nextDeployableTime,
                                 {withWeekday: true},
                             )}.`,

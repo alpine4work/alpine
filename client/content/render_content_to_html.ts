@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
@@ -65,6 +66,7 @@ export function renderContentToHtmlStore(
     content: ContentWithReferences,
     {
         getContext,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -72,13 +74,14 @@ export function renderContentToHtmlStore(
         spacingScale,
         platform,
         routeLayout,
-        clientInfo,
         isInitialAppRender,
+        currentDate,
         fileEntityRenderers,
         withPosAttribute,
         placeholder,
     }: {
         getContext: () => AppContext;
+        clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -86,8 +89,8 @@ export function renderContentToHtmlStore(
         spacingScale: SpacingScale;
         platform: Platform;
         routeLayout: RouteLayout;
-        clientInfo: ClientInfo;
         isInitialAppRender: boolean;
+        currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
         withPosAttribute?: boolean;
         placeholder?: string;
@@ -95,6 +98,7 @@ export function renderContentToHtmlStore(
 ): Store<string> {
     return renderContentFragmentToHtmlGeneratorStore(content, {
         getContext,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -109,6 +113,7 @@ export function renderContentToHtmlStore(
         platform,
         spacingScale,
         isInitialAppRender,
+        currentDate,
         fileEntityRenderers,
         withPosAttribute,
         placeholder,
@@ -146,6 +151,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
     content: ContentWithReferences,
     {
         getContext,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -155,6 +161,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         platform,
         spacingScale,
         isInitialAppRender,
+        currentDate,
         fileEntityRenderers,
         withPosAttribute,
         isInert,
@@ -163,6 +170,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         shouldHighlightComment,
     }: {
         getContext: () => AppContext;
+        clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -172,6 +180,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         platform: Platform;
         spacingScale: SpacingScale;
         isInitialAppRender: boolean;
+        currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
         withPosAttribute?: boolean;
         isInert?: boolean;
@@ -523,6 +532,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                         fileEntityRenderers,
                         layout,
                         getContext,
+                        clientInfo,
                         spaceId: assertExists(spaceId),
                         accountStore,
                         fileStore,
@@ -532,6 +542,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                         platform,
                         spacingScale,
                         isInitialAppRender,
+                        currentDate,
                     });
 
                     return {html};

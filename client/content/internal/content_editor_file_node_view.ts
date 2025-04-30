@@ -1,3 +1,4 @@
+import {today} from "@internationalized/date";
 import {Node} from "prosemirror-model";
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
@@ -210,6 +211,8 @@ export function createContentEditorFileNodeViewConstructor({
                     let html: HtmlElementGenerator;
 
                     if (isFileEntity) {
+                        const clientInfo = getClientInfo();
+
                         html = renderContentFileEntityPreview(get, {
                             node,
                             fileEntityId: fileId,
@@ -217,6 +220,7 @@ export function createContentEditorFileNodeViewConstructor({
                             fileEntityRenderers: getFileEntityRenderers(),
                             layout,
                             getContext,
+                            clientInfo,
                             spaceId,
                             accountStore: getAccountClientStore(spaceId),
                             fileStore: getFileClientStore(spaceId),
@@ -226,6 +230,7 @@ export function createContentEditorFileNodeViewConstructor({
                             platform,
                             spacingScale,
                             isInitialAppRender: false,
+                            currentDate: today(clientInfo.timeZone),
                         });
                     } else {
                         html = renderContentFilePreview({

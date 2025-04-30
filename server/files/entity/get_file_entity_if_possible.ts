@@ -202,6 +202,7 @@ export async function getFileEntityIfPossible(
                     type: "Channel",
                     versions: [channel.version],
                     id: channelId,
+                    createdTime: channel.model.createdTime,
                     name: channel.model.name,
                     description: channel.model.description,
                     contributorCount: channelContributors?.contributorCount ?? 0,

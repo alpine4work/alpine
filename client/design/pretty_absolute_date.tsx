@@ -2,7 +2,7 @@ import {useMemo} from "react";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
 
@@ -28,17 +28,17 @@ export function PrettyAbsoluteDate({
     tooltipPlacement?: OverlayPlacement;
 }) {
     const {timeZone, locale} = useClientInfo();
-    const currentTime = useCurrentTimeRoundedToHour();
+    const currentDate = useCurrentDate();
 
     const formattedDate = useMemo(
         () =>
-            formatPrettyAbsoluteDateWithoutFullTimeTooltip(locale, timeZone, currentTime, date, {
+            formatPrettyAbsoluteDateWithoutFullTimeTooltip(locale, timeZone, currentDate, date, {
                 withoutDay,
                 withoutTime,
                 withSeconds,
                 withWeekday,
             }),
-        [locale, timeZone, currentTime, date, withoutDay, withoutTime, withSeconds, withWeekday],
+        [locale, timeZone, currentDate, date, withoutDay, withoutTime, withSeconds, withWeekday],
     );
 
     return (

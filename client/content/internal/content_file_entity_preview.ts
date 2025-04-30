@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {Link as LinkIcon} from "phosphor-react";
 import {Node} from "prosemirror-model";
@@ -39,6 +40,7 @@ import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -65,6 +67,7 @@ export function renderContentFileEntityPreview(
         fileEntityRenderers,
         layout,
         getContext,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -74,6 +77,7 @@ export function renderContentFileEntityPreview(
         platform,
         spacingScale,
         isInitialAppRender,
+        currentDate,
     }: {
         node: Node;
         fileEntityId: FileEntityId;
@@ -81,6 +85,7 @@ export function renderContentFileEntityPreview(
         fileEntityRenderers: ContentFileEntityRenderers | null;
         layout: ContentFileLayout;
         getContext: () => AppContext;
+        clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -90,6 +95,7 @@ export function renderContentFileEntityPreview(
         platform: Platform;
         spacingScale: SpacingScale;
         isInitialAppRender: boolean;
+        currentDate: CalendarDate;
     },
 ): HtmlElementGenerator {
     assert(node.type.name === "file");
@@ -147,6 +153,8 @@ export function renderContentFileEntityPreview(
         fileEntityRenderers.renderPreviewByType[fileEntity.type](get, html, {
             fileEntity,
             layout,
+            getContext,
+            clientInfo,
             spaceId,
             accountStore,
             fileStore,
@@ -156,6 +164,7 @@ export function renderContentFileEntityPreview(
             platform,
             spacingScale,
             isInitialAppRender,
+            currentDate,
             fileEntityRenderers,
         });
     }
