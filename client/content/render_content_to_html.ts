@@ -448,7 +448,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                     },
                 });
 
-                if (fileEntityResult) {
+                if (isFileEntity) {
                     const html = renderContentFileEntityPreview(get, {
                         node,
                         fileEntityResult,

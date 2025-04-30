@@ -108,7 +108,7 @@ export function collectContentReferencedIds(
             }
 
             if (attr === "fileId") {
-                const fileId: FileId | null = value;
+                const fileId: FileId | FileEntityId | null = value;
                 if (fileId !== null) {
                     if (isId<FileId>(fileId)) {
                         fileIds.add(fileId);

@@ -815,12 +815,11 @@ export function hasContentEditorReferencesUpdate(transaction: Transaction): bool
 
 export type ContentEditorReferencesAction<References extends ContentReferences> =
     | ContentEditorReferencesMergeAction<References>
-    | ContentEditorReferencesSetAccountAction
-    | ContentEditorReferencesSetFileAction
-    | ContentEditorReferencesSetFileSignedUrlSearchAction
+    | ContentEditorReferencesSharedAction
     | ContentEditorReferencesUpdateDocumentCommentThreadAction;
 
 export type ContentEditorReferencesSharedAction =
+    | ContentEditorReferencesMergeBaseAction
     | ContentEditorReferencesSetAccountAction
     | ContentEditorReferencesSetFileAction
     | ContentEditorReferencesSetFileSignedUrlSearchAction;
@@ -828,6 +827,11 @@ export type ContentEditorReferencesSharedAction =
 export type ContentEditorReferencesMergeAction<References extends ContentReferences> = {
     readonly type: "Merge";
     readonly references: References;
+};
+
+export type ContentEditorReferencesMergeBaseAction = {
+    readonly type: "MergeBase";
+    readonly references: ContentReferences;
 };
 
 export type ContentEditorReferencesSetAccountAction = {
@@ -880,6 +884,11 @@ export function reduceContentReferencesShared<References extends ContentReferenc
     action: ContentEditorReferencesSharedAction,
 ): Replace<References, ContentReferences> {
     switch (action.type) {
+        case "MergeBase": {
+            const newReferences = mergeContentReferences(references, action.references);
+            if (newReferences === references) return references;
+            return {...references, ...newReferences};
+        }
         case "SetAccount": {
             const oldAccount = references.accountById.get(action.account.id);
             const newAccount = oldAccount ? oldAccount.merge(action.account) : action.account;

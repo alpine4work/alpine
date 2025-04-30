@@ -209,7 +209,7 @@ export function createContentEditorFileNodeViewConstructor({
 
                     let html: HtmlElementGenerator;
 
-                    if (fileEntityResult) {
+                    if (isFileEntity) {
                         html = renderContentFileEntityPreview(get, {
                             node,
                             fileEntityResult,
@@ -304,11 +304,11 @@ export function createContentEditorFileNodeViewConstructor({
                         });
                     };
 
-                    if (fileEntityResult) {
+                    if (isFileEntity) {
                         cleanupBehavior = addContentFileEntityPreviewBehavior(getContext, dom, {
                             spaceId,
                             node,
-                            fileEntityId: fileId as FileEntityId,
+                            fileEntityId: fileId,
                             fileEntityResult,
                             fileEntityRenderers: getFileEntityRenderers(),
                             navigate,

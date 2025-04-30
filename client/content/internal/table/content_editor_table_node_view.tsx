@@ -68,6 +68,7 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {
+    fileClassName,
     fileRowLikeClassName,
     tableWrapper2ClassName,
     tableWrapper3ClassName,
@@ -154,7 +155,13 @@ export function createContentEditorTableNodeView({
                     fileRowLikeElementsCache = {
                         node,
                         elements: Array.from(
-                            tableBodyElement.querySelectorAll(`.${fileRowLikeClassName}`),
+                            // Find all elements with the provided class names and exclude elements that
+                            // are children of a file node. File entities may recursively render content
+                            // (e.g. document file entities). The content within file entities is inert
+                            // so shouldn't get any interactive behaviors.
+                            tableBodyElement.querySelectorAll(
+                                `.${fileRowLikeClassName}:not(.${fileClassName} .${fileRowLikeClassName})`,
+                            ),
                         ),
                     };
                 }
@@ -231,7 +238,13 @@ export function createContentEditorTableNodeView({
                             fileRowLikeElementsCache = {
                                 node,
                                 elements: Array.from(
-                                    tableBodyElement.querySelectorAll(`.${fileRowLikeClassName}`),
+                                    // Find all elements with the provided class names and exclude elements that
+                                    // are children of a file node. File entities may recursively render content
+                                    // (e.g. document file entities). The content within file entities is inert
+                                    // so shouldn't get any interactive behaviors.
+                                    tableBodyElement.querySelectorAll(
+                                        `.${fileRowLikeClassName}:not(.${fileClassName} .${fileRowLikeClassName})`,
+                                    ),
                                 ),
                             };
                         }

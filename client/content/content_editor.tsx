@@ -164,8 +164,14 @@ import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styl
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {getContentReferencedIdsForSlice} from "~/shared/content/content_referenced_ids.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {
+    getContentReferencedIdsForSlice,
+    isEmptyContentReferencedIds,
+} from "~/shared/content/content_referenced_ids.js";
+import {
+    ContentWithReferences,
+    emptyContentReferences,
+} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
@@ -186,6 +192,7 @@ import {FileEntityId, parseFileEntityIdFromUrl} from "~/shared/files/file_entity
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
@@ -215,7 +222,7 @@ import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {
     attachFileAsUploader,
     attachFileFromAttachment,
@@ -1806,7 +1813,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // If there's some references in the paste then let's perform an asynchronous
             // paste where we load all requisite data first.
-            if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
+            if (isEmptyContentReferencedIds(referencedIds)) {
                 action(initialRemember, slice, () => view.state.tr);
                 return;
             }
@@ -1856,13 +1863,17 @@ function ContentEditor<Content extends ContentWithReferences>(
             async function run(context: AppContext) {
                 const promiseWaiter = new PromiseWaiter();
 
-                const accountsPromise =
-                    referencedIds.accountIds.size > 0
-                        ? getAccountsIfExist(context, {
-                              spaceId,
-                              accountIds: referencedIds.accountIds,
-                          }).then(({accounts}) => accounts)
-                        : emptyArray;
+                // Load all non-file references. To load files we need to know the origin
+                // `fileAttachmentTarget` which may be different for each file.
+                const referencesPromise = !isEmptyContentReferencedIds({
+                    ...referencedIds,
+                    fileIds: emptySet,
+                })
+                    ? getContentReferencesWithoutFiles(context, {
+                          spaceId,
+                          referencedIds,
+                      }).then(({references}) => references)
+                    : emptyContentReferences;
 
                 let ensureFileAttachmentTargetPromise: Promise<void> | null = null;
 
@@ -1971,8 +1982,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
                 };
 
-                const [accounts, fileReferences] = await runAllPromises([
-                    accountsPromise,
+                const [references, fileReferences] = await runAllPromises([
+                    referencesPromise,
                     runAllPromises(mapIterable(referencedIds.fileIds, processFile)),
                 ]);
 
@@ -1983,10 +1994,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         view.state.tr,
                         Array.from(
                             concatIterables<ContentEditorReferencesSharedAction>(
-                                filterMapIterable(accounts, account => {
-                                    if (!account) return;
-                                    return {type: "SetAccount", account};
-                                }),
+                                [{type: "MergeBase", references}],
                                 filterMapIterable(fileReferences, fileReference => {
                                     if (!fileReference) return;
 
@@ -4056,7 +4064,11 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             for (const element of view.dom.querySelectorAll(
                 parentScrollWhenPointerDownAndOverClassNames
-                    .map(className => `.${className}`)
+                    // Find all elements with the provided class names and exclude elements that
+                    // are children of a file node. File entities may recursively render content
+                    // (e.g. document file entities). The content within file entities is inert
+                    // so shouldn't get any interactive behaviors.
+                    .map(className => `.${className}:not(.${fileClassName} .${className})`)
                     .join(", "),
             )) {
                 dispatchParentScrollWhenPointerDownAndOverEvent(element);

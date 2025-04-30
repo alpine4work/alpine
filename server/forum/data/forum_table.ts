@@ -90,6 +90,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
     ChannelContributorsModel,
@@ -139,7 +140,7 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {
     AccountId,
     ChannelId,
@@ -2280,8 +2281,8 @@ function getPostContentFileIds(content: PostContent): Set<FileId> {
     visitProsemirrorNode(content, {
         visitAttr: (attr, value) => {
             if (attr === "fileId") {
-                const fileId: FileId | null = value;
-                if (fileId !== null) {
+                const fileId: FileId | FileEntityId | null = value;
+                if (fileId !== null && isId<FileId>(fileId)) {
                     fileIds.add(fileId);
                 }
             }

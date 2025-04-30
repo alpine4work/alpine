@@ -61,7 +61,7 @@ export function renderContentFileEntityPreview(
         isInitialAppRender,
     }: {
         node: Node;
-        fileEntityResult: Result<FileEntityModel>;
+        fileEntityResult: Result<FileEntityModel> | undefined;
         fileEntityRenderers: ContentFileEntityRenderers | null;
         layout: ContentFileLayout;
         spaceId: SpaceId | null;
@@ -89,7 +89,7 @@ export function renderContentFileEntityPreview(
     appendSelectionBoundaryHtml(html);
     appendImageHtmlForSelection(html, platform);
 
-    if (!fileEntityResult.ok) {
+    if (!fileEntityResult?.ok) {
         // NOCOMMIT: Render error
     } else if (!fileEntityRenderers) {
         // NOCOMMIT: Render error
@@ -134,7 +134,7 @@ export function addContentFileEntityPreviewBehavior(
         spaceId: SpaceId;
         node: Node;
         fileEntityId: FileEntityId;
-        fileEntityResult: Result<FileEntityModel>;
+        fileEntityResult: Result<FileEntityModel> | undefined;
         fileEntityRenderers: ContentFileEntityRenderers | null;
         navigate: NavigateFunction;
         isInert?: boolean;
@@ -220,7 +220,7 @@ export function addContentFileEntityPreviewBehavior(
     element.addEventListener("contextmenu", handleContextMenu);
 
     let cleanupExtra: (() => void) | undefined;
-    if (fileEntityResult.ok && fileEntityRenderers) {
+    if (fileEntityResult?.ok && fileEntityRenderers) {
         const fileEntity = fileEntityResult.value;
 
         cleanupExtra = fileEntityRenderers.addPreviewBehaviorByType[fileEntity.type]?.(

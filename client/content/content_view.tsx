@@ -653,8 +653,21 @@ export function ContentView<Content extends ContentWithReferences>({
 
         const cleanupFunctions: Array<() => void> = [];
 
+        const classNames = [
+            linkClassName,
+            contentViewStyles.seeButtonClassName,
+            contentStyles.codeBlockCopyButtonClassName,
+            fileClassName,
+        ];
+
         for (const element of parentElement.querySelectorAll(
-            `.${linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentStyles.codeBlockCopyButtonClassName}, .${fileClassName}`,
+            classNames
+                // Find all elements with the provided class names and exclude elements that
+                // are children of a file node. File entities may recursively render content
+                // (e.g. document file entities). The content within file entities is inert
+                // so shouldn't get any interactive behaviors.
+                .map(className => `.${className}:not(.${fileClassName} .${className})`)
+                .join(", "),
         )) {
             if (!(element instanceof HTMLElement)) continue;
 
@@ -951,14 +964,14 @@ export function ContentView<Content extends ContentWithReferences>({
                     ? content.references.fileEntityById?.get(fileId)
                     : undefined;
 
-                if (fileEntityResult) {
+                if (isFileEntity) {
                     const cleanupBehavior = addContentFileEntityPreviewBehavior(
                         () => assertExists(context),
                         element,
                         {
                             spaceId: assertExists(spaceContext).space.id,
                             node,
-                            fileEntityId: fileId as FileEntityId,
+                            fileEntityId: fileId,
                             fileEntityResult,
                             fileEntityRenderers,
                             navigate,
@@ -1116,7 +1129,11 @@ export function ContentView<Content extends ContentWithReferences>({
 
             for (const childElement of element.querySelectorAll(
                 parentScrollWhenPointerDownAndOverClassNames
-                    .map(className => `.${className}`)
+                    // Find all elements with the provided class names and exclude elements that
+                    // are children of a file node. File entities may recursively render content
+                    // (e.g. document file entities). The content within file entities is inert
+                    // so shouldn't get any interactive behaviors.
+                    .map(className => `.${className}:not(.${fileClassName} .${className})`)
                     .join(", "),
             )) {
                 dispatchParentScrollWhenPointerDownAndOverEvent(childElement);
