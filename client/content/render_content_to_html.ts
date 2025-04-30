@@ -181,6 +181,65 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
 
     const orderedListItemNumberByNode = new Map<Node, number>();
 
+    const fileRowLikeNodeRenderer = (node: Node, pos: number) => {
+        const $pos = content.doc.resolve(pos);
+
+        const {html, contentHtml} = renderProsemirrorDomOutputSpec(node.type.spec.toDOM!(node));
+
+        assert(html instanceof HtmlElementGenerator);
+
+        let currentBlockWidth = blockWidth;
+
+        if ($pos.depth > 0) {
+            const parentBlockNode = $pos.node(1);
+
+            // If our file is inside a table then `blockWidth` should be equal to the
+            // column width.
+            if (parentBlockNode.type.name === "table") {
+                const tableMap = ContentTableMap.get(parentBlockNode);
+
+                // Should be the `tableCell` node index in `tableRow`.
+                const columnIndex = $pos.index(2);
+
+                const columnWidths = resolveContentTableColumnWidthPx(
+                    spacingScale,
+                    currentBlockWidth,
+                    tableMap,
+                );
+
+                const columnWidth = assertExists(columnWidths[columnIndex]);
+
+                currentBlockWidth =
+                    columnWidth -
+                    convertRemLengthToPx(contentStyles.tableCellPaddingX, spacingScale) * 2;
+            }
+        }
+
+        const layouts = layoutContentFileParent(node, {
+            blockWidth: currentBlockWidth,
+            spacingScale,
+            getFile: fileId => {
+                const fileReference = content.references.fileById?.get(fileId);
+                if (!fileReference) return null;
+
+                return get(fileStore.getFileStore(fileReference));
+            },
+        });
+
+        html.setAttribute(
+            "style",
+            [
+                `height: ${Math.max(...layouts.map(({height}) => height))}px`,
+                `grid-template-columns: ${layouts.map(({widthFr}) => `${widthFr}fr`).join(" ")}`,
+            ].join("; "),
+        );
+
+        return {
+            html,
+            contentHtml,
+        };
+    };
+
     return serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
         withPosAttribute,
         startPos: 1,
@@ -358,39 +417,8 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
 
                 return {html: containerElement};
             },
-            fileRow: node => {
-                const {html, contentHtml} = renderProsemirrorDomOutputSpec(
-                    node.type.spec.toDOM!(node),
-                );
-
-                assert(html instanceof HtmlElementGenerator);
-
-                const layouts = layoutContentFileParent(node, {
-                    blockWidth,
-                    spacingScale,
-                    getFile: fileId => {
-                        const fileReference = content.references.fileById?.get(fileId);
-                        if (!fileReference) return null;
-
-                        return get(fileStore.getFileStore(fileReference));
-                    },
-                });
-
-                html.setAttribute(
-                    "style",
-                    [
-                        `height: ${Math.max(...layouts.map(({height}) => height))}px`,
-                        `grid-template-columns: ${layouts
-                            .map(({widthFr}) => `${widthFr}fr`)
-                            .join(" ")}`,
-                    ].join("; "),
-                );
-
-                return {
-                    html,
-                    contentHtml,
-                };
-            },
+            fileRow: fileRowLikeNodeRenderer,
+            fileRowTable: fileRowLikeNodeRenderer,
             fileFloat: node => {
                 const {html, contentHtml} = renderProsemirrorDomOutputSpec(
                     node.type.spec.toDOM!(node),
@@ -423,6 +451,37 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                 };
             },
             file: (node, pos) => {
+                const $pos = content.doc.resolve(pos);
+
+                let currentBlockWidth = blockWidth;
+
+                if ($pos.depth > 0) {
+                    const parentBlockNode = $pos.node(1);
+
+                    // If our file is inside a table then `blockWidth` should be equal to the
+                    // column width.
+                    if (parentBlockNode.type.name === "table") {
+                        const tableMap = ContentTableMap.get(parentBlockNode);
+
+                        // Should be the `tableCell` node index in `tableRow`.
+                        const columnIndex = $pos.index(2);
+
+                        const columnWidths = resolveContentTableColumnWidthPx(
+                            spacingScale,
+                            currentBlockWidth,
+                            tableMap,
+                        );
+
+                        const columnWidth = assertExists(columnWidths[columnIndex]);
+
+                        currentBlockWidth =
+                            columnWidth -
+                            convertRemLengthToPx(contentStyles.tableCellPaddingX, spacingScale) * 2;
+                    }
+                }
+
+                console.log({currentBlockWidth});
+
                 const fileId: FileId | FileEntityId | null = node.attrs.fileId;
                 const isFileEntity = fileId && !isId<FileId>(fileId);
 
@@ -436,7 +495,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                 const file = fileReference ? get(fileStore.getFileStore(fileReference)) : undefined;
 
                 const layout = layoutContentFile(content.doc, pos, node, {
-                    blockWidth,
+                    blockWidth: currentBlockWidth,
                     spacingScale,
                     getFile: otherFileId => {
                         if (otherFileId === fileId) return file ?? null;
@@ -458,7 +517,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                         accountStore,
                         fileStore,
                         currentAccount,
-                        blockWidth,
+                        blockWidth: currentBlockWidth,
                         transformScale,
                         platform,
                         spacingScale,
@@ -472,7 +531,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                         node,
                         file,
                         layout,
-                        blockWidth,
+                        blockWidth: currentBlockWidth,
                         transformScale,
                         platform,
                         spacingScale,

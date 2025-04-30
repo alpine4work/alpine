@@ -129,7 +129,6 @@ export function createContentEditorFileNodeViewConstructor({
             const $pos = view.state.doc.resolve(pos);
             const nodeParent = $pos.parent;
 
-            // NOCOMMIT: Implement this in `<ContentView>` too?
             if ($pos.depth > 0) {
                 const parentBlockNode = $pos.node(1);
 
