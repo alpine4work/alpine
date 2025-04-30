@@ -12,6 +12,7 @@ import {
 } from "~/client/content/state/content_file_layout.js";
 import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {resolveContentTableColumnWidthPx} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
+import {AppContext} from "~/client/context/app_context.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
@@ -63,6 +64,7 @@ import {Store} from "~/shared/store/store.js";
 export function renderContentToHtmlStore(
     content: ContentWithReferences,
     {
+        getContext,
         spaceId,
         accountStore,
         fileStore,
@@ -76,6 +78,7 @@ export function renderContentToHtmlStore(
         withPosAttribute,
         placeholder,
     }: {
+        getContext: () => AppContext;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -91,6 +94,7 @@ export function renderContentToHtmlStore(
     },
 ): Store<string> {
     return renderContentFragmentToHtmlGeneratorStore(content, {
+        getContext,
         spaceId,
         accountStore,
         fileStore,
@@ -141,6 +145,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
     get: <Value>(store: Store<Value>) => Value,
     content: ContentWithReferences,
     {
+        getContext,
         spaceId,
         accountStore,
         fileStore,
@@ -157,6 +162,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         decorations,
         shouldHighlightComment,
     }: {
+        getContext: () => AppContext;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -512,9 +518,11 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                 if (isFileEntity) {
                     const html = renderContentFileEntityPreview(get, {
                         node,
+                        fileEntityId: fileId,
                         fileEntityResult,
                         fileEntityRenderers,
                         layout,
+                        getContext,
                         spaceId: assertExists(spaceId),
                         accountStore,
                         fileStore,

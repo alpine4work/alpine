@@ -32,26 +32,30 @@ export function renderContentFileTaskCollectionEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileTaskCollectionEntityModelSchema);
 
-    const isSmallerThanHalfOfBlockWidth =
+    const isSmallerThanHalfOfBlockMaxWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
             remPxBySpacingScale[spacingScale];
 
-    const isSmallerThanThirdOfBlockWidth =
+    const isSmallerThanThirdOfBlockMaxWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
             remPxBySpacingScale[spacingScale];
 
     const transformScale =
         fontSizesBySpacingScale[
-            isSmallerThanThirdOfBlockWidth ? "50" : isSmallerThanHalfOfBlockWidth ? "75" : "100"
+            isSmallerThanThirdOfBlockMaxWidth
+                ? "50"
+                : isSmallerThanHalfOfBlockMaxWidth
+                ? "75"
+                : "100"
         ].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
 
-    const containerPadding = isSmallerThanThirdOfBlockWidth
+    const containerPadding = isSmallerThanThirdOfBlockMaxWidth
         ? "3"
-        : isSmallerThanHalfOfBlockWidth
+        : isSmallerThanHalfOfBlockMaxWidth
         ? "4"
         : "5";
     containerHtml.setAttribute("class", sprinkles({padding: containerPadding}));

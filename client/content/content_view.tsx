@@ -474,6 +474,7 @@ export function ContentView<Content extends ContentWithReferences>({
 
             htmlGeneratorStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
                 renderContentFragmentToHtmlGeneratorStore(content, {
+                    getContext: () => assertExists(context),
                     spaceId,
                     accountStore,
                     fileStore,
@@ -508,6 +509,7 @@ export function ContentView<Content extends ContentWithReferences>({
             });
 
             htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
+                getContext: () => assertExists(context),
                 spaceId,
                 accountStore,
                 fileStore,
@@ -554,6 +556,7 @@ export function ContentView<Content extends ContentWithReferences>({
         isInert,
         placeholder,
         shouldHighlightComment,
+        context,
     ]);
 
     const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);

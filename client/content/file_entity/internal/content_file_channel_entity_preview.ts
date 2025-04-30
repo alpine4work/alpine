@@ -1,7 +1,7 @@
 import classNames from "classnames";
+import {renderAccountAvatar} from "~/client/accounts/account_avatar_html.js";
 import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {renderAccountAvatar} from "~/client/accounts/account_avatar_html.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
 import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
@@ -36,6 +36,7 @@ export function renderContentFileChannelEntityPreview(
     {
         fileEntity: unknownFileEntity,
         layout,
+        getContext,
         spaceId,
         accountStore,
         fileStore,
@@ -49,6 +50,7 @@ export function renderContentFileChannelEntityPreview(
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
+        getContext: () => AppContext;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -63,12 +65,12 @@ export function renderContentFileChannelEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
 
-    const isSmallerThanHalfOfBlockWidth =
+    const isSmallerThanHalfOfBlockMaxWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
             remPxBySpacingScale[spacingScale];
 
-    const isSmallerThanThirdOfBlockWidth =
+    const isSmallerThanThirdOfBlockMaxWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
             remPxBySpacingScale[spacingScale];
@@ -106,7 +108,7 @@ export function renderContentFileChannelEntityPreview(
         nameHtml.setAttribute(
             "class",
             sprinkles({
-                fontSize: isSmallerThanThirdOfBlockWidth ? "400" : "500",
+                fontSize: isSmallerThanThirdOfBlockMaxWidth ? "400" : "500",
                 fontStyle: "truncate-bold",
             }),
         );
@@ -123,7 +125,7 @@ export function renderContentFileChannelEntityPreview(
         subscribeButtonHtml.setAttribute(
             "style",
             `display: ${
-                isSmallerThanHalfOfBlockWidth ? "none" : "flex"
+                isSmallerThanHalfOfBlockMaxWidth ? "none" : "flex"
             }; font-weight: ${channelSubscribeButtonFontWeight}`,
         );
 
@@ -143,7 +145,7 @@ export function renderContentFileChannelEntityPreview(
         const peopleSection = containerHtml.appendChild(new HtmlElementGenerator("div"));
 
         {
-            const avatarSize = isSmallerThanThirdOfBlockWidth ? "6" : "7";
+            const avatarSize = isSmallerThanThirdOfBlockMaxWidth ? "6" : "7";
             const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
                 accountAvatarPileSizes[avatarSize];
 
@@ -326,6 +328,7 @@ export function renderContentFileChannelEntityPreview(
                 fileEntity.description,
                 {
                     isInert: true,
+                    getContext,
                     spaceId,
                     accountStore,
                     fileStore,

@@ -212,9 +212,11 @@ export function createContentEditorFileNodeViewConstructor({
                     if (isFileEntity) {
                         html = renderContentFileEntityPreview(get, {
                             node,
+                            fileEntityId: fileId,
                             fileEntityResult,
                             fileEntityRenderers: getFileEntityRenderers(),
                             layout,
+                            getContext,
                             spaceId,
                             accountStore: getAccountClientStore(spaceId),
                             fileStore: getFileClientStore(spaceId),

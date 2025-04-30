@@ -95,6 +95,8 @@ export async function getFileEntityIfPossible(
             ];
 
             // NOCOMMIT: Test when you don't have access. If possible behavior?
+            // NOCOMMIT: Test when task collection is deleted. It should show the deleted
+            // error message.
             const result = await context.tasks.loadQueries(spaceId, {
                 taskIds: [],
                 collectionIds: [collectionId],

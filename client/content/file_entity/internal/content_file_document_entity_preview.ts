@@ -4,6 +4,7 @@ import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_r
 import {FileClientStore} from "~/client/content/file_client_store.js";
 import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
+import {AppContext} from "~/client/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/remix/route_layout_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
@@ -32,6 +33,7 @@ export function renderContentFileDocumentEntityPreview(
     {
         fileEntity: unknownFileEntity,
         layout,
+        getContext,
         spaceId,
         accountStore,
         fileStore,
@@ -45,6 +47,7 @@ export function renderContentFileDocumentEntityPreview(
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
+        getContext: () => AppContext;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -59,24 +62,28 @@ export function renderContentFileDocumentEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileDocumentEntityModelSchema);
 
-    const isSmallerThanHalfOfBlockWidth =
+    const isSmallerThanHalfOfBlockMaxWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
             remPxBySpacingScale[spacingScale];
 
-    const isSmallerThanThirdOfBlockWidth =
+    const isSmallerThanThirdOfBlockMaxWidth =
         layout.width <=
         ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
             remPxBySpacingScale[spacingScale];
 
     const transformScale =
         fontSizesBySpacingScale[
-            isSmallerThanThirdOfBlockWidth ? "25" : isSmallerThanHalfOfBlockWidth ? "50" : "75"
+            isSmallerThanThirdOfBlockMaxWidth
+                ? "25"
+                : isSmallerThanHalfOfBlockMaxWidth
+                ? "50"
+                : "75"
         ].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 
-    const padding = isSmallerThanThirdOfBlockWidth
+    const padding = isSmallerThanThirdOfBlockMaxWidth
         ? "3"
-        : isSmallerThanHalfOfBlockWidth
+        : isSmallerThanHalfOfBlockMaxWidth
         ? "4"
         : "5";
     const paddingPx = convertRemLengthToPx(padding, spacingScale);
@@ -127,6 +134,7 @@ export function renderContentFileDocumentEntityPreview(
         },
         {
             isInert: true,
+            getContext,
             spaceId,
             accountStore,
             fileStore,

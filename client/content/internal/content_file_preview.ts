@@ -10,6 +10,7 @@ import {
     addContentFileAudioPlayerBehavior,
     renderContentFileAudioPlayer,
 } from "~/client/content/internal/content_file_audio_player.js";
+import {renderContentFileErrorPreview} from "~/client/content/internal/content_file_error_preview.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     addContentFileVideoPlayerBehavior,
@@ -29,9 +30,7 @@ import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_h
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileDottedSvg} from "~/client/icons/file_dotted_svg.js";
-import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
-import {warningIconSvg} from "~/client/icons/warning_icon_svg.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {
@@ -128,6 +127,7 @@ export function renderContentFilePreview({
     blockWidth,
     transformScale,
     platform,
+    spacingScale,
     isInitialAppRender,
     withoutInteractivity = false,
 }: {
@@ -232,6 +232,7 @@ export function renderContentFilePreview({
                     layout,
                     transformScale,
                     platform,
+                    spacingScale,
                     isInitialAppRender,
                     withoutInteractivity,
                 });
@@ -247,6 +248,8 @@ export function renderContentFilePreview({
                         contentType: file.contentType,
                         error: file.preview.error,
                         layout,
+                        platform,
+                        spacingScale,
                     });
                 } else {
                     const containerHtml = new HtmlElementGenerator("div");
@@ -280,6 +283,7 @@ export function renderContentFilePreview({
                     layout,
                     blockWidth,
                     platform,
+                    spacingScale,
                 });
                 break;
             }
@@ -453,135 +457,28 @@ function renderContentFileProcessorErrorPreview(
         contentType,
         error,
         layout,
+        platform,
+        spacingScale,
     }: {
         contentType: FileContentType;
         error: FileProcessorError;
         layout: {width: number; height: number};
+        platform: Platform;
+        spacingScale: SpacingScale;
     },
 ) {
-    const containerHtml = new HtmlElementGenerator("div");
-    html.appendChild(containerHtml);
-
-    containerHtml.setAttribute(
-        "class",
-        sprinkles({
-            position: "absolute",
-            inset: "0",
-            backgroundColor: "grey-0",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-        }),
-    );
-
-    // Width at which we need to shrinking the error message so that it's still
-    // readable.
-    const minWidth = 300;
-
-    const errorHtml = new HtmlElementGenerator("div");
-    containerHtml.appendChild(errorHtml);
-
-    errorHtml.setAttribute(
-        "style",
-        `min-width: ${minWidth}px; transform: scale(${Math.min(1, layout.width / minWidth)})`,
-    );
-
-    errorHtml.setAttribute(
-        "class",
-        sprinkles({
-            zIndex: "20",
-            position: "relative",
-            maxWidth: "64",
-            paddingX: "8",
-            paddingTop: "5",
-            paddingBottom: "4",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1.5",
-        }),
-    );
-
-    const errorTitleHtml = new HtmlElementGenerator("div");
-    errorHtml.appendChild(errorTitleHtml);
-
-    errorTitleHtml.setAttribute(
-        "class",
-        sprinkles({
-            display: "flex",
-            alignItems: "center",
-            gap: "1.5",
-            fontSize: "200",
-            fontStyle: "semi-bold",
-            color: "grey-70",
-        }),
-    );
-
     const {title, displayMessage} = new ContentFileProcessorError(contentType, error);
 
-    switch (error.type) {
-        case "Unknown": {
-            errorTitleHtml.appendChild(
-                createSvgHtmlGenerator(
-                    warningIconSvg({
-                        weight: "bold",
-                        className: sprinkles({
-                            width: "4",
-                            height: "4",
-                        }),
-                    }),
-                ),
-            );
-            break;
-        }
-        case "PasswordProtected": {
-            errorTitleHtml.appendChild(
-                createSvgHtmlGenerator(
-                    lockIconSvg({
-                        weight: "bold",
-                        className: sprinkles({
-                            width: "4",
-                            height: "4",
-                        }),
-                    }),
-                ),
-            );
-            break;
-        }
-        default:
-            throw exhaustive(error);
-    }
-
-    errorTitleHtml.appendChild(new HtmlTextGenerator(title));
-
-    const errorMessageHtml = new HtmlElementGenerator("div");
-    errorHtml.appendChild(errorMessageHtml);
-
-    errorMessageHtml.setAttribute(
-        "class",
-        sprinkles({
-            fontSize: "75",
-            color: "grey-50",
+    html.appendChild(
+        renderContentFileErrorPreview({
+            layout,
+            icon: ({Unknown: "Warning", PasswordProtected: "Lock"} as const)[error.type],
+            title,
+            displayMessage,
+            platform,
+            spacingScale,
         }),
     );
-
-    for (const displayMessageSegment of displayMessage) {
-        switch (displayMessageSegment.type) {
-            case "Text":
-            case "SensitiveText": {
-                errorMessageHtml.appendChild(new HtmlTextGenerator(displayMessageSegment.text));
-                break;
-            }
-            case "Link": {
-                // We don't currently support links in content file previews. Since we can't
-                // render a full `<Link>` component (like we do in
-                // `<ErrorDisplayMessageRenderer>`) with all the navigation bells and whistles.
-                errorMessageHtml.appendChild(new HtmlTextGenerator(displayMessageSegment.text));
-                break;
-            }
-            default:
-                throw exhaustive(displayMessageSegment);
-        }
-    }
 }
 
 function renderContentFileImagePreview(
@@ -593,6 +490,7 @@ function renderContentFileImagePreview(
         layout,
         transformScale,
         platform,
+        spacingScale,
         isInitialAppRender,
         withoutInteractivity,
     }: {
@@ -602,6 +500,7 @@ function renderContentFileImagePreview(
         layout: ContentFileLayout;
         transformScale: number;
         platform: Platform;
+        spacingScale: SpacingScale;
         isInitialAppRender: boolean;
         withoutInteractivity: boolean;
     },
@@ -618,6 +517,8 @@ function renderContentFileImagePreview(
                 contentType: file.contentType,
                 error: filePreview.error,
                 layout,
+                platform,
+                spacingScale,
             });
         }
         return;
@@ -864,12 +765,14 @@ function renderContentFileCodePreview(
         layout,
         blockWidth,
         platform,
+        spacingScale,
     }: {
         file: FileClientStoreData;
         filePreview: FileCodePreview;
         layout: ContentFileLayout;
         blockWidth: number;
         platform: Platform;
+        spacingScale: SpacingScale;
     },
 ) {
     html.setAttribute(
@@ -891,6 +794,8 @@ function renderContentFileCodePreview(
                 contentType: file.contentType,
                 error: filePreview.error,
                 layout,
+                platform,
+                spacingScale,
             });
         } else {
             renderContentFileProcessingPreview(html, {file, layout});

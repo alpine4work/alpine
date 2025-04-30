@@ -6,6 +6,7 @@ import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
+import {renderContentFileErrorPreview} from "~/client/content/internal/content_file_error_preview.js";
 import {
     addContentFilePreviewBehaviorBase,
     appendImageHtmlForSelection,
@@ -14,23 +15,35 @@ import {
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
+import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {FileEntityId, printFileEntityIdIntoPath} from "~/shared/files/file_entity_id.js";
+import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
+import {ErrorCode} from "~/shared/error/error_code.js";
+import {
+    FileEntityId,
+    FileEntityIdObject,
+    parseFileEntityId,
+    printFileEntityIdIntoPath,
+} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
+
+let reportedErrors: WeakSet<object> | null = null;
+let fallbackErrorByNode: WeakMap<Node, ErrorBase> | null = null;
 
 /**
  * Render the provided `file` node to an `HtmlElementGenerator`. This
@@ -47,9 +60,11 @@ export function renderContentFileEntityPreview(
     get: <Value>(store: Store<Value>) => Value,
     {
         node,
+        fileEntityId,
         fileEntityResult,
         fileEntityRenderers,
         layout,
+        getContext,
         spaceId,
         accountStore,
         fileStore,
@@ -61,9 +76,11 @@ export function renderContentFileEntityPreview(
         isInitialAppRender,
     }: {
         node: Node;
+        fileEntityId: FileEntityId;
         fileEntityResult: Result<FileEntityModel> | undefined;
         fileEntityRenderers: ContentFileEntityRenderers | null;
         layout: ContentFileLayout;
+        getContext: () => AppContext;
         spaceId: SpaceId | null;
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
@@ -89,10 +106,41 @@ export function renderContentFileEntityPreview(
     appendSelectionBoundaryHtml(html);
     appendImageHtmlForSelection(html, platform);
 
-    if (!fileEntityResult?.ok) {
-        // NOCOMMIT: Render error
-    } else if (!fileEntityRenderers) {
-        // NOCOMMIT: Render error
+    if (!fileEntityRenderers || !fileEntityResult?.ok) {
+        const fileEntityIdObject = parseFileEntityId(fileEntityId);
+        const entityNoun = getFileEntityNoun(fileEntityIdObject);
+
+        const error =
+            fileEntityResult?.error ??
+            getOrSetDefaultMapValue((fallbackErrorByNode ??= new WeakMap()), node, () =>
+                !fileEntityRenderers
+                    ? new InternalError("File entity renderers weren't provided")
+                    : new NotFoundError("File entity not found in content references"),
+            );
+
+        if (!reportedErrors?.has(error)) {
+            (reportedErrors ??= new WeakSet()).add(error);
+            getContext().react.reportRenderedError(error);
+        }
+
+        const isPermissionDeniedError =
+            error instanceof ErrorBase && error.code === ErrorCode.PermissionDenied;
+
+        html.appendChild(
+            renderContentFileErrorPreview({
+                layout,
+                icon: isPermissionDeniedError ? "Lock" : "Warning",
+                title: isPermissionDeniedError
+                    ? `Private ${entityNoun}`
+                    : `Couldn’t preview ${entityNoun}`,
+                displayMessage:
+                    error instanceof ErrorBase
+                        ? error.displayMessage ?? defaultErrorDisplayMessage
+                        : defaultErrorDisplayMessage,
+                platform,
+                spacingScale,
+            }),
+        );
     } else {
         const fileEntity = fileEntityResult.value;
 
@@ -113,6 +161,19 @@ export function renderContentFileEntityPreview(
     }
 
     return html;
+}
+
+function getFileEntityNoun(idObject: FileEntityIdObject): string {
+    switch (idObject.type) {
+        case "Document":
+            return "document";
+        case "TaskCollection":
+            return "task collection";
+        case "Channel":
+            return "channel";
+        default:
+            throw exhaustive(idObject);
+    }
 }
 
 export function addContentFileEntityPreviewBehavior(
