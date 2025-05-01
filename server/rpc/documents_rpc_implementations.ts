@@ -1,5 +1,4 @@
 import {
-    getContentFileReference,
     getContentReferences,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
@@ -23,11 +22,13 @@ import {
     updateDocumentCommentContent,
     updateDocumentContent,
 } from "~/server/documents/data/documents_table.js";
-import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
+import {
+    createMessagePayloadModel,
+    getMessageContentPayloadModelFile,
+} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {DocumentCommentModel} from "~/shared/documents/document_model.js";
-import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
@@ -283,16 +284,9 @@ export default implementRpcs(definitions, {
                 getAccount(context, spaceId, authorId),
                 getContentReferences(context, spaceId, "AssertHasNoFiles", contentReferencedIds),
                 runAllPromises(
-                    mapIterable(fileIds, async fileId => {
-                        const file = await getContentFileReference(
-                            context,
-                            spaceId,
-                            fileId,
-                            fileAuthorizer,
-                        );
-                        if (!file) throw new NotFoundError("File not found");
-                        return file;
-                    }),
+                    mapIterable(fileIds, fileId =>
+                        getMessageContentPayloadModelFile(context, spaceId, fileAuthorizer, fileId),
+                    ),
                 ),
             ]);
 

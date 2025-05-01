@@ -234,6 +234,7 @@ export default function NewChatRoute() {
             <Box
                 ref={accountPickerContainerRef}
                 position="relative"
+                zIndex="10"
                 flexShrink="0"
                 paddingTop="safe-area-inset"
             >

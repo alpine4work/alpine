@@ -20,6 +20,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {backgroundColorVar, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -46,7 +47,7 @@ export function renderContentFileChannelEntityPreview(
         accountStore,
         fileStore,
         currentAccount,
-        transformScale,
+        transformScale: originalTransformScale,
         platform,
         spacingScale,
         isInitialAppRender,
@@ -71,31 +72,72 @@ export function renderContentFileChannelEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
 
+    const remPx = remPxBySpacingScale[spacingScale];
+    const blockMaxWidthPx = contentStyles.blockMaxWidthRem[platform] * remPx;
+
     const isSmallerThanHalfOfBlockMaxWidth =
-        layout.width <=
-        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
-            remPxBySpacingScale[spacingScale];
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx) / 2;
 
     const isSmallerThanThirdOfBlockMaxWidth =
-        layout.width <=
-        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
-            remPxBySpacingScale[spacingScale];
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 2) / 3;
+
+    // This case is primarily for `<MessageInputFileEntityPreview>`. We need to
+    // render super small previews in that case.
+    const isSmallerThanFourthOfBlockMaxWidth =
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 3) / 4;
+
+    const transformScale =
+        (isSmallerThanFourthOfBlockMaxWidth
+            ? fontSizesBySpacingScale["50"].small.fontSize / 2
+            : fontSizesBySpacingScale[
+                  isSmallerThanThirdOfBlockMaxWidth
+                      ? "50"
+                      : isSmallerThanHalfOfBlockMaxWidth
+                      ? "75"
+                      : "100"
+              ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
 
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
-    const containerPadding = "5";
+    const containerPadding = isSmallerThanFourthOfBlockMaxWidth
+        ? "2"
+        : isSmallerThanThirdOfBlockMaxWidth
+        ? "3"
+        : isSmallerThanHalfOfBlockMaxWidth
+        ? "4"
+        : "5";
+
+    const scaledWidthPx =
+        (layout.width - convertRemLengthToPx(containerPadding, spacingScale) * 2) / transformScale;
 
     containerHtml.setAttribute(
         "class",
         sprinkles({
             padding: containerPadding,
+        }),
+    );
+
+    const scaledContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
+
+    scaledContainerHtml.setAttribute(
+        "class",
+        sprinkles({
             display: "flex",
             flexDirection: "column",
             gap: channelViewHeaderSectionGap,
         }),
     );
 
+    scaledContainerHtml.setAttribute(
+        "style",
+        [
+            `transform: scale(${transformScale})`,
+            "transform-origin: 0 0",
+            `width: ${scaledWidthPx}px`,
+        ].join("; "),
+    );
+
     {
-        const nameContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
+        const nameContainerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
 
         nameContainerHtml.setAttribute(
             "class",
@@ -114,7 +156,7 @@ export function renderContentFileChannelEntityPreview(
         nameHtml.setAttribute(
             "class",
             sprinkles({
-                fontSize: isSmallerThanThirdOfBlockMaxWidth ? "400" : "500",
+                fontSize: "500",
                 fontStyle: "truncate-bold",
             }),
         );
@@ -148,10 +190,10 @@ export function renderContentFileChannelEntityPreview(
     }
 
     {
-        const peopleSection = containerHtml.appendChild(new HtmlElementGenerator("div"));
+        const peopleSection = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));
 
         {
-            const avatarSize = isSmallerThanThirdOfBlockMaxWidth ? "6" : "7";
+            const avatarSize = "7";
             const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
                 accountAvatarPileSizes[avatarSize];
 
@@ -172,9 +214,7 @@ export function renderContentFileChannelEntityPreview(
             // The max number of accounts we can render in our preview. Calculates the
             // amount of available space then divides by the avatar overlap width.
             const maxPreviewAccountCount = Math.floor(
-                (layout.width -
-                    (convertRemLengthToPx(containerPadding, spacingScale) * 2 +
-                        convertRemLengthToPx(avatarSize, spacingScale))) /
+                (scaledWidthPx - convertRemLengthToPx(avatarSize, spacingScale)) /
                     convertRemLengthToPx(avatarOverlapWidth, spacingScale),
             );
 
@@ -295,7 +335,9 @@ export function renderContentFileChannelEntityPreview(
     }
 
     {
-        const descriptionSectionHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
+        const descriptionSectionHtml = scaledContainerHtml.appendChild(
+            new HtmlElementGenerator("div"),
+        );
 
         {
             const descriptionSectionTitleHtml = descriptionSectionHtml.appendChild(
@@ -351,9 +393,12 @@ export function renderContentFileChannelEntityPreview(
                     accountStore,
                     fileStore,
                     currentAccount,
-                    blockWidth:
-                        layout.width - convertRemLengthToPx(containerPadding, spacingScale) * 2,
-                    transformScale,
+                    // If we render files/tables inside the preview make sure they have an
+                    // appropriately scaled block width (important for row of 3 recursive docs use
+                    // case). Make sure that block width doesn't exceed the max width, though
+                    // (important for row of 1 recursive docs use case).
+                    blockWidth: Math.min(scaledWidthPx, blockMaxWidthPx),
+                    transformScale: originalTransformScale * transformScale,
                     platform,
                     spacingScale,
                     isInitialAppRender,
@@ -370,7 +415,7 @@ export function renderContentFileChannelEntityPreview(
 export function addContentFileChannelEntityPreviewBehavior(
     getContext: () => AppContext,
     element: HTMLElement,
-    {}: {fileEntity: FileEntityModel; spaceId: SpaceId},
+    {isInert}: {fileEntity: FileEntityModel; spaceId: SpaceId; isInert: boolean},
 ) {
     const subscribeButtonElement = assertExists(
         element.getElementsByClassName(
@@ -378,15 +423,17 @@ export function addContentFileChannelEntityPreviewBehavior(
         )[0],
     ) as HTMLDivElement;
 
-    const cleanupSubscribeButton = addUnfocusableButtonBehaviorToElement(subscribeButtonElement, {
-        pressClassName: contentStyles.fileChannelEntityPreviewSubscribeButtonPressedClassName,
-        onPress: () => {
-            // NOCOMMIT: Implement subscribing/unsubscribing after merging channel
-            // subscription code.
-        },
-    });
+    const cleanupSubscribeButton = !isInert
+        ? addUnfocusableButtonBehaviorToElement(subscribeButtonElement, {
+              pressClassName: contentStyles.fileChannelEntityPreviewSubscribeButtonPressedClassName,
+              onPress: () => {
+                  // NOCOMMIT: Implement subscribing/unsubscribing after merging channel
+                  // subscription code.
+              },
+          })
+        : null;
 
     return () => {
-        cleanupSubscribeButton();
+        cleanupSubscribeButton?.();
     };
 }

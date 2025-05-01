@@ -52,10 +52,7 @@ import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.j
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {
-    useCurrentDate,
-    useCurrentTimeRoundedToHour,
-} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";

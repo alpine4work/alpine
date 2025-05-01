@@ -1061,6 +1061,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                     contentUpdatedTime: null,
                     files: [
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
@@ -1072,6 +1073,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             }),
                         },
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
@@ -1116,6 +1118,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                     contentUpdatedTime: null,
                     files: [
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
@@ -1127,6 +1130,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             }),
                         },
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
@@ -1198,6 +1202,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                     contentUpdatedTime: null,
                     files: [
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
@@ -1209,6 +1214,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             }),
                         },
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,
@@ -1253,6 +1259,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                     contentUpdatedTime: null,
                     files: [
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file1Id,
@@ -1264,6 +1271,7 @@ test("will respond optimistically with a comment thread with files even if it ha
                             }),
                         },
                         {
+                            type: "File",
                             signedUrlSearch: expect.any(String),
                             file: new FileModel({
                                 id: file2Id,

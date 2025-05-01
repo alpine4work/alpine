@@ -5,6 +5,7 @@ import {
 import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -28,7 +29,7 @@ export type CreateMessageFunction<RoomKey extends string, Message extends Messag
         roomKey: RoomKey;
         parentMessageIndex: number | null;
         content: MessageContent;
-        fileIds: ReadonlyArray<FileId>;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ) => Promise<Message>;
 
@@ -434,7 +435,7 @@ export class MessagingRealtimeConnection<
         }: {
             parentMessageIndex: number | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
         },
     ): Promise<{}> {
         // TODO(calebmer): What if we sent clients an optimistic "message created"

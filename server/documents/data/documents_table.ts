@@ -99,6 +99,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
@@ -135,6 +136,7 @@ import {
     getMaxId,
     getMinId,
     idByteLength,
+    isId,
 } from "~/shared/id/id.js";
 import {
     AccountId,
@@ -2896,7 +2898,7 @@ export async function updateDocumentContent(
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
-            initialCommentFileIds: ReadonlyArray<FileId>;
+            initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             /**
              * Optionally allow the caller to specify the time at which we report the
              * thread was created. Used by our document collaboration service to use the
@@ -3121,15 +3123,17 @@ export async function updateDocumentContent(
             runAllPromises(
                 flatMapIterable(createCommentThreads, createCommentThread =>
                     mapIterable(createCommentThread.initialCommentFileIds, fileId =>
-                        getFileFromAttachment(
-                            context,
-                            internalDocument.spaceId,
-                            fileId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComments",
-                                documentId: documentId,
-                            }),
-                        ),
+                        isId<FileId>(fileId)
+                            ? getFileFromAttachment(
+                                  context,
+                                  internalDocument.spaceId,
+                                  fileId,
+                                  FileDocumentAuthorizer.bind({
+                                      type: "DocumentComments",
+                                      documentId: documentId,
+                                  }),
+                              )
+                            : null,
                     ),
                 ),
             ),
@@ -4781,7 +4785,7 @@ export async function createDocumentComment(
         commentThreadId: DocumentCommentThreadId;
         parentCommentIndex: number | null;
         content: MessageContent;
-        fileIds: ReadonlyArray<FileId>;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -4796,12 +4800,17 @@ export async function createDocumentComment(
                 // Make sure all the provided files exist.
                 await runAllPromises(
                     fileIds.map(fileId =>
-                        getFileFromAttachment(
-                            context,
-                            spaceId,
-                            fileId,
-                            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId}),
-                        ),
+                        isId<FileId>(fileId)
+                            ? getFileFromAttachment(
+                                  context,
+                                  spaceId,
+                                  fileId,
+                                  FileDocumentAuthorizer.bind({
+                                      type: "DocumentComments",
+                                      documentId,
+                                  }),
+                              )
+                            : null,
                     ),
                 );
 

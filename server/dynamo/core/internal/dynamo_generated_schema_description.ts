@@ -1085,7 +1085,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "valueSchema": {
                                                                 "type": "Array",
                                                                 "itemSchema": {
-                                                                    "type": "Id"
+                                                                    "type": "String"
                                                                 }
                                                             },
                                                             "optional": true
@@ -1393,7 +1393,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "content": {
                                         "valueSchema": {
                                             "type": "Object",
-                                            "referenceId": "d072e1be",
+                                            "referenceId": "67fcccd3",
                                             "propertySchemaByKey": {
                                                 "type": {
                                                     "valueSchema": {
@@ -1566,7 +1566,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "a7a8ea4d"
+                                                                        "referenceId": "9be54877"
                                                                     },
                                                                     "optional": true
                                                                 },
@@ -1578,14 +1578,14 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             }
                                                         },
-                                                        "referenceId": "ca36b6d9"
+                                                        "referenceId": "03f3f224"
                                                     },
                                                     "optional": true
                                                 },
                                                 "content": {
                                                     "valueSchema": {
                                                         "type": "Nullable",
-                                                        "referenceId": "6943bfb3",
+                                                        "referenceId": "9a9585ab",
                                                         "schema": {
                                                             "type": "Array",
                                                             "itemSchema": {
@@ -1594,7 +1594,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "variantSchemaByTypeValue": {
                                                                     "doc": {
                                                                         "type": "Reference",
-                                                                        "reuseReferenceId": "d072e1be"
+                                                                        "reuseReferenceId": "67fcccd3"
                                                                     },
                                                                     "text": {
                                                                         "type": "Object",
@@ -1737,7 +1737,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                             "blue",
                                                                                                                             "purple"
                                                                                                                         ],
-                                                                                                                        "referenceId": "33ebb631"
+                                                                                                                        "referenceId": "5908b900"
                                                                                                                     },
                                                                                                                     "optional": false
                                                                                                                 }
@@ -1748,9 +1748,9 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 }
                                                                                             }
                                                                                         },
-                                                                                        "referenceId": "f99f3481"
+                                                                                        "referenceId": "80499fcf"
                                                                                     },
-                                                                                    "referenceId": "46e5b9df"
+                                                                                    "referenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             },
@@ -1761,7 +1761,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "optional": false
                                                                             }
                                                                         },
-                                                                        "referenceId": "829e8bd0"
+                                                                        "referenceId": "8314a1d1"
                                                                     },
                                                                     "paragraph": {
                                                                         "type": "Object",
@@ -1776,19 +1776,19 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "marks": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "46e5b9df"
+                                                                                    "reuseReferenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "280f37ae"
+                                                                        "referenceId": "b5ea826d"
                                                                     },
                                                                     "quoteBlock": {
                                                                         "type": "Object",
@@ -1803,12 +1803,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "d8188bb6"
+                                                                        "referenceId": "2277e454"
                                                                     },
                                                                     "codeBlock": {
                                                                         "type": "Object",
@@ -1841,12 +1841,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "a108ec70"
+                                                                        "referenceId": "c1eea554"
                                                                     },
                                                                     "codeBlockLine": {
                                                                         "type": "Object",
@@ -1861,19 +1861,19 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "marks": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "46e5b9df"
+                                                                                    "reuseReferenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "896c9253"
+                                                                        "referenceId": "616043f4"
                                                                     },
                                                                     "unorderedListItem": {
                                                                         "type": "Object",
@@ -1905,12 +1905,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "df0e51a6"
+                                                                        "referenceId": "be00edd3"
                                                                     },
                                                                     "orderedListItem": {
                                                                         "type": "Object",
@@ -1942,12 +1942,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "b6c8145d"
+                                                                        "referenceId": "eaf4da92"
                                                                     },
                                                                     "break": {
                                                                         "type": "Object",
@@ -1960,7 +1960,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "optional": false
                                                                             }
                                                                         },
-                                                                        "referenceId": "44707eae"
+                                                                        "referenceId": "d8dc1a3c"
                                                                     },
                                                                     "mention": {
                                                                         "type": "Object",
@@ -1988,7 +1988,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "optional": false
                                                                             }
                                                                         },
-                                                                        "referenceId": "cbdb8453"
+                                                                        "referenceId": "5936f7af"
                                                                     },
                                                                     "table": {
                                                                         "type": "Object",
@@ -2039,12 +2039,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "051c26dd"
+                                                                        "referenceId": "0fe42e33"
                                                                     },
                                                                     "tableRow": {
                                                                         "type": "Object",
@@ -2059,12 +2059,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "96728232"
+                                                                        "referenceId": "49d61733"
                                                                     },
                                                                     "tableCell": {
                                                                         "type": "Object",
@@ -2079,12 +2079,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "1938a2c8"
+                                                                        "referenceId": "21068eed"
                                                                     },
                                                                     "heading": {
                                                                         "type": "Object",
@@ -2116,19 +2116,19 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "marks": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "46e5b9df"
+                                                                                    "reuseReferenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "81f7b523"
+                                                                        "referenceId": "f64ca4da"
                                                                     },
                                                                     "divider": {
                                                                         "type": "Object",
@@ -2141,7 +2141,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "optional": false
                                                                             }
                                                                         },
-                                                                        "referenceId": "3c05cb23"
+                                                                        "referenceId": "d31e8c66"
                                                                     },
                                                                     "fileRow": {
                                                                         "type": "Object",
@@ -2156,19 +2156,19 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "marks": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "46e5b9df"
+                                                                                    "reuseReferenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "f4e5e60b"
+                                                                        "referenceId": "44856a87"
                                                                     },
                                                                     "file": {
                                                                         "type": "Object",
@@ -2192,7 +2192,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "schema": {
                                                                                                         "type": "String"
                                                                                                     },
-                                                                                                    "referenceId": "f43dfa49"
+                                                                                                    "referenceId": "7112574e"
                                                                                                 },
                                                                                                 "optional": true
                                                                                             }
@@ -2204,12 +2204,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "marks": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "46e5b9df"
+                                                                                    "reuseReferenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "f405e5dd"
+                                                                        "referenceId": "4594dc7f"
                                                                     },
                                                                     "fileRowTable": {
                                                                         "type": "Object",
@@ -2224,19 +2224,19 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "marks": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "46e5b9df"
+                                                                                    "reuseReferenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "a2420c1a"
+                                                                        "referenceId": "4f7ba5a9"
                                                                     },
                                                                     "fileFloat": {
                                                                         "type": "Object",
@@ -2259,7 +2259,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     "left",
                                                                                                     "right"
                                                                                                 ],
-                                                                                                "referenceId": "4956a85b"
+                                                                                                "referenceId": "924507d8"
                                                                                             },
                                                                                             "optional": false
                                                                                         }
@@ -2270,19 +2270,19 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "marks": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "46e5b9df"
+                                                                                    "reuseReferenceId": "7b24f36a"
                                                                                 },
                                                                                 "optional": true
                                                                             },
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "77cb41f0"
+                                                                        "referenceId": "7198f159"
                                                                     },
                                                                     "checkListItem": {
                                                                         "type": "Object",
@@ -2320,12 +2320,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "c7144497"
+                                                                        "referenceId": "c49040fe"
                                                                     },
                                                                     "title": {
                                                                         "type": "Object",
@@ -2340,12 +2340,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                                             "content": {
                                                                                 "valueSchema": {
                                                                                     "type": "Reference",
-                                                                                    "reuseReferenceId": "6943bfb3"
+                                                                                    "reuseReferenceId": "9a9585ab"
                                                                                 },
                                                                                 "optional": true
                                                                             }
                                                                         },
-                                                                        "referenceId": "7f76cf82"
+                                                                        "referenceId": "40500f68"
                                                                     }
                                                                 }
                                                             }
@@ -2409,7 +2409,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "accessPolicy": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "a7a8ea4d"
+                                            "reuseReferenceId": "9be54877"
                                         },
                                         "optional": true
                                     },
@@ -2594,7 +2594,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "33ebb631"
+                                                                                        "reuseReferenceId": "5908b900"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2760,7 +2760,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "f43dfa49"
+                                                                                        "reuseReferenceId": "7112574e"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2779,7 +2779,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "4956a85b"
+                                                                                        "reuseReferenceId": "924507d8"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2837,7 +2837,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "a7a8ea4d"
+                                                                                        "reuseReferenceId": "9be54877"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -2892,7 +2892,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "mark": {
                                                                 "valueSchema": {
                                                                     "type": "Reference",
-                                                                    "reuseReferenceId": "f99f3481"
+                                                                    "reuseReferenceId": "80499fcf"
                                                                 },
                                                                 "optional": false
                                                             }
@@ -2923,7 +2923,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "mark": {
                                                                 "valueSchema": {
                                                                     "type": "Reference",
-                                                                    "reuseReferenceId": "f99f3481"
+                                                                    "reuseReferenceId": "80499fcf"
                                                                 },
                                                                 "optional": false
                                                             }
@@ -2948,7 +2948,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "mark": {
                                                                 "valueSchema": {
                                                                     "type": "Reference",
-                                                                    "reuseReferenceId": "f99f3481"
+                                                                    "reuseReferenceId": "80499fcf"
                                                                 },
                                                                 "optional": false
                                                             }
@@ -2973,7 +2973,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "mark": {
                                                                 "valueSchema": {
                                                                     "type": "Reference",
-                                                                    "reuseReferenceId": "f99f3481"
+                                                                    "reuseReferenceId": "80499fcf"
                                                                 },
                                                                 "optional": false
                                                             }
@@ -3029,14 +3029,14 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         "attrs": {
                                                                                                             "valueSchema": {
                                                                                                                 "type": "Reference",
-                                                                                                                "reuseReferenceId": "ca36b6d9"
+                                                                                                                "reuseReferenceId": "03f3f224"
                                                                                                             },
                                                                                                             "optional": true
                                                                                                         },
                                                                                                         "content": {
                                                                                                             "valueSchema": {
                                                                                                                 "type": "Reference",
-                                                                                                                "reuseReferenceId": "6943bfb3"
+                                                                                                                "reuseReferenceId": "9a9585ab"
                                                                                                             },
                                                                                                             "optional": true
                                                                                                         }
@@ -3044,83 +3044,83 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                 },
                                                                                                 "text": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "829e8bd0"
+                                                                                                    "reuseReferenceId": "8314a1d1"
                                                                                                 },
                                                                                                 "paragraph": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "280f37ae"
+                                                                                                    "reuseReferenceId": "b5ea826d"
                                                                                                 },
                                                                                                 "quoteBlock": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "d8188bb6"
+                                                                                                    "reuseReferenceId": "2277e454"
                                                                                                 },
                                                                                                 "codeBlock": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "a108ec70"
+                                                                                                    "reuseReferenceId": "c1eea554"
                                                                                                 },
                                                                                                 "codeBlockLine": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "896c9253"
+                                                                                                    "reuseReferenceId": "616043f4"
                                                                                                 },
                                                                                                 "unorderedListItem": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "df0e51a6"
+                                                                                                    "reuseReferenceId": "be00edd3"
                                                                                                 },
                                                                                                 "orderedListItem": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "b6c8145d"
+                                                                                                    "reuseReferenceId": "eaf4da92"
                                                                                                 },
                                                                                                 "break": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "44707eae"
+                                                                                                    "reuseReferenceId": "d8dc1a3c"
                                                                                                 },
                                                                                                 "mention": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "cbdb8453"
+                                                                                                    "reuseReferenceId": "5936f7af"
                                                                                                 },
                                                                                                 "table": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "051c26dd"
+                                                                                                    "reuseReferenceId": "0fe42e33"
                                                                                                 },
                                                                                                 "tableRow": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "96728232"
+                                                                                                    "reuseReferenceId": "49d61733"
                                                                                                 },
                                                                                                 "tableCell": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "1938a2c8"
+                                                                                                    "reuseReferenceId": "21068eed"
                                                                                                 },
                                                                                                 "heading": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "81f7b523"
+                                                                                                    "reuseReferenceId": "f64ca4da"
                                                                                                 },
                                                                                                 "divider": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "3c05cb23"
+                                                                                                    "reuseReferenceId": "d31e8c66"
                                                                                                 },
                                                                                                 "fileRow": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "f4e5e60b"
+                                                                                                    "reuseReferenceId": "44856a87"
                                                                                                 },
                                                                                                 "file": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "f405e5dd"
+                                                                                                    "reuseReferenceId": "4594dc7f"
                                                                                                 },
                                                                                                 "fileRowTable": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "a2420c1a"
+                                                                                                    "reuseReferenceId": "4f7ba5a9"
                                                                                                 },
                                                                                                 "fileFloat": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "77cb41f0"
+                                                                                                    "reuseReferenceId": "7198f159"
                                                                                                 },
                                                                                                 "checkListItem": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "c7144497"
+                                                                                                    "reuseReferenceId": "c49040fe"
                                                                                                 },
                                                                                                 "title": {
                                                                                                     "type": "Reference",
-                                                                                                    "reuseReferenceId": "7f76cf82"
+                                                                                                    "reuseReferenceId": "40500f68"
                                                                                                 }
                                                                                             }
                                                                                         }
@@ -3222,7 +3222,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "mark": {
                                                                 "valueSchema": {
                                                                     "type": "Reference",
-                                                                    "reuseReferenceId": "f99f3481"
+                                                                    "reuseReferenceId": "80499fcf"
                                                                 },
                                                                 "optional": false
                                                             }
@@ -3241,7 +3241,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                             "mark": {
                                                                 "valueSchema": {
                                                                     "type": "Reference",
-                                                                    "reuseReferenceId": "f99f3481"
+                                                                    "reuseReferenceId": "80499fcf"
                                                                 },
                                                                 "optional": false
                                                             },
@@ -3347,7 +3347,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "content": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "d072e1be"
+                                            "reuseReferenceId": "67fcccd3"
                                         },
                                         "optional": false
                                     },
@@ -3549,7 +3549,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                                                 "color": {
                                                                                                                                     "valueSchema": {
                                                                                                                                         "type": "Reference",
-                                                                                                                                        "reuseReferenceId": "33ebb631"
+                                                                                                                                        "reuseReferenceId": "5908b900"
                                                                                                                                     },
                                                                                                                                     "optional": false
                                                                                                                                 }
@@ -3985,7 +3985,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                             "fileId": {
                                                                                                                 "valueSchema": {
                                                                                                                     "type": "Reference",
-                                                                                                                    "reuseReferenceId": "f43dfa49"
+                                                                                                                    "reuseReferenceId": "7112574e"
                                                                                                                 },
                                                                                                                 "optional": true
                                                                                                             }
@@ -4046,7 +4046,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         "direction": {
                                                                                                             "valueSchema": {
                                                                                                                 "type": "Reference",
-                                                                                                                "reuseReferenceId": "4956a85b"
+                                                                                                                "reuseReferenceId": "924507d8"
                                                                                                             },
                                                                                                             "optional": false
                                                                                                         }
@@ -6566,7 +6566,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "accessPolicy": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "a7a8ea4d"
+                                            "reuseReferenceId": "9be54877"
                                         },
                                         "optional": true
                                     },
@@ -9116,7 +9116,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "a7a8ea4d"
+                                                                                        "reuseReferenceId": "9be54877"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -9209,7 +9209,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "accessPolicy": {
                                                                                     "valueSchema": {
                                                                                         "type": "Reference",
-                                                                                        "reuseReferenceId": "a7a8ea4d"
+                                                                                        "reuseReferenceId": "9be54877"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
@@ -9573,7 +9573,7 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "value": {
                                                     "valueSchema": {
                                                         "type": "Reference",
-                                                        "reuseReferenceId": "a7a8ea4d"
+                                                        "reuseReferenceId": "9be54877"
                                                     },
                                                     "optional": false
                                                 },

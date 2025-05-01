@@ -130,7 +130,9 @@ export function ContentEditorMobileCommentInputBottomBar({
         transaction.setMeta(createContentCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
-            initialCommentFileIds: files.map(({file}) => file.id),
+            initialCommentFileIds: files.map(file =>
+                file.type === "FileEntity" ? file.fileEntityId : file.file.id,
+            ),
         });
 
         transaction.scrollIntoView();

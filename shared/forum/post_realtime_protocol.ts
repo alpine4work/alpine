@@ -1,6 +1,7 @@
 import {createDynamoGeneralRealtimeEventSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
@@ -54,7 +55,7 @@ export const PostRealtimeProtocol = defineWebSocketProtocol({
             input: {
                 parentCommentIndex: Schema.integer.nullable(),
                 content: MessageContentSchema,
-                fileIds: Schema.array(Schema.id<FileId>()),
+                fileIds: Schema.array(FileIdOrFileEntityIdSchema),
             },
             output: {},
         },

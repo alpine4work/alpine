@@ -6,7 +6,13 @@ import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {isId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    ChannelId,
+    DocumentId,
+    FileId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -19,6 +25,11 @@ export type FileEntityId =
     | `Channel:${ChannelId}`;
 
 export const FileEntityIdSchema = Schema.string as Schema<FileEntityId>;
+
+export const FileIdOrFileEntityIdSchema = Schema.string.validation(
+    "Is `FileId` or `FileEntityId`",
+    (value): value is FileId | FileEntityId => isId<FileId>(value) || isFileEntityId(value),
+);
 
 /**
  * The types of a `FileEntityId`.

@@ -27,15 +27,14 @@ import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/sha
 import {ErrorCode} from "~/shared/error/error_code.js";
 import {
     FileEntityId,
-    FileEntityIdObject,
     parseFileEntityId,
     printFileEntityIdIntoPath,
 } from "~/shared/files/file_entity_id.js";
 import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -193,19 +192,6 @@ export function renderContentFileEntityPreview(
     return html;
 }
 
-function getFileEntityNoun(idObject: FileEntityIdObject): string {
-    switch (idObject.type) {
-        case "Document":
-            return "document";
-        case "TaskCollection":
-            return "task collection";
-        case "Channel":
-            return "channel";
-        default:
-            throw exhaustive(idObject);
-    }
-}
-
 export function addContentFileEntityPreviewBehavior(
     getContext: () => AppContext,
     element: HTMLElement,
@@ -216,7 +202,7 @@ export function addContentFileEntityPreviewBehavior(
         fileEntityResult,
         fileEntityRenderers,
         navigate,
-        isInert,
+        isInert = false,
         onShiftMouseDown,
         isLongPressDisabled,
         onLongPress,
@@ -320,6 +306,7 @@ export function addContentFileEntityPreviewBehavior(
             {
                 fileEntity,
                 spaceId,
+                isInert,
             },
         );
     }

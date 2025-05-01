@@ -11,10 +11,11 @@ import {
     DynamoIndexCursorSchema,
     DynamoItemKeySchema,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {ChannelId, FileId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -259,7 +260,7 @@ export const createPostComment = defineRpc({
         postId: Schema.id<PostId>(),
         parentCommentIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
-        fileIds: Schema.array(Schema.id<FileId>()).default([]),
+        fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
         comment: PostCommentModel.schema(),

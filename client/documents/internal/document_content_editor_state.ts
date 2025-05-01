@@ -29,6 +29,7 @@ import {
     createEmptyDocumentContent,
     isDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -68,7 +69,7 @@ type DocumentContentEditorExtraState = {
     readonly pendingCreateCommentThreads: ReadonlyArray<{
         readonly commentThreadId: DocumentCommentThreadId;
         readonly initialCommentContent: MessageContent;
-        readonly initialCommentFileIds: ReadonlyArray<FileId>;
+        readonly initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
     }> | null;
 
     /**
@@ -262,7 +263,7 @@ export function reduceDocumentContentEditorState(
                     const createCommentThread: {
                         commentThreadId: DocumentCommentThreadId;
                         initialCommentContent: MessageContentWithReferences;
-                        initialCommentFileIds: ReadonlyArray<FileId>;
+                        initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
                     } | null = transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
 
                     const intentionallyUpdateAccessPolicy: AccessPolicy | null =

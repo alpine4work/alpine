@@ -1,33 +1,45 @@
 import {Memo} from "react";
-import {FileInfo} from "~/client/content/internal/iterate_file_infos_in_element.js";
+import {FileInfoWithEntity} from "~/client/content/internal/iterate_file_infos_in_element.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     attachFileAsUploader,
     attachFileFromAttachment,
     getFileAsUploader,
+    getFileEntityIfPossible,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
 
-export type MessageInputFile = {
-    readonly key: Id;
-    readonly attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
-    readonly signedUrlSearch: string;
-    readonly file: FileModel;
-};
+export type MessageInputFile =
+    | {
+          readonly type: "File";
+          readonly key: Id;
+          readonly attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
+          readonly signedUrlSearch: string;
+          readonly file: FileModel;
+      }
+    | {
+          readonly type: "FileEntity";
+          readonly key: Id;
+          readonly fileEntityId: FileEntityId;
+          readonly fileEntityResult: Result<FileEntityModel>;
+      };
 
 export async function addMessageInputFiles(
     context: AppContext,
-    fileInfos: ReadonlyArray<FileInfo>,
+    fileInfos: ReadonlyArray<FileInfoWithEntity>,
     {
         spaceId,
         attachmentTarget: toTarget,
@@ -91,6 +103,7 @@ export async function addMessageInputFiles(
 
                     return promise.then(({signedUrlSearch, file}) => {
                         onAddFile({
+                            type: "File",
                             key: generateId(),
                             attachmentTarget: markMemoIfNotRendering(fromTarget),
                             signedUrlSearch,
@@ -105,6 +118,7 @@ export async function addMessageInputFiles(
                         input: fileInfo.input,
                         onAttach: ({signedUrlSearch, file}) => {
                             onAddFile({
+                                type: "File",
                                 key: generateId(),
                                 attachmentTarget: markMemoIfNotRendering(toTarget ?? "Uploader"),
                                 signedUrlSearch,
@@ -121,6 +135,27 @@ export async function addMessageInputFiles(
                         type: "Uploading",
                         progressStore: promise.progressStore,
                     });
+
+                    return promise;
+                }
+                case "AttachFileEntity": {
+                    const promise = (async () => {
+                        if (fileInfo.spaceId !== spaceId) return;
+
+                        const {fileEntityResult} = await getFileEntityIfPossible(context, {
+                            spaceId,
+                            fileEntityId: fileInfo.fileEntityId,
+                        });
+
+                        onAddFile({
+                            type: "FileEntity",
+                            key: generateId(),
+                            fileEntityId: fileInfo.fileEntityId,
+                            fileEntityResult,
+                        });
+                    })();
+
+                    addGlobalLoadingIndicator(promise, {type: "Uploading"});
 
                     return promise;
                 }

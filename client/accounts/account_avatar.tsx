@@ -1,10 +1,10 @@
 import {useMemo} from "react";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {
     accountAvatarClassName,
     accountAvatarInitialsClassName,
     getAccountAvatarInitials,
 } from "~/client/accounts/account_avatar_html.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";

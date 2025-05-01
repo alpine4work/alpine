@@ -32,6 +32,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -126,7 +127,8 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
 
             const fileReferences = node.content.content.map(childNode => {
                 const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
-                const fileReference = fileId ? references.fileById?.get(fileId) : undefined;
+                const fileReference =
+                    fileId && isId<FileId>(fileId) ? references.fileById?.get(fileId) : undefined;
                 return fileReference;
             });
 

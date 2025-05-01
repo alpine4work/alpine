@@ -30,11 +30,13 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {Id, generateId} from "~/shared/id/id.js";
@@ -61,7 +63,7 @@ export type MessageInputProps<RoomKey extends string, Message extends MessageMod
     createMessage: (input: {
         parentMessageIndex: number | null;
         content: MessageContent;
-        fileIds: ReadonlyArray<FileId>;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
     }) => Promise<void>;
     fileAttachmentTarget: Memo<FileAttachmentTarget> | null;
     withAttachFileBeforeCreateMessage?: boolean;
@@ -248,11 +250,25 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 content: inputContent,
                 contentUpdatedTime: null,
                 files: inputFiles.map(inputFile => {
-                    const latestFile = fileStore.getFileStore(inputFile).getSnapshot();
-                    return {
-                        signedUrlSearch: latestFile.signedUrlSearch,
-                        file: new FileModel(latestFile),
-                    };
+                    switch (inputFile.type) {
+                        case "File": {
+                            const latestFile = fileStore.getFileStore(inputFile).getSnapshot();
+                            return {
+                                type: "File",
+                                signedUrlSearch: latestFile.signedUrlSearch,
+                                file: new FileModel(latestFile),
+                            };
+                        }
+                        case "FileEntity": {
+                            return {
+                                type: "FileEntity",
+                                fileEntityId: inputFile.fileEntityId,
+                                fileEntityResult: inputFile.fileEntityResult,
+                            };
+                        }
+                        default:
+                            throw exhaustive(inputFile);
+                    }
                 }),
             },
         };
@@ -282,6 +298,8 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         if (withAttachFileBeforeCreateMessage && fileAttachmentTarget !== null) {
                             await runAllPromises(
                                 inputFiles.map(async inputFile => {
+                                    if (inputFile.type !== "File") return;
+
                                     if (inputFile.attachmentTarget === "Uploader") {
                                         await attachFileAsUploader(context, {
                                             spaceId: space.id,
@@ -311,7 +329,11 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                         await createMessage({
                             parentMessageIndex: replyingToMessage?.index ?? null,
                             content: inputContent.doc,
-                            fileIds: inputFiles.map(inputFile => inputFile.file.id),
+                            fileIds: inputFiles.map(inputFile =>
+                                inputFile.type === "FileEntity"
+                                    ? inputFile.fileEntityId
+                                    : inputFile.file.id,
+                            ),
                         });
                     })();
 

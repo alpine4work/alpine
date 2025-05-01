@@ -55,6 +55,7 @@ export type ContentFileEntityRenderers = {
                 options: {
                     fileEntity: FileEntityModel;
                     spaceId: SpaceId;
+                    isInert: boolean;
                 },
             ) => () => void
         >

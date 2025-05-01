@@ -1,5 +1,6 @@
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
-import {ContentEditorClientId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {
@@ -102,7 +103,7 @@ export const TaskNotesCollaborationProtocol = defineWebSocketProtocol({
             input: {
                 parentCommentIndex: Schema.integer.nullable(),
                 content: MessageContentSchema,
-                fileIds: Schema.array(Schema.id<FileId>()),
+                fileIds: Schema.array(FileIdOrFileEntityIdSchema),
             },
             output: {},
         },

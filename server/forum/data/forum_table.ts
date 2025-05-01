@@ -3123,7 +3123,7 @@ export async function createPostComment(
         postId: PostId;
         parentCommentIndex: number | null;
         content: MessageContent;
-        fileIds: ReadonlyArray<FileId>;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -3185,12 +3185,14 @@ export async function createPostComment(
             postItemPromise.then(postItem =>
                 runAllPromises(
                     fileIds.map(fileId =>
-                        getFileFromAttachment(
-                            context,
-                            postItem.spaceId,
-                            fileId,
-                            FilePostAuthorizer.bind({type: "PostComments", postId}),
-                        ),
+                        isId<FileId>(fileId)
+                            ? getFileFromAttachment(
+                                  context,
+                                  postItem.spaceId,
+                                  fileId,
+                                  FilePostAuthorizer.bind({type: "PostComments", postId}),
+                              )
+                            : null,
                     ),
                 ),
             ),

@@ -7,7 +7,6 @@ import {getChannelPreview, getPostDraftIfExists} from "~/server/forum/data/forum
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     PostContentWithReferencesSchema,

@@ -12,8 +12,7 @@ import {
     headingLevel3ClassName,
 } from "~/shared/content/content_styles.js";
 import {
-    FileEntityId,
-    isFileEntityId,
+    FileIdOrFileEntityIdSchema,
     parseFileEntityIdFromUrl,
 } from "~/shared/files/file_entity_id.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
@@ -190,13 +189,7 @@ export const createContentFileProsemirrorNodeSpecs = ({
                 // at least one file node. `fileId: null` files will always render with an
                 // error. You should always provide a `FileId`.
                 fileId: {
-                    schema: Schema.string
-                        .validation(
-                            "Is `FileId` or `FileEntityId`",
-                            (value): value is FileId | FileEntityId =>
-                                isId<FileId>(value) || isFileEntityId(value),
-                        )
-                        .nullable(),
+                    schema: FileIdOrFileEntityIdSchema.nullable(),
                     default: null,
                 },
             },

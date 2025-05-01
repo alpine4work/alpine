@@ -397,7 +397,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: message.payload.content.doc,
                     hasContentUpdated: message.payload.contentUpdatedTime !== null,
                     ...(message.payload.files.length > 0
-                        ? {fileIds: message.payload.files.map(file => file.file.id)}
+                        ? {
+                              fileIds: message.payload.files.map(file =>
+                                  file.type === "FileEntity" ? file.fileEntityId : file.file.id,
+                              ),
+                          }
                         : {}),
                 };
             }

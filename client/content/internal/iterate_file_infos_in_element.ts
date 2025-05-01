@@ -4,6 +4,7 @@ import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
+import {FileEntityId, parseFileEntityIdFromUrl} from "~/shared/files/file_entity_id.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {isId} from "~/shared/id/id.js";
@@ -21,26 +22,43 @@ export type FileInfo =
           readonly target: FileAttachmentTarget | "Uploader";
       };
 
+export type FileInfoWithEntity =
+    | FileInfo
+    | {
+          readonly type: "AttachFileEntity";
+          readonly spaceId: SpaceId;
+          readonly fileEntityId: FileEntityId;
+      };
+
 /**
- * Iterates through all media elements in the given container element and yields an object
- * containing:
+ * Iterates through all media elements in the given container element and
+ * yields an object containing:
+ *
  * - The discovered media element itself
  * - File information that indicates whether the file should be:
  *   - Uploaded as a new file (type: "UploadFile")
  *   - Attached from an existing file (type: "AttachFile")
  *   - Or null if no valid source is found
- *
- * @param element The container element to search through for media elements
- * @param getSpaceId A function that returns the current space ID
- * @returns An iterable iterator of objects containing fileInfo
  */
 export function* iterateFileInfosInElement(
     element: Element,
     getSpaceId: () => SpaceId,
-): IterableIterator<{element: Element; info: FileInfo | null}> {
+): IterableIterator<{element: Element; info: FileInfoWithEntity | null}> {
     let currentUrl: URL | undefined;
 
-    for (const fileElement of element.querySelectorAll("img, video, audio, object")) {
+    for (const fileElement of element.querySelectorAll("img, video, audio, object, iframe")) {
+        // Handle file entity elements (serialized to DOM via `<iframe>`s) separately
+        // from other file types.
+        if (fileElement instanceof HTMLIFrameElement) {
+            const spaceId = getSpaceId();
+
+            const fileEntityId = parseFileEntityIdFromUrl(spaceId, fileElement.src);
+            if (fileEntityId === null) continue;
+
+            yield {element, info: {type: "AttachFileEntity", spaceId, fileEntityId}};
+            continue;
+        }
+
         const urlString =
             fileElement instanceof HTMLImageElement
                 ? fileElement.src || null

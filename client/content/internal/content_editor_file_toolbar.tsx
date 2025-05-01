@@ -31,8 +31,9 @@ import {
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -186,9 +187,26 @@ function ContentEditorFileToolbar({
 
     const references = getContentEditorReferences(state).references;
 
-    const file = useMemo(() => {
+    const {deleteVerb, entityNoun} = useMemo(() => {
         const fileId: FileId | FileEntityId | null | undefined = selection.node.attrs.fileId;
-        return fileId ? references.fileById?.get(fileId)?.file : undefined;
+
+        if (!fileId) {
+            const entityNoun = getFileContentTypeNoun(undefined);
+            return {deleteVerb: "Delete", entityNoun};
+        } else if (isId<FileId>(fileId)) {
+            const entityNoun = getFileContentTypeNoun(
+                references.fileById?.get(fileId)?.file.contentType,
+            );
+            return {deleteVerb: "Delete", entityNoun};
+        } else {
+            const fileIdObject = parseFileEntityId(fileId);
+            const entityNoun = getFileEntityNoun(fileIdObject);
+
+            // Use a softer verb than "Delete". Since you're not "deleting a document" when
+            // you select the delete option, rather you're removing a document embed from
+            // the content.
+            return {deleteVerb: "Remove", entityNoun};
+        }
     }, [references.fileById, selection.node.attrs.fileId]);
 
     const isContextMenuOpen = useIsContextMenuOpen();
@@ -423,9 +441,7 @@ function ContentEditorFileToolbar({
                                 {hasReplaceButton && (
                                     <ContentEditorFileToolbarButton
                                         dividerLeft={hasAlignmentButtons}
-                                        description={`Replace ${getFileContentTypeNoun(
-                                            file?.contentType,
-                                        )}`}
+                                        description={`Replace ${entityNoun}`}
                                         viewRef={viewRef}
                                         isActive={false}
                                         command={() => {
@@ -456,9 +472,7 @@ function ContentEditorFileToolbar({
                                 <ContentEditorFileToolbarButton
                                     dividerLeft={!hasReplaceButton && hasAlignmentButtons}
                                     dividerRight={!!state.schema.marks.comment}
-                                    description={`Delete ${getFileContentTypeNoun(
-                                        file?.contentType,
-                                    )}`}
+                                    description={`${deleteVerb} ${entityNoun}`}
                                     viewRef={viewRef}
                                     isActive={false}
                                     command={() => {
@@ -509,10 +523,10 @@ function ContentEditorFileToolbar({
             {showDeleteConfirmationDialog && (
                 <ModalDialog
                     data-ownedby={toolbarId}
-                    title={`Delete ${getFileContentTypeNoun(file?.contentType)}?`}
+                    title={`${deleteVerb} ${entityNoun}?`}
                     description="You can undo this change at any time."
                     onClose={() => setShowDeleteConfirmationDialog(false)}
-                    primaryButtonLabel="Delete"
+                    primaryButtonLabel={deleteVerb}
                     onPrimaryButtonPress={() => {
                         const view = assertExists(viewRef.current);
                         view.dispatch(view.state.tr.deleteSelection());

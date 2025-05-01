@@ -1684,6 +1684,7 @@ test("file row (one file, channel entity)", async () => {
                         type: "Channel",
                         versions: [32],
                         id: channelId,
+                        createdTime,
                         name: "Test Channel",
                         description: {
                             doc: assertMessageContent(

@@ -1,5 +1,6 @@
+import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {getFileEntityTypes} from "~/shared/files/file_entity_id.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * An interface schema representing file entities. We should create
@@ -51,3 +52,16 @@ export const FileEntityModel = Schema.interface({
      */
     versions: Schema.array(Schema.integer),
 });
+
+export type FileEntityModelResult = SchemaType<typeof FileEntityModelResultSchema>;
+
+export const FileEntityModelResultSchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+        value: FileEntityModel.schema,
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);

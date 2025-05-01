@@ -1,6 +1,7 @@
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
-import {ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -54,7 +55,7 @@ export const sendChatMessage = defineRpc({
         chatId: Schema.id<ChatId>(),
         parentMessageIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
-        fileIds: Schema.array(Schema.id<FileId>()).default([]),
+        fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
         message: ChatMessageModel.schema(),

@@ -94,6 +94,7 @@ import {
 } from "~/client/content/internal/get_content_editor_file_drop_targets.js";
 import {
     FileInfo,
+    FileInfoWithEntity,
     iterateFileInfosInElement,
 } from "~/client/content/internal/iterate_file_infos_in_element.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
@@ -630,7 +631,7 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * For example `MessageContent` doesn't support files but `<MessageInput>` does
      * allow attaching files to a message.
      */
-    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfo>) => void;
+    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfoWithEntity>) => void;
 } & (
     | {
           /**
@@ -1400,7 +1401,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         \* ========================================================================== */
 
         let temporaryPastedFileInfoById: Map<FileId, FileInfo> | undefined;
-        let temporaryPastedFileInfosForParent: Array<FileInfo> | undefined;
+        let temporaryPastedFileInfosForParent: Array<FileInfoWithEntity> | undefined;
 
         viewProps.clipboardSerializer =
             ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
@@ -1583,6 +1584,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
 
                     switch (fileInfo.type) {
+                        case "AttachFileEntity": {
+                            // Ignore file entities. The ProseMirror schema will be able to successfully
+                            // parse a file entity node from an `<iframe>` element. We don't need to
+                            // preserve any additional state from the DOM.
+                            break;
+                        }
                         case "AttachFile": {
                             // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
                             // use this map synchronously after `transformPastedDOM`.
@@ -2092,12 +2099,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // If we're pasting a URL for a `FileEntityId` in an empty paragraph then
             // instead of pasting the URL text we want to paste a file node.
-            if (
-                schema.nodes.fileRow &&
-                schema.nodes.file &&
-                spaceContextRef.current &&
-                selection.from === selection.to
-            ) {
+            if (spaceContextRef.current && selection.from === selection.to) {
                 const node = selection.$from.node();
                 const parentNode = selection.$from.node(-1);
 
@@ -2116,15 +2118,39 @@ function ContentEditor<Content extends ContentWithReferences>(
                     );
 
                     if (fileEntityId !== null) {
-                        slice = new Slice(
-                            Fragment.from(
-                                schema.nodes.fileRow.create(null, [
-                                    schema.nodes.file.create({fileId: fileEntityId}),
-                                ]),
-                            ),
-                            0,
-                            0,
-                        );
+                        if (schema.nodes.fileRow && schema.nodes.file) {
+                            slice = new Slice(
+                                Fragment.from(
+                                    schema.nodes.fileRow.create(null, [
+                                        schema.nodes.file.create({fileId: fileEntityId}),
+                                    ]),
+                                ),
+                                0,
+                                0,
+                            );
+                        }
+
+                        // If our parent component provided an `onPasteOrDropFiles` prop when we don't
+                        // have `fileRow` or `file` nodes then empty `slice` (so the link isn't pasted)
+                        // and add the file entity to the `onPasteOrDropFiles` call.
+                        else if (propsRef.current.onPasteOrDropFiles) {
+                            slice = Slice.empty;
+
+                            // Cleanup `temporaryPastedFileInfosForParent` after a microtask. `handlePaste`
+                            // will use this array synchronously after `handleInsertSlice()`.
+                            if (temporaryPastedFileInfosForParent === undefined) {
+                                temporaryPastedFileInfosForParent = [];
+                                scheduleMicrotask(() => {
+                                    temporaryPastedFileInfosForParent = undefined;
+                                });
+                            }
+
+                            temporaryPastedFileInfosForParent.push({
+                                type: "AttachFileEntity",
+                                spaceId: spaceContextRef.current.space.id,
+                                fileEntityId,
+                            });
+                        }
                     }
                 }
             }

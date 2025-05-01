@@ -32,28 +32,36 @@ export function renderContentFileTaskCollectionEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileTaskCollectionEntityModelSchema);
 
+    const remPx = remPxBySpacingScale[spacingScale];
+    const blockMaxWidthPx = contentStyles.blockMaxWidthRem[platform] * remPx;
+
     const isSmallerThanHalfOfBlockMaxWidth =
-        layout.width <=
-        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
-            remPxBySpacingScale[spacingScale];
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx) / 2;
 
     const isSmallerThanThirdOfBlockMaxWidth =
-        layout.width <=
-        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
-            remPxBySpacingScale[spacingScale];
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 2) / 3;
+
+    // This case is primarily for `<MessageInputFileEntityPreview>`. We need to
+    // render super small previews in that case.
+    const isSmallerThanFourthOfBlockMaxWidth =
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 3) / 4;
 
     const transformScale =
-        fontSizesBySpacingScale[
-            isSmallerThanThirdOfBlockMaxWidth
-                ? "50"
-                : isSmallerThanHalfOfBlockMaxWidth
-                ? "75"
-                : "100"
-        ].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
+        (isSmallerThanFourthOfBlockMaxWidth
+            ? fontSizesBySpacingScale["50"].small.fontSize / 2
+            : fontSizesBySpacingScale[
+                  isSmallerThanThirdOfBlockMaxWidth
+                      ? "50"
+                      : isSmallerThanHalfOfBlockMaxWidth
+                      ? "75"
+                      : "100"
+              ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
 
     const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
 
-    const containerPadding = isSmallerThanThirdOfBlockMaxWidth
+    const containerPadding = isSmallerThanFourthOfBlockMaxWidth
+        ? "2"
+        : isSmallerThanThirdOfBlockMaxWidth
         ? "3"
         : isSmallerThanHalfOfBlockMaxWidth
         ? "4"

@@ -87,6 +87,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -130,7 +131,7 @@ import {
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {decodeIdInto, encodeId, generateId, getMinId, idByteLength} from "~/shared/id/id.js";
+import {decodeIdInto, encodeId, generateId, getMinId, idByteLength, isId} from "~/shared/id/id.js";
 import {
     AccountId,
     BrowserId,
@@ -4725,7 +4726,7 @@ export async function createTaskComment(
         taskId: TaskId;
         parentCommentIndex: number | null;
         content: MessageContent;
-        fileIds: ReadonlyArray<FileId>;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -4742,12 +4743,14 @@ export async function createTaskComment(
                 // Make sure all the provided files exist.
                 await runAllPromises(
                     fileIds.map(fileId =>
-                        getFileFromAttachment(
-                            context,
-                            spaceId,
-                            fileId,
-                            FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
-                        ),
+                        isId<FileId>(fileId)
+                            ? getFileFromAttachment(
+                                  context,
+                                  spaceId,
+                                  fileId,
+                                  FileTaskAuthorizer.bind({type: "TaskComments", taskId}),
+                              )
+                            : null,
                     ),
                 );
 

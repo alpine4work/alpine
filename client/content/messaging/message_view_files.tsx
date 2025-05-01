@@ -1,7 +1,9 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {Memo, useMemo, useRef} from "react";
+import {Memo, useContext, useMemo, useRef, useState} from "react";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStoreData} from "~/client/content/file_client_store.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
@@ -9,6 +11,10 @@ import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/c
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {
+    addContentFileEntityPreviewBehavior,
+    renderContentFileEntityPreview,
+} from "~/client/content/internal/content_file_entity_preview.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
@@ -28,20 +34,28 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {messageViewMarginLeft} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
-import {Spacing, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityModelResult} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {
     HtmlElementGenerator,
     HtmlFragmentGenerator,
     HtmlGenerator,
 } from "~/shared/helpers/html/html_generator.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {FileId} from "~/shared/id/types/id_types.js";
+import {MessageContentPayloadModelFile} from "~/shared/messaging/message_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
 export function MessageViewFiles({
@@ -51,7 +65,7 @@ export function MessageViewFiles({
     availableWidth,
 }: {
     attachmentTarget: Memo<FileAttachmentTarget>;
-    files: ReadonlyArray<{signedUrlSearch: string; file: FileModel}>;
+    files: ReadonlyArray<MessageContentPayloadModelFile>;
     paddingTop?: Spacing;
     availableWidth?: number;
 }) {
@@ -61,36 +75,50 @@ export function MessageViewFiles({
     const context = useAppContext();
     const reporter = useReporter();
     const rootNavigate = useRootNavigate();
+    const navigate = useNavigate();
     const clientInfo = useClientInfo();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
+    const accountStore = useAccountClientStore();
     const fileStore = useFileClientStore();
+    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const currentDate = useCurrentDate();
+
+    const [nodeByFileId] = useState(
+        () =>
+            new DefaultMap<FileId | FileEntityId, Node>(fileId =>
+                ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId}),
+            ),
+    );
 
     const containerRef = useRef<HTMLDivElement>(null);
 
     const {fileRows, html: htmlGenerator} = useStore(
         useMemo(() => {
-            const blockWidth = getContentBlockWidth({
-                spacingScale,
-                platform,
-                routeLayout,
-                clientInfo,
-                availableWidth,
-            });
+            const blockWidth =
+                getContentBlockWidth({
+                    spacingScale,
+                    platform,
+                    routeLayout,
+                    clientInfo,
+                    availableWidth,
+                }) - convertRemLengthToPx(messageViewMarginLeft, spacingScale);
 
             return computeStore(get => {
+                const maxFileCount = 3;
+
                 const html = new HtmlFragmentGenerator();
                 const fileRows: Array<{
-                    files: Array<{signedUrlSearch: string; file: FileModel}>;
-                    fileDatas: Array<FileClientStoreData>;
+                    files: Array<MessageContentPayloadModelFile>;
+                    fileDatas: Array<FileClientStoreData | FileEntityId>;
                     fileLayouts: Array<ContentFileLayout>;
                 }> = [];
-                let nextFileRow: Array<{signedUrlSearch: string; file: FileModel}> = [];
+                let nextFileRow: Array<MessageContentPayloadModelFile> = [];
 
                 for (const file of files) {
-                    if (nextFileRow.length < 3) {
+                    if (nextFileRow.length < maxFileCount) {
                         nextFileRow.push(file);
                     } else {
                         pushNextFileRow(nextFileRow);
@@ -103,11 +131,16 @@ export function MessageViewFiles({
 
                 return {fileRows, html};
 
-                function pushNextFileRow(files: Array<{signedUrlSearch: string; file: FileModel}>) {
-                    const fileDatas = files.map(file => get(fileStore.getFileStore(file)));
+                function pushNextFileRow(files: Array<MessageContentPayloadModelFile>) {
+                    const fileDatas = files.map(file => {
+                        if (file.type === "FileEntity") return file.fileEntityId;
+                        return get(fileStore.getFileStore(file));
+                    });
 
                     const fileLayouts = computeContentFileRowLikeLayout(fileDatas, {
+                        maxFileCount,
                         blockWidth,
+                        platform,
                         spacingScale,
                         // Smaller max height than we have for content file row nodes so tall images
                         // don't take up too much of the screen.
@@ -145,25 +178,50 @@ export function MessageViewFiles({
                     );
 
                     for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
-                        const file = fileDatas[fileIndex]!;
-                        const layout = fileLayouts[fileIndex]!;
+                        const file = files[fileIndex]!;
+                        const fileData = fileDatas[fileIndex]!;
+                        const fileLayout = fileLayouts[fileIndex]!;
 
-                        const fileHtml = renderContentFilePreview({
-                            spaceId: space.id,
-                            node: ContentBaseProsemirrorSchemaWithFiles.get().node("file", {
-                                fileId: file.id,
-                            }),
-                            file,
-                            layout,
-                            blockWidth,
-                            transformScale: 1,
-                            platform,
-                            spacingScale,
-                            isInitialAppRender,
-                            // Disable video and audio file interactivity. When pressed we should always
-                            // open the post in a peek.
-                            withoutInteractivity: true,
-                        });
+                        let fileHtml: HtmlElementGenerator;
+
+                        if (typeof fileData === "string") {
+                            assert(file.type === "FileEntity");
+
+                            fileHtml = renderContentFileEntityPreview(get, {
+                                node: nodeByFileId.getOrSetDefault(file.fileEntityId),
+                                fileEntityId: file.fileEntityId,
+                                fileEntityResult: file.fileEntityResult,
+                                fileEntityRenderers,
+                                layout: fileLayout,
+                                getContext: () => context,
+                                clientInfo,
+                                spaceId: space.id,
+                                accountStore,
+                                fileStore,
+                                currentAccount,
+                                blockWidth,
+                                transformScale: 1,
+                                platform,
+                                spacingScale,
+                                isInitialAppRender,
+                                currentDate,
+                            });
+                        } else {
+                            fileHtml = renderContentFilePreview({
+                                spaceId: space.id,
+                                node: nodeByFileId.getOrSetDefault(fileData.id),
+                                file: fileData,
+                                layout: fileLayout,
+                                blockWidth,
+                                transformScale: 1,
+                                platform,
+                                spacingScale,
+                                isInitialAppRender,
+                                // Disable video and audio file interactivity. When pressed we should always
+                                // open the post in a peek.
+                                withoutInteractivity: true,
+                            });
+                        }
 
                         fileHtml.setAttribute(
                             "class",
@@ -178,11 +236,17 @@ export function MessageViewFiles({
                 }
             });
         }, [
+            accountStore,
             availableWidth,
             clientInfo,
+            context,
+            currentAccount,
+            currentDate,
+            fileEntityRenderers,
             fileStore,
             files,
             isInitialAppRender,
+            nodeByFileId,
             platform,
             routeLayout,
             space.id,
@@ -225,26 +289,40 @@ export function MessageViewFiles({
             const {files, fileDatas} = fileRows[fileRowIndex]!;
 
             for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
-                const file = fileDatas[fileIndex]!;
+                const file = files[fileIndex]!;
+                const fileData = fileDatas[fileIndex]!;
 
                 const fileElement = assertExists(
                     containerElement.childNodes[fileRowIndex]?.childNodes[fileIndex],
                 );
                 assert(fileElement instanceof HTMLElement);
 
-                cleanups.push(
-                    addContentFilePreviewBehavior(() => context, fileElement, {
-                        spaceId: space.id,
-                        node: ContentBaseProsemirrorSchemaWithFiles.get().node("file", {
-                            fileId: file.id,
+                if (typeof fileData === "string") {
+                    assert(file.type === "FileEntity");
+
+                    cleanups.push(
+                        addContentFileEntityPreviewBehavior(() => context, fileElement, {
+                            spaceId: space.id,
+                            node: nodeByFileId.getOrSetDefault(file.fileEntityId),
+                            fileEntityId: file.fileEntityId,
+                            fileEntityResult: file.fileEntityResult,
+                            fileEntityRenderers,
+                            navigate,
                         }),
-                        file,
-                        attachmentTarget,
-                        isInitialAppRender,
-                        rootNavigate,
-                        getReporter: () => reporter,
-                    }),
-                );
+                    );
+                } else {
+                    cleanups.push(
+                        addContentFilePreviewBehavior(() => context, fileElement, {
+                            spaceId: space.id,
+                            node: nodeByFileId.getOrSetDefault(fileData.id),
+                            file: fileData,
+                            attachmentTarget,
+                            isInitialAppRender,
+                            rootNavigate,
+                            getReporter: () => reporter,
+                        }),
+                    );
+                }
             }
         }
 
@@ -253,7 +331,18 @@ export function MessageViewFiles({
                 cleanup();
             }
         };
-    }, [attachmentTarget, context, fileRows, isInitialAppRender, reporter, rootNavigate, space.id]);
+    }, [
+        attachmentTarget,
+        context,
+        fileEntityRenderers,
+        fileRows,
+        isInitialAppRender,
+        navigate,
+        nodeByFileId,
+        reporter,
+        rootNavigate,
+        space.id,
+    ]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         const containerElement = assertExists(containerRef.current);
@@ -282,7 +371,13 @@ export function MessageViewFiles({
                     }
 
                     if (hasStarted && !hasEnded) {
-                        clipboardFileRow.push(clipboardSchema.node("file", {fileId: file.id}));
+                        clipboardFileRow.push(
+                            clipboardSchema.node("file", {
+                                fileId: cast<FileId | FileEntityId>(
+                                    typeof file === "string" ? file : file.id,
+                                ),
+                            }),
+                        );
                     }
 
                     if (hasEnded || endNode.contains(fileElement)) {
@@ -298,11 +393,25 @@ export function MessageViewFiles({
                 if (hasEnded) break;
             }
 
+            const fileById = new Map<FileId, {signedUrlSearch: string; file: FileModel}>();
+            const fileEntityById = new Map<FileEntityId, FileEntityModelResult>();
+
+            for (const fileRow of fileRows) {
+                for (let fileIndex = 0; fileIndex < fileRow.files.length; fileIndex++) {
+                    const file = fileRow.files[fileIndex]!;
+
+                    if (file.type === "FileEntity") {
+                        fileEntityById.set(file.fileEntityId, file.fileEntityResult);
+                    } else {
+                        fileById.set(file.file.id, file);
+                    }
+                }
+            }
+
             const contentReferences: ContentReferences = {
                 ...emptyContentReferences,
-                fileById: new Map(
-                    fileRows.flatMap(fileRow => fileRow.files).map(file => [file.file.id, file]),
-                ),
+                fileById,
+                fileEntityById,
             };
 
             const state = ContentEditorState.create({

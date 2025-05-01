@@ -134,6 +134,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -1729,7 +1730,7 @@ export function DocumentContentEditor({
                                     const createCommentThread: {
                                         commentThreadId: DocumentCommentThreadId;
                                         initialCommentContent: MessageContentWithReferences;
-                                        initialCommentFileIds: ReadonlyArray<FileId>;
+                                        initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
                                         openCommentThreadPromiseRef?: {
                                             current: Promise<void> | null;
                                         };

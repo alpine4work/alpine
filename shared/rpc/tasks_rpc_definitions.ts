@@ -1,9 +1,9 @@
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     BrowserId,
-    FileId,
     SpaceId,
     TaskActionTransactionLeaseId,
     TaskId,
@@ -161,7 +161,7 @@ export const createTaskComment = defineRpc({
         taskId: Schema.id<TaskId>(),
         parentCommentIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
-        fileIds: Schema.array(Schema.id<FileId>()).default([]),
+        fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
         comment: TaskCommentModel.schema(),

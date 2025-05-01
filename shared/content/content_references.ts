@@ -1,7 +1,6 @@
 import {Node} from "prosemirror-model";
-import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileEntityId, FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {FileEntityModel} from "~/shared/files/file_entity_model.js";
+import {FileEntityModel, FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -77,13 +76,7 @@ export const ContentReferencesSchema = Schema.object({
     // NOTE(calebmer, 2025-04-28): Similarly to `fileById`, `MessageContent` will
     // never have any `fileEntityById`s. See the documentation comment on
     // `fileById` for more info.
-    fileEntityById: Schema.map(
-        FileEntityIdSchema,
-        Schema.result(
-            Schema.object({ok: Schema.value(true), value: FileEntityModel.schema}),
-            Schema.object({ok: Schema.value(false), error: ErrorSchema}),
-        ),
-    )
+    fileEntityById: Schema.map(FileEntityIdSchema, FileEntityModelResultSchema)
         .minSize(1)
         .optional(),
 });

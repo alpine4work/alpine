@@ -240,7 +240,7 @@ export async function getContentFileReference(
     spaceId: SpaceId,
     fileId: FileId,
     fileAuthorizer: FileAuthorizer,
-): Promise<{signedUrlSearch: string; file: FileModel} | null> {
+): Promise<{type: "File"; signedUrlSearch: string; file: FileModel} | null> {
     let file = await getFileIfExistsFromAttachment(context, spaceId, fileId, fileAuthorizer, {
         consistency: "Eventual",
     });
@@ -268,5 +268,5 @@ export async function getContentFileReference(
         fileId,
     );
 
-    return {signedUrlSearch: signedUrl.search, file};
+    return {type: "File", signedUrlSearch: signedUrl.search, file};
 }

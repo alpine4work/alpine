@@ -75,7 +75,14 @@ export function renderContentFileDocumentEntityPreview(
     const isSmallerThanThirdOfBlockMaxWidth =
         layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 2) / 3;
 
-    const padding = isSmallerThanThirdOfBlockMaxWidth
+    // This case is primarily for `<MessageInputFileEntityPreview>`. We need to
+    // render super small previews in that case.
+    const isSmallerThanFourthOfBlockMaxWidth =
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 3) / 4;
+
+    const padding = isSmallerThanFourthOfBlockMaxWidth
+        ? "2"
+        : isSmallerThanThirdOfBlockMaxWidth
         ? "3"
         : isSmallerThanHalfOfBlockMaxWidth
         ? "4"
@@ -90,13 +97,15 @@ export function renderContentFileDocumentEntityPreview(
     // By default, scale font size 100 text to font size 75. Scale to smaller font
     // sizes depending on the width of our preview.
     const transformScale =
-        fontSizesBySpacingScale[
-            isSmallerThanThirdOfBlockMaxWidth
-                ? "25"
-                : isSmallerThanHalfOfBlockMaxWidth
-                ? "50"
-                : "75"
-        ].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
+        (isSmallerThanFourthOfBlockMaxWidth
+            ? fontSizesBySpacingScale["25"].small.fontSize / 2
+            : fontSizesBySpacingScale[
+                  isSmallerThanThirdOfBlockMaxWidth
+                      ? "25"
+                      : isSmallerThanHalfOfBlockMaxWidth
+                      ? "50"
+                      : "75"
+              ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
 
     // The width we need to render our document at to fill the downscaled entity
     // preview.

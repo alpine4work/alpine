@@ -47,7 +47,7 @@ export async function getFileEntityIfPossible(
     context: Context<ServerContentActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     entityId: FileEntityId,
-): Promise<Result<FileEntityModel, ErrorBase> | null> {
+): Promise<Result<FileEntityModel, ErrorBase>> {
     const entityIdObject = parseFileEntityId(entityId);
 
     switch (entityIdObject.type) {
