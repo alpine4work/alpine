@@ -846,8 +846,6 @@ async function getChannelSearchEntity(
         creatorId: channel.creatorId,
         // Contributors at the max contribution count (as of 2025-04-30 that's 8) are
         // considered major contributors.
-        //
-        // NOCOMMIT: Test!!!
         contributorIds: new Map(
             concatIterables(
                 mapIterable(
