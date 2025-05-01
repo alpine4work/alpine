@@ -16,6 +16,7 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -29,7 +30,7 @@ export function ShareMobileModal({
 }: {
     entityNoun: string;
     accessPolicy: AccessPolicy;
-    onAccessPolicyChange: (action: AccessPolicyAction) => void;
+    onAccessPolicyChange: (action: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
     onCloseWithAnimation: () => void;
 }) {
@@ -79,7 +80,6 @@ export function ShareMobileModal({
                         <Box position="relative" zIndex="10">
                             <ShareOverlayAccountGrantInput
                                 accountGrantById={accessPolicy.accountGrantById}
-                                onAccessPolicyChange={onAccessPolicyChange}
                                 allAccounts={allAccounts}
                                 accountById={accountById}
                                 isAltKeyDown={false}

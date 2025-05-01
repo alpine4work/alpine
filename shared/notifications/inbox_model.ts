@@ -12,6 +12,7 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_model.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -126,6 +127,7 @@ export class InboxChatEntryModel
                 createdTime: Schema.date,
                 contentTextSnippet: Schema.string,
                 isStickyMention: Schema.boolean.default(false),
+                clerical: MessageContentPayloadClericalSchema.optional(),
             }),
             otherChatAccount: AccountModel.schema.nullable(),
         }),

@@ -50,6 +50,7 @@ export async function createMessagePayloadModel(
                 },
                 contentUpdatedTime: payload.contentUpdatedTime,
                 files,
+                clerical: payload.clerical,
             };
         }
         default:

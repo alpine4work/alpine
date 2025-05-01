@@ -4563,6 +4563,9 @@ export function updateTaskCommentContent(
         if (taskCommentItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
+        if (taskCommentItem.payload.clerical)
+            throw new FailedPreconditionError("Can't update clerical comment content");
+
         const contentUpdatedTime = new Date(
             Math.max(
                 (commentsSummaryItem.lastChangeTime ?? new Date(item.createdTime[0])).getTime() + 1,
@@ -4651,7 +4654,10 @@ export function deleteTaskComment(
             throw new PermissionDeniedError("Can only delete task comments you authored");
 
         if (taskCommentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can not delete comments with a non-content payload");
+            throw new FailedPreconditionError("Can't delete comments with a non-content payload");
+
+        if (taskCommentItem.payload.clerical)
+            throw new FailedPreconditionError("Can't delete clerical comments");
 
         const deletedTime = new Date(
             Math.max(

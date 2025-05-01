@@ -99,6 +99,7 @@ import {
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -141,6 +142,12 @@ function shouldMergeMessages<RoomKey extends string>(
     // Don't merge optimistic requests with an error.
     if (message1.isOptimistic && message1.optimisticRequestErrorState.hasError) return false;
     if (message2.isOptimistic && message2.optimisticRequestErrorState.hasError) return false;
+
+    // Never merge clerical messages. We may change the account name in a clerical
+    // message. We don't want the modified account name to be lost when merging
+    // with the previous message or considered to apply to later messages.
+    if (message1.payload.type === "Content" && message1.payload.clerical) return false;
+    if (message2.payload.type === "Content" && message2.payload.clerical) return false;
 
     return (
         message1.author.id === message2.author.id &&
@@ -496,7 +503,12 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 },
             ]);
 
-            if (currentAccount?.id === message.author.id && message.payload.type === "Content") {
+            if (
+                currentAccount?.id === message.author.id &&
+                message.payload.type === "Content" &&
+                // Can't update or delete clerical messages.
+                !message.payload.clerical
+            ) {
                 const messagePayload = message.payload;
 
                 const editContextMenuActions: Array<MenuAction> = [];
@@ -1175,7 +1187,20 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                             lineHeight: spacing[messageViewAccountNameHeight],
                                         }}
                                     >
-                                        {messageAuthor.name}
+                                        {message.payload.type === "Content" &&
+                                        message.payload.clerical?.type ===
+                                            "AccessPolicyNotification" ? (
+                                            <>
+                                                <AccountShortName account={messageAuthor} /> shared
+                                                a{" "}
+                                                {getFileEntityNoun(
+                                                    message.payload.clerical.entityType,
+                                                )}{" "}
+                                                with you
+                                            </>
+                                        ) : (
+                                            messageAuthor.name
+                                        )}
                                     </div>
                                     {message.isOptimistic &&
                                         message.optimisticRequestErrorState.hasError && (
@@ -1227,7 +1252,16 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         files={message.payload.files}
                                         paddingTop={
                                             contentPayloadNode !== null
-                                                ? contentStyles.standaloneBlockMargin
+                                                ? // It feels like too much space when we have a single line of text over a file.
+                                                  // So special case a single non-standalone margin node above a file and in this
+                                                  // case use paragraph margins instead of standalone block margins.
+                                                  message.payload.content.doc.childCount === 1 &&
+                                                  !hasStandaloneMarginByContentBlockNodeTypeName[
+                                                      message.payload.content.doc.firstChild!.type
+                                                          .name
+                                                  ]
+                                                    ? contentStyles.paragraphMargin
+                                                    : contentStyles.standaloneBlockMargin
                                                 : undefined
                                         }
                                         availableWidth={availableWidth}
@@ -1621,7 +1655,12 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
         },
     });
 
-    if (currentAccount?.id === message.author.id && message.payload.type === "Content") {
+    if (
+        currentAccount?.id === message.author.id &&
+        message.payload.type === "Content" &&
+        // Can't update or delete clerical messages.
+        !message.payload.clerical
+    ) {
         const messagePayload = message.payload;
 
         const editContextMenuActions: Array<MenuAction> = [];

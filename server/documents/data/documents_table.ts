@@ -60,6 +60,7 @@ import {
     AccessPolicySchema,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -2894,7 +2895,10 @@ export async function updateDocumentContent(
         version: number;
         steps: ReadonlyArray<Step>;
         clientId: ContentEditorClientId;
-        intentionallyUpdateAccessPolicy?: AccessPolicy;
+        intentionallyUpdateAccessPolicy?: {
+            accessPolicy: AccessPolicy;
+            notification: AccessPolicyNotification | null;
+        };
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
@@ -3167,7 +3171,7 @@ export async function updateDocumentContent(
         // intend.
         if (
             intentionallyUpdateAccessPolicy &&
-            !isDeepEqual(intentionallyUpdateAccessPolicy, newAccessPolicy)
+            !isDeepEqual(intentionallyUpdateAccessPolicy.accessPolicy, newAccessPolicy)
         ) {
             throw new PermissionDeniedError(
                 "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
@@ -3466,6 +3470,20 @@ export async function updateDocumentContent(
                                     },
                                     {delaySeconds: newLastIndexSearchEntityJob.delaySeconds},
                                 );
+                            }
+
+                            // Send a notification, via chat, on behalf of the actor saying "so and so has
+                            // shared this entity with you". We put this on the job queue since we don't
+                            // need to execute this job immediately.
+                            if (intentionallyUpdateAccessPolicy?.notification) {
+                                context.jobs.send({
+                                    type: "SendAccessPolicyNotification",
+                                    jobId: generateId(),
+                                    spaceId: internalDocument.spaceId,
+                                    actorAccountId: context.actor.getAccountId(),
+                                    entityId: `Document:${documentId}`,
+                                    notification: intentionallyUpdateAccessPolicy.notification,
+                                });
                             }
                         },
                     },
@@ -5142,6 +5160,9 @@ export function updateDocumentCommentContent(
         if (commentItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
+        if (commentItem.payload.clerical)
+            throw new FailedPreconditionError("Can't update clerical comment content");
+
         const contentUpdatedTime = new Date(
             Math.max(
                 (
@@ -5255,7 +5276,10 @@ export function deleteDocumentComment(
             throw new PermissionDeniedError("Can only delete comments you authored");
 
         if (commentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can not delete comments with a non-content payload");
+            throw new FailedPreconditionError("Can't delete comments with a non-content payload");
+
+        if (commentItem.payload.clerical)
+            throw new FailedPreconditionError("Can't delete clerical comments");
 
         const deletedTime = new Date(
             Math.max(

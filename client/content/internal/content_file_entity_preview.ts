@@ -120,7 +120,7 @@ export function renderContentFileEntityPreview(
         // render nothing.
     } else if (!fileEntityRenderers || !fileEntityResult?.ok) {
         const fileEntityIdObject = parseFileEntityId(fileEntityId);
-        const entityNoun = getFileEntityNoun(fileEntityIdObject);
+        const entityNoun = getFileEntityNoun(fileEntityIdObject.type);
 
         const error =
             fileEntityResult?.error ??
@@ -275,13 +275,20 @@ export function addContentFileEntityPreviewBehavior(
     const handleContextMenu = (event: MouseEvent) => {
         if (!navigator.clipboard) return;
 
+        const entityNoun = getFileEntityNoun(parseFileEntityId(fileEntityId).type);
+
         addContextMenuActions(event, [
             [
                 {
-                    label: "Copy link",
-                    icon: createElement(LinkIcon),
-                    iconPlacement: "end",
-                    pressErrorTitle: "Couldn’t copy link",
+                    // We intentionally don't include the link icon here because it can look weird
+                    // when you right click in a message and there's "Copy document link" and the
+                    // message "Copy link". This is also why we include the entity noun. To further
+                    // differentiate the text in this case.
+                    //
+                    // Not including the icon is also consistent with the regular file right click
+                    // actions.
+                    label: `Copy ${entityNoun} link`,
+                    pressErrorTitle: `Couldn’t copy ${entityNoun} link`,
                     onPress: async () => {
                         const url = new URL(
                             printFileEntityIdIntoPath(spaceId, fileEntityId),

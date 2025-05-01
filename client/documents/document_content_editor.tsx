@@ -1603,8 +1603,9 @@ export function DocumentContentEditor({
             ? {
                   entityNoun: "document",
                   accessPolicy: content.doc.attrs.accessPolicy,
-                  onAccessPolicyChange: accessPolicy =>
-                      onEditorStateChange(editorState.setAccessPolicy(accessPolicy)),
+                  onAccessPolicyChange: (notification, accessPolicy) => {
+                      onEditorStateChange(editorState.setAccessPolicy(accessPolicy, notification));
+                  },
                   isReadOnly: !hasManageAccessLevel,
                   onCopyLink,
               }

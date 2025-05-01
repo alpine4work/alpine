@@ -17,6 +17,7 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferences,
@@ -78,7 +79,10 @@ type DocumentContentEditorExtraState = {
      * the access policy change isn't ProseMirror accidentally changing a document
      * attribute.
      */
-    readonly pendingIntentionallyUpdateAccessPolicy: AccessPolicy | null;
+    readonly pendingIntentionallyUpdateAccessPolicy: {
+        readonly accessPolicy: AccessPolicy;
+        readonly notification: AccessPolicyNotification | null;
+    } | null;
 
     /**
      * Remember some number of steps in our state to map phantom selections from
@@ -252,7 +256,10 @@ export function reduceDocumentContentEditorState(
             };
         } else {
             let isLastTransactionIntentionallyUpdatingAccessPolicy = false;
-            let lastIntentionallyUpdateAccessPolicy: AccessPolicy | null = null;
+            let lastIntentionallyUpdateAccessPolicy: {
+                accessPolicy: AccessPolicy;
+                notification: AccessPolicyNotification | null;
+            } | null = null;
 
             // We can have multiple steps from the same origin transaction. So uniquify our
             // new comment thread objects.
@@ -266,7 +273,10 @@ export function reduceDocumentContentEditorState(
                         initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
                     } | null = transaction.getMeta(createContentCommentThreadMetaKey) ?? null;
 
-                    const intentionallyUpdateAccessPolicy: AccessPolicy | null =
+                    const intentionallyUpdateAccessPolicy: {
+                        accessPolicy: AccessPolicy;
+                        notification: AccessPolicyNotification | null;
+                    } | null =
                         transaction.getMeta(intentionallyUpdateContentAccessPolicyMetaKey) ?? null;
 
                     if (intentionallyUpdateAccessPolicy !== null) {

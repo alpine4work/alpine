@@ -1,4 +1,4 @@
-export const contentEditorOpenMentionFloaterMetaKey = "openMentionFloater";
-export const contentEditorOpenKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
-export const contentEditorOpenKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
-export const contentEditorOpenCommentInputFloaterMetaKey = "openCommentInputFloater";
+export const openContentEditorMentionFloaterMetaKey = "openMentionFloater";
+export const openContentEditorKeyboardHighlightFloaterMetaKey = "openKeyboardHighlightFloater";
+export const openContentEditorKeyboardLinkFloaterMetaKey = "openKeyboardLinkFloater";
+export const openContentEditorCommentInputFloaterMetaKey = "openCommentInputFloater";

@@ -1,4 +1,5 @@
 import {AccessLevelSchema, AccessPolicySchema} from "~/shared/access/access_policy.js";
+import {AccessPolicyNotificationSchema} from "~/shared/access/access_policy_notification.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {DocumentContentReferencedIdsSchema} from "~/shared/documents/document_content_referenced_ids.js";
@@ -130,7 +131,10 @@ export const updateDocumentContent = defineRpc({
                 createdTime: Schema.date.optional(),
             }),
         ),
-        intentionallyUpdateAccessPolicy: AccessPolicySchema.optional(),
+        intentionallyUpdateAccessPolicy: Schema.object({
+            accessPolicy: AccessPolicySchema,
+            notification: AccessPolicyNotificationSchema.nullable(),
+        }).optional(),
         resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
         unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
     },

@@ -34,6 +34,7 @@ import {
 } from "~/server/documents/data/documents_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max_client_request_token_length.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {
@@ -63,7 +64,6 @@ import {
 } from "~/server/notifications/core/notification_event.js";
 import {
     authorizeSpaceAccess,
-    expensivelyGetAllSpaceAccounts,
     getAccount,
     getRegisteredAccountDevices,
     isAccountMemberOfSpace,
@@ -95,6 +95,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -129,6 +130,10 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentPayloadClerical,
+    MessageContentPayloadClericalSchema,
+} from "~/shared/messaging/message_model.js";
 import {
     InboxChannelPostsEntryModel,
     InboxChatEntryModel,
@@ -373,6 +378,13 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         loudNotificationCount: Schema.integer.min(0),
 
                         /**
+                         * The last message `createdTime` we sent a loud notification count for. We
+                         * use this to only send one loud notification every couple minutes for chat
+                         * messages.
+                         */
+                        lastLoudNotificationCountTime: Schema.date.nullable().default(null),
+
+                        /**
                          * The last message in the chat. Will be used to render a preview of the chat
                          * on the entry before the user clicks in.
                          *
@@ -386,6 +398,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             createdTime: Schema.date,
                             contentSnippet: MessageContentSchema,
                             isStickyMention: Schema.boolean.default(false),
+                            clerical: MessageContentPayloadClericalSchema.optional(),
                         }),
 
                         /**
@@ -763,6 +776,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                 references,
                             }),
                             isStickyMention: item.latestMessage.isStickyMention,
+                            clerical: item.latestMessage.clerical,
                         },
                         otherChatAccount,
                     });
@@ -2464,11 +2478,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             (!newInboxEntryItem.isArchived ? 1 : 0) -
             (oldInboxEntryItem && !oldInboxEntryItem.isArchived ? 1 : 0);
 
-        // [Max length of `ClientRequestToken`][1].
-        //
-        // [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html#API_TransactWriteItems_RequestSyntax
-        const maxClientRequestTokenLength = 36;
-        const maxClientRequestTokenLengthForIds = maxClientRequestTokenLength - 3;
+        const maxClientRequestTokenLengthForIds = dynamoClientRequestTokenMaxLength - 3;
         const maxClientRequestTokenEventIdLength = Math.ceil(maxClientRequestTokenLengthForIds / 2);
         const maxClientRequestTokenAccountIdLength = Math.floor(
             maxClientRequestTokenLengthForIds / 2,
@@ -2496,7 +2506,7 @@ async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
             maxClientRequestTokenEventIdLength,
         )}-${accountId.slice(0, maxClientRequestTokenAccountIdLength)}`;
 
-        assert(clientRequestToken.length <= maxClientRequestTokenLength);
+        assert(clientRequestToken.length <= dynamoClientRequestTokenMaxLength);
 
         try {
             // Optimization: If the inbox item isn't changing don't run a transaction.
@@ -2680,9 +2690,11 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                         : oldItem.isArchived;
 
                 let isMention;
+                let shouldIncrementLoudNotificationCount;
                 let loudNotificationCount;
                 if (isArchived) {
                     isMention = false;
+                    shouldIncrementLoudNotificationCount = false;
                     loudNotificationCount = 0;
                 } else {
                     isMention = event.mentionedAccountIds.has(accountId);
@@ -2710,15 +2722,19 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                     // scale of work involved in answering entries in the user's inbox and our bet
                     // is the work involved to resolve your inbox entries is proportional to number
                     // of entries (vs number of messages within an entry).
-                    const shouldIncrementLoudNotificationCount =
+                    shouldIncrementLoudNotificationCount =
                         isMention ||
-                        oldItem?.isArchived ||
-                        !oldItem?.latestMessage ||
-                        // Events might arrive out-of-order but if events 10min+ apart are arriving
-                        // out-of-order we have a bigger problem so we don't worry about the
-                        // out-of-order case when subtracting timestamps here.
-                        differenceInMinutes(event.createdTime, oldItem.latestMessage.createdTime) >=
-                            minMessageViewTimestampDividerElapsedMinutes;
+                        // Don't increment the loud notification count if this is a clerical message
+                        // unless this clerical message also contained a mention.
+                        //
+                        // NOCOMMIT: Test!
+                        (!event.clerical &&
+                            (oldItem?.isArchived ||
+                                !oldItem?.lastLoudNotificationCountTime ||
+                                differenceInMinutes(
+                                    event.createdTime,
+                                    oldItem.lastLoudNotificationCountTime,
+                                ) >= minMessageViewTimestampDividerElapsedMinutes));
 
                     loudNotificationCount =
                         (oldItem?.loudNotificationCount ?? 0) +
@@ -2731,23 +2747,22 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                     createdTime: Date;
                     contentSnippet: MessageContent;
                     isStickyMention: boolean;
+                    clerical?: MessageContentPayloadClerical;
                 };
                 let otherAccountId: AccountId | null;
 
-                // Our events may arrive out-of-order. If we have an earlier message index then
-                // what's in the entry's latest message then don't bother updating the latest
-                // message.
-                //
-                // Or if the latest comment was a mention then we'll leave that in place even
-                // if there are further comments added.
-                //
-                // Or if the message from our event is from the same account as the inbox's
-                // then don't update the latest message. Leave the last message from an account
-                // other than our inbox's account in the entry.
                 if (
                     oldItem &&
+                    // Our events may arrive out-of-order. If we have an earlier message index then
+                    // what's in the entry's latest message then don't bother updating the latest
+                    // message.
                     (oldItem.latestMessage.index >= event.messageIndex ||
+                        // Or if the latest comment was a mention then we'll leave that in place even
+                        // if there are further comments added.
                         (oldItem.latestMessage.isStickyMention && !isMention && !isArchived) ||
+                        // Or if the message from our event is from the same account as the inbox
+                        // owner's then don't update the latest message. Leave the last message from an
+                        // account other than our inbox's account in the entry.
                         accountId === event.authorId)
                 ) {
                     latestMessage = oldItem.latestMessage;
@@ -2759,6 +2774,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                         createdTime: event.createdTime,
                         contentSnippet: event.contentSnippet,
                         isStickyMention: isMention,
+                        clerical: event.clerical,
                     };
 
                     if (!oldItem) {
@@ -2797,6 +2813,9 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 return {
                     isArchived,
                     loudNotificationCount,
+                    lastLoudNotificationCountTime: shouldIncrementLoudNotificationCount
+                        ? event.createdTime
+                        : oldItem?.lastLoudNotificationCountTime ?? null,
                     latestMessage:
                         isArchived && latestMessage.isStickyMention
                             ? {...latestMessage, isStickyMention: false}
@@ -2829,6 +2848,8 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             ),
         ]);
 
+        const title = authorAccount.initialData.name;
+
         // We don't include "Mentioned you" in the subtitle even if there was a
         // mention since:
         //
@@ -2855,7 +2876,16 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             }
         }
 
-        return {title: authorAccount.initialData.name, subtitle, body};
+        // If this is an access policy notification then override the subtitle to
+        // describe what happened.
+        //
+        // NOCOMMIT: Test. Does this look good?
+        if (event.clerical?.type === "AccessPolicyNotification") {
+            const entityNoun = getFileEntityNoun(event.clerical.entityType);
+            subtitle = `shared a ${entityNoun} with you`;
+        }
+
+        return {title, subtitle, body};
     },
 });
 
@@ -2928,20 +2958,18 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 };
                 let otherCommentAuthorId: AccountId | null;
 
-                // Our events may arrive out-of-order. If we have an earlier message index then
-                // what's in the entry's latest message then don't bother updating the latest
-                // message.
-                //
-                // Or if the latest comment was a mention then we'll leave that in place even
-                // if there are further comments added.
-                //
-                // Or if the message from our event is from the same account as the inbox's
-                // then don't update the latest message. Leave the last message from an account
-                // other than our inbox's account in the entry.
                 if (
                     oldItem?.latestComment &&
+                    // Our events may arrive out-of-order. If we have an earlier message index then
+                    // what's in the entry's latest message then don't bother updating the latest
+                    // message.
                     (oldItem.latestComment.index >= event.commentIndex ||
+                        // Or if the latest comment was a mention then we'll leave that in place even
+                        // if there are further comments added.
                         (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
+                        // Or if the message from our event is from the same account as the inbox
+                        // owner's then don't update the latest message. Leave the last message from an
+                        // account other than our inbox's account in the entry.
                         accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;
@@ -3284,20 +3312,18 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 };
                 let otherCommentAuthorId: AccountId | null;
 
-                // Our events may arrive out-of-order. If we have an earlier message index then
-                // what's in the entry's latest message then don't bother updating the latest
-                // message.
-                //
-                // Or if the latest comment was a mention then we'll leave that in place even
-                // if there are further comments added.
-                //
-                // Or if the message from our event is from the same account as the inbox's
-                // then don't update the latest message. Leave the last message from an account
-                // other than our inbox's account in the entry.
                 if (
                     oldItem?.latestComment &&
+                    // Our events may arrive out-of-order. If we have an earlier message index then
+                    // what's in the entry's latest message then don't bother updating the latest
+                    // message.
                     (oldItem.latestComment.index >= event.commentIndex ||
+                        // Or if the latest comment was a mention then we'll leave that in place even
+                        // if there are further comments added.
                         (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
+                        // Or if the message from our event is from the same account as the inbox
+                        // owner's then don't update the latest message. Leave the last message from an
+                        // account other than our inbox's account in the entry.
                         accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;
@@ -3487,20 +3513,18 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
                 };
                 let otherCommentAuthorId: AccountId | null;
 
-                // Our events may arrive out-of-order. If we have an earlier message index then
-                // what's in the entry's latest message then don't bother updating the latest
-                // message.
-                //
-                // Or if the latest comment was a mention then we'll leave that in place even
-                // if there are further comments added.
-                //
-                // Or if the message from our event is from the same account as the inbox's
-                // then don't update the latest message. Leave the last message from an account
-                // other than our inbox's account in the entry.
                 if (
                     oldItem?.latestComment &&
+                    // Our events may arrive out-of-order. If we have an earlier message index then
+                    // what's in the entry's latest message then don't bother updating the latest
+                    // message.
                     (oldItem.latestComment.index >= event.commentIndex ||
+                        // Or if the latest comment was a mention then we'll leave that in place even
+                        // if there are further comments added.
                         (oldItem.latestComment.isStickyMention && !isMention && !isArchived) ||
+                        // Or if the message from our event is from the same account as the inbox
+                        // owner's then don't update the latest message. Leave the last message from an
+                        // account other than our inbox's account in the entry.
                         accountId === event.authorId)
                 ) {
                     latestComment = oldItem.latestComment;

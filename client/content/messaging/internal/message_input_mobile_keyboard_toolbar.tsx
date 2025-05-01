@@ -20,7 +20,7 @@ import {createToggleListItemsCommand} from "~/client/content/internal/helpers/cr
 import {expandEmptySelectionAroundWord} from "~/client/content/internal/helpers/expand_empty_selection_around_word.js";
 import {expandSelectionAroundMark} from "~/client/content/internal/helpers/expand_selection_around_mark.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
-import {contentEditorOpenMentionFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {openContentEditorMentionFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/state/create_toggle_mark_command.js";
 import {
@@ -129,7 +129,7 @@ export function MessageInputMobileKeyboardToolbar({
                     view.dispatch(
                         state.tr
                             .replaceSelectionWith(schema.text("@"))
-                            .setMeta(contentEditorOpenMentionFloaterMetaKey, true),
+                            .setMeta(openContentEditorMentionFloaterMetaKey, true),
                     );
                 }}
             >

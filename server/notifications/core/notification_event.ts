@@ -12,6 +12,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type NotificationCreateChatMessageEvent = SchemaType<
@@ -29,6 +30,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     mentionedAccountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
+    clerical: MessageContentPayloadClericalSchema.optional(),
 });
 
 export type NotificationCreatePostCommentEvent = SchemaType<

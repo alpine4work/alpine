@@ -2,6 +2,7 @@ import {Memo, ReactElement, ReactNode, Ref, RefCallback} from "react";
 import {MenuAction} from "~/client/design/menu.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -23,7 +24,12 @@ export type NavigationBarShareButtonProps = {
     readonly entityNoun: string;
     readonly accessLevelText?: Record<AccessLevel, string>;
     readonly accessPolicy: AccessPolicy;
-    readonly onAccessPolicyChange: (accessPolicy: AccessPolicy) => void;
+    readonly onAccessPolicyChange: (
+        // The `notification` argument comes first to make it harder for the
+        // implementation of this function to ignore the `notification` argument.
+        notification: AccessPolicyNotification | null,
+        accessPolicy: AccessPolicy,
+    ) => MaybePromise<void>;
     readonly isReadOnly?: boolean;
     readonly onCopyLink: () => MaybePromise<void>;
 };

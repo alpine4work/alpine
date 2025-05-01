@@ -11,11 +11,13 @@ import {
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -29,7 +31,12 @@ export function useShareState(
         entityNoun: string;
         accessLevelText: Record<AccessLevel, string>;
         accessPolicy: AccessPolicy;
-        onAccessPolicyChangeWithoutValidations: (accessPolicy: AccessPolicy) => void;
+        onAccessPolicyChangeWithoutValidations: (
+            // The `notification` argument comes first to make it harder for the
+            // implementation of this function to ignore the `notification` argument.
+            notification: AccessPolicyNotification | null,
+            accessPolicy: AccessPolicy,
+        ) => MaybePromise<void>;
         isReadOnly?: boolean;
     } | null,
 ) {
@@ -69,7 +76,10 @@ export function useShareState(
     } | null>(null);
     if (warningDialogState && !props) setWarningDialogState(null);
 
-    const changeAccessPolicy = (action: AccessPolicyAction) => {
+    const changeAccessPolicy = (
+        action: AccessPolicyAction,
+        notification: AccessPolicyNotification | null = null,
+    ): MaybePromise<void> => {
         // Defend against making changes while read only. Ultimately the backend should
         // prevent invalid changes like this but it's nice to catch errors like this
         // early.
@@ -287,7 +297,7 @@ export function useShareState(
             }
         }
 
-        onAccessPolicyChangeWithoutValidations(newAccessPolicy);
+        return onAccessPolicyChangeWithoutValidations(notification, newAccessPolicy);
     };
 
     return {
@@ -303,10 +313,12 @@ export function useShareState(
                     primaryButtonLabel="Cancel"
                     onPrimaryButtonPress={() => setWarningDialogState(null)}
                     cancelButtonLabel="I understand, make this change"
+                    cancelButtonPressErrorTitle="Couldn’t make this change"
                     onCancelButtonPress={() => {
                         if (!props) return;
 
-                        props.onAccessPolicyChangeWithoutValidations(
+                        return props.onAccessPolicyChangeWithoutValidations(
+                            null,
                             reduceAccessPolicy(
                                 warningDialogState.currentAccountId,
                                 props.accessPolicy,

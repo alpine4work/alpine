@@ -43,7 +43,6 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
-import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -79,21 +78,23 @@ function ShareOverlayAccountGrantInput(
     {
         accessLevelText,
         accountGrantById,
-        onAccessPolicyChange,
         allAccounts,
         accountById,
         isAltKeyDown,
         selectedAccounts,
         onSelectedAccountsChange,
+        accessLevel,
+        onAccessLevelChange,
     }: {
         accessLevelText: Record<AccessLevel, string>;
         accountGrantById: AccessPolicy["accountGrantById"];
-        onAccessPolicyChange: (action: AccessPolicyAction) => void;
         allAccounts: ReadonlyArray<AccountModel>;
         accountById: ReadonlyMap<AccountId, AccountModel>;
         isAltKeyDown: boolean;
         selectedAccounts: ReadonlyArray<AccountModel>;
         onSelectedAccountsChange: Dispatch<SetStateAction<ReadonlyArray<AccountModel>>>;
+        accessLevel: AccessLevel;
+        onAccessLevelChange: Dispatch<SetStateAction<AccessLevel>>;
     },
     ref: Ref<ShareOverlayAccountGrantInputRef>,
 ) {
@@ -130,7 +131,6 @@ function ShareOverlayAccountGrantInput(
     );
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [accessLevel, setAccessLevel] = useState<AccessLevel>("Manage");
 
     const items = useMemo(() => {
         const selectedAccountIds = new Set<AccountId>(selectedAccounts.map(account => account.id));
@@ -651,26 +651,26 @@ function ShareOverlayAccountGrantInput(
                                 {
                                     isSelected: accessLevel === "Manage",
                                     label: accessLevelText.Manage,
-                                    onPress: () => setAccessLevel("Manage"),
+                                    onPress: () => onAccessLevelChange("Manage"),
                                 },
                                 ...(isAltKeyDown
                                     ? [
                                           cast<MenuAction>({
                                               isSelected: accessLevel === "Edit",
                                               label: accessLevelText.Edit,
-                                              onPress: () => setAccessLevel("Edit"),
+                                              onPress: () => onAccessLevelChange("Edit"),
                                           }),
                                       ]
                                     : emptyArray),
                                 {
                                     isSelected: accessLevel === "Comment",
                                     label: accessLevelText.Comment,
-                                    onPress: () => setAccessLevel("Comment"),
+                                    onPress: () => onAccessLevelChange("Comment"),
                                 },
                                 {
                                     isSelected: accessLevel === "View",
                                     label: accessLevelText.View,
-                                    onPress: () => setAccessLevel("View"),
+                                    onPress: () => onAccessLevelChange("View"),
                                 },
                             ]}
                         >

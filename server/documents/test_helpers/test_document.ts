@@ -151,7 +151,7 @@ export class TestDocument {
         },
         set: async (session, accessPolicy) => {
             await this.update(session, [new DocAttrStep("accessPolicy", accessPolicy)], {
-                intentionallyUpdateAccessPolicy: accessPolicy,
+                intentionallyUpdateAccessPolicy: {accessPolicy, notification: null},
             });
         },
     });

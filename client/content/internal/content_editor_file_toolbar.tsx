@@ -14,7 +14,7 @@ import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from 
 import {mergeProps, useHover, usePress} from "react-aria";
 import {selectFiles} from "~/client/content/select_files.js";
 import {ContentEditorFloaterState} from "~/client/content/state/content_editor_floater_state.js";
-import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {openContentEditorCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
@@ -200,7 +200,7 @@ function ContentEditorFileToolbar({
             return {deleteVerb: "Delete", entityNoun};
         } else {
             const fileIdObject = parseFileEntityId(fileId);
-            const entityNoun = getFileEntityNoun(fileIdObject);
+            const entityNoun = getFileEntityNoun(fileIdObject.type);
 
             // Use a softer verb than "Delete". Since you're not "deleting a document" when
             // you select the delete option, rather you're removing a document embed from
@@ -499,7 +499,7 @@ function ContentEditorFileToolbar({
                                     } else {
                                         dispatch?.(
                                             state.tr.setMeta(
-                                                contentEditorOpenCommentInputFloaterMetaKey,
+                                                openContentEditorCommentInputFloaterMetaKey,
                                                 true,
                                             ),
                                         );

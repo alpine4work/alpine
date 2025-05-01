@@ -24,9 +24,9 @@ import {
 import {liftTarget} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {
-    contentEditorOpenCommentInputFloaterMetaKey,
-    contentEditorOpenKeyboardHighlightFloaterMetaKey,
-    contentEditorOpenKeyboardLinkFloaterMetaKey,
+    openContentEditorCommentInputFloaterMetaKey,
+    openContentEditorKeyboardHighlightFloaterMetaKey,
+    openContentEditorKeyboardLinkFloaterMetaKey,
 } from "~/client/content/state/content_editor_meta_keys.js";
 import {contentEditorQuickUndoCommand} from "~/client/content/state/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/state/create_toggle_mark_command.js";
@@ -2003,7 +2003,7 @@ export function buildContentEditorKeymapPlugin(
 
             if (!isHighlightSupported) return false;
 
-            dispatch?.(state.tr.setMeta(contentEditorOpenKeyboardHighlightFloaterMetaKey, true));
+            dispatch?.(state.tr.setMeta(openContentEditorKeyboardHighlightFloaterMetaKey, true));
             return true;
         });
     }
@@ -2024,7 +2024,7 @@ export function buildContentEditorKeymapPlugin(
 
         if (!isLinkSupported) return false;
 
-        dispatch?.(state.tr.setMeta(contentEditorOpenKeyboardLinkFloaterMetaKey, true));
+        dispatch?.(state.tr.setMeta(openContentEditorKeyboardLinkFloaterMetaKey, true));
         return true;
     };
 
@@ -2053,7 +2053,7 @@ export function buildContentEditorKeymapPlugin(
 
             if (!isCommentSupported) return false;
 
-            dispatch?.(state.tr.setMeta(contentEditorOpenCommentInputFloaterMetaKey, true));
+            dispatch?.(state.tr.setMeta(openContentEditorCommentInputFloaterMetaKey, true));
             return true;
         });
     }

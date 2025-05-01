@@ -14,10 +14,10 @@ import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {ContentEditorFloaterState} from "~/client/content/state/content_editor_floater_state.js";
 import {
-    contentEditorOpenCommentInputFloaterMetaKey,
-    contentEditorOpenKeyboardHighlightFloaterMetaKey,
-    contentEditorOpenKeyboardLinkFloaterMetaKey,
-    contentEditorOpenMentionFloaterMetaKey,
+    openContentEditorCommentInputFloaterMetaKey,
+    openContentEditorKeyboardHighlightFloaterMetaKey,
+    openContentEditorKeyboardLinkFloaterMetaKey,
+    openContentEditorMentionFloaterMetaKey,
 } from "~/client/content/state/content_editor_meta_keys.js";
 import {contentEditorCodeBlockPlugin} from "~/client/content/state/internal/content_editor_code_block_plugin.js";
 import {buildContentEditorInputRulesPlugin} from "~/client/content/state/internal/content_editor_input_rules_plugin.js";
@@ -25,6 +25,7 @@ import {buildContentEditorKeymapPlugin} from "~/client/content/state/internal/co
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {contentEditorTablePlugin} from "~/client/content/state/table/content_editor_table_plugin.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {
     ContentReferences,
     ContentWithReferences,
@@ -529,14 +530,20 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      * the `intentionallyUpdateAccessPolicy` option is set when running this
      * update on the backend.
      */
-    public setAccessPolicy(accessPolicy: AccessPolicy): ContentEditorState<Content> {
+    public setAccessPolicy(
+        accessPolicy: AccessPolicy,
+        notification: AccessPolicyNotification | null,
+    ): ContentEditorState<Content> {
         assert(this._state.schema.topNodeType.spec.attrs?.accessPolicy);
 
         return new ContentEditorState(
             this._state.apply(
                 this._state.tr
                     .setDocAttribute("accessPolicy", accessPolicy)
-                    .setMeta(intentionallyUpdateContentAccessPolicyMetaKey, accessPolicy)
+                    .setMeta(intentionallyUpdateContentAccessPolicyMetaKey, {
+                        accessPolicy,
+                        notification,
+                    })
                     // Don't allow undoing access policy changes with cmd-z. Trying to undo an
                     // access policy change will cause an error since it doesn't have the
                     // `intentionallyUpdateAccessPolicy` property set.
@@ -590,19 +597,19 @@ function contentEditorFloaterStatePlugin() {
 
                 // Open our toolbars on the current selection when certain meta is set on
                 // our transaction.
-                if (transaction.getMeta(contentEditorOpenKeyboardHighlightFloaterMetaKey)) {
+                if (transaction.getMeta(openContentEditorKeyboardHighlightFloaterMetaKey)) {
                     return {
                         type: "KeyboardHighlight",
                         range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
                     };
                 }
-                if (transaction.getMeta(contentEditorOpenKeyboardLinkFloaterMetaKey)) {
+                if (transaction.getMeta(openContentEditorKeyboardLinkFloaterMetaKey)) {
                     return {
                         type: "KeyboardLink",
                         range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
                     };
                 }
-                if (transaction.getMeta(contentEditorOpenCommentInputFloaterMetaKey)) {
+                if (transaction.getMeta(openContentEditorCommentInputFloaterMetaKey)) {
                     return {
                         type: "CommentInput",
                         range: trimSpacesFromProsemirrorRange(newState.doc, newState.selection),
@@ -612,7 +619,7 @@ function contentEditorFloaterStatePlugin() {
                 // Double check that we can only open the `Mention` floater if the character
                 // preceding our selection is `@`.
                 if (
-                    transaction.getMeta(contentEditorOpenMentionFloaterMetaKey) &&
+                    transaction.getMeta(openContentEditorMentionFloaterMetaKey) &&
                     newState.selection.head > 0
                 ) {
                     const $from = newState.doc.resolve(newState.selection.head - 1);

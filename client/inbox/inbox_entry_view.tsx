@@ -514,6 +514,9 @@ export function InboxEntryView({
         };
     }, [events, isPressed, touchSwipeState]);
 
+    const showLatestMessage =
+        entryDisplay.latestMessage && entryDisplay.latestMessage.contentTextSnippet.length > 0;
+
     return (
         <Box
             ref={useMergedRefs<HTMLDivElement>(hoverRef, entryRef)}
@@ -780,34 +783,32 @@ export function InboxEntryView({
                             display="flex"
                             gap="0"
                         >
-                            <Box
-                                overflow="hidden"
-                                fontStyle="truncate"
-                                style={{
-                                    // Render contextual alternate glyphs. Particularly important that we render
-                                    // the right "@" for mentions.
-                                    fontFeatureSettings: '"calt" on',
-                                }}
-                            >
-                                {useMemo(
-                                    () =>
-                                        entryDisplay.latestMessage && (
-                                            <>
-                                                <AccountShortName
-                                                    account={entryDisplay.latestMessage.author}
-                                                    isTooltipDisabled={true}
-                                                />
-                                                :{" "}
-                                                {renderTextWithEmojiFontFamily(
-                                                    entryDisplay.latestMessage.contentTextSnippet,
-                                                )}
-                                            </>
-                                        ),
-                                    [entryDisplay.latestMessage],
-                                )}
-                            </Box>
+                            {useMemo(
+                                () =>
+                                    showLatestMessage && (
+                                        <Box
+                                            overflow="hidden"
+                                            fontStyle="truncate"
+                                            style={{
+                                                // Render contextual alternate glyphs. Particularly important that we render
+                                                // the right "@" for mentions.
+                                                fontFeatureSettings: '"calt" on',
+                                            }}
+                                        >
+                                            <AccountShortName
+                                                account={entryDisplay.latestMessage.author}
+                                                isTooltipDisabled={true}
+                                            />
+                                            :{" "}
+                                            {renderTextWithEmojiFontFamily(
+                                                entryDisplay.latestMessage.contentTextSnippet,
+                                            )}
+                                        </Box>
+                                    ),
+                                [entryDisplay.latestMessage, showLatestMessage],
+                            )}
                             <Box flexShrink="0">
-                                &nbsp;∙&nbsp;
+                                {showLatestMessage && <>&nbsp;∙&nbsp;</>}
                                 {useMemo(() => {
                                     if (differenceInHours(currentTime, entryDisplay.time) < 24) {
                                         const formatter = getIntlDateTimeFormat({

@@ -45,7 +45,7 @@ import {
     ContentEditorFloaterState,
     ContentEditorPointerToolbarFloaterState,
 } from "~/client/content/state/content_editor_floater_state.js";
-import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {openContentEditorCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
 import {createToggleMarkCommand} from "~/client/content/state/create_toggle_mark_command.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {Box} from "~/client/design/box.js";
@@ -996,7 +996,7 @@ function ContentEditorPointerToolbarButtons({
                         if (!isCommentSupported) return false;
 
                         dispatch?.(
-                            state.tr.setMeta(contentEditorOpenCommentInputFloaterMetaKey, true),
+                            state.tr.setMeta(openContentEditorCommentInputFloaterMetaKey, true),
                         );
                         return true;
                     }}
@@ -1433,7 +1433,7 @@ function ContentEditorPointerToolbarButtonsCommentOnly({
 
                 if (!isCommentSupported) return false;
 
-                dispatch?.(state.tr.setMeta(contentEditorOpenCommentInputFloaterMetaKey, true));
+                dispatch?.(state.tr.setMeta(openContentEditorCommentInputFloaterMetaKey, true));
                 return true;
             }}
         >

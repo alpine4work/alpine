@@ -1,4 +1,8 @@
-import {FileEntityIdSchema, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {
+    FileEntityIdSchema,
+    FileIdOrFileEntityIdSchema,
+    getFileEntityTypes,
+} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -98,8 +102,23 @@ export interface OptimisticMessageModel extends MessageModelBase {
 }
 
 export type MessagePayload = SchemaType<typeof MessagePayloadSchema>;
+
 export type MessageContentPayload = SchemaType<typeof MessageContentPayloadSchema>;
+
+export type MessageContentPayloadClerical = SchemaType<typeof MessageContentPayloadClericalSchema>;
+
 export type MessageDeletedPayload = SchemaType<typeof MessageDeletedPayloadSchema>;
+
+export const MessageContentPayloadClericalSchema = Schema.union({
+    /**
+     * Clerical message left when someone shares an entity with you and chooses
+     * to notify you.
+     */
+    AccessPolicyNotification: Schema.object({
+        type: Schema.value("AccessPolicyNotification"),
+        entityType: Schema.enum(getFileEntityTypes()),
+    }),
+});
 
 const MessageContentPayloadSchema = Schema.object({
     type: Schema.value("Content"),
@@ -126,6 +145,35 @@ const MessageContentPayloadSchema = Schema.object({
      * Files attached to the message to be rendered below the message content.
      */
     fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
+
+    /**
+     * Clerical messages are generated automatically by some part of our system.
+     * For example, when a user shares an entity with you the notification you're
+     * sent is a clerical chat message.
+     *
+     * Clerical messages have a couple properties:
+     *
+     * - They can't be updated or deleted
+     * - In the case of chat, you won't get a loud notification
+     * - Instead of a notification like "so and so sent you a message" the
+     *   notification text will be based on the clerical message type
+     *
+     * As of 2025-05-01, the only clerical message we send is the notification
+     * after sharing some entity type over chat. Other messaging surfaces (e.g.
+     * post comments and document comments) don't currently have clerical messages.
+     * Adding this as a general purpose property to the message payload might be
+     * premature. But I can already imagine at least two other use cases for
+     * clerical messages: 1) If you resolve a document comment thread we leave a
+     * clerical comment that says "so and so resolved this comment thread". 2) If
+     * you move a post from one channel to another we leave a clerical comment that
+     * says "so and so moved this post from channel A to channel B". Since I can
+     * think of three use cases for this abstraction, I'm happy introducing it.
+     */
+    // TODO(calebmer): It would be nice to have a test in
+    // `testMessagingImplementation()` that makes sure you can't update or delete
+    // clerical messages. But right now there's no generic API for creating
+    // clerical messages.
+    clerical: MessageContentPayloadClericalSchema.optional(),
 });
 
 const MessageDeletedPayloadSchema = Schema.object({
@@ -171,6 +219,7 @@ const MessageContentPayloadModelSchema = Schema.object({
     content: MessageContentWithReferencesSchema,
     contentUpdatedTime: Schema.date.nullable(),
     files: Schema.array(MessageContentPayloadModelFileSchema).default([]),
+    clerical: MessageContentPayloadClericalSchema.optional(),
 });
 
 const MessageDeletedPayloadModelSchema = Schema.object({

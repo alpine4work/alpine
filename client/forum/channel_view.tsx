@@ -126,17 +126,9 @@ export function ChannelView({
     assert(channelItem?.model instanceof ChannelModel);
     const channel = channelItem.model;
 
-    const [optimisticAccessPolicyState, setOptimisticAccessPolicyState] = useState<{
-        readonly accessPolicy: AccessPolicy;
-    } | null>(null);
-
     const accessLevel = useMemo(
-        () =>
-            getAccountAccessLevelAssumingSpaceAccess(
-                optimisticAccessPolicyState?.accessPolicy ?? channel.accessPolicy,
-                currentAccount?.id,
-            ),
-        [channel.accessPolicy, currentAccount?.id, optimisticAccessPolicyState?.accessPolicy],
+        () => getAccountAccessLevelAssumingSpaceAccess(channel.accessPolicy, currentAccount?.id),
+        [channel.accessPolicy, currentAccount?.id],
     );
 
     if (accessLevel === null) {
@@ -298,32 +290,14 @@ export function ChannelView({
         withWideRouteLayoutShareMenuItem: true,
         shareButton: {
             entityNoun: "channel",
-            accessPolicy: optimisticAccessPolicyState?.accessPolicy ?? channel.accessPolicy,
-            onAccessPolicyChange: accessPolicy => {
-                runPromiseWithoutAwaiting(async () => {
-                    const ourOptimisticAccessPolicyState = {accessPolicy};
-
-                    setOptimisticAccessPolicyState(ourOptimisticAccessPolicyState);
-                    try {
-                        const event = await updateChannelAccessPolicy(context, {
-                            channelId,
-                            accessPolicy,
-                        });
-
-                        handleEventForChannel(event);
-                    } catch (error) {
-                        reporter.displayError("Couldn’t share channel", error);
-                    } finally {
-                        setOptimisticAccessPolicyState(optimisticAccessPolicyState => {
-                            // There was another `onAccessPolicyChange` while we were awaiting. Don't reset
-                            // to null.
-                            if (optimisticAccessPolicyState !== ourOptimisticAccessPolicyState)
-                                return optimisticAccessPolicyState;
-
-                            return null;
-                        });
-                    }
+            accessPolicy: channel.accessPolicy,
+            onAccessPolicyChange: async accessPolicy => {
+                const event = await updateChannelAccessPolicy(context, {
+                    channelId,
+                    accessPolicy,
                 });
+
+                handleEventForChannel(event);
             },
             onCopyLink: handleCopyLink,
             accessLevelText: {

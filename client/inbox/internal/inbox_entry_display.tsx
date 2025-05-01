@@ -10,6 +10,7 @@ import {sprinkles} from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {printPrettySmallNumberSummary} from "~/shared/design/print_pretty_small_number_summary.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Locale} from "~/shared/helpers/intl/locale.js";
 import {
@@ -281,7 +282,14 @@ function getInboxChatEntryDisplay({
 
     const summary: Array<InboxEntryDisplaySummaryItem> = [];
 
-    if (entry.latestMessage.isStickyMention && entry.chatAccountCount > 2) {
+    if (entry.latestMessage.clerical?.type === "AccessPolicyNotification") {
+        // If this was a clerical access policy notification then override the
+        // notification summary to directly describe what happened.
+        summary.push(entry.latestMessage.author);
+        summary.push(
+            ` shared a ${getFileEntityNoun(entry.latestMessage.clerical.entityType)} with you`,
+        );
+    } else if (entry.latestMessage.isStickyMention && entry.chatAccountCount > 2) {
         summary.push(entry.latestMessage.author);
         summary.push(" mentioned you in a chat with ");
 

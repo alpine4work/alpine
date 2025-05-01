@@ -102,7 +102,7 @@ import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {selectFiles} from "~/client/content/select_files.js";
-import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {openContentEditorCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
 import {
     ContentEditorReferencesSharedAction,
     ContentEditorState,
@@ -4858,7 +4858,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 if (isCommentSupported) {
                                     view.dispatch(
                                         state.tr.setMeta(
-                                            contentEditorOpenCommentInputFloaterMetaKey,
+                                            openContentEditorCommentInputFloaterMetaKey,
                                             true,
                                         ),
                                     );

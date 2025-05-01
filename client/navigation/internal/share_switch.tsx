@@ -7,32 +7,52 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {BuildingsIcon} from "~/client/icons/buildings_icon.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {elevation, sprinkles} from "~/client/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export function ShareSwitch({
     entityNoun,
     accessPolicy,
-    onAccessPolicyChange,
+    onAccessPolicyChange: onAccessPolicyChangeFromProps,
     isReadOnly,
 }: {
     entityNoun: string;
     accessPolicy: AccessPolicy;
-    onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => void;
+    onAccessPolicyChange: (accessPolicy: AccessPolicyAction) => MaybePromise<void>;
     isReadOnly: boolean;
 }) {
     const spacingScale = useSpacingScale();
     const reporter = useReporter();
     const {space} = useSpaceContext();
+    const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const [
         showDeleteDefaultGrantOrUrlGrantConfirmationDialog,
         setShowDeleteDefaultGrantOrUrlGrantConfirmationDialog,
     ] = useState(false);
+
+    // Our share switch doesn't have an inline loading indicator so use the
+    // global loading indicator.
+    //
+    // TODO(calebmer): We should probably perform an optimistic update since
+    // pressing the switch and then it doesn't move for a beat will feel weird.
+    const onAccessPolicyChange = (accessPolicy: AccessPolicyAction) => {
+        const promise = onAccessPolicyChangeFromProps(accessPolicy);
+
+        if (!promise) return;
+
+        addGlobalLoadingIndicator(promise, {type: "Saving"});
+
+        promise.catch(error => {
+            reporter.displayError(`Couldn’t share ${entityNoun}`, error);
+        });
+    };
 
     const {pressProps, isPressed} = usePress({
         isDisabled: isReadOnly,

@@ -3660,6 +3660,9 @@ export function updatePostCommentContent(
         if (commentItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
+        if (commentItem.payload.clerical)
+            throw new FailedPreconditionError("Can't update clerical comment content");
+
         const contentUpdatedTime = new Date(
             Math.max(
                 (postItem.commentsSummary.lastChangeTime ?? postItem.createdTime).getTime() + 1,
@@ -3787,7 +3790,10 @@ export function deletePostComment(
             throw new PermissionDeniedError("Can only delete post comments you authored");
 
         if (commentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can not delete comments with a non-content payload");
+            throw new FailedPreconditionError("Can't delete comments with a non-content payload");
+
+        if (commentItem.payload.clerical)
+            throw new FailedPreconditionError("Can't delete clerical comments");
 
         const deletedTime = new Date(
             Math.max(

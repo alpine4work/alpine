@@ -1089,6 +1089,39 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 }
                                                             },
                                                             "optional": true
+                                                        },
+                                                        "clerical": {
+                                                            "valueSchema": {
+                                                                "type": "Union",
+                                                                "typeKey": "type",
+                                                                "variantSchemaByTypeValue": {
+                                                                    "AccessPolicyNotification": {
+                                                                        "type": "Object",
+                                                                        "propertySchemaByKey": {
+                                                                            "type": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Value",
+                                                                                    "value": "AccessPolicyNotification"
+                                                                                },
+                                                                                "optional": false
+                                                                            },
+                                                                            "entityType": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Enum",
+                                                                                    "values": [
+                                                                                        "Document",
+                                                                                        "TaskCollection",
+                                                                                        "Channel"
+                                                                                    ]
+                                                                                },
+                                                                                "optional": false
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "referenceId": "ec27ed70"
+                                                            },
+                                                            "optional": true
                                                         }
                                                     }
                                                 },
@@ -7101,6 +7134,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "lastLoudNotificationCountTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "latestMessage": {
                                         "valueSchema": {
                                             "type": "Object",
@@ -7133,6 +7175,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                 "isStickyMention": {
                                                     "valueSchema": {
                                                         "type": "Boolean"
+                                                    },
+                                                    "optional": true
+                                                },
+                                                "clerical": {
+                                                    "valueSchema": {
+                                                        "type": "Reference",
+                                                        "reuseReferenceId": "ec27ed70"
                                                     },
                                                     "optional": true
                                                 }

@@ -5,6 +5,7 @@ import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_ac
 import {
     ServerActionContext,
     ServerSessionActionContext,
+    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {
     ServerContentActionContext,
@@ -13,6 +14,7 @@ import {
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {dynamoClientRequestTokenMaxLength} from "~/server/dynamo/core/dynamo_max_client_request_token_length.js";
 import {
     DynamoCacheReadConsistency,
     DynamoReadConsistency,
@@ -28,10 +30,12 @@ import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messagin
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
+    authorizeOwnAccountAccess,
     authorizeSpaceAccess,
     getAccount,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
     DataLossError,
@@ -41,7 +45,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -56,11 +60,15 @@ import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/itera
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
+import {Id, decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {
+    MessageContentPayloadClerical,
+    MessagePayload,
+    MessagePayloadSchema,
+} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 
@@ -439,6 +447,7 @@ export async function getOrCreateChatForAccounts(
 ): Promise<ChatId> {
     const {chatId} = await actuallyGetOrCreateChatForAccounts(context, {
         spaceId,
+        actorAccountId: context.actor.getAccountId(),
         otherAccountIds,
         initialSharedChatsPromise: null,
     });
@@ -490,6 +499,7 @@ export function selectChatForAccounts(
 
         const sharedChatsPromise = getSharedChats(context, {
             spaceId,
+            actorAccountId: context.actor.getAccountId(),
             otherAccountIds,
         });
 
@@ -497,6 +507,7 @@ export function selectChatForAccounts(
             (async () => {
                 const result = await actuallyGetOrCreateChatForAccounts(context, {
                     spaceId,
+                    actorAccountId: context.actor.getAccountId(),
                     otherAccountIds,
                     initialSharedChatsPromise: sharedChatsPromise,
                 });
@@ -555,18 +566,23 @@ type ChatForAccountsResult =
       };
 
 function actuallyGetOrCreateChatForAccounts(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {
         spaceId,
+        actorAccountId,
         otherAccountIds,
         initialSharedChatsPromise,
     }: {
         spaceId: SpaceId;
+        actorAccountId: AccountId;
         otherAccountIds: ReadonlyArray<AccountId>;
         initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
     },
 ): Promise<ChatForAccountsResult> {
     return context.tracer.withSpan("Get or create chat", async context => {
+        // Make sure we're either a system actor or a session actor for this account.
+        await authorizeOwnAccountAccess(context, actorAccountId);
+
         let hasAlreadyAttempted = false;
 
         return retryWithExponentialBackoff(async (retry): Promise<ChatForAccountsResult> => {
@@ -576,10 +592,10 @@ function actuallyGetOrCreateChatForAccounts(
             // Make sure `otherAccountIds` is unique and doesn't include our
             // authenticated account.
             otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
-                accountId => accountId !== context.actor.getAccountId(),
+                accountId => accountId !== actorAccountId,
             );
 
-            const allSortedAccountIds = [...otherAccountIds, context.actor.getAccountId()].sort();
+            const allSortedAccountIds = [...otherAccountIds, actorAccountId].sort();
 
             const getChatAndAccounts = async (
                 chatId: ChatId,
@@ -652,7 +668,7 @@ function actuallyGetOrCreateChatForAccounts(
                 chatId: ChatId,
             ): Promise<ChatForAccountsResult> => {
                 await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
-                    context.actor.getAccountId(),
+                    actorAccountId,
                 );
 
                 try {
@@ -775,7 +791,7 @@ function actuallyGetOrCreateChatForAccounts(
             }
 
             const sharedChats = await ((isInitialAttempt ? initialSharedChatsPromise : null) ??
-                getSharedChats(context, {spaceId, otherAccountIds}));
+                getSharedChats(context, {spaceId, actorAccountId, otherAccountIds}));
 
             const firstSharedChat = sharedChats[0];
 
@@ -815,10 +831,54 @@ export function sendChatMessage(
     index: number;
     createdTime: Date;
 }> {
+    return sendChatMessageForAccount(context, {
+        chatId,
+        authorId: context.actor.getAccountId(),
+        parentMessageIndex,
+        content,
+        fileIds,
+    });
+}
+
+// IMPORTANT: Don't export this function! It allows our system actor to
+// impersonate a user and send a message on their behalf. Only write code to
+// send chat messages on behalf of another account in this file.
+function sendChatMessageForAccount(
+    context: ServerActionContext,
+    {
+        chatId,
+        authorId,
+        parentMessageIndex,
+        content,
+        fileIds,
+        clerical,
+        clientRequestToken,
+    }: {
+        chatId: ChatId;
+        authorId: AccountId;
+        parentMessageIndex: number | null;
+        content: MessageContent;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
+        clerical?: MessageContentPayloadClerical;
+        clientRequestToken?: string;
+    },
+): Promise<{
+    spaceId: SpaceId;
+    chatId: ChatId;
+    index: number;
+    createdTime: Date;
+}> {
     return context.dynamo.retryTransaction(async context => {
+        // Make sure we're either a system actor or a session actor for this account.
+        await authorizeOwnAccountAccess(context, authorId);
+
         const [{chatItem, chatAccountItem}] = await runAllPromises([
             (async () => {
-                const result = await getChatItemAndAuthorizeAccess(context, chatId);
+                const result = await authorizeChatAccessForAccountAndReturnItems(
+                    context,
+                    chatId,
+                    authorId,
+                );
 
                 // Make sure all the provided files exist.
                 await runAllPromises(
@@ -855,39 +915,46 @@ export function sendChatMessage(
             })(),
         ]);
 
+        if (clerical && context.actor.type !== "System")
+            throw new PermissionDeniedError("Only system actors can send clerical messages");
+
         const messageIndex = chatItem.messagesSummary.nextMessageIndex;
         // NOTE(calebmer): Using `Date.now()` allows our Jest tests to mock
         // `Date.now()` and override the time that is returned.
         const createdTime = new Date(Date.now());
-        const authorId = context.actor.getAccountId();
 
-        await DynamoTableSchema.executeTransaction(context, [
-            ChatTable.transactionCreateItem({
-                partitionType: "Chat",
-                sortRangeType: "Messages",
-                chatId,
-                messageIndex,
-                authorId,
-                createdTime,
-                payload: {
-                    type: "Content",
-                    parentMessageIndex,
-                    content,
-                    contentUpdatedTime: null,
-                    fileIds,
-                },
-            }),
-            ChatTable.transactionDirectlyUpdateItemAttribute(
-                {partitionType: "Chat", sortRangeType: "Attributes", chatId},
-                "messagesSummary",
-                {
-                    nextMessageIndex: chatItem.messagesSummary.nextMessageIndex + 1,
-                    lastChangeTime: chatItem.messagesSummary.lastChangeTime,
-                    messageCount: chatItem.messagesSummary.messageCount + 1,
-                },
-                {updateLockVersion: chatItem.updateLockVersion},
-            ),
-        ]);
+        await DynamoTableSchema.executeTransaction(
+            context,
+            [
+                ChatTable.transactionCreateItem({
+                    partitionType: "Chat",
+                    sortRangeType: "Messages",
+                    chatId,
+                    messageIndex,
+                    authorId,
+                    createdTime,
+                    payload: {
+                        type: "Content",
+                        parentMessageIndex,
+                        content,
+                        contentUpdatedTime: null,
+                        fileIds,
+                        clerical,
+                    },
+                }),
+                ChatTable.transactionDirectlyUpdateItemAttribute(
+                    {partitionType: "Chat", sortRangeType: "Attributes", chatId},
+                    "messagesSummary",
+                    {
+                        nextMessageIndex: chatItem.messagesSummary.nextMessageIndex + 1,
+                        lastChangeTime: chatItem.messagesSummary.lastChangeTime,
+                        messageCount: chatItem.messagesSummary.messageCount + 1,
+                    },
+                    {updateLockVersion: chatItem.updateLockVersion},
+                ),
+            ],
+            {clientRequestToken},
+        );
 
         const mentionedAccountIds = getMentionedAccountIdsInContent(content);
         const contentSnippet = getNotificationMessageContentSnippet(content);
@@ -905,6 +972,7 @@ export function sendChatMessage(
                 mentionedAccountIds,
                 isContentSnippetComplete: contentSnippet.nodeSize === content.nodeSize,
                 contentSnippet,
+                clerical,
             },
         });
 
@@ -935,74 +1003,87 @@ export function sendChatMessage(
             });
         }
 
-        // Add affinity points to chat. Unless this is a 1:1 chat. For 1:1 chats we
-        // want to add affinity points to the account we're messaging. That way we
-        // build affinity with the account directly.
-        context.process.waitUntil(async () => {
-            // Small messages are considered low intent updates. This defends against
-            // spamming where a user is sending small one word messages to make a point.
-            const interaction: SearchAffinityEntityInteraction =
-                content.nodeSize < 50 ? {type: "LowIntentUpdate"} : {type: "MediumIntentUpdate"};
+        // Only increase affinity score if we have a session actor. Don't increase
+        // affinity score if this is a system actor sending a message on behalf of an
+        // account.
+        if (context.actor.type === "Session") {
+            const sessionContext = context.actor.authorizeSession();
 
-            if (chatAccountItem.chatAccountCount !== 2) {
-                await markSearchAffinityEntityInteraction(context, {
-                    spaceId: chatItem.spaceId,
-                    entityId: `Chat:${chatItem.chatId}`,
-                    interaction,
-                });
-            } else {
-                const chatAccountIds =
-                    // If `accountIdsForOneOnOne` is available we can use it, otherwise we need to
-                    // query chat accounts to get our partner's `AccountId`.
-                    chatItem.accountIdsForOneOnOne ??
-                    (
-                        await arrayFromAsyncIterable(
-                            ChatTable.query(context, {
-                                partitionKey: {
-                                    partitionType: "Chat",
-                                    chatId,
-                                },
-                                startSortKey: {
-                                    sortRangeType: "Account",
-                                    accountId: DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
-                                },
-                                endSortKey: {
-                                    sortRangeType: "Account",
-                                    accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-                                },
-                                limit: "All",
-                            }),
-                        )
-                    ).map(({accountId}) => accountId);
-
-                const otherChatAccountIds = chatAccountIds.filter(
-                    chatAccountId => chatAccountId !== context.actor.getAccountId(),
-                );
-
-                await markSearchAffinityEntityInteraction(context, {
-                    spaceId: chatItem.spaceId,
-                    entityId: `Account:${assertExists(otherChatAccountIds[0])}`,
-                    interaction,
-                });
-            }
-        });
-
-        // Increase affinity points for all mentioned accounts with a high intent
-        // update since the user clearly wants the attention of the mentioned accounts.
-        //
-        // (If a mentioned account doesn't have access to this message should that
-        // still be a high intent update? For now we say yes since the user is
-        // explicitly choosing to reference them.)
-        for (const mentionedAccountId of mentionedAccountIds) {
+            // Add affinity points to chat. Unless this is a 1:1 chat. For 1:1 chats we
+            // want to add affinity points to the account we're messaging. That way we
+            // build affinity with the account directly.
             context.process.waitUntil(async () => {
-                if (await isAccountMemberOfSpace(context, chatItem.spaceId, mentionedAccountId)) {
-                    await markSearchAffinityEntityInteraction(context, {
+                // Small messages are considered low intent updates. This defends against
+                // spamming where a user is sending small one word messages to make a point.
+                const interaction: SearchAffinityEntityInteraction =
+                    content.nodeSize < 50
+                        ? {type: "LowIntentUpdate"}
+                        : {type: "MediumIntentUpdate"};
+
+                if (chatAccountItem.chatAccountCount !== 2) {
+                    await markSearchAffinityEntityInteraction(sessionContext, {
                         spaceId: chatItem.spaceId,
-                        entityId: `Account:${mentionedAccountId as AccountId}`,
-                        interaction: {type: "HighIntentUpdate"},
+                        entityId: `Chat:${chatItem.chatId}`,
+                        interaction,
+                    });
+                } else {
+                    const chatAccountIds =
+                        // If `accountIdsForOneOnOne` is available we can use it, otherwise we need to
+                        // query chat accounts to get our partner's `AccountId`.
+                        chatItem.accountIdsForOneOnOne ??
+                        (
+                            await arrayFromAsyncIterable(
+                                ChatTable.query(context, {
+                                    partitionKey: {
+                                        partitionType: "Chat",
+                                        chatId,
+                                    },
+                                    startSortKey: {
+                                        sortRangeType: "Account",
+                                        accountId:
+                                            DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
+                                    },
+                                    endSortKey: {
+                                        sortRangeType: "Account",
+                                        accountId:
+                                            DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+                                    },
+                                    limit: "All",
+                                }),
+                            )
+                        ).map(({accountId}) => accountId);
+
+                    const otherChatAccountIds = chatAccountIds.filter(
+                        chatAccountId => chatAccountId !== sessionContext.actor.getAccountId(),
+                    );
+
+                    await markSearchAffinityEntityInteraction(sessionContext, {
+                        spaceId: chatItem.spaceId,
+                        entityId: `Account:${assertExists(otherChatAccountIds[0])}`,
+                        interaction,
                     });
                 }
             });
+
+            // Increase affinity points for all mentioned accounts with a high intent
+            // update since the user clearly wants the attention of the mentioned accounts.
+            //
+            // (If a mentioned account doesn't have access to this message should that
+            // still be a high intent update? For now we say yes since the user is
+            // explicitly choosing to reference them.)
+            for (const mentionedAccountId of mentionedAccountIds) {
+                context.process.waitUntil(async () => {
+                    if (
+                        await isAccountMemberOfSpace(context, chatItem.spaceId, mentionedAccountId)
+                    ) {
+                        await markSearchAffinityEntityInteraction(sessionContext, {
+                            spaceId: chatItem.spaceId,
+                            entityId: `Account:${mentionedAccountId as AccountId}`,
+                            interaction: {type: "HighIntentUpdate"},
+                        });
+                    }
+                });
+            }
         }
 
         return {
@@ -1032,6 +1113,16 @@ async function getChatItemIfExistsForAuthorization(
             {consistency},
         ),
     );
+}
+
+async function getChatItemForAuthorization(
+    context: ServerActionContext,
+    chatId: ChatId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<ChatAttributesItem> {
+    const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
+    if (!chatItem) throw createChatNotFoundError(chatId);
+    return chatItem;
 }
 
 const ChatAccountItemAuthorizationCache = new DynamoContextCache<
@@ -1081,19 +1172,30 @@ export async function authorizeChatAccess(
     chatId: ChatId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId}> {
+    const {spaceId} = await authorizeChatAccessAndReturnItem(context, chatId, options);
+    return {spaceId};
+}
+
+async function authorizeChatAccessAndReturnItem(
+    context: ServerActionContext,
+    chatId: ChatId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<ChatAttributesItem> {
     switch (context.actor.type) {
         case "Session": {
-            return authorizeChatAccessForAccount(context, chatId, context.actor.getAccountId());
+            const {chatItem} = await authorizeChatAccessForAccountAndReturnItems(
+                context,
+                chatId,
+                context.actor.getAccountId(),
+            );
+            return chatItem;
         }
 
         // If we have access to the space, we have access to the chat...
         case "System": {
-            const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
-            if (!chatItem) throw createChatNotFoundError(chatId);
-
+            const chatItem = await getChatItemForAuthorization(context, chatId, options);
             await authorizeSpaceAccess(context, chatItem.spaceId);
-
-            return {spaceId: chatItem.spaceId};
+            return chatItem;
         }
 
         case "Anonymous": {
@@ -1120,46 +1222,43 @@ export async function authorizeChatAccessForAccount(
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
-    const [chatAccountItem] = await runAllPromises([
-        (async () => {
-            const chatAccountItem = await getChatAccountItemIfExistsForAuthorization(
-                context,
-                chatId,
-                accountId,
-                options,
-            );
+    const {
+        chatItem: {spaceId},
+        chatAccountItem: {chatAccountCount},
+    } = await authorizeChatAccessForAccountAndReturnItems(context, chatId, accountId, options);
 
-            if (!chatAccountItem) {
-                throw new PermissionDeniedError("Account doesn't have access to chat");
-            }
+    return {spaceId, chatAccountCount};
+}
 
-            await authorizeSpaceAccess(context, chatAccountItem.spaceId);
-            return chatAccountItem;
-        })(),
+async function authorizeChatAccessForAccountAndReturnItems(
+    context: ServerActionContext,
+    chatId: ChatId,
+    accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{chatItem: ChatAttributesItem; chatAccountItem: ChatAccountItem}> {
+    const [chatItem, chatAccountItem, actorChatAccountItem] = await runAllPromises([
+        getChatItemForAuthorization(context, chatId, options).then(async chatItem => {
+            await authorizeSpaceAccess(context, chatItem.spaceId);
+            return chatItem;
+        }),
+        getChatAccountItemIfExistsForAuthorization(context, chatId, accountId, options),
         (async () => {
             switch (context.actor.type) {
                 case "Session": {
                     // We already are loading our session's chat account item above.
-                    if (context.actor.getAccountId() === accountId) return;
+                    if (context.actor.getAccountId() === accountId) return "Ignored";
 
-                    const chatAccountItem = await getChatAccountItemIfExistsForAuthorization(
+                    return getChatAccountItemIfExistsForAuthorization(
                         context,
                         chatId,
                         context.actor.getAccountId(),
                         options,
                     );
-
-                    if (!chatAccountItem) {
-                        throw new PermissionDeniedError(
-                            "Session actor account doesn't have access to chat",
-                        );
-                    }
-                    break;
                 }
                 case "System": {
                     // If we have access to the space (authorized above), we have access to
                     // the chat...
-                    break;
+                    return "Ignored";
                 }
                 case "Anonymous": {
                     throw unauthenticatedSessionError();
@@ -1170,32 +1269,15 @@ export async function authorizeChatAccessForAccount(
         })(),
     ]);
 
-    return {
-        spaceId: chatAccountItem.spaceId,
-        chatAccountCount: chatAccountItem.chatAccountCount,
-    };
-}
+    if (!actorChatAccountItem) {
+        throw new PermissionDeniedError("Session actor account doesn't have access to chat");
+    }
 
-async function getChatItemIfExistsAndAuthorizeAccess(
-    context: ServerSessionActionContext,
-    chatId: ChatId,
-) {
-    const [chatItem, chatAccountItem] = await runAllPromises([
-        getChatItemIfExistsForAuthorization(context, chatId),
-        getChatAccountItemIfExistsForAuthorization(context, chatId, context.actor.getAccountId()),
-    ]);
-    if (!chatItem) return null;
-
-    await authorizeSpaceAccess(context, chatItem.spaceId);
-    if (!chatAccountItem) throw new PermissionDeniedError("Account doesn't have access to chat");
+    if (!chatAccountItem) {
+        throw new PermissionDeniedError("Account doesn't have access to chat");
+    }
 
     return {chatItem, chatAccountItem};
-}
-
-async function getChatItemAndAuthorizeAccess(context: ServerSessionActionContext, chatId: ChatId) {
-    const chatItem = await getChatItemIfExistsAndAuthorizeAccess(context, chatId);
-    if (!chatItem) throw createChatNotFoundError(chatId);
-    return chatItem;
 }
 
 /**
@@ -1220,12 +1302,14 @@ async function getChatItemAndAuthorizeAccess(context: ServerSessionActionContext
  * function.
  */
 function getSharedChats(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {
         spaceId,
+        actorAccountId,
         otherAccountIds,
     }: {
         spaceId: SpaceId;
+        actorAccountId: AccountId;
         otherAccountIds: ReadonlyArray<AccountId>;
     },
 ): Promise<
@@ -1235,10 +1319,13 @@ function getSharedChats(
     }>
 > {
     return context.tracer.withSpan("Get shared chats", async context => {
+        // Make sure we're either a system actor or a session actor for this account.
+        await authorizeOwnAccountAccess(context, actorAccountId);
+
         // Make sure `otherAccountIds` is unique and doesn't include our
         // authenticated account.
         otherAccountIds = Array.from(new Set(otherAccountIds)).filter(
-            accountId => accountId !== context.actor.getAccountId(),
+            accountId => accountId !== actorAccountId,
         );
 
         const chatById = new Map<
@@ -1250,7 +1337,7 @@ function getSharedChats(
             async () => {
                 const ourAccountChats = await arrayFromAsyncIterable(
                     AccountChatsIndex.query(context, {
-                        partitionKey: {spaceId, accountId: context.actor.getAccountId()},
+                        partitionKey: {spaceId, accountId: actorAccountId},
                         limit: "All",
                     }),
                 );
@@ -1261,7 +1348,7 @@ function getSharedChats(
                         includedAccountIds: new Set<AccountId>(),
                     }));
 
-                    chat.includedAccountIds.add(context.actor.getAccountId());
+                    chat.includedAccountIds.add(actorAccountId);
                 }
             },
             async () => {
@@ -1295,7 +1382,7 @@ function getSharedChats(
         for (const [chatId, chat] of chatById) {
             // Only include accounts with every requested account and the
             // authenticated account.
-            if (!chat.includedAccountIds.has(context.actor.getAccountId())) continue;
+            if (!chat.includedAccountIds.has(actorAccountId)) continue;
             if (!otherAccountIds.every(accountId => chat.includedAccountIds.has(accountId)))
                 continue;
 
@@ -1326,7 +1413,12 @@ export function getSharedChatsForTest(
     },
 ) {
     assert(process.env.NODE_ENV === "test");
-    return getSharedChats(context, {spaceId, otherAccountIds});
+
+    return getSharedChats(context, {
+        spaceId,
+        actorAccountId: context.actor.getAccountId(),
+        otherAccountIds,
+    });
 }
 
 /**
@@ -1633,8 +1725,8 @@ export function updateChatMessageContent(
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [{chatItem}, chatMessageItem] = await runAllPromises([
-            getChatItemAndAuthorizeAccess(context, chatId),
+        const [chatItem, chatMessageItem] = await runAllPromises([
+            authorizeChatAccessAndReturnItem(context, chatId),
             ChatTable.getItem(context, {
                 partitionType: "Chat",
                 sortRangeType: "Messages",
@@ -1648,6 +1740,9 @@ export function updateChatMessageContent(
 
         if (chatMessageItem.payload.type !== "Content")
             throw new FailedPreconditionError("Can not chat messages with a non-content payload");
+
+        if (chatMessageItem.payload.clerical)
+            throw new FailedPreconditionError("Can't update clerical message content");
 
         const contentUpdatedTime = new Date(
             Math.max(
@@ -1721,8 +1816,8 @@ export function deleteChatMessage(
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
-        const [chatItemAndChatAccountItem, chatMessageItem] = await runAllPromises([
-            getChatItemIfExistsAndAuthorizeAccess(context, chatId),
+        const [chatItem, chatMessageItem] = await runAllPromises([
+            authorizeChatAccessAndReturnItem(context, chatId),
             ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Messages",
@@ -1731,16 +1826,16 @@ export function deleteChatMessage(
             }),
         ]);
 
-        if (!chatItemAndChatAccountItem) throw createChatNotFoundError(chatId);
         if (!chatMessageItem) throw new NotFoundError("Chat message not found");
 
-        const {chatItem} = chatItemAndChatAccountItem;
-
         if (chatMessageItem.authorId !== context.actor.getAccountId())
-            throw new PermissionDeniedError("Can only delete chat messages you authored");
+            throw new PermissionDeniedError("Can only delete messages you authored");
 
         if (chatMessageItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can not delete messages with a non-content payload");
+            throw new FailedPreconditionError("Can't delete messages with a non-content payload");
+
+        if (chatMessageItem.payload.clerical)
+            throw new FailedPreconditionError("Can't delete clerical messages");
 
         const deletedTime = new Date(
             Math.max(
@@ -1911,13 +2006,13 @@ export async function getChatMessagesFromStart(
     otherReferencedMessages: Array<ChatMessageModel>;
     lastMessageChangeTime: Date | null;
 }> {
-    const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
+    const chatItemPromise = authorizeChatAccessAndReturnItem(context, chatId);
 
-    const [{chatItem}, {messages, otherReferencedMessages}] = await runAllPromises([
+    const [chatItem, {messages, otherReferencedMessages}] = await runAllPromises([
         chatItemPromise,
         getChatMessagesFromStartAssumingAuthorizedChat(context, {
             chatId,
-            getSpaceId: () => chatItemPromise.then(({chatItem: {spaceId}}) => spaceId),
+            getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
             limit,
             afterMessageIndex,
             beforeMessageIndex,
@@ -2080,13 +2175,13 @@ export async function getChatMessagesFromEnd(
     otherReferencedMessages: Array<ChatMessageModel>;
     lastMessageChangeTime: Date | null;
 }> {
-    const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
+    const chatItemPromise = authorizeChatAccessAndReturnItem(context, chatId);
 
-    const [{chatItem}, {messages, otherReferencedMessages}] = await runAllPromises([
+    const [chatItem, {messages, otherReferencedMessages}] = await runAllPromises([
         chatItemPromise,
         getChatMessagesFromEndAssumingAuthorizedChat(context, {
             chatId,
-            getSpaceId: () => chatItemPromise.then(({chatItem: {spaceId}}) => spaceId),
+            getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
             limit,
             afterMessageIndex,
             beforeMessageIndex,
@@ -2272,14 +2367,14 @@ export async function backfillChatMessages(
     newOtherReferencedMessages: Array<ChatMessageModel>;
     messageChangesResult: ChatMessageChangesResult;
 }> {
-    const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
+    const chatItemPromise = authorizeChatAccessAndReturnItem(context, chatId);
 
-    const [{chatItem}, {messages, otherReferencedMessages}, messageChangesResult] =
+    const [chatItem, {messages, otherReferencedMessages}, messageChangesResult] =
         await runAllPromises([
             chatItemPromise,
             getChatMessagesFromStartAssumingAuthorizedChat(context, {
                 chatId,
-                getSpaceId: () => chatItemPromise.then(({chatItem: {spaceId}}) => spaceId),
+                getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
                 limit: newMessageLimit,
                 afterMessageIndex: clientMessageCount - 1,
                 beforeMessageIndex: null,
@@ -2289,7 +2384,7 @@ export async function backfillChatMessages(
                 // to new realtime events before starting to backfill.
                 consistency: "Strong",
             }),
-            chatItemPromise.then(({chatItem}) =>
+            chatItemPromise.then(chatItem =>
                 queryChatMessageChangeLogAssumingAuthorizedPost(context, {
                     chatItem,
                     lastMessageChangeTime: clientLastMessageChangeTime,
@@ -2416,4 +2511,68 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
     );
 
     return {type: "Available", changes};
+}
+
+/**
+ * When the user shares an `AccessPolicy` with individual users and selects
+ * "Notify people" then this job will be added to the queue.
+ */
+export async function processSendAccessPolicyNotificationJob(
+    context: ServerSystemActionContext,
+    {
+        jobId,
+        spaceId,
+        actorAccountId,
+        entityId,
+        notification,
+    }: {
+        jobId: Id;
+        spaceId: SpaceId;
+        actorAccountId: AccountId;
+        entityId: FileEntityId;
+        notification: AccessPolicyNotification;
+    },
+) {
+    await runAllPromises(
+        notification.accountIds.map(async otherAccountId => {
+            if (otherAccountId === actorAccountId) return;
+
+            const {chatId} = await actuallyGetOrCreateChatForAccounts(context, {
+                spaceId,
+                actorAccountId,
+                otherAccountIds: [otherAccountId],
+                initialSharedChatsPromise: null,
+            });
+
+            try {
+                const clientRequestTokenIdLength = Math.floor(
+                    (dynamoClientRequestTokenMaxLength - 1) / 2,
+                );
+
+                await sendChatMessageForAccount(context, {
+                    chatId,
+                    authorId: actorAccountId,
+                    parentMessageIndex: null,
+                    content: notification.content,
+                    fileIds: [entityId],
+                    clerical: {
+                        type: "AccessPolicyNotification",
+                        entityType: parseFileEntityId(entityId).type,
+                    },
+                    // NOCOMMIT: Test that this job is actually idempotent!
+                    clientRequestToken: [
+                        jobId.slice(0, clientRequestTokenIdLength),
+                        otherAccountId.slice(0, clientRequestTokenIdLength),
+                    ].join("-"),
+                });
+            } catch (error) {
+                // SQS may retry this job. If so, don't send a message to the same
+                // account twice.
+                if (isDynamoIdempotentParameterMismatchError(error)) return;
+
+                // NOCOMMIT: Test that some other error still gets thrown?
+                throw error;
+            }
+        }),
+    );
 }
