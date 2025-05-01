@@ -1,13 +1,15 @@
 import {useContext} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 
-const metadataByRouteId: {
-    readonly [key: string]: {readonly errorTitle: string; readonly isFullWidth?: true} | undefined;
-} = {
+const metadataByRouteId: Record<
+    AppSpaceRouteId | "routes/switch-space",
+    {readonly errorTitle: string; readonly isFullWidth?: true}
+> = {
     "routes/s.$spaceId._index": {
-        errorTitle: "Couldn’t open home",
+        errorTitle: "Couldn’t open space",
     },
     "routes/s.$spaceId.channels.$channelId._index": {
         errorTitle: "Couldn’t open channel",
@@ -87,11 +89,6 @@ const metadataByRouteId: {
     },
 };
 
-export function getRouteIdsWithDefinedMetadataForTest() {
-    assert(import.meta.jest);
-    return Object.keys(metadataByRouteId);
-}
-
 /**
  * Get error title to use when the route error boundary catches an error. The
  * title is generally pretty generic like "Couldn’t open document" and the
@@ -103,7 +100,9 @@ export function getRouteIdsWithDefinedMetadataForTest() {
  */
 export function getRouteErrorTitle(routeId: string | null): string {
     const errorTitle = routeId
-        ? metadataByRouteId[routeId.replace(".peek.", ".")]?.errorTitle
+        ? cast<{[key: string]: (typeof metadataByRouteId)[AppSpaceRouteId]}>(metadataByRouteId)[
+              routeId.replace(".peek.", ".")
+          ]?.errorTitle
         : undefined;
     return errorTitle ?? "Couldn’t open page";
 }
@@ -130,5 +129,10 @@ export function useRouteErrorTitle() {
  */
 export function useIsFullWidthRoute() {
     const {matches} = assertExists(useContext(DataRouterStateContext));
-    return matches.some(match => metadataByRouteId[match.route.id]?.isFullWidth);
+    return matches.some(
+        match =>
+            cast<{[key: string]: (typeof metadataByRouteId)[AppSpaceRouteId]}>(metadataByRouteId)[
+                match.route.id
+            ]?.isFullWidth,
+    );
 }

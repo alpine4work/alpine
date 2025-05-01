@@ -40,6 +40,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -1059,6 +1060,13 @@ async function getChatAccountItemIfExistsForAuthorization(
     );
 }
 
+export function createChatNotFoundError(chatId: ChatId) {
+    return new NotFoundError("Chat not found", {
+        aggregateDedupeKey: chatId,
+        displayMessage: errorDisplayMessage`This chat doesn’t exist. Try searching “my chats” to see chats you’re in.`,
+    });
+}
+
 /**
  * Authorize that the current account is allowed to access the chat.
  *
@@ -1078,10 +1086,7 @@ export async function authorizeChatAccess(
         // If we have access to the space, we have access to the chat...
         case "System": {
             const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
-
-            if (!chatItem) {
-                throw new NotFoundError("Chat not found");
-            }
+            if (!chatItem) throw createChatNotFoundError(chatId);
 
             await authorizeSpaceAccess(context, chatItem.spaceId);
 
@@ -1186,7 +1191,7 @@ async function getChatItemIfExistsAndAuthorizeAccess(
 
 async function getChatItemAndAuthorizeAccess(context: ServerSessionActionContext, chatId: ChatId) {
     const chatItem = await getChatItemIfExistsAndAuthorizeAccess(context, chatId);
-    if (!chatItem) throw new NotFoundError("Chat not found");
+    if (!chatItem) throw createChatNotFoundError(chatId);
     return chatItem;
 }
 
@@ -1373,7 +1378,7 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
         }
     }
 
-    if (!chatItem) throw new NotFoundError("Chat not found");
+    if (!chatItem) throw createChatNotFoundError(chatId);
 
     return createChatModelFromItems(context, chatItem, chatAccountItems);
 }
@@ -1495,7 +1500,7 @@ export async function getChatAccountIds(
         }
     }
 
-    if (!chatItem) throw new NotFoundError("Chat not found");
+    if (!chatItem) throw createChatNotFoundError(chatId);
 
     await authorizeSpaceAccess(context, chatItem.spaceId);
 
@@ -1723,7 +1728,7 @@ export function deleteChatMessage(
             }),
         ]);
 
-        if (!chatItemAndChatAccountItem) throw new NotFoundError("Chat not found");
+        if (!chatItemAndChatAccountItem) throw createChatNotFoundError(chatId);
         if (!chatMessageItem) throw new NotFoundError("Chat message not found");
 
         const {chatItem} = chatItemAndChatAccountItem;

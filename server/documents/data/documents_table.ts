@@ -98,6 +98,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
@@ -996,6 +997,20 @@ export async function getDocumentPreviewIfExists(
     return unwrapResult(result);
 }
 
+export function createDocumentNotFoundError(documentId: DocumentId) {
+    return new NotFoundError("Document not found", {
+        aggregateDedupeKey: documentId,
+        displayMessage: errorDisplayMessage`This document doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+    });
+}
+
+function createDocumentCommentThreadNotFoundError(commentThreadId: DocumentCommentThreadId) {
+    return new NotFoundError("Document comment thread not found", {
+        aggregateDedupeKey: commentThreadId,
+        displayMessage: errorDisplayMessage`This comment thread doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+    });
+}
+
 /**
  * Get a preview of the document with the provided id.
  *
@@ -1007,11 +1022,11 @@ export async function getDocumentPreviewIfExists(
  */
 export async function getDocumentPreview(
     context: ServerActionContext,
-    id: DocumentId,
+    documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentPreviewModel> {
-    const document = await getDocumentPreviewIfExists(context, id, options);
-    if (!document) throw new NotFoundError("Document not found");
+    const document = await getDocumentPreviewIfExists(context, documentId, options);
+    if (!document) throw createDocumentNotFoundError(documentId);
     return document;
 }
 
@@ -1127,7 +1142,7 @@ async function getDocumentItemForAuthorization(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentAttributesItem> {
     const item = await getDocumentItemForAuthorizationIfExists(context, documentId, options);
-    if (!item) throw new NotFoundError("Document not found");
+    if (!item) throw createDocumentNotFoundError(documentId);
     return item;
 }
 
@@ -1415,7 +1430,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreads(
     commentThreads: ReadonlyArray<DocumentCommentThreadModel>;
 }> {
     const result = await getDocumentWithOptionalCommentsAndCommentThreadsIfExists(context, options);
-    if (!result) throw new NotFoundError("Document not found");
+    if (!result) throw createDocumentNotFoundError(options.documentId);
     return result;
 }
 
@@ -1680,9 +1695,8 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                         referencedCommentThreadById.get(commentThreadId) ??
                         archivedCommentThreadById.get(commentThreadId);
 
-                    if (!commentThread) {
-                        throw new NotFoundError("Comment thread does not exist");
-                    }
+                    if (!commentThread)
+                        throw createDocumentCommentThreadNotFoundError(commentThreadId);
 
                     return createDocumentCommentThreadModelFromItem(
                         context,
@@ -1767,7 +1781,7 @@ export async function getDocumentContent(
     updateContentPreview: (context: ServerActionContext) => Promise<void>;
 }> {
     const internalDocument = await getInternalDocumentIfExists(context, documentId, {consistency});
-    if (!internalDocument) throw new NotFoundError("Document not found");
+    if (!internalDocument) throw createDocumentNotFoundError(documentId);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
@@ -2064,7 +2078,7 @@ export async function getDocumentContentWithOptionalComments(
         consistency,
         withOptionalComments: true,
     });
-    if (!internalDocument) throw new NotFoundError("Document not found");
+    if (!internalDocument) throw createDocumentNotFoundError(documentId);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
@@ -2099,7 +2113,7 @@ export async function getDocumentContentForCollaborationServiceInitialization(
         consistency,
         forCollaborationServiceInitialization: true,
     });
-    if (!internalDocument) throw new NotFoundError("Document not found");
+    if (!internalDocument) throw createDocumentNotFoundError(documentId);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
@@ -4051,7 +4065,7 @@ export async function updateDocumentSnapshotForTest(
     assert(import.meta.jest);
 
     const document = await getInternalDocumentIfExists(context, documentId);
-    if (!document) throw new NotFoundError("Document not found");
+    if (!document) throw createDocumentNotFoundError(documentId);
 
     await updateDocumentSnapshotAfterUpdatingContent(context, {
         id: documentId,

@@ -183,7 +183,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     ],
                     media: null,
                     creatorId: session.account.id,
-                    contributorIds: new Map(),
+                    contributorIds: new Map([[session.account.id, "Major"]]),
                 },
             });
         });
@@ -405,7 +405,11 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                         ].sort(defaultCompareStrings),
                     },
                     creatorId: null,
-                    contributorIds: new Map(),
+                    contributorIds: new Map([
+                        [session1.account.id, "Major"],
+                        [session2.account.id, "Major"],
+                        [session3.account.id, "Major"],
+                    ]),
                 },
             });
         });

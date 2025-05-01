@@ -114,6 +114,8 @@ const matchTermTexts = [
     "recently",
     "all",
     "of",
+    "person",
+    "people",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -714,6 +716,11 @@ function parseSearchEntityTypesIfPossible(
         state.advanceTerm();
 
         return ["ChatMessage", "DocumentComment", "PostComment"];
+    }
+
+    if (matchTerms.person.isFuzzyMatch(state.term) || matchTerms.people.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        return ["Account"];
     }
 
     return null;

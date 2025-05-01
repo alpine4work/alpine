@@ -7,9 +7,10 @@ import {
     getDocumentTitle,
 } from "~/server/documents/data/documents_table.js";
 import {
-    getChannelNameAndDescriptionContent,
+    getChannelNameAndDescriptionContentAndContributors,
     getPostCommentPayload,
     getPostContentAndChannelPreview,
+    maxChannelContributionCount,
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
@@ -52,6 +53,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -331,16 +333,17 @@ class SearchEntityReadState {
         });
     }
 
-    public getChannelNameAndDescriptionContent(channelId: ChannelId): Promise<{
+    public getChannelNameAndDescriptionContentAndContributors(channelId: ChannelId): Promise<{
         name: string;
         description: MessageContent;
         createdTime: Date;
         creatorId: AccountId | null;
         accessPolicy: AccessPolicy;
+        contributionCountByAccountId: ReadonlyMap<AccountId, number>;
     }> {
         this._recordDependencyId(`Channel:${channelId}`);
 
-        return getChannelNameAndDescriptionContent(this._context, channelId, {
+        return getChannelNameAndDescriptionContentAndContributors(this._context, channelId, {
             consistency: "StrongWithinCache",
         });
     }
@@ -813,7 +816,7 @@ async function getChannelSearchEntity(
     state: SearchEntityReadState,
     channelId: ChannelId,
 ): Promise<SearchEntity> {
-    const channel = await state.getChannelNameAndDescriptionContent(channelId);
+    const channel = await state.getChannelNameAndDescriptionContentAndContributors(channelId);
 
     const truncatedName = new Lazy(() =>
         truncateTokens(state.tokenizer, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
@@ -841,9 +844,22 @@ async function getChannelSearchEntity(
         media: null,
         embeddingChunks: getEmbeddingChunks(),
         creatorId: channel.creatorId,
-        // Maybe in the future we could track who posts in a channel to support
-        // searches like "channels I've posted in".
-        contributorIds: emptyMap,
+        // Contributors at the max contribution count (as of 2025-04-30 that's 8) are
+        // considered major contributors.
+        //
+        // NOCOMMIT: Test!!!
+        contributorIds: new Map(
+            concatIterables(
+                mapIterable(
+                    channel.contributionCountByAccountId,
+                    ([accountId, contributionCount]): [AccountId, "Major" | "Minor"] => [
+                        accountId,
+                        contributionCount >= maxChannelContributionCount ? "Major" : "Minor",
+                    ],
+                ),
+                channel.creatorId !== null ? [[channel.creatorId, "Major"]] : emptyArray,
+            ),
+        ),
     };
 }
 
@@ -1012,9 +1028,15 @@ async function getChatSearchEntity(
                 : {type: "AccountPile", accountIds},
         embeddingChunks: emptyArray,
         creatorId: null,
-        // We could keep track of relative proportions of who's sending messages to the
-        // chat, but it's unclear what search queries this would support.
-        contributorIds: emptyMap,
+
+        // Consider all members of the chat to be major contributors! Since the number
+        // of people in the chat will generally be small.
+        //
+        // It's a little odd that only multi-user chats get this designation. If you
+        // search for "chats I'm a contributor to" (aka "my chats") you'd expect to see
+        // 1:1 chats there too but currently we don't index 1:1 chats. We only index
+        // accounts.
+        contributorIds: new Map(accountIds.map(accountId => [accountId, "Major"])),
     };
 }
 

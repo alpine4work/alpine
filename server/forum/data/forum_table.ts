@@ -187,7 +187,10 @@ export type ForumSystemActionContextModulesWithBroadcast = ServerSystemActionCon
 export type ForumSystemActionContextWithBroadcast =
     Context<ForumSystemActionContextModulesWithBroadcast>;
 
-const maxChannelContributionCount = 8;
+/**
+ * The max contribution count in the `Contributors` DynamoDB item.
+ */
+export const maxChannelContributionCount = 8;
 
 const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
     // Enable optional features we use that may incur extra costs.
@@ -1403,6 +1406,20 @@ export async function getChannelIfExists(
     return unwrapResult(channel);
 }
 
+export function createChannelNotFoundError(channelId: ChannelId) {
+    return new NotFoundError("Channel not found", {
+        aggregateDedupeKey: channelId,
+        displayMessage: errorDisplayMessage`This channel doesn’t exist. Try searching “my channels” to see channels you’ve posted in.`,
+    });
+}
+
+function createPostNotFoundError(postId: PostId) {
+    return new NotFoundError("Post not found", {
+        aggregateDedupeKey: postId,
+        displayMessage: errorDisplayMessage`This post doesn’t exist. Try searching “my posts” to see posts you’ve created.`,
+    });
+}
+
 /**
  * Gets the channel object with the provided `ChannelId`. Throws if the channel
  * doesn't exist or you don't have access to the channel.
@@ -1413,7 +1430,7 @@ export async function getChannel(
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<ChannelModel>> {
     const channel = await getChannelIfExists(context, channelId, options);
-    if (!channel) throw new NotFoundError("Channel not found");
+    if (!channel) throw createChannelNotFoundError(channelId);
     return channel;
 }
 
@@ -1466,7 +1483,7 @@ export async function getChannelContributors(
 
     return (async () => {
         const result = await promise;
-        if (!result) throw new NotFoundError("Channel not found");
+        if (!result) throw createChannelNotFoundError(channelId);
 
         await authorizeChannelItemAccess(context, result.channelItem, "View");
 
@@ -1605,7 +1622,9 @@ export function getChannelAndMetadataIfPossible(
                 // the end of this promise. So any promise resolvers that haven't been settled
                 // yet reject with an error as a safety mechanism.
                 if (!channelPromiseResolver.isSettled()) {
-                    if (result && !result.ok) {
+                    if (!result) {
+                        channelPromiseResolver.resolve(null);
+                    } else if (result && !result.ok) {
                         channelPromiseResolver.reject(result.error);
                     } else {
                         channelPromiseResolver.reject(
@@ -1666,7 +1685,7 @@ export async function getChannelAndMetadata(
     },
 ): Promise<DynamoGeneralRealtimeQueryResult<ChannelOrMetadataModel>> {
     const result = await getChannelAndMetadataIfPossible(context, options);
-    if (!result) throw new NotFoundError("Channel not found");
+    if (!result) throw createChannelNotFoundError(options.channelId);
     return unwrapResult(result);
 }
 
@@ -1743,9 +1762,7 @@ async function getChannelPreviewItemForAuthorization(
         options,
     );
 
-    if (!channelItem) {
-        throw new NotFoundError("Channel not found");
-    }
+    if (!channelItem) throw createChannelNotFoundError(channelId);
 
     return channelItem;
 }
@@ -1818,7 +1835,7 @@ export async function getChannelPreview(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<ChannelPreviewModel> {
     const channel = await getChannelPreviewIfExists(context, channelId, options);
-    if (!channel) throw new NotFoundError("Channel not found");
+    if (!channel) throw createChannelNotFoundError(channelId);
     return channel;
 }
 
@@ -1906,7 +1923,7 @@ export async function getChannelPreviewAndAccessPolicy(
     readonly accessPolicy: AccessPolicy;
 }> {
     const channel = await getChannelPreviewAndAccessPolicyIfExists(context, channelId, options);
-    if (!channel) throw new NotFoundError("Channel not found");
+    if (!channel) throw createChannelNotFoundError(channelId);
     return channel;
 }
 
@@ -1915,7 +1932,7 @@ export async function getChannelPreviewAndAccessPolicy(
  * building a search entity which will load content references on its own in a
  * way that tracks dependencies.
  */
-export async function getChannelNameAndDescriptionContent(
+export async function getChannelNameAndDescriptionContentAndContributors(
     context: ServerActionContext,
     channelId: ChannelId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
@@ -1925,21 +1942,42 @@ export async function getChannelNameAndDescriptionContent(
     createdTime: Date;
     creatorId: AccountId | null;
     accessPolicy: AccessPolicy;
+    contributionCountByAccountId: ReadonlyMap<AccountId, number>;
 }> {
-    const channelItemPromise = ForumRealtimeTable.getItem(
-        context,
-        {
-            partitionType: "Channel",
-            sortRangeType: "Attributes",
-            channelId,
-        },
-        {consistency},
-    );
+    const promise = (async () => {
+        const items = await arrayFromAsyncIterable(
+            ForumRealtimeTable.query(context, {
+                partitionKey: {partitionType: "Channel", channelId},
+                endSortKey: {sortRangeType: "Contributors"},
+                limit: "All",
+                consistency,
+            }),
+        );
+        if (items.length === 0) throw createChannelNotFoundError(channelId);
+
+        const firstItem = items[0]!;
+        const secondItem = items[1];
+
+        if (firstItem.sortRangeType !== "Attributes") {
+            throw new DataLossError("Expected the first query item to be the channel item");
+        }
+
+        if (secondItem && secondItem.sortRangeType !== "Contributors") {
+            throw new DataLossError("Expected the second query item to be the contributors item");
+        }
+
+        return {channelItem: firstItem, contributorsItem: secondItem};
+    })();
 
     // Save the channel to our authorization cache in case we need it later.
-    ChannelPreviewItemAuthorizationCache.set(context, consistency, channelId, channelItemPromise);
+    ChannelPreviewItemAuthorizationCache.set(
+        context,
+        consistency,
+        channelId,
+        promise.then(({channelItem}) => channelItem),
+    );
 
-    const channelItem = await channelItemPromise;
+    const {channelItem, contributorsItem} = await promise;
     await authorizeChannelItemAccess(context, channelItem, "View");
 
     return {
@@ -1948,6 +1986,7 @@ export async function getChannelNameAndDescriptionContent(
         createdTime: channelItem.createdTime,
         creatorId: channelItem.creatorId,
         accessPolicy: channelItem.accessPolicy,
+        contributionCountByAccountId: contributorsItem?.contributionCountByAccountId ?? emptyMap,
     };
 }
 
@@ -2000,7 +2039,7 @@ export async function updateChannelName(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
-            if (!channelItem) throw new NotFoundError("Channel not found");
+            if (!channelItem) throw createChannelNotFoundError(channelId);
             spaceId = channelItem.spaceId;
 
             await authorizeChannelItemAccess(context, channelItem, "Manage");
@@ -2058,7 +2097,7 @@ export async function updateChannelDescription(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
-            if (!channelItem) throw new NotFoundError("Channel not found");
+            if (!channelItem) throw createChannelNotFoundError(channelId);
             spaceId = channelItem.spaceId;
 
             await authorizeChannelItemAccess(context, channelItem, "Manage");
@@ -2124,7 +2163,7 @@ export async function updateChannelNameAndDescription(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
-            if (!channelItem) throw new NotFoundError("Channel not found");
+            if (!channelItem) throw createChannelNotFoundError(channelId);
             spaceId = channelItem.spaceId;
 
             await authorizeChannelItemAccess(context, channelItem, "Manage");
@@ -2184,7 +2223,7 @@ export async function updateChannelAccessPolicy(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
-            if (!channelItem) throw new NotFoundError("Channel not found");
+            if (!channelItem) throw createChannelNotFoundError(channelId);
             spaceId = channelItem.spaceId;
 
             await authorizeChannelItemAccess(context, channelItem, "Manage");
@@ -2458,6 +2497,9 @@ export async function createPost(
     // `context.process.waitUntil()`. It's fine if `AppService` crashes and we
     // don't record the contribution.
     context.process.waitUntil(async () => {
+        let oldContributionCount = 0;
+        let newContributionCount = 0;
+
         await ForumRealtimeTable.updateItem(
             context,
             {partitionType: "Channel", sortRangeType: "Contributors", channelId},
@@ -2470,14 +2512,19 @@ export async function createPost(
                     contributionCountByAccountId: new Map(),
                 };
 
-                const contributionCount =
+                oldContributionCount =
                     contributorsItem.contributionCountByAccountId.get(
                         context.actor.getAccountId(),
                     ) ?? 0;
 
+                newContributionCount = Math.min(
+                    oldContributionCount + 1,
+                    maxChannelContributionCount,
+                );
+
                 // If this account has already reached the max contribution count then don't
                 // increment their contributions anymore.
-                if (contributionCount >= maxChannelContributionCount) {
+                if (oldContributionCount === newContributionCount) {
                     return contributorsItem;
                 }
 
@@ -2487,7 +2534,7 @@ export async function createPost(
 
                 newContributionCountByAccountId.set(
                     context.actor.getAccountId(),
-                    contributionCount + 1,
+                    newContributionCount,
                 );
 
                 return {
@@ -2496,6 +2543,24 @@ export async function createPost(
                 };
             },
         );
+
+        // Reindex the channel whenever someone contributes for the first time
+        // (making them a minor contributor) or when someone maxes out their
+        // contribution count (making them a major contributor).
+        if (
+            oldContributionCount !== newContributionCount &&
+            (oldContributionCount === 0 || newContributionCount === maxChannelContributionCount)
+        ) {
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId,
+                update: {
+                    type: "Channel",
+                    channelId,
+                    updatedTraits: {type: "Some", traits: []},
+                },
+            });
+        }
     });
 
     const mentionedAccountIds = getMentionedAccountIdsInContent(content);
@@ -2579,22 +2644,28 @@ export async function createPost(
  */
 export async function getPost(
     context: ServerContentActionContext,
-    id: PostId,
+    postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<DynamoGeneralRealtimeItem<PostModel>> {
-    const postItemPromise = ForumRealtimeTable.getItem(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId: id,
-        },
-        {consistency},
-    );
+    const postItemPromise = (async () => {
+        const item = await ForumRealtimeTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId: postId,
+            },
+            {consistency},
+        );
+
+        if (!item) throw createPostNotFoundError(postId);
+
+        return item;
+    })();
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, consistency, id, postItemPromise);
+    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
 
     const postItem = await postItemPromise;
 
@@ -2607,7 +2678,7 @@ export async function getPost(
 
 export async function getPostContentAndChannelPreview(
     context: ServerActionContext,
-    id: PostId,
+    postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
     createdTime: Date;
@@ -2616,19 +2687,25 @@ export async function getPostContentAndChannelPreview(
     channel: ChannelPreviewModel;
     channelAccessPolicy: AccessPolicy;
 }> {
-    const postItemPromise = ForumRealtimeTable.getItem(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId: id,
-        },
-        {consistency},
-    );
+    const postItemPromise = (async () => {
+        const item = await ForumRealtimeTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId: postId,
+            },
+            {consistency},
+        );
+
+        if (!item) throw createPostNotFoundError(postId);
+
+        return item;
+    })();
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.
-    PostItemAuthorizationCache.set(context, consistency, id, postItemPromise);
+    PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
 
     const postItem = await postItemPromise;
 
@@ -3171,6 +3248,9 @@ export async function createPostComment(
         // don't record the contribution.
         if (postItem.authorId !== authorId && oldCommentCount === 0) {
             context.process.waitUntil(async () => {
+                let oldContributionCount = 0;
+                let newContributionCount = 0;
+
                 await ForumRealtimeTable.updateItem(
                     context,
                     {
@@ -3187,14 +3267,19 @@ export async function createPostComment(
                             contributionCountByAccountId: new Map(),
                         };
 
-                        const contributionCount =
+                        oldContributionCount =
                             contributorsItem.contributionCountByAccountId.get(
                                 context.actor.getAccountId(),
                             ) ?? 0;
 
+                        newContributionCount = Math.min(
+                            oldContributionCount + 1,
+                            maxChannelContributionCount,
+                        );
+
                         // If this account has already reached the max contribution count then don't
                         // increment their contributions anymore.
-                        if (contributionCount >= maxChannelContributionCount) {
+                        if (oldContributionCount === newContributionCount) {
                             return contributorsItem;
                         }
 
@@ -3204,7 +3289,7 @@ export async function createPostComment(
 
                         newContributionCountByAccountId.set(
                             context.actor.getAccountId(),
-                            contributionCount + 1,
+                            newContributionCount,
                         );
 
                         return {
@@ -3213,6 +3298,25 @@ export async function createPostComment(
                         };
                     },
                 );
+
+                // Reindex the channel whenever someone contributes for the first time
+                // (making them a minor contributor) or when someone maxes out their
+                // contribution count (making them a major contributor).
+                if (
+                    oldContributionCount !== newContributionCount &&
+                    (oldContributionCount === 0 ||
+                        newContributionCount === maxChannelContributionCount)
+                ) {
+                    context.jobs.send({
+                        type: "IndexSearchEntity",
+                        spaceId: postItem.spaceId,
+                        update: {
+                            type: "Channel",
+                            channelId: postItem.channelId,
+                            updatedTraits: {type: "Some", traits: []},
+                        },
+                    });
+                }
             });
         }
 
@@ -3679,15 +3783,21 @@ export async function getPostAndInitialComments(
 
     const postItemConsistency: DynamoReadConsistency = "Eventual";
 
-    const postItemPromise = ForumRealtimeTable.getItem(
-        context,
-        {
-            partitionType: "Post",
-            sortRangeType: "Attributes",
-            postId,
-        },
-        {consistency: postItemConsistency},
-    );
+    const postItemPromise = (async () => {
+        const item = await ForumRealtimeTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId: postId,
+            },
+            {consistency: postItemConsistency},
+        );
+
+        if (!item) throw createPostNotFoundError(postId);
+
+        return item;
+    })();
 
     // After we've loaded a post, save it to the authorization cache so if we need
     // to authorize later in the action it's available.

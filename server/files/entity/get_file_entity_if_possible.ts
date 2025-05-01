@@ -1,10 +1,16 @@
 import {ServerContentActionContextModules} from "~/server/context/server_content_action_context.js";
-import {getDocumentContentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
-import {getChannelAndMetadataIfPossible} from "~/server/forum/data/forum_table.js";
+import {
+    createDocumentNotFoundError,
+    getDocumentContentPreviewIfPossible,
+} from "~/server/documents/data/documents_table.js";
+import {
+    createChannelNotFoundError,
+    getChannelAndMetadataIfPossible,
+} from "~/server/forum/data/forum_table.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
-import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
+import {ErrorBase, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
@@ -16,6 +22,7 @@ import {
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
@@ -34,6 +41,7 @@ import {
     TaskQuerySortCursor,
     compareTaskQuerySortCursors,
 } from "~/shared/tasks/task_query_sort_cursor.js";
+import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 export async function getFileEntityIfPossible(
     context: Context<ServerContentActionContextModules & {tasks: TaskContextModuleBase}>,
@@ -46,9 +54,11 @@ export async function getFileEntityIfPossible(
         case "Document": {
             const {documentId} = entityIdObject;
 
-            // NOCOMMIT: Test when you don't have channel access
             const documentResult = await getDocumentContentPreviewIfPossible(context, documentId);
-            if (!documentResult?.ok) return documentResult;
+
+            if (!documentResult) return {ok: false, error: createDocumentNotFoundError(documentId)};
+
+            if (!documentResult.ok) return documentResult;
             const document = documentResult.value;
 
             return {
@@ -94,21 +104,40 @@ export async function getFileEntityIfPossible(
                 },
             ];
 
-            // NOCOMMIT: Test when you don't have access. If possible behavior?
-            // NOCOMMIT: Test when task collection is deleted. It should show the deleted
-            // error message.
-            const result = await context.tasks.loadQueries(spaceId, {
-                taskIds: [],
-                collectionIds: [collectionId],
-                queries: [{limit: 8, filters, sorts}],
-            });
+            const result: Result<TaskRealtimeLoadQueriesOutput, ErrorBase> = await context.tasks
+                .loadQueries(spaceId, {
+                    taskIds: [],
+                    collectionIds: [collectionId],
+                    queries: [{limit: 8, filters, sorts}],
+                })
+                .then(
+                    result => ({ok: true, value: result}),
+                    error => {
+                        // Normally, we prefer that functions explicitly return authorization errors
+                        // instead of us using a try/catch which might pick up an unrelated permission
+                        // error. However, in this case the `loadQueries()` function in
+                        // `TaskRealtimeService` is complex enough that we're not going to bother
+                        // updating its code to return explicit authorization errors for now.
+                        if (
+                            (error instanceof PermissionDeniedError ||
+                                error instanceof NotFoundError) &&
+                            error.displayMessage
+                        ) {
+                            return {ok: false, error};
+                        } else {
+                            throw error;
+                        }
+                    },
+                );
+
+            if (!result.ok) return result;
 
             const tasksAndCursors: Array<{
                 readonly cursor: TaskQuerySortCursor;
                 readonly task: TaskModel;
             }> = [];
 
-            for (const backfillTask of result.updateEvent.backfillTasks) {
+            for (const backfillTask of result.value.updateEvent.backfillTasks) {
                 if (backfillTask.type !== "Authorized") continue;
                 const {task} = backfillTask;
 
@@ -124,7 +153,7 @@ export async function getFileEntityIfPossible(
             );
 
             const backfillCollection = assertExists(
-                result.updateEvent.backfillCollections.find(backfillCollection => {
+                result.value.updateEvent.backfillCollections.find(backfillCollection => {
                     switch (backfillCollection.type) {
                         case "Authorized":
                             return backfillCollection.collection.id === collectionId;
@@ -136,10 +165,9 @@ export async function getFileEntityIfPossible(
                 }),
             );
 
-            if (backfillCollection.type === "Unauthorized") {
-                // Is this where we need to handle unauthorized collections?
-                throw new UnimplementedError("NOCOMMIT");
-            }
+            // If we don't have access to the collection then `loadQueries()` should throw
+            // a `PermissionDeniedError`.
+            assert(backfillCollection.type !== "Unauthorized");
 
             let maxTime = zeroHybridLogicalTime;
 
@@ -151,6 +179,8 @@ export async function getFileEntityIfPossible(
                 },
             };
 
+            // TODO(calebmer): We keep rendering deleted task collections! We should show
+            // an error message instead.
             const collection = backfillCollection.collection;
             collection.tick(clock);
 
@@ -177,12 +207,15 @@ export async function getFileEntityIfPossible(
         case "Channel": {
             const {channelId} = entityIdObject;
 
-            // NOCOMMIT: Test when you don't have channel access
             const channelQueryResult = await getChannelAndMetadataIfPossible(context, {
                 channelId,
                 postFilesLimit: 0,
             });
-            if (!channelQueryResult?.ok) return channelQueryResult;
+
+            if (!channelQueryResult)
+                return {ok: false, error: createChannelNotFoundError(channelId)};
+
+            if (!channelQueryResult.ok) return channelQueryResult;
             const channelQuery = channelQueryResult.value;
 
             const channel = assertExists(

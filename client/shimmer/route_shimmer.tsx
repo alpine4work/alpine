@@ -130,8 +130,10 @@ import {
 } from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 
 /**
  * Shimmer component for each space route. The test
@@ -141,20 +143,20 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
  * If a shimmer definition is `false` that means we show a generic fullscreen
  * loading spinner instead of a custom shimmer.
  */
-const shimmerOptionsByRouteId: {
-    readonly [key: string]:
-        | {
-              inboxBannerMaxWidth?: Spacing | "full";
-              component: ComponentType<{
-                  searchParams: URLSearchParams;
-                  withInboxBanner: boolean;
-                  // Avoid TypeScript error "object has no properties in common" error.
-                  withBackButton?: undefined;
-                  titleWidth?: undefined;
-              }>;
-          }
-        | false;
-} = {
+const shimmerOptionsByRouteId: Record<
+    AppSpaceRouteId,
+    | {
+          inboxBannerMaxWidth?: Spacing | "full";
+          component: ComponentType<{
+              searchParams: URLSearchParams;
+              withInboxBanner: boolean;
+              // Avoid TypeScript error "object has no properties in common" error.
+              withBackButton?: undefined;
+              titleWidth?: undefined;
+          }>;
+      }
+    | false
+> = {
     "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
     "routes/s.$spaceId.channels.$channelId.files": {component: ChannelFilesRouteShimmer},
     "routes/s.$spaceId.chat.$chatId": {
@@ -203,14 +205,6 @@ const shimmerOptionsByRouteId: {
     "routes/s.$spaceId._index": false,
 };
 
-// If we're not running in Jest then export null. This way we export a constant
-// in development that won't break hot module reloading.
-//
-// eslint-disable-next-line react-refresh/only-export-components
-export const getRouteIdsWithDefinedShimmerForTest = import.meta.jest
-    ? () => Object.keys(shimmerOptionsByRouteId)
-    : null;
-
 const RouteShimmerMemo = memo(RouteShimmer);
 export {RouteShimmerMemo as RouteShimmer};
 
@@ -226,7 +220,9 @@ function RouteShimmer({
     const routeLayout = useRouteLayout();
 
     const shimmerOptions = routeId
-        ? shimmerOptionsByRouteId[routeId.replace(".peek.", ".")]
+        ? cast<{[key: string]: (typeof shimmerOptionsByRouteId)[AppSpaceRouteId]}>(
+              shimmerOptionsByRouteId,
+          )[routeId.replace(".peek.", ".")]
         : undefined;
 
     const containerRef = useCoordinatedShimmerAnimations({isDisabled: !shimmerOptions});

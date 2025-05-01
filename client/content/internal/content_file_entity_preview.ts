@@ -129,14 +129,23 @@ export function renderContentFileEntityPreview(
             getContext().react.reportRenderedError(error);
         }
 
-        const isPermissionDeniedError =
-            error instanceof ErrorBase && error.code === ErrorCode.PermissionDenied;
+        const isNotFoundError: boolean =
+            error instanceof ErrorBase &&
+            error.code === ErrorCode.NotFound &&
+            !!error.displayMessage;
+
+        const isPermissionDeniedError: boolean =
+            error instanceof ErrorBase &&
+            error.code === ErrorCode.PermissionDenied &&
+            !!error.displayMessage;
 
         html.appendChild(
             renderContentFileErrorPreview({
                 layout,
-                icon: isPermissionDeniedError ? "Lock" : "Warning",
-                title: isPermissionDeniedError
+                icon: isNotFoundError ? "Trash" : isPermissionDeniedError ? "Lock" : "Warning",
+                title: isNotFoundError
+                    ? `Couldn’t find ${entityNoun}`
+                    : isPermissionDeniedError
                     ? `Private ${entityNoun}`
                     : `Couldn’t preview ${entityNoun}`,
                 displayMessage:

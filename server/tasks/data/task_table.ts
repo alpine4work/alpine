@@ -3027,7 +3027,7 @@ async function actuallyCommitTaskActionTransaction(
                     }
                     case "Undelete": {
                         const collectionItem = await state.getCollectionItemIfExists(collectionId);
-                        if (!collectionItem) throw new NotFoundError("Task collection not found");
+                        if (!collectionItem) throw createTaskCollectionNotFoundError(collectionId);
                         if (!isTaskCollectionItemDeleted(collectionItem)) {
                             throw new FailedPreconditionError(
                                 "Expected task collection to be deleted",
@@ -3060,7 +3060,7 @@ async function actuallyCommitTaskActionTransaction(
                     }
                     default: {
                         const collectionItem = await state.getCollectionItemIfExists(collectionId);
-                        if (!collectionItem) throw new NotFoundError("Task collection not found");
+                        if (!collectionItem) throw createTaskCollectionNotFoundError(collectionId);
                         if (isTaskCollectionItemDeleted(collectionItem))
                             throw new FailedPreconditionError("Task collection was deleted");
 
@@ -3506,6 +3506,20 @@ export function internalGetUpdateOurAccountNameTaskTransactionEntries(
     );
 }
 
+export function createTaskCollectionNotFoundError(collectionId: TaskCollectionId) {
+    return new NotFoundError("Task collection not found", {
+        aggregateDedupeKey: collectionId,
+        displayMessage: errorDisplayMessage`This task collection doesn’t exist. Try searching “my task collections” to see collections you’ve created.`,
+    });
+}
+
+export function createTaskNotFoundError(taskId: TaskId) {
+    return new NotFoundError("Task not found", {
+        aggregateDedupeKey: taskId,
+        displayMessage: errorDisplayMessage`This task doesn’t exist. Try searching “my tasks” to see tasks you’ve created.`,
+    });
+}
+
 export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();
 
 /**
@@ -3616,7 +3630,7 @@ async function getTaskItemForAuthorization(
             ),
     );
 
-    if (!taskItem) throw new NotFoundError("Task not found", {aggregateDedupeKey: taskId});
+    if (!taskItem) throw createTaskNotFoundError(taskId);
     return taskItem;
 }
 
@@ -3662,8 +3676,8 @@ async function getTaskCollectionItemForAuthorization(
         context,
         consistency,
         collectionId,
-        consistency =>
-            TaskTable.getItem(
+        async consistency => {
+            const item = await TaskTable.getItemIfExists(
                 context,
                 {
                     partitionType: "TaskCollection",
@@ -3671,7 +3685,11 @@ async function getTaskCollectionItemForAuthorization(
                     collectionId,
                 },
                 {consistency},
-            ),
+            );
+
+            if (!item) throw createTaskCollectionNotFoundError(collectionId);
+            return item;
+        },
     );
 }
 
@@ -4275,7 +4293,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryItem(
     TaskItemAuthorizationCache.set(context, consistency, taskId, taskItemPromise);
 
     taskItem = await taskItemPromise;
-    if (!taskItem) throw new NotFoundError("Task not found");
+    if (!taskItem) throw createTaskNotFoundError(taskId);
 
     await authorizeTaskItemAccess(context, taskItem, expectedAccessLevel, {
         getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null, {consistency}),
@@ -4374,7 +4392,7 @@ async function authorizeTaskAccessAndGetCommentsSummaryAndNotesItems<Value>(
         options,
     );
 
-    if (!value) throw new NotFoundError("Task not found");
+    if (!value) throw createTaskNotFoundError(taskId);
     return value;
 }
 
@@ -5940,7 +5958,7 @@ export async function getTaskNotesContent(
     content: TaskNotesContentWithReferences;
 }> {
     const taskNotes = await getTaskNotesContentIfExists(context, taskId);
-    if (!taskNotes) throw new NotFoundError("Task not found");
+    if (!taskNotes) throw createTaskNotFoundError(taskId);
     return taskNotes;
 }
 
