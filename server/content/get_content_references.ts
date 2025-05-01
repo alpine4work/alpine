@@ -204,8 +204,6 @@ export async function getContentReferences(
             mapIterable(
                 referencedIds.fileEntityIds,
                 async (entityId): Promise<[FileEntityId, Result<FileEntityModel>] | null> => {
-                    // NOCOMMIT: Consider protection against infinite recursion! If there's a cycle
-                    // between documents above the fold, for example.
                     const entityResult = await context.fileEntity.getIfPossible(spaceId, entityId);
                     if (!entityResult) return null;
                     return [entityId, entityResult];
