@@ -14,6 +14,7 @@ import {taskCommentsHeaderNavigationBarSpacing} from "~/client/styles/tasks_shar
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {ParsableRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {FileId, TaskId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -231,7 +232,7 @@ export function TaskCommentsView({
         (input: {
             content: MessageContent;
             parentMessageIndex: number | null;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
         }) => {
             return procedures.createComment({
                 content: input.content,

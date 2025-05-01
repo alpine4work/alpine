@@ -13,7 +13,7 @@ import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {UnimplementedError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -97,6 +97,41 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
             context => indexTaskActionTransactionAssumingItsCommitted(context, actionTransaction),
         );
     }
+
+    /**
+     * Execute some queries.
+     *
+     * We execute our queries in a running `TaskRealtimeService` instance for the
+     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
+     * up `TaskRealtimeService` so when our client connects via WebSocket the data
+     * it needs is already loaded.
+     */
+    public abstract loadQueries(
+        spaceId: SpaceId,
+        input: TaskRealtimeLoadQueriesInput,
+    ): Promise<TaskRealtimeLoadQueriesOutput>;
+
+    /**
+     * Get a task without any dependencies (doesn't load parent tasks, task
+     * collections, or accounts referenced by the task). If you want to load a task
+     * with its dependencies you may call `loadQueries()` and only pass a single
+     * `TaskId`.
+     *
+     * We execute our queries in a running `TaskRealtimeService` instance for the
+     * space. Since `TaskRealtimeService` keeps query data up-to-date in realtime
+     * (unlike OpenSearch which is behind by at least 30 seconds). This also warms
+     * up `TaskRealtimeService` so when our client connects via WebSocket the data
+     * it needs is already loaded.
+     */
+    public abstract getTaskWithoutDependencies(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                actor: DynamoSessionActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        taskId: TaskId,
+    ): Promise<SchemaType<typeof TaskRealtimeGetTaskWithoutDependenciesOutputSchema>>;
 }
 
 /**
@@ -250,13 +285,7 @@ export class TaskContextModule extends TaskContextModuleBase {
      * up `TaskRealtimeService` so when our client connects via WebSocket the data
      * it needs is already loaded.
      */
-    public async loadQueries(
-        this: TaskContextModule &
-            ContextModuleBase<{
-                process: ProcessContextModule;
-                tracer: TracerContextModule;
-                actor: DynamoActorContextModule;
-            }>,
+    public override async loadQueries(
         spaceId: SpaceId,
         input: TaskRealtimeLoadQueriesInput,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
@@ -315,11 +344,9 @@ export class TaskContextModule extends TaskContextModuleBase {
      * up `TaskRealtimeService` so when our client connects via WebSocket the data
      * it needs is already loaded.
      */
-    public async getTaskWithoutDependencies(
+    public override async getTaskWithoutDependencies(
         this: TaskContextModule &
             ContextModuleBase<{
-                process: ProcessContextModule;
-                tracer: TracerContextModule;
                 actor: DynamoSessionActorContextModule;
             }>,
         spaceId: SpaceId,
@@ -433,5 +460,22 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         if (!this._shouldSkipIndexing) {
             await this._indexActionTransactionAssumingItsCommitted(actionTransaction);
         }
+    }
+
+    public override loadQueries(): never {
+        throw new UnimplementedError(
+            "`TestTaskContextModule.loadQueries()` can't be implemented in unit tests because we don't run `TaskRealtimeService` in unit tests",
+        );
+    }
+
+    public override getTaskWithoutDependencies(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                actor: DynamoSessionActorContextModule;
+            }>,
+    ): Promise<SchemaType<typeof TaskRealtimeGetTaskWithoutDependenciesOutputSchema>> {
+        throw new UnimplementedError(
+            "`TestTaskContextModule.getTaskWithoutDependencies()` can't be implemented in unit tests because we don't run `TaskRealtimeService` in unit tests",
+        );
     }
 }

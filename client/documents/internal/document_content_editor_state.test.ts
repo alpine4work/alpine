@@ -1,7 +1,7 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {Selection, TextSelection, Transaction} from "prosemirror-state";
 import {ReplaceStep} from "prosemirror-transform";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {
     DocumentContentEditorAction,
     DocumentContentEditorState,

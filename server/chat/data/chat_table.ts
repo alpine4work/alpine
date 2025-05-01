@@ -40,6 +40,8 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -54,7 +56,7 @@ import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/itera
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {decodeIdInto, encodeId, generateId} from "~/shared/id/id.js";
+import {decodeIdInto, encodeId, generateId, isId} from "~/shared/id/id.js";
 import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
@@ -805,7 +807,7 @@ export function sendChatMessage(
         chatId: ChatId;
         parentMessageIndex: number | null;
         content: MessageContent;
-        fileIds: ReadonlyArray<FileId>;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -821,12 +823,14 @@ export function sendChatMessage(
                 // Make sure all the provided files exist.
                 await runAllPromises(
                     fileIds.map(fileId =>
-                        getFileFromAttachment(
-                            context,
-                            result.chatItem.spaceId,
-                            fileId,
-                            FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
-                        ),
+                        isId<FileId>(fileId)
+                            ? getFileFromAttachment(
+                                  context,
+                                  result.chatItem.spaceId,
+                                  fileId,
+                                  FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
+                              )
+                            : null,
                     ),
                 );
 
@@ -1059,6 +1063,13 @@ async function getChatAccountItemIfExistsForAuthorization(
     );
 }
 
+export function createChatNotFoundError(chatId: ChatId) {
+    return new NotFoundError("Chat not found", {
+        aggregateDedupeKey: chatId,
+        displayMessage: errorDisplayMessage`This chat doesn’t exist. Try searching “my chats” to see chats you’re in.`,
+    });
+}
+
 /**
  * Authorize that the current account is allowed to access the chat.
  *
@@ -1078,10 +1089,7 @@ export async function authorizeChatAccess(
         // If we have access to the space, we have access to the chat...
         case "System": {
             const chatItem = await getChatItemIfExistsForAuthorization(context, chatId, options);
-
-            if (!chatItem) {
-                throw new NotFoundError("Chat not found");
-            }
+            if (!chatItem) throw createChatNotFoundError(chatId);
 
             await authorizeSpaceAccess(context, chatItem.spaceId);
 
@@ -1186,7 +1194,7 @@ async function getChatItemIfExistsAndAuthorizeAccess(
 
 async function getChatItemAndAuthorizeAccess(context: ServerSessionActionContext, chatId: ChatId) {
     const chatItem = await getChatItemIfExistsAndAuthorizeAccess(context, chatId);
-    if (!chatItem) throw new NotFoundError("Chat not found");
+    if (!chatItem) throw createChatNotFoundError(chatId);
     return chatItem;
 }
 
@@ -1373,7 +1381,7 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
         }
     }
 
-    if (!chatItem) throw new NotFoundError("Chat not found");
+    if (!chatItem) throw createChatNotFoundError(chatId);
 
     return createChatModelFromItems(context, chatItem, chatAccountItems);
 }
@@ -1495,7 +1503,7 @@ export async function getChatAccountIds(
         }
     }
 
-    if (!chatItem) throw new NotFoundError("Chat not found");
+    if (!chatItem) throw createChatNotFoundError(chatId);
 
     await authorizeSpaceAccess(context, chatItem.spaceId);
 
@@ -1723,7 +1731,7 @@ export function deleteChatMessage(
             }),
         ]);
 
-        if (!chatItemAndChatAccountItem) throw new NotFoundError("Chat not found");
+        if (!chatItemAndChatAccountItem) throw createChatNotFoundError(chatId);
         if (!chatMessageItem) throw new NotFoundError("Chat message not found");
 
         const {chatItem} = chatItemAndChatAccountItem;

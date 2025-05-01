@@ -1,4 +1,5 @@
 import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_table.js";
+import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
     DocumentStepCountByAccountId,
     getDocumentCommentPayload,
@@ -6,9 +7,10 @@ import {
     getDocumentTitle,
 } from "~/server/documents/data/documents_table.js";
 import {
-    getChannelNameAndDescriptionContent,
+    getChannelNameAndDescriptionContentAndContributors,
     getPostCommentPayload,
     getPostContentAndChannelPreview,
+    maxChannelContributionCount,
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
@@ -51,6 +53,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -165,6 +168,9 @@ interface TaskCollectionModelForAuthorization {
 class SearchEntityReadState {
     private readonly _context: SearchSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
+    public readonly registerAdditionalWrite: (
+        action: (context: SearchSystemActionContext) => Promise<void>,
+    ) => void;
     private readonly _targetId: SearchDynamicEntityId;
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
@@ -183,8 +189,16 @@ class SearchEntityReadState {
 
     constructor(
         context: SearchSystemActionContext,
-        tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
         targetId: SearchDynamicEntityId,
+        {
+            tokenizer,
+            registerAdditionalWrite,
+        }: {
+            tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
+            registerAdditionalWrite: (
+                action: (context: SearchSystemActionContext) => Promise<void>,
+            ) => void;
+        },
     ) {
         // Makes sure all reads use strong consistency. We need strong consistency so
         // that we don't miss recent updates when indexing. Throws an error (in
@@ -192,6 +206,7 @@ class SearchEntityReadState {
         this._context = context.dynamo.expectStrongReadConsistency();
 
         this.tokenizer = tokenizer;
+        this.registerAdditionalWrite = registerAdditionalWrite;
         this._targetId = targetId;
     }
 
@@ -278,6 +293,7 @@ class SearchEntityReadState {
         content: DocumentContent;
         creatorId: AccountId | null;
         stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
+        updateContentPreview: (context: ServerActionContext) => Promise<void>;
     }> {
         this._recordDependencyId(`Document:${documentId}`);
 
@@ -317,16 +333,17 @@ class SearchEntityReadState {
         });
     }
 
-    public getChannelNameAndDescriptionContent(channelId: ChannelId): Promise<{
+    public getChannelNameAndDescriptionContentAndContributors(channelId: ChannelId): Promise<{
         name: string;
         description: MessageContent;
         createdTime: Date;
         creatorId: AccountId | null;
         accessPolicy: AccessPolicy;
+        contributionCountByAccountId: ReadonlyMap<AccountId, number>;
     }> {
         this._recordDependencyId(`Channel:${channelId}`);
 
-        return getChannelNameAndDescriptionContent(this._context, channelId, {
+        return getChannelNameAndDescriptionContentAndContributors(this._context, channelId, {
             consistency: "StrongWithinCache",
         });
     }
@@ -544,18 +561,28 @@ function getSearchEntityIndexAccessPolicy(
  * function guarantees read-after-write consistency. If you've waited for a
  * write to commit then this function will read it (this means all DynamoDB
  * reads are made with strong consistency).
+ *
+ * While reading we may optionally register a function to perform additional
+ * write actions. If we call this function as a part of the `IndexSearchEntity`
+ * job then the additional writes will be run alongside updating our OpenSearch
+ * index.
  */
 export async function getSearchEntity(
     context: SearchSystemActionContext,
     idObject: SearchDynamicEntityIdObject,
-    tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
+    options: {
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
+        registerAdditionalWrite: (
+            action: (context: SearchSystemActionContext) => Promise<void>,
+        ) => void;
+    },
 ): Promise<{
     dependencyIds: Iterable<SearchEntityDependencyId>;
     entity: SearchEntity;
 }> {
     const id = printSearchDynamicEntityId(idObject);
 
-    const state = new SearchEntityReadState(context, tokenizer, id);
+    const state = new SearchEntityReadState(context, id, options);
 
     const entity = await actuallyGetSearchEntity(state, idObject);
 
@@ -632,8 +659,19 @@ async function getDocumentSearchEntity(
     state: SearchEntityReadState,
     documentId: DocumentId,
 ): Promise<SearchEntity> {
-    const {createdTime, version, content, creatorId, stepCountByNonCreatorAccountId} =
-        await state.getDocumentContent(documentId);
+    const {
+        createdTime,
+        version,
+        content,
+        creatorId,
+        stepCountByNonCreatorAccountId,
+        updateContentPreview,
+    } = await state.getDocumentContent(documentId);
+
+    // If we're running an `IndexSearchEntity` job then we also want to update the
+    // document's content preview alongside updating the OpenSearch index.
+    state.registerAdditionalWrite(updateContentPreview);
+
     await getDocumentSearchEntityTestCheckpoint.waitForTest(documentId);
 
     const {title, getFullText, getEmbeddingChunks} = await chunkDocumentSearchContent(
@@ -778,7 +816,7 @@ async function getChannelSearchEntity(
     state: SearchEntityReadState,
     channelId: ChannelId,
 ): Promise<SearchEntity> {
-    const channel = await state.getChannelNameAndDescriptionContent(channelId);
+    const channel = await state.getChannelNameAndDescriptionContentAndContributors(channelId);
 
     const truncatedName = new Lazy(() =>
         truncateTokens(state.tokenizer, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
@@ -806,9 +844,20 @@ async function getChannelSearchEntity(
         media: null,
         embeddingChunks: getEmbeddingChunks(),
         creatorId: channel.creatorId,
-        // Maybe in the future we could track who posts in a channel to support
-        // searches like "channels I've posted in".
-        contributorIds: emptyMap,
+        // Contributors at the max contribution count (as of 2025-04-30 that's 8) are
+        // considered major contributors.
+        contributorIds: new Map(
+            concatIterables(
+                mapIterable(
+                    channel.contributionCountByAccountId,
+                    ([accountId, contributionCount]): [AccountId, "Major" | "Minor"] => [
+                        accountId,
+                        contributionCount >= maxChannelContributionCount ? "Major" : "Minor",
+                    ],
+                ),
+                channel.creatorId !== null ? [[channel.creatorId, "Major"]] : emptyArray,
+            ),
+        ),
     };
 }
 
@@ -977,9 +1026,15 @@ async function getChatSearchEntity(
                 : {type: "AccountPile", accountIds},
         embeddingChunks: emptyArray,
         creatorId: null,
-        // We could keep track of relative proportions of who's sending messages to the
-        // chat, but it's unclear what search queries this would support.
-        contributorIds: emptyMap,
+
+        // Consider all members of the chat to be major contributors! Since the number
+        // of people in the chat will generally be small.
+        //
+        // It's a little odd that only multi-user chats get this designation. If you
+        // search for "chats I'm a contributor to" (aka "my chats") you'd expect to see
+        // 1:1 chats there too but currently we don't index 1:1 chats. We only index
+        // accounts.
+        contributorIds: new Map(accountIds.map(accountId => [accountId, "Major"])),
     };
 }
 

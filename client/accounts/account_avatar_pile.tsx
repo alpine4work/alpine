@@ -3,6 +3,10 @@ import {differenceInMinutes} from "date-fns/differenceInMinutes";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {
+    AccountAvatarPileSize,
+    accountAvatarPileSizes,
+} from "~/client/accounts/account_avatar_pile_size.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
@@ -15,8 +19,6 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
-
-export type AccountAvatarPileSize = "3" | "4" | "5" | "6" | "7" | "12";
 
 export function AccountAvatarPile({
     size = "6",
@@ -38,47 +40,8 @@ export function AccountAvatarPile({
         [previewAccounts],
     );
 
-    const {avatarSize, avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} = (
-        {
-            "3": {
-                avatarSize: "3",
-                avatarOverlapWidth: "2.5",
-                borderWidth: 1,
-                overflowFontSize: "50",
-                overflowScale: 0.75,
-            },
-            "4": {
-                avatarSize: "4",
-                avatarOverlapWidth: "3",
-                borderWidth: 1.5,
-                overflowFontSize: "50",
-            },
-            "5": {
-                avatarSize: "5",
-                avatarOverlapWidth: "4",
-                borderWidth: 2,
-                overflowFontSize: "50",
-            },
-            "6": {
-                avatarSize: "6",
-                avatarOverlapWidth: "5",
-                borderWidth: 2,
-                overflowFontSize: "50",
-            },
-            "7": {
-                avatarSize: "7",
-                avatarOverlapWidth: "6",
-                borderWidth: 2,
-                overflowFontSize: "50",
-            },
-            "12": {
-                avatarSize: "12",
-                avatarOverlapWidth: "10",
-                borderWidth: 3,
-                overflowFontSize: "100",
-            },
-        } as const
-    )[size];
+    const {avatarOverlapWidth, borderWidth, overflowFontSize, overflowScale} =
+        accountAvatarPileSizes[size];
 
     // Is there a last circle with some interactive element? Either a count of how
     // many additional accounts there are or some custom avatar.
@@ -91,16 +54,13 @@ export function AccountAvatarPile({
             position="relative"
             zIndex="0"
             style={{
-                paddingRight: addRemLengths(
-                    avatarSize,
-                    negateRemLength(spacing[avatarOverlapWidth]),
-                ),
+                paddingRight: addRemLengths(size, negateRemLength(spacing[avatarOverlapWidth])),
             }}
         >
             {previewAccounts.map((account, index) => (
                 <Box
                     key={account.id}
-                    height={avatarSize}
+                    height={size}
                     width={avatarOverlapWidth}
                     position="relative"
                     style={{
@@ -114,7 +74,7 @@ export function AccountAvatarPile({
                 >
                     <AccountAvatar
                         account={account}
-                        size={avatarSize}
+                        size={size}
                         backgroundBorderWidth={
                             previewAccounts.length > 1 || hasLastAvatar ? borderWidth : undefined
                         }
@@ -123,7 +83,7 @@ export function AccountAvatarPile({
             ))}
             {lastAvatar ? (
                 <Box
-                    height={avatarSize}
+                    height={size}
                     width={avatarOverlapWidth}
                     position="relative"
                     style={{zIndex: 1 + previewAccounts.length}}
@@ -137,8 +97,8 @@ export function AccountAvatarPile({
                         }}
                     >
                         <Box
-                            height={avatarSize}
-                            width={avatarSize}
+                            height={size}
+                            width={size}
                             borderRadius="full"
                             backgroundColor="grey-10"
                             color="grey-70"
@@ -192,8 +152,8 @@ export function AccountAvatarPile({
                             }}
                         >
                             <Box
-                                height={avatarSize}
-                                width={avatarSize}
+                                height={size}
+                                width={size}
                                 borderRadius="full"
                                 style={{
                                     boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,

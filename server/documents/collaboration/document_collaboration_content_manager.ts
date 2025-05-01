@@ -33,6 +33,7 @@ import {
     InvalidArgumentError,
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -79,7 +80,7 @@ export type DocumentCollaborationContentManagerOptimisticCommentThread = {
     readonly initialComment: {
         readonly authorId: AccountId;
         readonly content: MessageContent;
-        readonly fileIds: ReadonlyArray<FileId>;
+        readonly fileIds: ReadonlyArray<FileId | FileEntityId>;
     };
 };
 
@@ -141,7 +142,7 @@ export class DocumentCollaborationContentManager {
             readonly initialComment: {
                 readonly authorId: AccountId;
                 readonly content: MessageContent;
-                readonly fileIds: ReadonlyArray<FileId>;
+                readonly fileIds: ReadonlyArray<FileId | FileEntityId>;
             };
         }
     >();
@@ -268,7 +269,7 @@ export class DocumentCollaborationContentManager {
             createCommentThreads: ReadonlyArray<{
                 commentThreadId: DocumentCommentThreadId;
                 initialCommentContent: MessageContent;
-                initialCommentFileIds: ReadonlyArray<FileId>;
+                initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             }>;
             intentionallyUpdateAccessPolicy: AccessPolicy | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;

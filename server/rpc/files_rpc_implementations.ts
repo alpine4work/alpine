@@ -9,6 +9,7 @@ import {
     getFileFromAttachment,
     startUploadingFile,
 } from "~/server/files/data/files_table.js";
+import {getFileEntityIfPossible} from "~/server/files/entity/get_file_entity_if_possible.js";
 import {FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
@@ -223,6 +224,18 @@ export default implementRpcs(definitions, {
                 signedUrlSearch: signedUrl.search,
                 file,
             };
+        },
+    },
+
+    getFileEntityIfPossible: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const result = await getFileEntityIfPossible(
+                context,
+                input.spaceId,
+                input.fileEntityId,
+            );
+            return {fileEntityResult: result};
         },
     },
 });

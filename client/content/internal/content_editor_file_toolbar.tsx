@@ -12,10 +12,10 @@ import {Command, EditorState, NodeSelection, Selection} from "prosemirror-state"
 import {EditorView} from "prosemirror-view";
 import {ReactNode, RefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
-import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {ContentEditorFloaterState} from "~/client/content/state/content_editor_floater_state.js";
+import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -31,12 +31,14 @@ import {
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
 
 let isDisablingContentEditorFileToolbarInitialAnimation = false;
@@ -172,6 +174,11 @@ function ContentEditorFileToolbar({
 
     const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
 
+    // Don't render the replace button for file entities. It would be weird to open
+    // a file selector when clicking the replace button on a file entity.
+    const hasReplaceButton =
+        !selection.node.attrs.fileId || isId<FileId>(selection.node.attrs.fileId);
+
     const hasAlignmentButtons =
         state.schema.nodes.fileFloat &&
         ((selection.$anchor.parent.type.name === "fileRow" &&
@@ -180,9 +187,26 @@ function ContentEditorFileToolbar({
 
     const references = getContentEditorReferences(state).references;
 
-    const file = useMemo(() => {
-        const fileId: FileId | null | undefined = selection.node.attrs.fileId;
-        return fileId ? references.fileById.get(fileId)?.file : undefined;
+    const {deleteVerb, entityNoun} = useMemo(() => {
+        const fileId: FileId | FileEntityId | null | undefined = selection.node.attrs.fileId;
+
+        if (!fileId) {
+            const entityNoun = getFileContentTypeNoun(undefined);
+            return {deleteVerb: "Delete", entityNoun};
+        } else if (isId<FileId>(fileId)) {
+            const entityNoun = getFileContentTypeNoun(
+                references.fileById?.get(fileId)?.file.contentType,
+            );
+            return {deleteVerb: "Delete", entityNoun};
+        } else {
+            const fileIdObject = parseFileEntityId(fileId);
+            const entityNoun = getFileEntityNoun(fileIdObject);
+
+            // Use a softer verb than "Delete". Since you're not "deleting a document" when
+            // you select the delete option, rather you're removing a document embed from
+            // the content.
+            return {deleteVerb: "Remove", entityNoun};
+        }
     }, [references.fileById, selection.node.attrs.fileId]);
 
     const isContextMenuOpen = useIsContextMenuOpen();
@@ -210,6 +234,9 @@ function ContentEditorFileToolbar({
                 fallbackPlacements={emptyArray}
                 offset="4"
                 targetElement={targetElement}
+                // Render above `<FocusRing>` overlays. For example, the `<FocusRing>` overlay
+                // around a post when editing content on desktop.
+                overlayZIndex="10"
                 overlay={
                     <Box
                         ref={toolbarRef}
@@ -411,40 +438,41 @@ function ContentEditorFileToolbar({
                         )}
                         {hasEditAccessLevel && (
                             <>
-                                <ContentEditorFileToolbarButton
-                                    dividerLeft={hasAlignmentButtons}
-                                    description={`Replace ${getFileContentTypeNoun(
-                                        file?.contentType,
-                                    )}`}
-                                    viewRef={viewRef}
-                                    isActive={false}
-                                    command={() => {
-                                        const toolbarElement = assertExists(toolbarRef.current);
+                                {hasReplaceButton && (
+                                    <ContentEditorFileToolbarButton
+                                        dividerLeft={hasAlignmentButtons}
+                                        description={`Replace ${entityNoun}`}
+                                        viewRef={viewRef}
+                                        isActive={false}
+                                        command={() => {
+                                            const toolbarElement = assertExists(toolbarRef.current);
 
-                                        selectFiles(toolbarElement, {
-                                            multiple: false,
-                                        })
-                                            .then(files => {
-                                                if (files.length !== 1) return;
-
-                                                // If the component unmounted while we were waiting on a selection then don't
-                                                // try replacing this file.
-                                                if (!selectionRef.current) return;
-
-                                                onInsertFiles(selectionRef.current, [files[0]!]);
+                                            selectFiles(toolbarElement, {
+                                                multiple: false,
                                             })
-                                            .catch(scheduleUncaughtError);
+                                                .then(files => {
+                                                    if (files.length !== 1) return;
 
-                                        return true;
-                                    }}
-                                >
-                                    <Swap />
-                                </ContentEditorFileToolbarButton>
+                                                    // If the component unmounted while we were waiting on a selection then don't
+                                                    // try replacing this file.
+                                                    if (!selectionRef.current) return;
+
+                                                    onInsertFiles(selectionRef.current, [
+                                                        files[0]!,
+                                                    ]);
+                                                })
+                                                .catch(scheduleUncaughtError);
+
+                                            return true;
+                                        }}
+                                    >
+                                        <Swap />
+                                    </ContentEditorFileToolbarButton>
+                                )}
                                 <ContentEditorFileToolbarButton
+                                    dividerLeft={!hasReplaceButton && hasAlignmentButtons}
                                     dividerRight={!!state.schema.marks.comment}
-                                    description={`Delete ${getFileContentTypeNoun(
-                                        file?.contentType,
-                                    )}`}
+                                    description={`${deleteVerb} ${entityNoun}`}
                                     viewRef={viewRef}
                                     isActive={false}
                                     command={() => {
@@ -470,7 +498,10 @@ function ContentEditorFileToolbar({
                                         onMobileCommentInputOpen();
                                     } else {
                                         dispatch?.(
-                                            state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                            state.tr.setMeta(
+                                                contentEditorOpenCommentInputFloaterMetaKey,
+                                                true,
+                                            ),
                                         );
                                     }
                                     return true;
@@ -492,10 +523,10 @@ function ContentEditorFileToolbar({
             {showDeleteConfirmationDialog && (
                 <ModalDialog
                     data-ownedby={toolbarId}
-                    title={`Delete ${getFileContentTypeNoun(file?.contentType)}?`}
+                    title={`${deleteVerb} ${entityNoun}?`}
                     description="You can undo this change at any time."
                     onClose={() => setShowDeleteConfirmationDialog(false)}
-                    primaryButtonLabel="Delete"
+                    primaryButtonLabel={deleteVerb}
                     onPrimaryButtonPress={() => {
                         const view = assertExists(viewRef.current);
                         view.dispatch(view.state.tr.deleteSelection());

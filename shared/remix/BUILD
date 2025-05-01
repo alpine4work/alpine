@@ -1,3 +1,4 @@
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
@@ -9,4 +10,11 @@ ts_project(
         "//shared/schema",
         "//shared/tasks",
     ],
+)
+
+write_source_files(
+    name = "write_app_space_route_id",
+    files = {
+        "app_space_route_id.ts": "//app:app_space_route_id.ts",
+    },
 )

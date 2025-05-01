@@ -5,9 +5,9 @@ import {
     formatContentFileVideoAndAudioPlayerDurationString,
     renderContentFileVideoAndAudioPlayerControls,
 } from "~/client/content/internal/content_file_video_and_audio_player_controls.js";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
 import {transparentImageDataUrl} from "~/client/content/internal/helpers/transparent_image_data_url.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {cornersInIconSvg} from "~/client/icons/corners_in_icon_svg.js";
 import {cornersOutIconSvg} from "~/client/icons/corners_out_icon_svg.js";

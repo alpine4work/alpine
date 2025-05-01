@@ -1,15 +1,15 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
-import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/internal/content_editor_file_node_view.js";
-import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
-import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
+import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
+import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
-} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
@@ -25,12 +25,14 @@ import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -124,8 +126,9 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             const {references} = getContentEditorReferences(view.state);
 
             const fileReferences = node.content.content.map(childNode => {
-                const fileId: FileId | null = childNode.attrs.fileId;
-                const fileReference = fileId ? references.fileById.get(fileId) : undefined;
+                const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
+                const fileReference =
+                    fileId && isId<FileId>(fileId) ? references.fileById?.get(fileId) : undefined;
                 return fileReference;
             });
 
@@ -153,9 +156,10 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
             const layoutsStore = computeStore(get =>
                 layoutContentFileParent(node, {
                     blockWidth: blockWidthPx,
+                    platform,
                     spacingScale,
                     getFile: fileId => {
-                        const fileReference = references.fileById.get(fileId);
+                        const fileReference = references.fileById?.get(fileId);
                         if (!fileReference) return null;
                         return get(getFileClientStore(getSpaceId()).getFileStore(fileReference));
                     },

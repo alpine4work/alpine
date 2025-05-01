@@ -12,6 +12,7 @@ import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
+import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
@@ -150,6 +151,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 type InboxActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
     files: FilesContextModuleBase;
+    fileEntity: FileEntityContextModuleBase;
     r2: CloudflareR2ContextModule;
 };
 

@@ -82,7 +82,7 @@ export function SpaceLayoutSideBar({
                             size="lg"
                             description="Home"
                             tooltipPlacement="right"
-                            pressErrorTitle="Couldn’t open home page"
+                            pressErrorTitle="Couldn’t open home"
                             onPress={async () => {
                                 await rootNavigate(`/s/${space.id}`);
                             }}

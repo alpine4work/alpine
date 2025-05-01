@@ -55,10 +55,15 @@ export function ContentFileMiniPreview({
         ),
     );
 
+    const node = useMemo(
+        () => ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: file.id}),
+        [file.id],
+    );
+
     const htmlGenerator = useMemo(() => {
         const html = renderContentFilePreview({
             spaceId: space.id,
-            node: ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: file.id}),
+            node,
             file,
             layout: {width: size, widthFr: 1, height: size},
             // Code previews use `blockWidth` to scale down text. Set a `blockWidth`
@@ -86,7 +91,7 @@ export function ContentFileMiniPreview({
         );
 
         return html;
-    }, [file, isInitialAppRender, platform, size, space.id, spacingScale]);
+    }, [file, isInitialAppRender, node, platform, size, space.id, spacingScale]);
 
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
 
@@ -128,7 +133,7 @@ export function ContentFileMiniPreview({
             assertExists(containerElement.firstElementChild) as HTMLElement,
             {
                 spaceId: space.id,
-                node: ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: file.id}),
+                node,
                 file,
                 attachmentTarget,
                 isInitialAppRender,
@@ -147,6 +152,7 @@ export function ContentFileMiniPreview({
         file,
         isInitialAppRender,
         navigate,
+        node,
         onOpenViewer,
         reporter,
         rootNavigate,

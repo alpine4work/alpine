@@ -1,5 +1,6 @@
 import {InvalidArgumentError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
@@ -754,4 +755,49 @@ test("missing optional property is still missing when deserialized", () => {
 
     expect(hasOwnProperty(schema.deserialize({p: 42}), "p")).toEqual(true);
     expect(hasOwnProperty(schema.deserialize({}), "p")).toEqual(false);
+});
+
+test("interface can create multiple independent implementations", () => {
+    const Animal = Schema.interface({
+        type: Schema.string,
+        age: Schema.integer,
+    });
+
+    const CatSchema = Animal.implement({
+        type: Schema.value("Cat"),
+        breed: Schema.enum(["Calico", "Siamese", "Tabby", "Tuxedo"]),
+    });
+
+    const DogSchema = Animal.implement({
+        type: Schema.value("Dog"),
+        breed: Schema.enum(["Bulldog", "Labrador", "Beagle", "Poodle"]),
+    });
+
+    const dog1 = new Animal(DogSchema, {type: "Dog", age: 2, breed: "Labrador"});
+
+    expect(dog1.type).toEqual("Dog");
+    expect(dog1.age).toEqual(2);
+    expect(cast<{type: string; breed?: string}>(dog1).breed).toEqual(undefined);
+    expect(dog1.deserialize(DogSchema)).toEqual({type: "Dog", age: 2, breed: "Labrador"});
+    expect(() => dog1.deserialize(CatSchema)).toThrow(
+        "Can't deserialize `InterfaceSchemaInstance` with different schemas",
+    );
+
+    const dog2 = Animal.schema.deserialize(Animal.schema.serialize(dog1));
+
+    expect(dog2.type).toEqual("Dog");
+    expect(dog2.age).toEqual(2);
+    expect(cast<{type: string; breed?: string}>(dog2).breed).toEqual(undefined);
+    expect(dog2.deserialize(DogSchema)).toEqual({type: "Dog", age: 2, breed: "Labrador"});
+    expect(() => dog2.deserialize(CatSchema)).toThrow(
+        "Can't deserialize `InterfaceSchemaInstance` with different schemas",
+    );
+
+    const dog3 = Animal.schema.deserialize(Animal.schema.serialize(dog2));
+
+    expect(dog3.type).toEqual("Dog");
+    expect(dog3.age).toEqual(2);
+    expect(cast<{type: string; breed?: string}>(dog3).breed).toEqual(undefined);
+    expect(() => dog3.deserialize(CatSchema)).toThrow('Expected value to be "Cat" in `.type`');
+    expect(dog3.deserialize(DogSchema)).toEqual({type: "Dog", age: 2, breed: "Labrador"});
 });

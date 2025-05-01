@@ -103,6 +103,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -486,7 +487,13 @@ export async function processIndexSearchEntityJob(
         const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
         const readStartTime = new Date();
-        const {dependencyIds, entity} = await getSearchEntity(context, job.update, tokenizer);
+        const additionalWriteActions: Array<(context: SearchSystemActionContext) => Promise<void>> =
+            [];
+
+        const {dependencyIds, entity} = await getSearchEntity(context, job.update, {
+            tokenizer,
+            registerAdditionalWrite: action => additionalWriteActions.push(action),
+        });
 
         // The new updated time should:
         //
@@ -555,13 +562,32 @@ export async function processIndexSearchEntityJob(
             anyContributorIds: Array.from(anyContributorIds),
         };
 
-        // If the entity has some embedding chunks, then we need to index those chunks.
-        // If the entity had some embedding chunks but no longer has those chunks we
-        // also need to run our embedding chunk indexing job since we need to delete
-        // any existing embedding chunks.
-        if (newDocForKeywordIndex.hasEmbeddingChunks || oldDocForKeywordIndex?.hasEmbeddingChunks) {
-            await scheduleUpdateEmbeddingChunks();
-        }
+        await runAllPromises([
+            // If the entity has some embedding chunks, then we need to index those chunks.
+            // If the entity had some embedding chunks but no longer has those chunks we
+            // also need to run our embedding chunk indexing job since we need to delete
+            // any existing embedding chunks.
+            newDocForKeywordIndex.hasEmbeddingChunks || oldDocForKeywordIndex?.hasEmbeddingChunks
+                ? scheduleUpdateEmbeddingChunks()
+                : null,
+
+            // If `getSearchEntity()` declared any additional write actions then execute
+            // those now.
+            //
+            // This is used, for example, by `getDocumentSearchEntity()`. Since we want to
+            // update the document's content preview in DynamoDB at the same time we update
+            // it in our OpenSearch index.
+            //
+            // We must execute the actions before `indexDocIfVersion()` to make sure these
+            // actions execute reliably. Imagine executing the actions after
+            // `indexDocIfVersion()` and `indexDocIfVersion()` passes but the additional
+            // write action fails. When SQS re-runs the `IndexSearchEntity` job it'll early
+            // return and NOT re-run our additional write actions since the
+            // `lastReadStartTime` of the current doc in the keywords index is sufficient.
+            additionalWriteActions.length > 0
+                ? runAllPromises(additionalWriteActions.map(action => action(context)))
+                : null,
+        ]);
 
         await context.opensearch.indexDocIfVersion(
             SearchEntityKeywordIndex,
@@ -758,7 +784,12 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
         const entityIdObject = parseSearchDynamicEntityId(job.entityId);
 
         const [{entity}, allOldChunks] = await runAllPromises([
-            getSearchEntity(context, entityIdObject, tokenizer),
+            getSearchEntity(context, entityIdObject, {
+                tokenizer,
+                // We should have already performed any additional writes in our
+                // `IndexSearchEntity` job.
+                registerAdditionalWrite: noop,
+            }),
             (async () => {
                 const allHits: Array<{
                     id: string;

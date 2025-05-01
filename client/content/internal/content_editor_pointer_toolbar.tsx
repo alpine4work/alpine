@@ -34,20 +34,20 @@ import {
 import {mergeProps} from "react-aria";
 import {flushSync} from "react-dom";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
-import {
-    ContentEditorFloaterState,
-    ContentEditorPointerToolbarFloaterState,
-} from "~/client/content/internal/content_editor_floater_state.js";
 import {ContentEditorHighlightSelector} from "~/client/content/internal/content_editor_highlight_selector.js";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_link_input.js";
 import {areAllNodesBlockType} from "~/client/content/internal/helpers/are_all_nodes_block_type.js";
 import {areAllNodesListItemType} from "~/client/content/internal/helpers/are_all_nodes_list_item_type.js";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
-import {createToggleMarkCommand} from "~/client/content/internal/helpers/create_toggle_mark_command.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
-import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/trim_selection_invisible_extension_into_adjacent_nodes.js";
+import {
+    ContentEditorFloaterState,
+    ContentEditorPointerToolbarFloaterState,
+} from "~/client/content/state/content_editor_floater_state.js";
+import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {createToggleMarkCommand} from "~/client/content/state/create_toggle_mark_command.js";
+import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {Box} from "~/client/design/box.js";
 import {useIsContextMenuOpen} from "~/client/design/context_menu.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
@@ -995,7 +995,9 @@ function ContentEditorPointerToolbarButtons({
 
                         if (!isCommentSupported) return false;
 
-                        dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+                        dispatch?.(
+                            state.tr.setMeta(contentEditorOpenCommentInputFloaterMetaKey, true),
+                        );
                         return true;
                     }}
                 >
@@ -1431,7 +1433,7 @@ function ContentEditorPointerToolbarButtonsCommentOnly({
 
                 if (!isCommentSupported) return false;
 
-                dispatch?.(state.tr.setMeta(openCommentInputFloaterMetaKey, true));
+                dispatch?.(state.tr.setMeta(contentEditorOpenCommentInputFloaterMetaKey, true));
                 return true;
             }}
         >

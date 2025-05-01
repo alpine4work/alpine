@@ -13,8 +13,8 @@ import {
 import {usePress} from "react-aria";
 import {flushSync} from "react-dom";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {Checkbox} from "~/client/design/checkbox.js";
 import {ModalWithButtons, ModalWithButtonsRef} from "~/client/design/modal_with_buttons.js";

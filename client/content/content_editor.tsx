@@ -32,6 +32,7 @@ import {
 } from "prosemirror-view";
 import {
     FocusEvent,
+    Key,
     Memo,
     PropsWithoutRef,
     ReactElement,
@@ -39,6 +40,7 @@ import {
     RefAttributes,
     forwardRef,
     useCallback,
+    useContext,
     useEffect,
     useImperativeHandle,
     useInsertionEffect,
@@ -47,16 +49,7 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {
-    ContentEditorReferencesSharedAction,
-    ContentEditorState,
-    getContentEditorFloaterState,
-    getContentEditorReferences,
-    rememberContentEditorPosWhileLoading,
-    rememberContentEditorSelectionWhileLoading,
-    setContentEditorFloaterState,
-    updateContentEditorReferences,
-} from "~/client/content/content_editor_state.js";
+import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
@@ -83,7 +76,6 @@ import {
     insertContentUnorderedListItem,
     isContentTableBlockNode,
 } from "~/client/content/internal/content_editor_insert.js";
-import {openCommentInputFloaterMetaKey} from "~/client/content/internal/content_editor_keymap_plugin.js";
 import {createContentEditorLinkMarkViewConstructor} from "~/client/content/internal/content_editor_link_mark_view.js";
 import {createContentEditorMentionNodeViewConstructor} from "~/client/content/internal/content_editor_mention_node_view.js";
 import {ContentEditorMobileCommentInputBottomBar} from "~/client/content/internal/content_editor_mobile_comment_input_bottom_bar.js";
@@ -102,22 +94,34 @@ import {
 } from "~/client/content/internal/get_content_editor_file_drop_targets.js";
 import {
     FileInfo,
+    FileInfoWithEntity,
     iterateFileInfosInElement,
 } from "~/client/content/internal/iterate_file_infos_in_element.js";
-import {
-    dispatchParentScrollWhenPointerDownAndOverEvent,
-    parentScrollWhenPointerDownAndOverClassNames,
-} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
 import {createContentEditorTableNodeView} from "~/client/content/internal/table/content_editor_table_node_view.js";
-import {
-    isPosInContentTable,
-    isSelectionInContentTable,
-} from "~/client/content/internal/table/content_table_client_util.js";
-import {handleContentTablePaste} from "~/client/content/internal/table/content_table_input.js";
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {contentEditorOpenCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
+import {
+    ContentEditorReferencesSharedAction,
+    ContentEditorState,
+    getContentEditorFloaterState,
+    getContentEditorReferences,
+    rememberContentEditorPosWhileLoading,
+    rememberContentEditorSelectionWhileLoading,
+    setContentEditorFloaterState,
+    updateContentEditorReferences,
+} from "~/client/content/state/content_editor_state.js";
+import {
+    dispatchParentScrollWhenPointerDownAndOverEvent,
+    parentScrollWhenPointerDownAndOverClassNames,
+} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
+import {
+    isPosInContentTable,
+    isSelectionInContentTable,
+} from "~/client/content/state/table/content_table_client_util.js";
+import {handleContentTablePaste} from "~/client/content/state/table/content_table_input.js";
 import {AppContext, useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
@@ -161,8 +165,14 @@ import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styl
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {getContentReferencedIdsForSlice} from "~/shared/content/content_referenced_ids.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {
+    getContentReferencedIdsForSlice,
+    isEmptyContentReferencedIds,
+} from "~/shared/content/content_referenced_ids.js";
+import {
+    ContentWithReferences,
+    emptyContentReferences,
+} from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {commentClassName, fileClassName, linkClassName} from "~/shared/content/content_styles.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
@@ -179,9 +189,11 @@ import {
     getFileImageContentTypes,
     getFileVideoContentTypes,
 } from "~/shared/files/file_content_type.js";
+import {FileEntityId, parseFileEntityIdFromUrl} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
@@ -205,12 +217,13 @@ import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
+import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
-import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {
     attachFileAsUploader,
     attachFileFromAttachment,
@@ -618,7 +631,7 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * For example `MessageContent` doesn't support files but `<MessageInput>` does
      * allow attaching files to a message.
      */
-    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfo>) => void;
+    onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfoWithEntity>) => void;
 } & (
     | {
           /**
@@ -855,6 +868,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
+    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
 
     // We choose our interaction mode based on whether the device's primary input
     // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
@@ -905,6 +919,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const contextRef = useRef(context);
     const addGlobalLoadingIndicatorRef = useRef(addGlobalLoadingIndicator);
     const spaceContextRef = useRef(spaceContext);
+    const fileEntityRenderersRef = useRef(fileEntityRenderers);
     useInsertionEffect(() => {
         propsRef.current = props;
         routeLayoutRef.current = routeLayout;
@@ -916,6 +931,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         contextRef.current = context;
         addGlobalLoadingIndicatorRef.current = addGlobalLoadingIndicator;
         spaceContextRef.current = spaceContext;
+        fileEntityRenderersRef.current = fileEntityRenderers;
     });
 
     /* ========================================================================== *\
@@ -1238,11 +1254,14 @@ function ContentEditor<Content extends ContentWithReferences>(
             }),
             file: createContentEditorFileNodeViewConstructor({
                 rootNavigate: (...args) => (rootNavigateRef as any).current(...args),
+                navigate: (...args) => (navigateRef as any).current(...args),
                 getContext: () => assertExists(contextRef.current),
                 getReporter: () => reporterRef.current,
                 getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
+                getCurrentAccount: () => assertExists(spaceContextRef.current).currentAccount,
                 getAttachmentTarget: () => assertExists(propsRef.current.fileAttachmentTarget),
+                getFileEntityRenderers: () => fileEntityRenderersRef.current,
                 getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
                 subscribeToReferencesUpdate: listener => {
                     referencesUpdateEmitterRef.current ??= new EventEmitter();
@@ -1382,7 +1401,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         \* ========================================================================== */
 
         let temporaryPastedFileInfoById: Map<FileId, FileInfo> | undefined;
-        let temporaryPastedFileInfosForParent: Array<FileInfo> | undefined;
+        let temporaryPastedFileInfosForParent: Array<FileInfoWithEntity> | undefined;
 
         viewProps.clipboardSerializer =
             ContentEditorDomClipboardSerializer.fromSchemaWithContentReferences(
@@ -1565,6 +1584,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
 
                     switch (fileInfo.type) {
+                        case "AttachFileEntity": {
+                            // Ignore file entities. The ProseMirror schema will be able to successfully
+                            // parse a file entity node from an `<iframe>` element. We don't need to
+                            // preserve any additional state from the DOM.
+                            break;
+                        }
                         case "AttachFile": {
                             // Cleanup `temporaryPastedFileInfoById` after a microtask. `handlePaste` will
                             // use this map synchronously after `transformPastedDOM`.
@@ -1795,7 +1820,7 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             // If there's some references in the paste then let's perform an asynchronous
             // paste where we load all requisite data first.
-            if (referencedIds.accountIds.size === 0 && referencedIds.fileIds.size === 0) {
+            if (isEmptyContentReferencedIds(referencedIds)) {
                 action(initialRemember, slice, () => view.state.tr);
                 return;
             }
@@ -1845,13 +1870,17 @@ function ContentEditor<Content extends ContentWithReferences>(
             async function run(context: AppContext) {
                 const promiseWaiter = new PromiseWaiter();
 
-                const accountsPromise =
-                    referencedIds.accountIds.size > 0
-                        ? getAccountsIfExist(context, {
-                              spaceId,
-                              accountIds: referencedIds.accountIds,
-                          }).then(({accounts}) => accounts)
-                        : emptyArray;
+                // Load all non-file references. To load files we need to know the origin
+                // `fileAttachmentTarget` which may be different for each file.
+                const referencesPromise = !isEmptyContentReferencedIds({
+                    ...referencedIds,
+                    fileIds: emptySet,
+                })
+                    ? getContentReferencesWithoutFiles(context, {
+                          spaceId,
+                          referencedIds,
+                      }).then(({references}) => references)
+                    : emptyContentReferences;
 
                 let ensureFileAttachmentTargetPromise: Promise<void> | null = null;
 
@@ -1877,7 +1906,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             // been loaded and we have the requisite permissions for it. No file loading
                             // needed.
                             if (
-                                getContentEditorReferences(view.state).references.fileById.has(
+                                getContentEditorReferences(view.state).references.fileById?.has(
                                     fileId,
                                 )
                             ) {
@@ -1960,8 +1989,8 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
                 };
 
-                const [accounts, fileReferences] = await runAllPromises([
-                    accountsPromise,
+                const [references, fileReferences] = await runAllPromises([
+                    referencesPromise,
                     runAllPromises(mapIterable(referencedIds.fileIds, processFile)),
                 ]);
 
@@ -1972,10 +2001,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                         view.state.tr,
                         Array.from(
                             concatIterables<ContentEditorReferencesSharedAction>(
-                                filterMapIterable(accounts, account => {
-                                    if (!account) return;
-                                    return {type: "SetAccount", account};
-                                }),
+                                [{type: "MergeBase", references}],
                                 filterMapIterable(fileReferences, fileReference => {
                                     if (!fileReference) return;
 
@@ -2066,6 +2092,64 @@ function ContentEditor<Content extends ContentWithReferences>(
                                 selection.$from,
                                 view.state.doc.resolve(selection.$from.after() + 2),
                             );
+                        }
+                    }
+                }
+            }
+
+            // If we're pasting a URL for a `FileEntityId` in an empty paragraph then
+            // instead of pasting the URL text we want to paste a file node.
+            if (spaceContextRef.current && selection.from === selection.to) {
+                const node = selection.$from.node();
+                const parentNode = selection.$from.node(-1);
+
+                const isEmptyParagraphInDoc =
+                    node.type.name === "paragraph" &&
+                    node.childCount === 0 &&
+                    (parentNode.type.name === "doc" || parentNode.type.name === "tableCell");
+
+                // The selection should be in an empty paragraph directly in the `doc` node
+                // (or `tableCell`). The paragraph shouldn't be in a list item or quote
+                // block node.
+                if (isEmptyParagraphInDoc) {
+                    const fileEntityId = parseFileEntityIdFromUrl(
+                        spaceContextRef.current.space.id,
+                        event.clipboardData?.getData("text/plain") ?? "",
+                    );
+
+                    if (fileEntityId !== null) {
+                        if (schema.nodes.fileRow && schema.nodes.file) {
+                            slice = new Slice(
+                                Fragment.from(
+                                    schema.nodes.fileRow.create(null, [
+                                        schema.nodes.file.create({fileId: fileEntityId}),
+                                    ]),
+                                ),
+                                0,
+                                0,
+                            );
+                        }
+
+                        // If our parent component provided an `onPasteOrDropFiles` prop when we don't
+                        // have `fileRow` or `file` nodes then empty `slice` (so the link isn't pasted)
+                        // and add the file entity to the `onPasteOrDropFiles` call.
+                        else if (propsRef.current.onPasteOrDropFiles) {
+                            slice = Slice.empty;
+
+                            // Cleanup `temporaryPastedFileInfosForParent` after a microtask. `handlePaste`
+                            // will use this array synchronously after `handleInsertSlice()`.
+                            if (temporaryPastedFileInfosForParent === undefined) {
+                                temporaryPastedFileInfosForParent = [];
+                                scheduleMicrotask(() => {
+                                    temporaryPastedFileInfosForParent = undefined;
+                                });
+                            }
+
+                            temporaryPastedFileInfosForParent.push({
+                                type: "AttachFileEntity",
+                                spaceId: spaceContextRef.current.space.id,
+                                fileEntityId,
+                            });
                         }
                     }
                 }
@@ -2863,29 +2947,34 @@ function ContentEditor<Content extends ContentWithReferences>(
                 view.state.selection instanceof NodeSelection &&
                 view.state.selection.node.type.name === "file"
             ) {
-                const selectedNodeElement = view.dom.getElementsByClassName(
-                    "ProseMirror-selectednode",
-                )[0];
+                const spaceId = assertExists(spaceContextRef.current?.space.id);
+                const fileId: FileId | FileEntityId | null = view.state.selection.node.attrs.fileId;
 
-                if (selectedNodeElement) {
-                    const spaceId = assertExists(spaceContextRef.current?.space.id);
-                    const fileId: FileId | null = view.state.selection.node.attrs.fileId;
+                if (fileId && isId<FileId>(fileId)) {
+                    const selectedNodeElement = view.dom.getElementsByClassName(
+                        "ProseMirror-selectednode",
+                    )[0];
 
-                    const fileReference = fileId
-                        ? getContentEditorReferences(view.state).references.fileById.get(fileId)
-                        : undefined;
+                    if (selectedNodeElement) {
+                        const fileReference = fileId
+                            ? getContentEditorReferences(view.state).references.fileById?.get(
+                                  fileId,
+                              )
+                            : undefined;
 
-                    const file = fileReference
-                        ? getFileClientStore(spaceId).getFileStore(fileReference).getSnapshot()
-                        : null;
+                        const file = fileReference
+                            ? getFileClientStore(spaceId).getFileStore(fileReference).getSnapshot()
+                            : null;
 
-                    handleCopyContentFile(selectedNodeElement, {
-                        spaceId,
-                        file,
-                        attachmentTarget: assertExists(propsRef.current.fileAttachmentTarget),
-                    }).catch(scheduleUncaughtError);
+                        handleCopyContentFile(selectedNodeElement, {
+                            spaceId,
+                            file,
+                            attachmentTarget: assertExists(propsRef.current.fileAttachmentTarget),
+                        }).catch(scheduleUncaughtError);
+                    }
+
+                    return true;
                 }
-                return true;
             }
 
             return false;
@@ -3248,7 +3337,10 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                 ProseMirror/React reconciliation (part 2)                  *
     \* ========================================================================== */
 
-    const [selectedNodeElement, setSelectedNodeElement] = useState<HTMLElement | null>(null);
+    const [selectedNodeState, setSelectedNodeState] = useState<{
+        readonly key: Key;
+        readonly element: HTMLElement;
+    } | null>(null);
 
     // Reconcile our imperative `EditorView` state with state from React. If this
     // is run by `dispatchTransaction()` (which updates state in `flushSync()`)
@@ -3319,15 +3411,20 @@ function ContentEditor<Content extends ContentWithReferences>(
         // `ProseMirror-selectednode` CSS class so that we can render our own custom
         // ring around it.
         if (!(state.getSelection() instanceof NodeSelection)) {
-            setSelectedNodeElement(null);
+            setSelectedNodeState(null);
         } else {
             const selectedNodeElement = viewElement.getElementsByClassName(
                 "ProseMirror-selectednode",
             )[0];
             if (selectedNodeElement instanceof HTMLElement) {
-                setSelectedNodeElement(selectedNodeElement);
+                setSelectedNodeState(selectedNodeState => {
+                    if (selectedNodeState?.element === selectedNodeElement)
+                        return selectedNodeState;
+
+                    return {key: generateId(), element: selectedNodeElement};
+                });
             } else {
-                setSelectedNodeElement(null);
+                setSelectedNodeState(null);
             }
         }
 
@@ -3826,6 +3923,31 @@ function ContentEditor<Content extends ContentWithReferences>(
                         newDecorationCallbacks.delete(blurDecorationCallback);
                         return newDecorationCallbacks;
                     });
+
+                    // Keep track of the element ProseMirror marks as selected with the
+                    // `ProseMirror-selectednode` CSS class so that we can render our own custom
+                    // ring around it.
+                    //
+                    // We have this code here in addition to in the state update `useLayoutEffect()`
+                    // because we've observed sometimes ProseMirror doesn't set the
+                    // `ProseMirror-selectednode` class until after a focus event.
+                    if (!(view.state.selection instanceof NodeSelection)) {
+                        setSelectedNodeState(null);
+                    } else {
+                        const selectedNodeElement = viewElement.getElementsByClassName(
+                            "ProseMirror-selectednode",
+                        )[0];
+                        if (selectedNodeElement instanceof HTMLElement) {
+                            setSelectedNodeState(selectedNodeState => {
+                                if (selectedNodeState?.element === selectedNodeElement)
+                                    return selectedNodeState;
+
+                                return {key: generateId(), element: selectedNodeElement};
+                            });
+                        } else {
+                            setSelectedNodeState(null);
+                        }
+                    }
                 } else {
                     setIsFocused(false);
 
@@ -3997,7 +4119,11 @@ function ContentEditor<Content extends ContentWithReferences>(
 
             for (const element of view.dom.querySelectorAll(
                 parentScrollWhenPointerDownAndOverClassNames
-                    .map(className => `.${className}`)
+                    // Find all elements with the provided class names and exclude elements that
+                    // are children of a file node. File entities may recursively render content
+                    // (e.g. document file entities). The content within file entities is inert
+                    // so shouldn't get any interactive behaviors.
+                    .map(className => `.${className}:not(.${fileClassName} .${className})`)
                     .join(", "),
             )) {
                 dispatchParentScrollWhenPointerDownAndOverEvent(element);
@@ -4468,7 +4594,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 viewRef={viewRef}
                 accessLevel={accessLevel}
                 floaterState={floaterState}
-                selectedNodeElement={selectedNodeElement}
+                selectedNodeElement={selectedNodeState?.element ?? null}
                 hasFileDropTarget={!!fileDropTarget}
                 onInsertFiles={(insertionSelection, files) =>
                     viewRef.current?.insertFiles(insertionSelection, files)
@@ -4478,7 +4604,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }}
             />
             {!fileDropTarget &&
-                selectedNodeElement &&
+                selectedNodeState &&
                 // Only show the focus ring for selected nodes while editing. Unless we have
                 // comment access and we've selected a file node. Since we still show the
                 // toolbar for selected files with the only option being "Comment".
@@ -4486,7 +4612,19 @@ function ContentEditor<Content extends ContentWithReferences>(
                     (hasAccessLevel(accessLevel, "Comment") &&
                         unwrappedState.selection instanceof NodeSelection &&
                         unwrappedState.selection.node.type.name === "file")) && (
-                    <FocusRing isVisible={true} targetElement={selectedNodeElement} />
+                    <FocusRing
+                        key={selectedNodeState.key}
+                        isVisible={true}
+                        targetElement={selectedNodeState.element}
+                        // Don't offset focus ring on file entity.
+                        offset={
+                            unwrappedState.selection instanceof NodeSelection &&
+                            unwrappedState.selection.node.type.name === "file" &&
+                            unwrappedState.selection.node.attrs.fileId?.includes(":")
+                                ? "border"
+                                : "0.5"
+                        }
+                    />
                 )}
             {phantomSelections?.map(phantomSelection => (
                 <ContentEditorPhantomSelectionCursor
@@ -4719,7 +4857,10 @@ function ContentEditor<Content extends ContentWithReferences>(
 
                                 if (isCommentSupported) {
                                     view.dispatch(
-                                        state.tr.setMeta(openCommentInputFloaterMetaKey, true),
+                                        state.tr.setMeta(
+                                            contentEditorOpenCommentInputFloaterMetaKey,
+                                            true,
+                                        ),
                                     );
                                 }
                             }
@@ -4770,6 +4911,9 @@ function handlePasteAfterResolvingReferences(
     event: ClipboardEvent,
     slice: Slice,
 ): void {
+    // Convert any links in text to link marks.
+    slice = transformPastedLinks(doc.type.schema, slice);
+
     // If pasting into a table, transform pasted content to make sure it matches
     // the expected content type for a table.
     {
@@ -4806,7 +4950,6 @@ function handlePasteAfterResolvingReferences(
     if (handleContentTablePaste(doc, selection, createTransaction, dispatch, slice)) return;
 
     if (handleLinkPasteWithSelection(doc, selection, createTransaction, dispatch, event)) return;
-    if (handleLinkPasteWithoutSelection(doc, selection, createTransaction, dispatch, event)) return;
 
     // If we're pasting into an empty paragraph at the top level, then paste the
     // entire slice content with `openStart` 0 to avoid losing our first node's
@@ -4823,13 +4966,16 @@ function handlePasteAfterResolvingReferences(
         selection.$from.parent.type.name === "paragraph" &&
         selection.$from.parent.nodeSize === 2
     ) {
-        dispatch(
-            createTransaction().replace(
-                selection.$from.pos - 1,
-                selection.$from.pos + 1,
-                new Slice(slice.content, 0, slice.openEnd),
-            ),
+        const transaction = createTransaction();
+
+        transaction.replace(
+            selection.$from.pos - 1,
+            selection.$from.pos + 1,
+            new Slice(slice.content, 0, slice.openEnd),
         );
+
+        fixNodeSelectionAfterPaste(slice, transaction);
+        dispatch(transaction.setMeta("paste", true).setMeta("uiEvent", "paste"));
         return;
     }
 
@@ -4869,6 +5015,7 @@ function handlePasteAfterResolvingReferences(
             selection.replace(transaction, slice);
         }
 
+        fixNodeSelectionAfterPaste(slice, transaction);
         dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
         return;
     }
@@ -4888,7 +5035,129 @@ function handlePasteAfterResolvingReferences(
         selection.replace(transaction, slice);
     }
 
+    fixNodeSelectionAfterPaste(slice, transaction);
     dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+}
+
+/**
+ * When pasting a slice that ends in a selectable node, ProseMirror puts the
+ * selection into the next text block instead of in the pasted selectable node!
+ * This function runs after the ProseMirror `replace()` which performs the
+ * paste to detect if the last node of our slice was a selectable node and if
+ * so, make sure the selection after the paste has selected the new node.
+ *
+ * To reproduce this try selecting a divider, copying, then pasting the
+ * divider. The divider should be selected after the paste.
+ */
+function fixNodeSelectionAfterPaste(slice: Slice, transaction: Transaction) {
+    let lastSelectableChild = slice.content.lastChild;
+    while (
+        lastSelectableChild?.lastChild &&
+        !lastSelectableChild.inlineContent &&
+        !lastSelectableChild.type.spec.selectable
+    ) {
+        lastSelectableChild = lastSelectableChild.lastChild;
+    }
+
+    // The last selectable child is text content. ProseMirror will correctly place
+    // the selection at the end of the pasted content.
+    if (!lastSelectableChild || lastSelectableChild.inlineContent) return;
+
+    // We already have a `NodeSelection`. ProseMirror correctly placed the
+    // selection in the last pasted node.
+    if (
+        transaction.selection instanceof NodeSelection &&
+        transaction.selection.node.eq(lastSelectableChild)
+    ) {
+        return;
+    }
+
+    // Find a selection moving backwards from before the current selected node.
+    // This should be the last node in the pasted slice.
+    const newSelection = Selection.findFrom(
+        transaction.doc.resolve(transaction.selection.$from.before()),
+        -1,
+    );
+
+    // The new selection isn't the node selection we were hoping for...
+    if (!(newSelection instanceof NodeSelection && newSelection.node.eq(lastSelectableChild)))
+        return;
+
+    transaction.setSelection(newSelection);
+}
+
+/**
+ * Iterate through all content in the slice and if we find a URL in the slice's
+ * text, add a link mark around the URL.
+ */
+function transformPastedLinks(schema: ProsemirrorSchema, slice: Slice): Slice {
+    const urlRegExp = getUrlRegExp();
+
+    const newFragment = transformFragment(slice.content);
+    if (slice.content === newFragment) return slice;
+    return new Slice(newFragment, slice.openStart, slice.openEnd);
+
+    function transformFragment(oldFragment: Fragment): Fragment {
+        let hasChanged = false;
+        const newNodes: Array<Node> = [];
+
+        for (const oldNode of oldFragment.content) {
+            const newNode = transformNode(oldNode);
+
+            if (newNode !== oldNode) hasChanged = true;
+
+            if (newNode instanceof Fragment) {
+                for (const actualNewChildNode of newNode.content) {
+                    newNodes.push(actualNewChildNode);
+                }
+            } else {
+                newNodes.push(newNode);
+            }
+        }
+
+        if (!hasChanged) return oldFragment;
+        return Fragment.fromArray(newNodes);
+    }
+
+    function transformNode(oldNode: Node): Node | Fragment {
+        if (
+            oldNode.type.name !== "text" ||
+            // If this text already has a link mark, then don't override the link mark.
+            schema.marks.link!.isInSet(oldNode.marks)
+        ) {
+            if (oldNode.content.content.length === 0) return oldNode;
+            const newFragment = transformFragment(oldNode.content);
+            if (oldNode.content === newFragment) return oldNode;
+            return oldNode.type.create(oldNode.attrs, newFragment, oldNode.marks);
+        }
+
+        const text = oldNode.text!;
+        const matches = Array.from(text.matchAll(urlRegExp));
+        if (matches.length === 0) return oldNode;
+
+        let lastIndex = 0;
+        const newNodes: Array<Node> = [];
+
+        for (const match of matches) {
+            const startIndex = assertExists(match.index);
+            const endIndex = startIndex + match[0].length;
+
+            if (lastIndex !== startIndex) {
+                newNodes.push(schema.text(text.slice(lastIndex, startIndex), oldNode.marks));
+            }
+
+            lastIndex = endIndex;
+
+            const url = text.slice(startIndex, endIndex);
+            newNodes.push(schema.text(url, schema.mark("link", {url}).addToSet(oldNode.marks)));
+        }
+
+        if (lastIndex !== text.length) {
+            newNodes.push(schema.text(text.slice(lastIndex, text.length), oldNode.marks));
+        }
+
+        return Fragment.fromArray(newNodes);
+    }
 }
 
 /**
@@ -5039,34 +5308,6 @@ function handleLinkPasteWithSelection(
     dispatch(
         createTransaction().addMark(range.from, range.to, doc.type.schema.mark("link", {url})),
     );
-    return true;
-}
-
-function handleLinkPasteWithoutSelection(
-    doc: Node,
-    selection: Selection,
-    createTransaction: () => Transaction,
-    dispatch: (transaction: Transaction) => void,
-    event: ClipboardEvent,
-): boolean {
-    const {from} = selection;
-
-    // 1. Check if current selection is empty
-    if (!selection.empty) {
-        return false;
-    }
-
-    // 2. Make sure the URL exists, starts with an allowed protocol and contains no whitespace.
-    const url = event.clipboardData?.getData("text/plain");
-    if (!url || !startsWithSafeUrlProtocol(url) || /\s/.test(url)) {
-        return false;
-    }
-
-    // 3. Insert URL text and apply link mark
-    const transaction = createTransaction();
-    transaction.insertText(url, from);
-    transaction.addMark(from, from + url.length, doc.type.schema.mark("link", {url}));
-    dispatch(transaction);
     return true;
 }
 

@@ -9,11 +9,12 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
+    grey10SemiTransparentColorVar,
     invertSelectionColorsClassName,
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentCommentThreadModel} from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
@@ -167,13 +168,23 @@ export function DocumentCommentThreadPreview({
                 // Use pointer cursor because otherwise the preview has a weak clickable
                 // affordance. It's not clear that the preview is clickable unlike a button.
                 cursor="pointer"
-                // Outset border so content at the edges (e.g. with a background color) doesn't
-                // render over our border.
-                boxShadow="elevation-5-with-grey-10-outset-border"
+                boxShadow="elevation-5-without-border"
                 borderRadius="1.5"
                 overflow="hidden"
                 {...(buttonProps as any)}
             >
+                <Box
+                    // Render a border using an absolutely positioned `<div>` instead of using
+                    // `elevation-5-with-grey-10-border` because we need the border to render on top
+                    // of UI in the `<ContentView>` with a `background-color` (e.g. code block line
+                    // numbers) and `box-shadow` won't render over child `background-color`s.
+                    position="absolute"
+                    inset="0"
+                    zIndex="40"
+                    pointerEvents="none"
+                    borderRadius="1.5"
+                    style={{border: `solid 1px ${grey10SemiTransparentColorVar}`}}
+                />
                 {isPressed && (
                     <Box
                         position="absolute"
@@ -200,7 +211,8 @@ export function DocumentCommentThreadPreview({
                 <Box
                     ref={previewRef}
                     overflow="hidden"
-                    style={{height: spacing[documentCommentThreadPreviewHeight]}}
+                    height={documentCommentThreadPreviewHeight}
+                    borderRadius="1.5"
                 >
                     <Box
                         ref={previewContentRef}

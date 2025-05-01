@@ -22,6 +22,7 @@ export const taskDetailViewDenseFieldGap = "5";
 export const taskDetailViewDenseFieldMinHeight = "4";
 export const taskDetailViewTitleFontSize = "300";
 export const taskDetailViewTitleLineHeight = "6";
+export const taskDetailViewFieldLabelColor = "grey-60";
 export const taskDetailViewFieldLabelFontSize = "75";
 export const taskDetailViewCommentSidebarWidth = "96";
 export const taskDetailNotesFieldLabelPaddingBottom = "1";

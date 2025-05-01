@@ -34,7 +34,7 @@ export const postContentViewOuterMarginY = "4";
 // We also use this value as the padding X and Y padding for our post content
 // editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing
 // values in addition to Y axis spacing values.
-export const postContentViewInnerMarginY = "2";
+export const postContentViewInnerMarginY = "4";
 
 export const postContentViewHeaderAvatarSize = "8";
 export const postContentViewHeaderHeight = "8";
@@ -143,3 +143,9 @@ export const channelFilesViewMaxWidth = mapObjectValues(
             contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1)
         }rem`,
 );
+
+// NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold for this
+// button. So tone down the font weight a bit.
+//
+// NOCOMMIT: Make sure this gets used in `<ChannelView>`.
+export const channelSubscribeButtonFontWeight = 425;

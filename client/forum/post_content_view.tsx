@@ -1,4 +1,5 @@
 import {ChatCircle, ChatCircleDots, DotsThree, Smiley} from "phosphor-react";
+import {NodeSelection} from "prosemirror-state";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -51,7 +52,7 @@ import {
 } from "~/client/styles/styles.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -619,6 +620,7 @@ function PostContentViewEditor({
             <Box
                 marginTop={`-${postContentViewInnerMarginY}`}
                 paddingBottom={postContentViewInnerMarginY}
+                paddingX={postContentViewInnerMarginY}
             >
                 <p
                     className={paragraphClassName}
@@ -645,78 +647,90 @@ function PostContentViewEditor({
 
     return (
         <>
-            <FocusRing
-                // This has an `inset` offset to avoid conflicting with the post navigation bar
-                // when `isPostView` is true.
-                offset="inset"
-                isVisibleWhenFocusWithin={true}
-                isVisibleFromAnyFocus={true}
-            >
-                <Box
-                    id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
-                    position="relative"
-                    zIndex="40"
-                    // We picked this border radius because it looks good with a selected file's
-                    // `<FocusRing>` when they line up in the bottom corners.
-                    borderRadius="2.5"
-                    style={{
-                        // Use box shadow to draw the border so it doesn't add 1px to layout like
-                        // `border` CSS would.
-                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
-                    }}
-                    ref={useConfirmSaveAfterLosingFocus({
-                        shouldConfirmSave:
-                            postEditingForThisPost.state.contentEditorState.getDoc() !==
-                            postEditingForThisPost.state.initialContent,
-                        isConfirmingSave:
-                            postEditingForThisPost.state.isEditing &&
-                            postEditingForThisPost.state.confirmationDialog === "Save",
-                        onCancelSave: () =>
-                            postEditingForThisPost.dispatch({type: "CancelEditing"}),
-                        onConfirmSave: () =>
-                            postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
-                    })}
+            <Box style={{padding: subtractRemLengths(postContentViewInnerMarginY, "2")}}>
+                <FocusRing
+                    // Don't render a focus ring around the post if a node is selected since the
+                    // node will have a blue focus ring. We don't want both focus rings to clash.
+                    isDisabled={
+                        postEditingForThisPost.state.contentEditorState.getSelection() instanceof
+                        NodeSelection
+                    }
+                    // This has an `inset` offset to avoid conflicting with the post navigation bar
+                    // when `isPostView` is true.
+                    offset="inset"
+                    isVisibleWhenFocusWithin={true}
+                    isVisibleFromAnyFocus={true}
                 >
-                    <ContentEditor
-                        ref={editorRef}
-                        aria-label="Post"
-                        state={postEditingForThisPost.state.contentEditorState}
-                        onChange={(contentEditorState, transaction) => {
-                            if (postEditingForThisPost.state.isSaving && transaction.docChanged)
-                                return;
+                    <Box
+                        id={`${idBase}-editor-${postEditingForThisPost.state.postId}`}
+                        position="relative"
+                        zIndex="40"
+                        // We picked this border radius because it looks good with a selected file's
+                        // `<FocusRing>` when they line up in the bottom corners.
+                        borderRadius="2.5"
+                        style={{
+                            // Use box shadow to draw the border so it doesn't add 1px to layout like
+                            // `border` CSS would.
+                            boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                        }}
+                        ref={useConfirmSaveAfterLosingFocus({
+                            shouldConfirmSave:
+                                postEditingForThisPost.state.contentEditorState.getDoc() !==
+                                postEditingForThisPost.state.initialContent,
+                            isConfirmingSave:
+                                postEditingForThisPost.state.isEditing &&
+                                postEditingForThisPost.state.confirmationDialog === "Save",
+                            onCancelSave: () =>
+                                postEditingForThisPost.dispatch({type: "CancelEditing"}),
+                            onConfirmSave: () =>
+                                postEditingForThisPost.dispatch({type: "MaybeCancelEditing"}),
+                        })}
+                    >
+                        <ContentEditor
+                            ref={editorRef}
+                            aria-label="Post"
+                            state={postEditingForThisPost.state.contentEditorState}
+                            onChange={(contentEditorState, transaction) => {
+                                if (postEditingForThisPost.state.isSaving && transaction.docChanged)
+                                    return;
 
-                            postEditingForThisPost.dispatch({
-                                type: "ContentEditorStateChange",
-                                contentEditorState,
-                            });
-                        }}
-                        // On mobile, don't allow interactions when unfocused. We're already in an
-                        // editing modality.
-                        withoutMobileDualModality={true}
-                        placeholder="Share your ideas…"
-                        fileAttachmentTarget={fileAttachmentTarget}
-                        className={sprinkles({padding: postContentViewInnerMarginY})}
-                        onModEnterKeyDown={event => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            if (postEditingForThisPost.state.isSaving) return;
-                            postEditingForThisPost.dispatch({type: "SaveEditedContent"});
-                        }}
-                        onEscapeKeyDown={event => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            if (postEditingForThisPost.state.isSaving) return;
-                            postEditingForThisPost.dispatch({type: "CancelEditing"});
-                        }}
-                    />
-                    <InlineEditorToolbar
-                        isSaving={postEditingForThisPost.state.isSaving}
-                        withModEnterSaveKeyboardShortcut={true}
-                        onSave={() => postEditingForThisPost.dispatch({type: "SaveEditedContent"})}
-                        onCancel={() => postEditingForThisPost.dispatch({type: "CancelEditing"})}
-                    />
-                </Box>
-            </FocusRing>
+                                postEditingForThisPost.dispatch({
+                                    type: "ContentEditorStateChange",
+                                    contentEditorState,
+                                });
+                            }}
+                            // On mobile, don't allow interactions when unfocused. We're already in an
+                            // editing modality.
+                            withoutMobileDualModality={true}
+                            placeholder="Share your ideas…"
+                            fileAttachmentTarget={fileAttachmentTarget}
+                            className={sprinkles({padding: "2"})}
+                            onModEnterKeyDown={event => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                if (postEditingForThisPost.state.isSaving) return;
+                                postEditingForThisPost.dispatch({type: "SaveEditedContent"});
+                            }}
+                            onEscapeKeyDown={event => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                if (postEditingForThisPost.state.isSaving) return;
+                                postEditingForThisPost.dispatch({type: "CancelEditing"});
+                            }}
+                        />
+                        <InlineEditorToolbar
+                            isSaving={postEditingForThisPost.state.isSaving}
+                            withModEnterSaveKeyboardShortcut={true}
+                            onSave={() =>
+                                postEditingForThisPost.dispatch({type: "SaveEditedContent"})
+                            }
+                            onCancel={() =>
+                                postEditingForThisPost.dispatch({type: "CancelEditing"})
+                            }
+                        />
+                    </Box>
+                </FocusRing>
+            </Box>
             {initialContentUpdatedNote}
         </>
     );

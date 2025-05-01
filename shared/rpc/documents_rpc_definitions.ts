@@ -13,17 +13,17 @@ import {
     DocumentModel,
     DocumentPreviewModel,
 } from "~/shared/documents/document_model.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
-    FileId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
+import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -126,7 +126,7 @@ export const updateDocumentContent = defineRpc({
             Schema.object({
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 initialCommentContent: MessageContentSchema,
-                initialCommentFileIds: Schema.array(Schema.id<FileId>()).default([]),
+                initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
                 createdTime: Schema.date.optional(),
             }),
         ),
@@ -223,7 +223,7 @@ export const createDocumentComment = defineRpc({
         commentThreadId: Schema.id<DocumentCommentThreadId>(),
         parentCommentIndex: Schema.integer.nullable(),
         content: MessageContentSchema,
-        fileIds: Schema.array(Schema.id<FileId>()).default([]),
+        fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
         comment: DocumentCommentModel.schema(),
@@ -290,17 +290,12 @@ export const getOptimisticDocumentCommentReferences = defineRpc({
         documentId: Schema.id<DocumentId>(),
         authorId: Schema.id<AccountId>(),
         contentReferencedIds: ContentReferencedIdsSchema,
-        fileIds: Schema.array(Schema.id<FileId>()).default([]),
+        fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
     },
     output: {
         author: AccountModel.schema,
         contentReferences: ContentReferencesSchema,
-        files: Schema.array(
-            Schema.object({
-                signedUrlSearch: Schema.string,
-                file: FileModel.schema,
-            }),
-        ),
+        files: Schema.array(MessageContentPayloadModelFileSchema),
     },
 });
 

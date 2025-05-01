@@ -2,27 +2,39 @@ import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {CSSProperties, Memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
+import {
+    CSSProperties,
+    Memo,
+    useCallback,
+    useContext,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {flushSync} from "react-dom";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {addContentFileEntityPreviewBehavior} from "~/client/content/internal/content_file_entity_preview.js";
 import {addContentFilePreviewBehavior} from "~/client/content/internal/content_file_preview.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
 import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
-import {addUnfocusableButtonBehaviorToElement} from "~/client/content/internal/helpers/add_unfocusable_button_behavior_to_element.js";
+import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
+import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     addParentScrollWhenPointerDownAndOverListener,
     dispatchParentScrollWhenPointerDownAndOverEvent,
     parentScrollWhenPointerDownAndOverClassNames,
     removeParentScrollWhenPointerDownAndOverListener,
-} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
-import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
+} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
 import {writeContentToClipboard} from "~/client/content/write_content_to_clipboard.js";
 import {useAppContextIfExists} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -40,6 +52,7 @@ import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.j
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
@@ -61,6 +74,7 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -71,7 +85,7 @@ import {
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
-import {Id, generateId} from "~/shared/id/id.js";
+import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -261,6 +275,8 @@ export function ContentView<Content extends ContentWithReferences>({
     const accountStore = useAccountClientStore();
     const fileStore = useFileClientStore();
     const reporter = useReporter();
+    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
+    const currentDate = useCurrentDate();
 
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
@@ -382,17 +398,16 @@ export function ContentView<Content extends ContentWithReferences>({
         }
 
         if (shouldShowSeeMoreContentButton || shouldShowSeeLessContentButton) {
-            const result = getContentViewLastParagraphChild(content.doc);
+            const result = shouldShowSeeLessContentButton
+                ? // Always render "See less" on its own line. Don't put it inline with the last
+                  // paragraph.
+                  null
+                : getContentViewLastParagraphChild(content.doc);
 
             const buttonText = shouldShowSeeLessContentButton ? "See less" : "See more";
 
             let html: HtmlElementGenerator;
-            if (
-                result !== null &&
-                // Always render "See less" on its own line. Don't put it inline with the last
-                // paragraph.
-                !shouldShowSeeLessContentButton
-            ) {
+            if (result !== null) {
                 const shouldAddEllipsis =
                     result.node.childCount > 0 &&
                     !isTextEndedWithPunctuation(result.node.lastChild!.text!);
@@ -461,6 +476,8 @@ export function ContentView<Content extends ContentWithReferences>({
 
             htmlGeneratorStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
                 renderContentFragmentToHtmlGeneratorStore(content, {
+                    getContext: () => assertExists(context),
+                    clientInfo,
                     spaceId,
                     accountStore,
                     fileStore,
@@ -470,6 +487,8 @@ export function ContentView<Content extends ContentWithReferences>({
                     platform,
                     spacingScale,
                     isInitialAppRender,
+                    currentDate,
+                    fileEntityRenderers,
                     isInert,
                     withPosAttribute: true,
                     placeholder,
@@ -494,6 +513,8 @@ export function ContentView<Content extends ContentWithReferences>({
             });
 
             htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
+                getContext: () => assertExists(context),
+                clientInfo,
                 spaceId,
                 accountStore,
                 fileStore,
@@ -503,6 +524,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 platform,
                 spacingScale,
                 isInitialAppRender,
+                currentDate,
+                fileEntityRenderers,
                 isInert,
                 withPosAttribute: true,
                 placeholder,
@@ -526,6 +549,7 @@ export function ContentView<Content extends ContentWithReferences>({
         content,
         initialCodeBlockDecorations,
         id,
+        clientInfo,
         spaceId,
         accountStore,
         fileStore,
@@ -535,9 +559,12 @@ export function ContentView<Content extends ContentWithReferences>({
         platform,
         spacingScale,
         isInitialAppRender,
+        currentDate,
+        fileEntityRenderers,
         isInert,
         placeholder,
         shouldHighlightComment,
+        context,
     ]);
 
     const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);
@@ -636,8 +663,21 @@ export function ContentView<Content extends ContentWithReferences>({
 
         const cleanupFunctions: Array<() => void> = [];
 
+        const classNames = [
+            linkClassName,
+            contentViewStyles.seeButtonClassName,
+            contentStyles.codeBlockCopyButtonClassName,
+            fileClassName,
+        ];
+
         for (const element of parentElement.querySelectorAll(
-            `.${linkClassName}, .${contentViewStyles.seeButtonClassName}, .${contentStyles.codeBlockCopyButtonClassName}, .${fileClassName}`,
+            classNames
+                // Find all elements with the provided class names and exclude elements that
+                // are children of a file node. File entities may recursively render content
+                // (e.g. document file entities). The content within file entities is inert
+                // so shouldn't get any interactive behaviors.
+                .map(className => `.${className}:not(.${fileClassName} .${className})`)
+                .join(", "),
         )) {
             if (!(element instanceof HTMLElement)) continue;
 
@@ -924,44 +964,69 @@ export function ContentView<Content extends ContentWithReferences>({
                 assert($pos.nodeAfter?.type.name === "file");
                 const node = $pos.nodeAfter;
 
-                const fileId: FileId | null = node.attrs.fileId;
-                const fileReference = fileId ? content.references.fileById.get(fileId) : undefined;
+                const fileId: FileId | FileEntityId | null = node.attrs.fileId;
+                const isFileEntity = fileId && !isId<FileId>(fileId);
 
-                const actualFileStore = fileReference
-                    ? fileStore.getFileStore(fileReference)
-                    : undefinedStore;
+                const fileReference =
+                    fileId && !isFileEntity ? content.references.fileById?.get(fileId) : undefined;
 
-                let cleanupBehavior: (() => void) | null = null;
+                const fileEntityResult = isFileEntity
+                    ? content.references.fileEntityById?.get(fileId)
+                    : undefined;
 
-                const update = () => {
-                    cleanupBehavior?.();
-                    cleanupBehavior = null;
-
-                    cleanupBehavior = addContentFilePreviewBehavior(
+                if (isFileEntity) {
+                    const cleanupBehavior = addContentFileEntityPreviewBehavior(
                         () => assertExists(context),
                         element,
                         {
                             spaceId: assertExists(spaceContext).space.id,
                             node,
-                            file: actualFileStore.getSnapshot(),
-                            attachmentTarget: assertExists(fileAttachmentTarget),
+                            fileEntityId: fileId,
+                            fileEntityResult,
+                            fileEntityRenderers,
+                            navigate,
                             isInert,
-                            isInitialAppRender,
-                            isEditorInitialAppRender,
-                            rootNavigate,
-                            getReporter: () => reporter,
                         },
                     );
-                };
 
-                const unsubscribeFromStore = actualFileStore.subscribe(update);
-                update();
+                    cleanupFunctions.push(cleanupBehavior);
+                } else {
+                    const actualFileStore = fileReference
+                        ? fileStore.getFileStore(fileReference)
+                        : undefinedStore;
 
-                cleanupFunctions.push(() => {
-                    unsubscribeFromStore();
-                    cleanupBehavior?.();
-                    cleanupBehavior = null;
-                });
+                    let cleanupBehavior: (() => void) | null = null;
+
+                    const update = () => {
+                        cleanupBehavior?.();
+                        cleanupBehavior = null;
+
+                        cleanupBehavior = addContentFilePreviewBehavior(
+                            () => assertExists(context),
+                            element,
+                            {
+                                spaceId: assertExists(spaceContext).space.id,
+                                node,
+                                file: actualFileStore.getSnapshot(),
+                                attachmentTarget: assertExists(fileAttachmentTarget),
+                                isInert,
+                                isInitialAppRender,
+                                isEditorInitialAppRender,
+                                rootNavigate,
+                                getReporter: () => reporter,
+                            },
+                        );
+                    };
+
+                    const unsubscribeFromStore = actualFileStore.subscribe(update);
+                    update();
+
+                    cleanupFunctions.push(() => {
+                        unsubscribeFromStore();
+                        cleanupBehavior?.();
+                        cleanupBehavior = null;
+                    });
+                }
             }
         }
 
@@ -988,6 +1053,7 @@ export function ContentView<Content extends ContentWithReferences>({
         rootNavigate,
         isInitialAppRender,
         fileStore,
+        fileEntityRenderers,
     ]);
 
     // Watch all parent elements of our content view for scroll events. When a
@@ -1073,7 +1139,11 @@ export function ContentView<Content extends ContentWithReferences>({
 
             for (const childElement of element.querySelectorAll(
                 parentScrollWhenPointerDownAndOverClassNames
-                    .map(className => `.${className}`)
+                    // Find all elements with the provided class names and exclude elements that
+                    // are children of a file node. File entities may recursively render content
+                    // (e.g. document file entities). The content within file entities is inert
+                    // so shouldn't get any interactive behaviors.
+                    .map(className => `.${className}:not(.${fileClassName} .${className})`)
                     .join(", "),
             )) {
                 dispatchParentScrollWhenPointerDownAndOverEvent(childElement);
@@ -1342,15 +1412,12 @@ export function ContentView<Content extends ContentWithReferences>({
                         ? contentStyles.narrowRouteLayoutDocClassName
                         : undefined,
                     withoutBlockMaxWidth && contentStyles.withoutBlockMaxWidthDocClassName,
+                    withUserSelectNone && contentStyles.withUserSelectNoneDocClassName,
                     className,
                     isTitleEmpty && contentStyles.emptyTitleClassName,
                     isBodyEmpty && contentStyles.emptyBodyClassName,
                 )}
-                style={
-                    withUserSelectNone
-                        ? {userSelect: "none", WebkitUserSelect: "none", ...style}
-                        : style
-                }
+                style={style}
                 aria-label={ariaLabel}
                 aria-labelledby={ariaLabelledBy}
                 dangerouslySetInnerHTML={

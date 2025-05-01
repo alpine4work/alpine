@@ -11,10 +11,10 @@ import {
     useRef,
     useState,
 } from "react";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {ScrollbarInsetDynamic} from "~/client/design/scrollbar.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";

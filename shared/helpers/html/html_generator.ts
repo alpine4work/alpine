@@ -87,8 +87,13 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
         return null;
     }
 
-    public appendChild(node: HtmlGenerator) {
+    public appendChild<Node extends HtmlGenerator>(node: Node): Node {
         this._children.push(node);
+
+        // The DOM `appendChild()` method returns the appended child. Which is
+        // convenient so we do it here too.
+        // https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild
+        return node;
     }
 
     public insertBefore(newNode: HtmlGenerator, referenceNode: HtmlGenerator) {

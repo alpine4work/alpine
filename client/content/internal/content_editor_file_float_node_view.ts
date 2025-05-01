@@ -1,11 +1,11 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
-import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/internal/content_editor_file_node_view.js";
-import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
-import {ContentFileLayout} from "~/client/content/internal/content_file_layout_computations.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
+import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
+import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {
     getPlatformWithoutListening,
@@ -15,13 +15,16 @@ import {
     getSpacingScaleWithoutListening,
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {fileFloatLeftClassName, fileFloatRightClassName} from "~/shared/content/content_styles.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
+import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -72,8 +75,9 @@ export function createContentEditorFileFloatNodeViewConstructor({
             const {references} = getContentEditorReferences(view.state);
 
             const fileReferences = node.content.content.map(childNode => {
-                const fileId: FileId | null = childNode.attrs.fileId;
-                const fileReference = fileId ? references.fileById.get(fileId) : undefined;
+                const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
+                const fileReference =
+                    fileId && isId<FileId>(fileId) ? references.fileById?.get(fileId) : undefined;
                 return fileReference;
             });
 
@@ -110,10 +114,11 @@ export function createContentEditorFileFloatNodeViewConstructor({
 
             const layoutsStore = computeStore(get =>
                 layoutContentFileParent(node, {
+                    platform,
                     spacingScale,
                     blockWidth,
                     getFile: fileId => {
-                        const fileReference = references.fileById.get(fileId);
+                        const fileReference = references.fileById?.get(fileId);
                         if (!fileReference) return null;
                         return get(getFileClientStore(getSpaceId()).getFileStore(fileReference));
                     },
@@ -126,8 +131,18 @@ export function createContentEditorFileFloatNodeViewConstructor({
                 if (lastLayouts !== layouts) {
                     lastLayouts = layouts;
 
-                    dom.style.width = `${layouts[0]!.width}px`;
-                    dom.style.height = `${layouts[0]!.height}px`;
+                    const remPx = remPxBySpacingScale[spacingScale];
+
+                    dom.style.width = `${
+                        layouts[0]!.width +
+                        (direction === "left"
+                            ? contentStyles.fileFloatLeftMarginXRem
+                            : contentStyles.fileFloatRightMarginXRem) *
+                            remPx
+                    }px`;
+                    dom.style.height = `${
+                        layouts[0]!.height + contentStyles.fileFloatMarginYRem * remPx * 2
+                    }px`;
                 }
             };
 

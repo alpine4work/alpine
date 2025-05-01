@@ -1,22 +1,30 @@
+import {today} from "@internationalized/date";
+import {Node} from "prosemirror-model";
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {MutableRefObject} from "react";
-import {
-    getContentEditorReferences,
-    rememberContentEditorPosWhileLoading,
-} from "~/client/content/content_editor_state.js";
+import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
-import {layoutContentFile} from "~/client/content/internal/content_file_layout.js";
+import {
+    addContentFileEntityPreviewBehavior,
+    renderContentFileEntityPreview,
+} from "~/client/content/internal/content_file_entity_preview.js";
 import {
     addContentFilePreviewBehavior,
     renderContentFilePreview,
 } from "~/client/content/internal/content_file_preview.js";
-import {getContentBlockWidth} from "~/client/content/internal/get_content_block_width.js";
+import {
+    getContentEditorReferences,
+    rememberContentEditorPosWhileLoading,
+} from "~/client/content/state/content_editor_state.js";
+import {layoutContentFile} from "~/client/content/state/content_file_layout.js";
+import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {
     ContentEditorTableLayout,
     resolveContentTableColumnWidthPx,
-} from "~/client/content/internal/table/helpers/resolve_content_table_column_width_px.js";
+} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {ElementEventEmitter} from "~/client/helpers/element_event_emitter.js";
@@ -38,11 +46,16 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
+import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 
@@ -62,21 +75,27 @@ export function dispatchContentEditorFileParentUpdatedEvent(
 
 export function createContentEditorFileNodeViewConstructor({
     rootNavigate,
+    navigate,
     getContext,
     getReporter,
     getRouteLayout,
     getSpaceId,
+    getCurrentAccount,
     getAttachmentTarget,
+    getFileEntityRenderers,
     getAccessLevel,
     subscribeToReferencesUpdate,
     draggingFileRef,
 }: {
     rootNavigate: NavigateFunction;
+    navigate: NavigateFunction;
     getContext: () => AppContext;
     getReporter: () => Reporter;
     getRouteLayout: () => RouteLayout;
     getSpaceId: () => SpaceId;
+    getCurrentAccount: () => AccountModel | null;
     getAttachmentTarget: () => FileAttachmentTarget;
+    getFileEntityRenderers: () => ContentFileEntityRenderers | null;
     getAccessLevel: () => AccessLevel;
     subscribeToReferencesUpdate: (listener: () => void) => () => void;
     draggingFileRef: MutableRefObject<{getPos: () => number | null} | null>;
@@ -87,7 +106,9 @@ export function createContentEditorFileNodeViewConstructor({
         let isDestroyed = false;
         let lastSpacingScale: SpacingScale | null = null;
         let lastBlockWidth: number | null = null;
+        let lastNodeParent: Node | null = null;
         let lastFileReference: {signedUrlSearch: string; file: FileModel} | undefined | null = null;
+        let lastFileEntityResult: Result<FileEntityModel> | undefined | null = null;
         let lastHtml: HtmlElementGenerator | null = null;
         let optimisticTableLayout: ContentEditorTableLayout | null = null;
         let cleanup: (() => void) | null = null;
@@ -107,6 +128,7 @@ export function createContentEditorFileNodeViewConstructor({
 
             const pos = getPos();
             const $pos = view.state.doc.resolve(pos);
+            const nodeParent = $pos.parent;
 
             if ($pos.depth > 0) {
                 const parentBlockNode = $pos.node(1);
@@ -135,37 +157,49 @@ export function createContentEditorFileNodeViewConstructor({
 
             const {references} = getContentEditorReferences(view.state);
             const spaceId = getSpaceId();
-            const fileId: FileId | null = node.attrs.fileId;
-            const fileReference = fileId ? references.fileById.get(fileId) : undefined;
+            const fileId: FileId | FileEntityId | null = node.attrs.fileId;
+            const isFileEntity = fileId && !isId<FileId>(fileId);
+
+            const fileReference =
+                fileId && !isFileEntity ? references.fileById?.get(fileId) : undefined;
+
+            const fileEntityResult = isFileEntity
+                ? references.fileEntityById?.get(fileId)
+                : undefined;
 
             if (
                 lastSpacingScale !== spacingScale ||
                 lastBlockWidth !== blockWidthPx ||
-                lastFileReference !== fileReference
+                lastNodeParent !== nodeParent ||
+                lastFileReference !== fileReference ||
+                lastFileEntityResult !== fileEntityResult
             ) {
                 lastSpacingScale = spacingScale;
                 lastBlockWidth = blockWidthPx;
+                lastNodeParent = nodeParent;
                 lastFileReference = fileReference;
+                lastFileEntityResult = fileEntityResult;
 
                 cleanup?.();
                 cleanup = null;
 
                 let cleanupBehavior: (() => void) | null = null;
 
-                const fileAndLayoutStore = computeStore(get => {
+                const htmlStore = computeStore(get => {
                     const file = get(
                         fileReference
                             ? getFileClientStore(spaceId).getFileStore(fileReference)
                             : undefinedStore,
                     );
 
-                    const layout = layoutContentFile(view.state.doc, getPos(), node, {
+                    const layout = layoutContentFile(view.state.doc, pos, node, {
+                        platform,
                         spacingScale,
                         blockWidth: blockWidthPx,
                         getFile: otherFileId => {
                             if (otherFileId === fileId) return file ?? null;
 
-                            const otherFileReference = references.fileById.get(otherFileId);
+                            const otherFileReference = references.fileById?.get(otherFileId);
                             if (!otherFileReference) return null;
 
                             return get(
@@ -174,26 +208,52 @@ export function createContentEditorFileNodeViewConstructor({
                         },
                     });
 
-                    return {file, layout};
+                    let html: HtmlElementGenerator;
+
+                    if (isFileEntity) {
+                        const clientInfo = getClientInfo();
+
+                        html = renderContentFileEntityPreview(get, {
+                            node,
+                            fileEntityId: fileId,
+                            fileEntityResult,
+                            fileEntityRenderers: getFileEntityRenderers(),
+                            layout,
+                            getContext,
+                            clientInfo,
+                            spaceId,
+                            accountStore: getAccountClientStore(spaceId),
+                            fileStore: getFileClientStore(spaceId),
+                            currentAccount: getCurrentAccount(),
+                            blockWidth: blockWidthPx,
+                            transformScale: 1,
+                            platform,
+                            spacingScale,
+                            isInitialAppRender: false,
+                            currentDate: today(clientInfo.timeZone),
+                        });
+                    } else {
+                        html = renderContentFilePreview({
+                            spaceId,
+                            node,
+                            file,
+                            layout,
+                            blockWidth: blockWidthPx,
+                            transformScale: 1,
+                            platform,
+                            spacingScale,
+                            isInitialAppRender: false,
+                        });
+                    }
+
+                    return {file, html};
                 });
 
                 const updateFromStore = () => {
                     cleanupBehavior?.();
                     cleanupBehavior = null;
 
-                    const {file, layout} = fileAndLayoutStore.getSnapshot();
-
-                    const html = renderContentFilePreview({
-                        spaceId,
-                        node,
-                        file,
-                        layout,
-                        blockWidth: blockWidthPx,
-                        transformScale: 1,
-                        platform,
-                        spacingScale,
-                        isInitialAppRender: false,
-                    });
+                    const {file, html} = htmlStore.getSnapshot();
 
                     if (dom === undefined) {
                         dom = html.generateNode();
@@ -203,62 +263,85 @@ export function createContentEditorFileNodeViewConstructor({
                         lastHtml = html;
                     }
 
-                    cleanupBehavior = addContentFilePreviewBehavior(getContext, dom, {
-                        spaceId,
-                        node,
-                        file,
-                        attachmentTarget: getAttachmentTarget(),
-                        isInitialAppRender: false,
-                        rootNavigate,
-                        getReporter,
-                        onShiftMouseDown: event => {
-                            event.preventDefault();
+                    const onShiftMouseDown = (event: MouseEvent) => {
+                        event.preventDefault();
 
-                            view.dispatch(
-                                view.state.tr.setSelection(
-                                    new NodeSelection(view.state.doc.resolve(getPos())),
-                                ),
-                            );
+                        view.dispatch(
+                            view.state.tr.setSelection(
+                                new NodeSelection(view.state.doc.resolve(getPos())),
+                            ),
+                        );
 
-                            if (!view.hasFocus()) view.focus();
-                        },
-                        isLongPressDisabled: () => {
-                            // Selection after a long press is only useful when there's a toolbar to show
-                            // over the file. If we're in "View" mode we don't render a toolbar or
-                            // selection ring so disable long presses.
-                            return !hasAccessLevel(getAccessLevel(), "Comment");
-                        },
-                        onLongPress: () => {
-                            dom.classList.add(contentStyles.longPressedFileClassName);
+                        if (!view.hasFocus()) view.focus();
+                    };
 
-                            view.dispatch(
-                                view.state.tr.setSelection(
-                                    new NodeSelection(view.state.doc.resolve(getPos())),
-                                ),
-                            );
+                    const isLongPressDisabled = () => {
+                        // Selection after a long press is only useful when there's a toolbar to show
+                        // over the file. If we're in "View" mode we don't render a toolbar or
+                        // selection ring so disable long presses.
+                        return !hasAccessLevel(getAccessLevel(), "Comment");
+                    };
 
-                            if (!view.hasFocus()) view.focus();
+                    const onLongPress = () => {
+                        dom.classList.add(contentStyles.longPressedFileClassName);
 
-                            NativeMobileBridge?.haptic.playMediumImpact();
-                        },
-                        onDrag: dragPromise => {
-                            const ourDraggingFile = rememberContentEditorPosWhileLoading(
-                                view,
-                                getPos(),
-                                dragPromise,
-                            );
+                        view.dispatch(
+                            view.state.tr.setSelection(
+                                new NodeSelection(view.state.doc.resolve(getPos())),
+                            ),
+                        );
 
-                            draggingFileRef.current = ourDraggingFile;
+                        if (!view.hasFocus()) view.focus();
 
-                            void dragPromise.finally(() => {
-                                if (draggingFileRef.current === ourDraggingFile)
-                                    draggingFileRef.current = null;
-                            });
-                        },
-                    });
+                        NativeMobileBridge?.haptic.playMediumImpact();
+                    };
+
+                    const onDrag = (dragPromise: Promise<void>) => {
+                        const ourDraggingFile = rememberContentEditorPosWhileLoading(
+                            view,
+                            getPos(),
+                            dragPromise,
+                        );
+
+                        draggingFileRef.current = ourDraggingFile;
+
+                        void dragPromise.finally(() => {
+                            if (draggingFileRef.current === ourDraggingFile)
+                                draggingFileRef.current = null;
+                        });
+                    };
+
+                    if (isFileEntity) {
+                        cleanupBehavior = addContentFileEntityPreviewBehavior(getContext, dom, {
+                            spaceId,
+                            node,
+                            fileEntityId: fileId,
+                            fileEntityResult,
+                            fileEntityRenderers: getFileEntityRenderers(),
+                            navigate,
+                            onShiftMouseDown,
+                            isLongPressDisabled,
+                            onLongPress,
+                            onDrag,
+                        });
+                    } else {
+                        cleanupBehavior = addContentFilePreviewBehavior(getContext, dom, {
+                            spaceId,
+                            node,
+                            file,
+                            attachmentTarget: getAttachmentTarget(),
+                            isInitialAppRender: false,
+                            rootNavigate,
+                            getReporter,
+                            onShiftMouseDown,
+                            isLongPressDisabled,
+                            onLongPress,
+                            onDrag,
+                        });
+                    }
                 };
 
-                const unsubscribeFromStore = fileAndLayoutStore.subscribe(updateFromStore);
+                const unsubscribeFromStore = htmlStore.subscribe(updateFromStore);
                 updateFromStore();
 
                 cleanup = () => {

@@ -22,7 +22,10 @@ import {
 } from "~/client/styles/core/styles_core.js";
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
 import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
-import {grey5SemiTransparentColorVar} from "~/client/styles/other/internal/grey_semi_transparent_colors.css.js";
+import {
+    grey10SemiTransparentColorVar,
+    grey5SemiTransparentColorVar,
+} from "~/client/styles/other/internal/grey_semi_transparent_colors.css.js";
 import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
@@ -178,8 +181,20 @@ export const narrowRouteLayoutDocClassName = style({});
 export const isDraggingSelectionDocClassName = style({});
 
 export const withoutBlockMaxWidthDocClassName = style({
-    vars: {
-        [blockMaxWidthVar]: "none",
+    selectors: {
+        [`${docClassName}&`]: {
+            vars: {
+                [blockMaxWidthVar]: "none",
+            },
+        },
+    },
+});
+
+export const withUserSelectNoneDocClassName = style({
+    selectors: {
+        [`${docClassName}&`]: {
+            userSelect: "none",
+        },
     },
 });
 
@@ -1006,7 +1021,7 @@ globalStyle(`${fileRowLikeClassName} + ${fileRowLikeClassName}`, {
     marginTop: fileRowGapWidth,
 });
 
-export const fileFloatMaxWidthPercent = 1 / 3;
+export const fileFloatMaxWidthAsIfFairlySplitFileCount = 3;
 
 const fileFloatLeftMarginX = spacing["5"];
 export const fileFloatLeftMarginXRem = parseRemLength(fileFloatLeftMarginX);
@@ -1166,6 +1181,127 @@ export const fileNearWhiteClassName = style({
     },
 });
 
+export const fileEntityClassName = style({
+    borderRadius: spacing["1.5"],
+    backgroundColor: colorSchemeVars["grey-0"],
+    boxShadow: elevationVars["elevation-5-without-border"],
+});
+
+// If the user's pointer is down and they're dragging to change the selection
+// then we don't want our files to have an interactive pointer cursor.
+//
+// We repeat the selection change pointer down class twice so it has a higher
+// precedence than our CSS selector in `content_editor.css.ts` that changes the
+// cursor to `default` while the shift or alt key is pressed.
+globalStyle(
+    `${isDraggingSelectionDocClassName}${isDraggingSelectionDocClassName} ${fileClassName}`,
+    {
+        cursor: "inherit",
+    },
+);
+
+export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, color =>
+    style({
+        selectors: {
+            // We use `&::after` to avoid competing with the `&::before` selector for
+            // `pressedFileClassName`.
+            [`${fileClassName}&::after`]: {
+                content: '""',
+                pointerEvents: "none",
+                // Should render over `<video>` element for video preview (`z-index` 30) and
+                // video controls (`z-index` 50).
+                zIndex: "60",
+                position: "absolute",
+                top: "0",
+                bottom: "0",
+                left: "0",
+                right: "0",
+                backgroundColor: colorSchemeVars[`${color}-selection`],
+                opacity: 0.8,
+            },
+            [`${fileClassName}${fileEntityClassName}&::after`]: {
+                borderRadius: spacing["1.5"],
+            },
+        },
+    }),
+);
+
+// We add a border around images to prevent images from bleeding into the
+// background. Say you have a screenshot of a web design with an off white
+// background. Rendering that without a border on our pure white background
+// will confuse the viewer's eye since the background of the image "bleeds"
+// into our document background. Adding a border helps contain the image to
+// the viewer's eye. The border is low opacity to operate more like a
+// shadow and blend with the image.
+//
+// We use `&::before` to avoid competing with the `&::after` selector for
+// `selectionFileClassNameByColor`.
+globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
+    content: '""',
+    pointerEvents: "none",
+    // Should render over `<video>` element for video preview (`z-index` 30).
+    zIndex: "40",
+    position: "absolute",
+    inset: "0",
+    boxShadow: `inset 0 0 0 0.5px ${grey5SemiTransparentColorVar}`,
+});
+
+globalStyle(`${fileClassName}${fileEntityClassName}:not(${fileImageViewerClassName})::before`, {
+    borderRadius: spacing["1.5"],
+    boxShadow: "none",
+    border: `solid 1px ${grey10SemiTransparentColorVar}`,
+});
+
+// Turn off borders for files with a transparent background.
+//
+// If the file is near black or near white then we want to keep the border in a
+// matching color scheme since we add an opposite background color to make the
+// image visible.
+//
+// We always want to render the border for files rendered in
+// `<ChannelViewAside>`.
+globalStyle(
+    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${alwaysShowFileBorderClassName})::before`,
+    {boxShadow: "none"},
+);
+
+// Turn off borders for files with a transparent background.
+//
+// If the file is near black or near white then we want to keep the border in a
+// matching color scheme since we add an opposite background color to make the
+// image visible.
+//
+// We always want to render the border for files rendered in
+// `<ChannelViewAside>`.
+globalStyle(
+    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${alwaysShowFileBorderClassName})::before`,
+    {boxShadow: "none"},
+);
+
+const pressedFileBackgroundColor = Color(colorSchemeVars["grey-100-const"]);
+
+export const pressedFileClassName = style({
+    selectors: {
+        // We use `&::before` to avoid competing with the `&::after` selector for
+        // `selectionFileClassNameByColor`.
+        [`${fileClassName}&::before`]: {
+            backgroundColor: Color.rgb([
+                pressedFileBackgroundColor.red(),
+                pressedFileBackgroundColor.green(),
+                pressedFileBackgroundColor.blue(),
+                buttonPressedOverlayOpacity / 2,
+            ]).hexa(),
+        },
+    },
+});
+
+// After a long press releasing won't open the attachment viewer. So set cursor to
+// `default` to communicate this. This is also a hint to the user that other
+// interactions are possible. Like dragging.
+export const longPressedFileClassName = style({
+    cursor: "default",
+});
+
 export const loadedFileImagePreviewClassName = style({});
 
 export const loadedFileImageAnimationDurationMs = 250;
@@ -1215,6 +1351,13 @@ export const fileImagePreviewContentClassName = style({
     },
 });
 
+// Any preview in dark mode that doesn't have an image is rendered directly on
+// `grey-0`. So apply a color that should change the background color to
+// `grey-5` on press.
+globalStyle(`${pressedFileClassName}:not(:has(${fileImagePreviewContentClassName}))::before`, {
+    backgroundColor: grey5SemiTransparentColorVar,
+});
+
 export const fileImagePreviewPlaceholderClassName = style({
     zIndex: "10",
     position: "absolute",
@@ -1248,116 +1391,45 @@ export const fileImagePreviewPlaceholderClassName = style({
     },
 });
 
-// If the user's pointer is down and they're dragging to change the selection
-// then we don't want our files to have an interactive pointer cursor.
-//
-// We repeat the selection change pointer down class twice so it has a higher
-// precedence than our CSS selector in `content_editor.css.ts` that changes the
-// cursor to `default` while the shift or alt key is pressed.
-globalStyle(
-    `${isDraggingSelectionDocClassName}${isDraggingSelectionDocClassName} ${fileClassName}`,
-    {
-        cursor: "inherit",
-    },
-);
-
-export const selectionFileClassNameByColor = createObjectFromKeys(themeColors, color =>
-    style({
-        selectors: {
-            // We use `&::after` to avoid competing with the `&::before` selector for
-            // `pressedFileClassName`.
-            "&::after": {
-                content: '""',
-                pointerEvents: "none",
-                // Should render over `<video>` element for video preview (`z-index` 30) and
-                // video controls (`z-index` 50).
-                zIndex: "60",
-                position: "absolute",
-                top: "0",
-                bottom: "0",
-                left: "0",
-                right: "0",
-                backgroundColor: colorSchemeVars[`${color}-selection`],
-                opacity: 0.8,
-            },
-        },
-    }),
-);
-
-// We add a border around images to prevent images from bleeding into the
-// background. Say you have a screenshot of a web design with an off white
-// background. Rendering that without a border on our pure white background
-// will confuse the viewer's eye since the background of the image "bleeds"
-// into our document background. Adding a border helps contain the image to
-// the viewer's eye. The border is low opacity to operate more like a
-// shadow and blend with the image.
-//
-// We use `&::before` to avoid competing with the `&::after` selector for
-// `selectionFileClassNameByColor`.
-globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
-    content: '""',
-    pointerEvents: "none",
-    // Should render over `<video>` element for video preview (`z-index` 30).
-    zIndex: "40",
-    position: "absolute",
-    inset: "0",
-    boxShadow: `inset 0 0 0 0.5px ${grey5SemiTransparentColorVar}`,
-});
-
-// Turn off borders for files with a transparent background.
-//
-// If the file is near black or near white then we want to keep the border in a
-// matching color scheme since we add an opposite background color to make the
-// image visible.
-//
-// We always want to render the border for files rendered in
-// `<ChannelViewAside>`.
-globalStyle(
-    `${lightColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearWhiteClassName}):not(${alwaysShowFileBorderClassName})::before`,
-    {boxShadow: "none"},
-);
-
-// Turn off borders for files with a transparent background.
-//
-// If the file is near black or near white then we want to keep the border in a
-// matching color scheme since we add an opposite background color to make the
-// image visible.
-//
-// We always want to render the border for files rendered in
-// `<ChannelViewAside>`.
-globalStyle(
-    `${darkColorSchemeSelector} ${fileClassName}${fileTransparentBackgroundClassName}:not(${fileNearBlackClassName}):not(${alwaysShowFileBorderClassName})::before`,
-    {boxShadow: "none"},
-);
-
-const pressedFileBackgroundColor = Color(colorSchemeVars["grey-100-const"]);
-
-export const pressedFileClassName = style({
-    selectors: {
-        // We use `&::before` to avoid competing with the `&::after` selector for
-        // `selectionFileClassNameByColor`.
-        "&::before": {
-            backgroundColor: Color.rgb([
-                pressedFileBackgroundColor.red(),
-                pressedFileBackgroundColor.green(),
-                pressedFileBackgroundColor.blue(),
-                buttonPressedOverlayOpacity / 2,
-            ]).hexa(),
-        },
-        // Any preview in dark mode that doesn't have an image is rendered directly on
-        // `grey-0`. So apply a color that should change the background color to
-        // `grey-5` on press.
-        [`&:not(:has(${fileImagePreviewContentClassName}))::before`]: {
-            backgroundColor: grey5SemiTransparentColorVar,
-        },
-    },
-});
-
-// After a long press releasing won't open the attachment viewer. So set cursor to
-// `default` to communicate this. This is also a hint to the user that other
-// interactions are possible. Like dragging.
-export const longPressedFileClassName = style({
+export const fileChannelEntityPreviewSubscribeButtonClassName = style({
+    position: "relative",
+    zIndex: "0",
+    overflow: "hidden",
+    width: "fit-content",
+    height: spacing["7"],
+    paddingLeft: spacing["2.5"],
+    paddingRight: spacing["2.5"],
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing["1"],
+    borderRadius: spacing["1"],
+    backgroundColor: colorSchemeVars["grey-90"],
+    color: colorSchemeVars["grey-0"],
+    ...fontSizes["75"],
+    // This button is clickable independently of the rest of the entity
+    // preview card.
+    pointerEvents: "auto",
     cursor: "default",
+    selectors: {
+        [`${darkColorSchemeSelector} &`]: {
+            backgroundColor: colorSchemeVars["grey-100"],
+        },
+    },
+});
+
+export const fileChannelEntityPreviewSubscribeButtonPressedClassName = style({
+    selectors: {
+        [`${fileChannelEntityPreviewSubscribeButtonClassName}&::before`]: {
+            content: '""',
+            position: "absolute",
+            inset: "0",
+            zIndex: "10",
+            backgroundColor: colorSchemeVars["grey-100-const"],
+            pointerEvents: "none",
+            opacity: buttonPressedOverlayOpacity,
+        },
+    },
 });
 
 // Our code doesn't have a background color! This is an intentional design

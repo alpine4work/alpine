@@ -22,7 +22,7 @@ import {
     getChannelContributors,
     getChannelContributorsKey,
     getChannelIfPossible,
-    getChannelNameAndDescriptionContent,
+    getChannelNameAndDescriptionContentAndContributors,
     getChannelPosts,
     getChannelPreview,
     getPost,
@@ -184,7 +184,7 @@ test("can't get a channel that does not exist", async () => {
     await expect(getChannel(session.action(), badChannelId)).rejects.toThrow(NotFoundError);
     await expect(getChannelIfPossible(session.action(), badChannelId)).resolves.toEqual(null);
     await expect(
-        getChannelNameAndDescriptionContent(session.action(), badChannelId),
+        getChannelNameAndDescriptionContentAndContributors(session.action(), badChannelId),
     ).rejects.toThrow(NotFoundError);
     await expect(
         getChannelAndMetadata(session.action(), {channelId: badChannelId, postFilesLimit: 100}),
@@ -223,7 +223,7 @@ test("can't get a channel for a different space", async () => {
         PermissionDeniedError,
     );
     await expect(
-        getChannelNameAndDescriptionContent(otherSession.action(), channel.id),
+        getChannelNameAndDescriptionContentAndContributors(otherSession.action(), channel.id),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(getChannelIfPossible(otherSession.action(), channel.id)).resolves.toEqual(
         expect.objectContaining({ok: false, error: expect.any(PermissionDeniedError)}),
@@ -264,7 +264,7 @@ test("can't get a private channel", async () => {
         expect.objectContaining({ok: true}),
     );
     await expect(
-        getChannelNameAndDescriptionContent(session3.action(), channel.id),
+        getChannelNameAndDescriptionContentAndContributors(session3.action(), channel.id),
     ).resolves.toBeTruthy();
     await expect(
         getChannelAndMetadata(session3.action(), {channelId: channel.id, postFilesLimit: 100}),
@@ -297,7 +297,7 @@ test("can't get a private channel", async () => {
         expect.objectContaining({ok: true}),
     );
     await expect(
-        getChannelNameAndDescriptionContent(session1.action(), channel.id),
+        getChannelNameAndDescriptionContentAndContributors(session1.action(), channel.id),
     ).resolves.toBeTruthy();
     await expect(
         getChannelAndMetadata(session1.action(), {channelId: channel.id, postFilesLimit: 100}),
@@ -327,7 +327,7 @@ test("can't get a private channel", async () => {
         expect.objectContaining({ok: true}),
     );
     await expect(
-        getChannelNameAndDescriptionContent(session2.action(), channel.id),
+        getChannelNameAndDescriptionContentAndContributors(session2.action(), channel.id),
     ).resolves.toBeTruthy();
     await expect(
         getChannelAndMetadata(session2.action(), {channelId: channel.id, postFilesLimit: 100}),
@@ -364,7 +364,7 @@ test("can't get a private channel", async () => {
         }),
     );
     await expect(
-        getChannelNameAndDescriptionContent(session3.action(), channel.id),
+        getChannelNameAndDescriptionContentAndContributors(session3.action(), channel.id),
     ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
     await expect(
         getChannelAndMetadata(session3.action(), {channelId: channel.id, postFilesLimit: 100}),
@@ -402,9 +402,10 @@ test("can get a channel", async () => {
     expect((await getChannelIfPossible(session.action(), channel.id))?.value?.model.name).toEqual(
         "Test",
     );
-    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
-        "Test",
-    );
+    expect(
+        (await getChannelNameAndDescriptionContentAndContributors(session.action(), channel.id))
+            .name,
+    ).toEqual("Test");
     expect(
         await getChannelAndMetadata(session.action(), {
             channelId: channel.id,
@@ -439,9 +440,10 @@ test("can update a channel's name", async () => {
     });
 
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
-    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
-        "Test 1",
-    );
+    expect(
+        (await getChannelNameAndDescriptionContentAndContributors(session.action(), channel.id))
+            .name,
+    ).toEqual("Test 1");
     expect(
         await getChannelAndMetadata(session.action(), {
             channelId: channel.id,
@@ -455,9 +457,10 @@ test("can update a channel's name", async () => {
     });
 
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 2");
-    expect((await getChannelNameAndDescriptionContent(session.action(), channel.id)).name).toEqual(
-        "Test 2",
-    );
+    expect(
+        (await getChannelNameAndDescriptionContentAndContributors(session.action(), channel.id))
+            .name,
+    ).toEqual("Test 2");
     expect(
         await getChannelAndMetadata(session.action(), {
             channelId: channel.id,

@@ -1,7 +1,8 @@
+import {FileEntityIdSchema, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Id} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentSchema,
     MessageContentWithReferencesSchema,
@@ -124,7 +125,7 @@ const MessageContentPayloadSchema = Schema.object({
     /**
      * Files attached to the message to be rendered below the message content.
      */
-    fileIds: Schema.array(Schema.id<FileId>()).default([]),
+    fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
 });
 
 const MessageDeletedPayloadSchema = Schema.object({
@@ -142,20 +143,34 @@ export const MessagePayloadSchema = Schema.union({
 });
 
 export type MessagePayloadModel = SchemaType<typeof MessagePayloadModelSchema>;
+
 export type MessageContentPayloadModel = SchemaType<typeof MessageContentPayloadModelSchema>;
+
+export type MessageContentPayloadModelFile = SchemaType<
+    typeof MessageContentPayloadModelFileSchema
+>;
+
 export type MessageDeletedPayloadModel = SchemaType<typeof MessageDeletedPayloadModelSchema>;
+
+export const MessageContentPayloadModelFileSchema = Schema.union({
+    File: Schema.object({
+        type: Schema.value("File"),
+        signedUrlSearch: Schema.string,
+        file: FileModel.schema,
+    }),
+    FileEntity: Schema.object({
+        type: Schema.value("FileEntity"),
+        fileEntityId: FileEntityIdSchema,
+        fileEntityResult: FileEntityModelResultSchema,
+    }),
+});
 
 const MessageContentPayloadModelSchema = Schema.object({
     type: Schema.value("Content"),
     parentMessageIndex: Schema.integer.nullable(),
     content: MessageContentWithReferencesSchema,
     contentUpdatedTime: Schema.date.nullable(),
-    files: Schema.array(
-        Schema.object({
-            signedUrlSearch: Schema.string,
-            file: FileModel.schema,
-        }),
-    ).default([]),
+    files: Schema.array(MessageContentPayloadModelFileSchema).default([]),
 });
 
 const MessageDeletedPayloadModelSchema = Schema.object({

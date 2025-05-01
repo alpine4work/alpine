@@ -274,7 +274,7 @@ export function ChannelView({
             </Box>
         ),
         desktopMaxWidth:
-            routeLayout !== "narrow" && posts.getPostCount() > 0
+            routeLayout !== "narrow"
                 ? addRemLengths(contentStyles.contentMaxWidth, postListViewAsideMaxWidth)
                 : contentStyles.contentMaxWidth,
         // Create a bit of space to the left so we don't cut off the channel name

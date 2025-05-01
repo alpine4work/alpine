@@ -298,7 +298,7 @@ function PostListView(
         [channelHeader, postsWithoutChannelHeader],
     );
 
-    const hasAside = routeLayout !== "narrow" && !!aside && posts.getPostCount() > 0;
+    const hasAside = routeLayout !== "narrow" && !!aside;
     const hasNavigationBar = !!navigationBar?.navigationBar;
     const hasChannelHeader = !!channelHeader;
 

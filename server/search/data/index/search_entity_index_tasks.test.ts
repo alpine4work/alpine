@@ -25,6 +25,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
@@ -2242,7 +2243,7 @@ describe("getSearchEntity", () => {
             await getSearchEntity(
                 space.systemAction(),
                 {type: "Task", taskId: task1.id},
-                tokenizer,
+                {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
             dependencyIds: new Set([
@@ -2269,7 +2270,7 @@ describe("getSearchEntity", () => {
             await getSearchEntity(
                 space.systemAction(),
                 {type: "Task", taskId: task2.id},
-                tokenizer,
+                {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
             dependencyIds: new Set([`TaskCollection:${publicCollection.id}:Authorization`]),
@@ -2325,7 +2326,7 @@ describe("getSearchEntity", () => {
             await getSearchEntity(
                 space.systemAction(),
                 {type: "TaskCollection", collectionId: privateCollection.id},
-                tokenizer,
+                {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
             dependencyIds: new Set(),
@@ -2349,7 +2350,7 @@ describe("getSearchEntity", () => {
             await getSearchEntity(
                 space.systemAction(),
                 {type: "TaskCollection", collectionId: publicCollection.id},
-                tokenizer,
+                {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
             dependencyIds: new Set(),
@@ -2403,7 +2404,7 @@ describe("getSearchEntity", () => {
             await getSearchEntity(
                 space.systemAction(),
                 {type: "TaskComment", taskId: task1.id, commentIndex: 0},
-                tokenizer,
+                {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
             dependencyIds: new Set([
@@ -2437,7 +2438,7 @@ describe("getSearchEntity", () => {
             await getSearchEntity(
                 space.systemAction(),
                 {type: "TaskComment", taskId: task2.id, commentIndex: 0},
-                tokenizer,
+                {tokenizer, registerAdditionalWrite: noop},
             ),
         ).toEqual({
             dependencyIds: new Set([

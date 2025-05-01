@@ -1,5 +1,7 @@
 import {FileAttachmentTargetSchema} from "~/shared/files/file_attachment_target.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -127,5 +129,16 @@ export const attachFileFromAttachment = defineRpc({
     output: {
         signedUrlSearch: Schema.string,
         file: FileModel.schema,
+    },
+});
+
+export const getFileEntityIfPossible = defineRpc({
+    name: "getFileEntityIfPossible",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        fileEntityId: FileEntityIdSchema,
+    },
+    output: {
+        fileEntityResult: FileEntityModelResultSchema,
     },
 });

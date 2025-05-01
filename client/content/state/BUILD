@@ -1,0 +1,43 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "state",
+    test_deps = [
+        "//:node_modules/@testing-library/react",
+        "//client/content",
+    ],
+    visibility = [
+        "//admin/eslint:__pkg__",
+        "//app:__subpackages__",
+        "//client:__subpackages__",
+    ],
+    deps = [
+        "//:node_modules/@lume/kiwi",
+        "//:node_modules/@types/react",
+        "//:node_modules/prosemirror-collab",
+        "//:node_modules/prosemirror-commands",
+        "//:node_modules/prosemirror-history",
+        "//:node_modules/prosemirror-inputrules",
+        "//:node_modules/prosemirror-keymap",
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-state",
+        "//:node_modules/prosemirror-transform",
+        "//:node_modules/prosemirror-view",
+        "//:node_modules/react",
+        "//client/design",
+        "//client/icons",
+        "//client/remix",
+        "//client/styles",
+        "//shared/access",
+        "//shared/content",
+        "//shared/content/code",
+        "//shared/design",
+        "//shared/error",
+        "//shared/files",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/prosemirror",
+        "//shared/spaces",
+        "//shared/store",
+    ],
+)

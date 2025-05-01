@@ -13,6 +13,7 @@ import {markSearchAffinityLowIntentUpdateEntityInteraction} from "~/client/searc
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    createDocumentNotFoundError,
     getDocumentCommentThreadAndInitialComments,
     getDocumentWithOptionalCommentsIfExists,
 } from "~/server/documents/data/documents_table.js";
@@ -26,7 +27,7 @@ import {
     DocumentModel,
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -70,7 +71,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
 
     // Must have the `create` search param to load a document that doesn't exist.
     if (!document && url.searchParams.get("create") !== "") {
-        throw new NotFoundError("Document not found");
+        throw createDocumentNotFoundError(documentId);
     }
 
     const propagateEventData: TracerEventData = {

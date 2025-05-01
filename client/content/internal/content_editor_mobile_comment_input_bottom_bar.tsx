@@ -2,13 +2,13 @@ import {EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {createPortal} from "react-dom";
+import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
+import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {
     ContentEditorState,
     createContentCommentThreadMetaKey,
     updateContentEditorReferences,
-} from "~/client/content/content_editor_state.js";
-import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
-import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+} from "~/client/content/state/content_editor_state.js";
 import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {Box} from "~/client/design/box.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -130,7 +130,9 @@ export function ContentEditorMobileCommentInputBottomBar({
         transaction.setMeta(createContentCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
-            initialCommentFileIds: files.map(({file}) => file.id),
+            initialCommentFileIds: files.map(file =>
+                file.type === "FileEntity" ? file.fileEntityId : file.file.id,
+            ),
         });
 
         transaction.scrollIntoView();

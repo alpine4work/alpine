@@ -2,7 +2,7 @@ import classNames from "classnames";
 import {NodeViewConstructor} from "prosemirror-view";
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {getContentEditorReferences} from "~/client/content/content_editor_state.js";
+import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";

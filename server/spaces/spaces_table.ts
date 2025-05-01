@@ -41,6 +41,7 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -1583,7 +1584,13 @@ export async function getAccount(
     options?: {consistency?: DynamoReadConsistency},
 ): Promise<AccountModel> {
     const account = await getAccountIfExists(context, spaceId, accountId, options);
-    if (!account) throw new NotFoundError("Can't find account in space");
+
+    if (!account) {
+        throw new NotFoundError("Can't find account in space", {
+            displayMessage: errorDisplayMessage`This person doesn’t exist. Try searching “all people” to see who else is here.`,
+        });
+    }
+
     return account;
 }
 

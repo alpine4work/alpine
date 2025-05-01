@@ -18,7 +18,7 @@ import {
 } from "react";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -48,6 +48,7 @@ import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {
     taskDetailViewDenseFieldGap,
     taskDetailViewDenseFieldMinHeight,
+    taskDetailViewFieldLabelColor,
     taskDetailViewFieldLabelFontSize,
     taskDetailViewMainMinHeightPx,
     taskDetailViewSectionGap,
@@ -1569,7 +1570,7 @@ function TaskDetailViewMain(
                                     gap: "3",
                                     paddingX: screenPaddingX,
                                     paddingBottom: taskDetailViewSubtasksFieldLabelPaddingBottom,
-                                    color: "grey-60",
+                                    color: taskDetailViewFieldLabelColor,
                                 })}
                                 // Affordance for mouse users. Clicking on a label focuses child tasks.
                                 onClick={focusChildrenGridViewStart}

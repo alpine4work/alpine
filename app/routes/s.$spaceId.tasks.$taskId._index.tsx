@@ -35,6 +35,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_table.js";
 import {authorizeSpaceAccessIfPossible, getAccount} from "~/server/spaces/spaces_table.js";
 import {
+    createTaskNotFoundError,
     getTaskNotesContentAndOptionalInitialComments,
     getTaskNotesContentIfExists,
 } from "~/server/tasks/data/task_table.js";
@@ -239,7 +240,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
     let loadQueriesOutput: TaskRealtimeLoadQueriesOutput | null;
 
     if (!isCreatingTask) {
-        if (!task) throw new NotFoundError("Task not found");
+        if (!task) throw createTaskNotFoundError(taskId);
         loadQueriesOutput = unwrapResult(loadQueriesOutputResult);
     } else {
         if (loadQueriesOutputResult.ok) {

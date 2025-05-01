@@ -1,7 +1,7 @@
 import {useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -13,7 +13,9 @@ import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MountainRoadAtSunriseIllustration} from "~/client/icons/illustrations/mountain_road_at_sunrise_illustration.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
     channelViewHeaderSectionGap,
@@ -22,9 +24,9 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {ChannelContributorsModel} from "~/shared/forum/channel_model.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     MessageContent,
@@ -64,28 +66,23 @@ export function ChannelViewHeader({
                     flexDirection="column"
                     gap={channelViewHeaderSectionGap}
                 >
-                    {(channelHeader.isEditingDescription ||
-                        !isContentEmpty(channelHeader.channel.description.doc)) && (
-                        <Box marginBottom="-1.5">
-                            <h3 className={sprinkles({color: "grey-50"})}>About</h3>
-                            {!channelHeader.isEditingDescription ? (
-                                <ChannelViewHeaderMobileDescription
-                                    description={channelHeader.channel.description}
-                                />
-                            ) : (
-                                <ChannelViewHeaderMobileDescriptionEditor
-                                    initialDescription={channelHeader.channel.description}
-                                    onCancel={channelHeader.onCancelDescriptionEditing}
-                                    onSave={channelHeader.onSaveDescription}
-                                />
-                            )}
-                        </Box>
-                    )}
                     <ChannelViewContributorsSection
                         channel={channelHeader.channel}
                         contributors={contributors}
                         withoutTitle={true}
                     />
+                    <Box marginBottom="-1.5">
+                        <h3 className={sprinkles({color: "grey-50"})}>About</h3>
+                        {!channelHeader.isEditingDescription ? (
+                            <ChannelViewHeaderMobileDescription channel={channelHeader.channel} />
+                        ) : (
+                            <ChannelViewHeaderMobileDescriptionEditor
+                                channel={channelHeader.channel}
+                                onCancel={channelHeader.onCancelDescriptionEditing}
+                                onSave={channelHeader.onSaveDescription}
+                            />
+                        )}
+                    </Box>
                 </Box>
             )}
             <Box
@@ -126,16 +123,15 @@ export function ChannelViewHeader({
     );
 }
 
-function ChannelViewHeaderMobileDescription({
-    description,
-}: {
-    description: MessageContentWithReferences;
-}) {
+function ChannelViewHeaderMobileDescription({channel}: {channel: ChannelModel}) {
+    const clientInfo = useClientInfo();
+    const currentDate = useCurrentDate();
+
     const descriptionSnippet = useMemo(() => {
         return {
             doc: assertMessageContent(
                 getContentSnippet(
-                    description.doc.resolve(0),
+                    channel.description.doc.resolve(0),
                     {linesAbove: 0, linesBelow: 3},
                     {
                         // 1.125x the number of "x"s we can fit in a single line in a peek (64). We
@@ -146,15 +142,24 @@ function ChannelViewHeaderMobileDescription({
                     },
                 ),
             ),
-            references: description.references,
+            references: channel.description.references,
         };
-    }, [description.doc, description.references]);
+    }, [channel.description.doc, channel.description.references]);
 
     return (
         <Box paddingTop="1">
             <ContentViewWithSeeMoreToggle
-                content={description}
+                content={channel.description}
                 contentSnippet={descriptionSnippet}
+                // If the description is empty then we render a dummy placeholder to incentivize
+                // adding a description to the channel.
+                placeholder={`Created ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                    clientInfo.locale,
+                    clientInfo.timeZone,
+                    currentDate,
+                    channel.createdTime,
+                    {withLongMonth: true, withLongWeekday: true, withoutTime: true},
+                )}`}
             />
         </Box>
     );
@@ -165,20 +170,22 @@ function ChannelViewHeaderMobileDescription({
 // `<ChannelViewAsideDescriptionEditor>`. Any changes made here should probably
 // be made there too.
 function ChannelViewHeaderMobileDescriptionEditor({
-    initialDescription,
+    channel,
     onCancel,
     onSave,
 }: {
-    initialDescription: MessageContentWithReferences;
+    channel: ChannelModel;
     onCancel: () => void;
     onSave: (description: MessageContent) => Promise<void>;
 }) {
     const reporter = useReporter();
+    const clientInfo = useClientInfo();
+    const currentDate = useCurrentDate();
 
     const editorRef = useRef<ContentEditorRef<MessageContentWithReferences>>(null);
 
     const [state, setState] = useState(() =>
-        ContentEditorState.create(initialDescription, {selection: "start"}),
+        ContentEditorState.create(channel.description, {selection: "start"}),
     );
 
     const [isSaving, setIsSaving] = useState(false);
@@ -223,7 +230,7 @@ function ChannelViewHeaderMobileDescriptionEditor({
                         boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
                     }}
                     ref={useConfirmSaveAfterLosingFocus({
-                        shouldConfirmSave: state.getDoc() !== initialDescription.doc,
+                        shouldConfirmSave: state.getDoc() !== channel.description.doc,
                         isConfirmingSave: shouldShowConfirmSaveDialog,
                         onCancelSave: onCancel,
                         onConfirmSave: () => setShouldShowConfirmSaveDialog(true),
@@ -232,6 +239,15 @@ function ChannelViewHeaderMobileDescriptionEditor({
                     <ContentEditor
                         ref={editorRef}
                         aria-label="Description"
+                        // If the description is empty then we render a dummy placeholder to incentivize
+                        // adding a description to the channel.
+                        placeholder={`Created ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
+                            clientInfo.locale,
+                            clientInfo.timeZone,
+                            currentDate,
+                            channel.createdTime,
+                            {withLongMonth: true, withLongWeekday: true, withoutTime: true},
+                        )}`}
                         state={state}
                         onChange={(state, transaction) => {
                             if (isSaving && transaction.docChanged) return;

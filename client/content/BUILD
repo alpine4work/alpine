@@ -12,7 +12,6 @@ ts_project(
         "//client:__subpackages__",
     ],
     deps = [
-        "//:node_modules/@lume/kiwi",
         "//:node_modules/@react-aria/interactions",
         "//:node_modules/@types/hammerjs",
         "//:node_modules/@types/jest",
@@ -38,6 +37,7 @@ ts_project(
         "//:node_modules/react-stately",
         "//:node_modules/statuses",
         "//client/accounts",
+        "//client/content/state",
         "//client/design",
         "//client/dev",
         "//client/helpers",

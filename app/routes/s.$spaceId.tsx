@@ -17,7 +17,9 @@ import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicat
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context.js";
+import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
+import {contentFileEntityRenderers} from "~/client/content/file_entity/content_file_entity_renderers.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuContextProvider} from "~/client/design/context_menu.js";
@@ -668,55 +670,63 @@ export default function SpaceLayoutRoute() {
                 }
             }}
         >
-            <GlobalLoadingIndicatorContextProvider>
-                {globalLoadingIndicator => (
-                    <ContextMenuContextProvider>
-                        <SpaceContextProvider
-                            space={loaderData.space}
-                            currentAccount={
-                                loaderData.type === "WithAccess" ? loaderData.currentAccount : null
-                            }
-                            currentAccountWithoutSpace={
-                                loaderData.type === "WithAccess"
-                                    ? loaderData.currentAccount
-                                    : loaderData.currentAccountWithoutSpace
-                            }
-                        >
-                            <TaskRealtimeClientContextProvider
-                                spaceId={spaceId}
-                                currentAccountId={
+            <ContentFileEntityRenderersContext.Provider value={contentFileEntityRenderers}>
+                <GlobalLoadingIndicatorContextProvider>
+                    {globalLoadingIndicator => (
+                        <ContextMenuContextProvider>
+                            <SpaceContextProvider
+                                space={loaderData.space}
+                                currentAccount={
                                     loaderData.type === "WithAccess"
-                                        ? loaderData.currentAccount.id
-                                        : loaderData.currentAccountWithoutSpace?.id ?? null
+                                        ? loaderData.currentAccount
+                                        : null
+                                }
+                                currentAccountWithoutSpace={
+                                    loaderData.type === "WithAccess"
+                                        ? loaderData.currentAccount
+                                        : loaderData.currentAccountWithoutSpace
                                 }
                             >
-                                <PeekStackContextProvider
-                                    ref={peekStackRef}
-                                    // The peek stack component is responsible for rendering our global loading
-                                    // indicator so it can make sure the loading indicator avoids the peek stack.
-                                    globalLoadingIndicator={globalLoadingIndicator}
+                                <TaskRealtimeClientContextProvider
+                                    spaceId={spaceId}
+                                    currentAccountId={
+                                        loaderData.type === "WithAccess"
+                                            ? loaderData.currentAccount.id
+                                            : loaderData.currentAccountWithoutSpace?.id ?? null
+                                    }
                                 >
-                                    <SpaceLayoutRouteOutlet
-                                        dataRouterStateContext={dataRouterStateContext}
-                                        loaderData={loaderData}
-                                        setSearchQueryText={setSearchQueryText}
+                                    <PeekStackContextProvider
+                                        ref={peekStackRef}
+                                        // The peek stack component is responsible for rendering our global loading
+                                        // indicator so it can make sure the loading indicator avoids the peek stack.
                                         globalLoadingIndicator={globalLoadingIndicator}
-                                    />
-                                </PeekStackContextProvider>
-                                {modals}
-                                {hasSpaceLayoutWebMobileTabBar && (
-                                    <SpaceLayoutWebMobileTabBar initialInbox={loaderData.inbox} />
-                                )}
-                                {loaderData.type === "WithAccess" && clientInfo.isNativeMobile && (
-                                    <SpaceLayoutNativeMobileInboxController
-                                        initialInbox={loaderData.inbox}
-                                    />
-                                )}
-                            </TaskRealtimeClientContextProvider>
-                        </SpaceContextProvider>
-                    </ContextMenuContextProvider>
-                )}
-            </GlobalLoadingIndicatorContextProvider>
+                                    >
+                                        <SpaceLayoutRouteOutlet
+                                            dataRouterStateContext={dataRouterStateContext}
+                                            loaderData={loaderData}
+                                            setSearchQueryText={setSearchQueryText}
+                                            globalLoadingIndicator={globalLoadingIndicator}
+                                        />
+                                    </PeekStackContextProvider>
+                                    {modals}
+                                    {hasSpaceLayoutWebMobileTabBar && (
+                                        <SpaceLayoutWebMobileTabBar
+                                            initialInbox={loaderData.inbox}
+                                        />
+                                    )}
+                                    {loaderData.type === "WithAccess" &&
+                                        clientInfo.isNativeMobile && (
+                                            <SpaceLayoutNativeMobileInboxController
+                                                initialInbox={loaderData.inbox}
+                                            />
+                                        )}
+                                </TaskRealtimeClientContextProvider>
+                            </SpaceContextProvider>
+                        </ContextMenuContextProvider>
+                    )}
+                </GlobalLoadingIndicatorContextProvider>
+                ,
+            </ContentFileEntityRenderersContext.Provider>
         </GlobalKeyDownEvent>
     );
 }

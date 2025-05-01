@@ -10,11 +10,11 @@ import {TextSelection} from "prosemirror-state";
 import {ReactNode, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
+import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
 import {
     ContentEditorState,
     getContentEditorReferences,
-} from "~/client/content/content_editor_state.js";
-import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
+} from "~/client/content/state/content_editor_state.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
@@ -29,15 +29,24 @@ import {
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
+import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
+import {ChannelId} from "~/shared/id/types/id_types.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
@@ -363,6 +372,9 @@ const space = new SpaceModel({
     id: assertId("pv9hmw9x4nkzpnn404ntddmbp0"),
     name: "Test Space",
 });
+
+// For any code that needs to parse the `SpaceId` from the URL.
+window.history.replaceState(null, "", `/s/${space.id}/test`);
 
 const currentAccount = new AccountModel({
     id: assertId("y6j4bejce5hf26d8kmatrf9dec"),
@@ -691,7 +703,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
                 if (execution.outputPromiseResolver.isSettled()) continue;
 
                 const {file} = assertExists(
-                    sourceContentReferences.fileById.get(execution.input.fileId),
+                    sourceContentReferences.fileById?.get(execution.input.fileId),
                 );
 
                 execution.outputPromiseResolver.resolve({
@@ -1631,6 +1643,63 @@ test("file row (one file, audio type)", async () => {
                             ok: true,
                             duration: 5000,
                         },
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("file row (one file, channel entity)", async () => {
+    const channelId = assertId<ChannelId>("xh0gwk1xajfh6s7fat4c1f0hyr");
+
+    const content = schema.node("doc", {}, [
+        schema.node("fileRow", {}, [schema.node("file", {fileId: `Channel:${channelId}`})]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        fileEntityById: new Map([
+            [
+                cast<FileEntityId>(`Channel:${channelId}`),
+                {
+                    ok: true,
+                    value: new FileEntityModel(FileChannelEntityModelSchema, {
+                        type: "Channel",
+                        versions: [32],
+                        id: channelId,
+                        createdTime,
+                        name: "Test Channel",
+                        description: {
+                            doc: assertMessageContent(
+                                MessageContentProsemirrorSchema.node("doc", null, [
+                                    MessageContentProsemirrorSchema.node("paragraph", null, [
+                                        MessageContentProsemirrorSchema.text(
+                                            "This is a channel where we talk about some stuff. Here’s a description that wraps onto multiple lines.",
+                                        ),
+                                    ]),
+                                ]),
+                            ),
+                            references: emptyContentReferences,
+                        },
+                        contributorCount: 2,
+                        topContributors: [currentAccount, otherAccount],
                     }),
                 },
             ],

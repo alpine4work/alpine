@@ -1,0 +1,636 @@
+import {expect, test} from "@playwright/test";
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep} from "prosemirror-transform";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {getDocumentContent} from "~/server/documents/data/documents_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {generateId} from "~/shared/id/id.js";
+
+const {context, services} = createTestServices();
+
+test("document file entity that doesn't exist", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "foobar"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${generateId()}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("Couldn’t find document")).toBeVisible();
+    await expect(page.getByText("Private document")).toBeHidden();
+});
+
+test("document file entity we don't have access to", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document1 = await TestDocument.create(session1, {title: "foobar"});
+    const document2 = await TestDocument.create(session2, {title: "quxbuz"});
+
+    await document1.update(session1, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("Private document")).toBeVisible();
+    await expect(page.getByText("Couldn’t find document")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+});
+
+test("document file entity", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document1 = await TestDocument.create(session, {title: "foobar"});
+    const document2 = await TestDocument.create(session, {title: "quxbuz"});
+
+    await document1.update(session, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document2.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeVisible();
+    await expect(page.getByText("Couldn’t find document")).toBeHidden();
+    await expect(page.getByText("Private document")).toBeHidden();
+});
+
+test("task collection file entity that doesn't exist", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "foobar"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `TaskCollection:${generateId()}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("Couldn’t find task collection")).toBeVisible();
+    await expect(page.getByText("Private task collection")).toBeHidden();
+});
+
+test("task collection file entity we don't have access to", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "foobar"});
+    const collection = await TestTaskCollection.create(session2, {name: "quxbuz"});
+
+    await document.update(session1, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `TaskCollection:${collection.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("Private task collection")).toBeVisible();
+    await expect(page.getByText("Couldn’t find task collection")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+});
+
+test("task collection file entity", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "foobar"});
+    const collection = await TestTaskCollection.create(session, {name: "quxbuz"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `TaskCollection:${collection.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeVisible();
+    await expect(page.getByText("Couldn’t find task collection")).toBeHidden();
+    await expect(page.getByText("Private task collection")).toBeHidden();
+});
+
+test("channel file entity that doesn't exist", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "foobar"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Channel:${generateId()}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("Couldn’t find channel")).toBeVisible();
+    await expect(page.getByText("Private channel")).toBeHidden();
+});
+
+test("channel file entity we don't have access to", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const document = await TestDocument.create(session1, {title: "foobar"});
+
+    const channel = await TestChannel.create(session2, {name: "quxbuz"});
+    await channel.access.revokeDefault(session2);
+
+    await document.update(session1, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Channel:${channel.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("Private channel")).toBeVisible();
+    await expect(page.getByText("Couldn’t find channel")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+});
+
+test("channel file entity", async ({page, context: browserContext}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "foobar"});
+    const channel = await TestChannel.create(session, {name: "quxbuz"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            8,
+            10,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Channel:${channel.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "foobar"})).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeVisible();
+    await expect(page.getByText("Couldn’t find channel")).toBeHidden();
+    await expect(page.getByText("Private channel")).toBeHidden();
+});
+
+test("can render recursive file entity with 1 entity in row", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "Doc 1"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            7,
+            9,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const {updateContentPreview} = await getDocumentContent(session.action(), document.id);
+    await updateContentPreview(session.action());
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "Doc 1"})).toHaveCount(4);
+    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+});
+
+test("can render recursive file entity with 2 entities in row", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "Doc 2"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            7,
+            9,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const {updateContentPreview} = await getDocumentContent(session.action(), document.id);
+    await updateContentPreview(session.action());
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "Doc 2"})).toHaveCount(15);
+    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+});
+
+test("can render recursive file entity with 3 entities in row", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "Doc 3"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            7,
+            9,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const {updateContentPreview} = await getDocumentContent(session.action(), document.id);
+    await updateContentPreview(session.action());
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "Doc 3"})).toHaveCount(40);
+    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+});
+
+test("can paste URL to add file entity to document", async ({
+    context: browserContext,
+    page,
+    viewport,
+}) => {
+    assert(viewport);
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document1 = await TestDocument.create(session);
+    await document1.access.grantDefault(session);
+
+    const document2 = await TestDocument.create(session, {title: "foobar"});
+    await document2.access.grantDefault(session);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+
+    const url = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
+
+    const canPrimaryInputHover = await page.evaluate(
+        () => !window.matchMedia("(hover: none)").matches,
+    );
+
+    await page.evaluate(async url => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/plain": new Blob([url], {type: "text/plain"}),
+            }),
+        ]);
+    }, url.toString());
+
+    await expect(page.getByText("foobar")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+
+    await page.getByRole("textbox", {name: "Document"}).focus();
+
+    if (canPrimaryInputHover) {
+        await page
+            .getByRole("textbox", {name: "Document"})
+            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+    } else {
+        await page
+            .getByRole("textbox", {name: "Document"})
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
+    }
+
+    await page.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+
+    await expect(page.getByText("foobar")).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+});
+
+test("can paste `<iframe>` HTML to add file entity to document", async ({
+    context: browserContext,
+    page,
+    viewport,
+}) => {
+    assert(viewport);
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document1 = await TestDocument.create(session);
+    await document1.access.grantDefault(session);
+
+    const document2 = await TestDocument.create(session, {title: "foobar"});
+    await document2.access.grantDefault(session);
+
+    const document3 = await TestDocument.create(session, {title: "quxbuz"});
+    await document3.access.grantDefault(session);
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document1.id}`);
+
+    const url1 = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
+    const url2 = new URL(`/s/${space.id}/documents/${document3.id}`, services.getBaseUrl());
+
+    const canPrimaryInputHover = await page.evaluate(
+        () => !window.matchMedia("(hover: none)").matches,
+    );
+
+    await page.evaluate(
+        async ([url1, url2]) => {
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    "text/html": new Blob(
+                        [`<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`],
+                        {type: "text/html"},
+                    ),
+                }),
+            ]);
+        },
+        [url1.toString(), url2.toString()],
+    );
+
+    await expect(page.getByText("foobar")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+
+    await page.getByRole("textbox", {name: "Document"}).focus();
+
+    if (canPrimaryInputHover) {
+        await page
+            .getByRole("textbox", {name: "Document"})
+            .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+    } else {
+        await page
+            .getByRole("textbox", {name: "Document"})
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
+    }
+
+    await page.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+
+    await expect(page.getByText("foobar")).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeVisible();
+});
+
+test("can paste URL to add file entity to chat", async ({context: browserContext, page}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chat = await TestChat.get(session1, session2);
+
+    const document = await TestDocument.create(session1, {title: "foobar"});
+    await document.access.grantDefault(session1);
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+
+    const url = new URL(`/s/${space.id}/documents/${document.id}`, services.getBaseUrl());
+
+    await page.evaluate(async url => {
+        await navigator.clipboard.write([
+            new ClipboardItem({
+                "text/plain": new Blob([url], {type: "text/plain"}),
+            }),
+        ]);
+    }, url.toString());
+
+    await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
+    await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
+    await expect(page.getByText("foobar")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+
+    await page.getByLabel("New message").focus();
+    await page.getByLabel("New message").press("ControlOrMeta+v");
+
+    await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeVisible();
+    await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
+    await expect(page.getByText("foobar")).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+
+    await page.getByLabel("New message").press("Enter");
+
+    await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
+    await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeVisible();
+    await expect(page.getByText("foobar")).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+});
+
+test("can paste `<iframe>` HTML to add file entity to chat", async ({
+    context: browserContext,
+    page,
+}) => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    const chat = await TestChat.get(session1, session2);
+
+    const document1 = await TestDocument.create(session1, {title: "foobar"});
+    await document1.access.grantDefault(session1);
+
+    const document2 = await TestDocument.create(session1, {title: "quxbuz"});
+    await document2.access.grantDefault(session1);
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/chat/${chat.id}`);
+
+    const url1 = new URL(`/s/${space.id}/documents/${document1.id}`, services.getBaseUrl());
+    const url2 = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
+
+    await page.evaluate(
+        async ([url1, url2]) => {
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    "text/html": new Blob(
+                        [`<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`],
+                        {type: "text/html"},
+                    ),
+                }),
+            ]);
+        },
+        [url1.toString(), url2.toString()],
+    );
+
+    await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByText("quxbuz")).toBeHidden();
+    await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
+    await expect(page.getByTestId(/^MessageView:/).getByText("quxbuz")).toBeHidden();
+    await expect(page.getByText("foobar")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+
+    await page.getByLabel("New message").focus();
+    await page.getByLabel("New message").press("ControlOrMeta+v");
+
+    await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeVisible();
+    await expect(page.getByTestId("MessageInput").getByText("quxbuz")).toBeVisible();
+    await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
+    await expect(page.getByTestId(/^MessageView:/).getByText("quxbuz")).toBeHidden();
+    await expect(page.getByText("foobar")).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeVisible();
+
+    await page.getByLabel("New message").press("Enter");
+
+    await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
+    await expect(page.getByTestId("MessageInput").getByText("quxbuz")).toBeHidden();
+    await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeVisible();
+    await expect(page.getByTestId(/^MessageView:/).getByText("quxbuz")).toBeVisible();
+    await expect(page.getByText("foobar")).toBeVisible();
+    await expect(page.getByText("quxbuz")).toBeVisible();
+});

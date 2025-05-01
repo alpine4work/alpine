@@ -1,8 +1,8 @@
 import classNames from "classnames";
 import {Memo, Ref, forwardRef, useId, useImperativeHandle, useMemo, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useStore} from "~/client/helpers/use_store.js";
@@ -10,6 +10,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {sprinkles, tasksStyles} from "~/client/styles/styles.js";
 import {
     taskDetailNotesFieldLabelPaddingBottom,
+    taskDetailViewFieldLabelColor,
     taskDetailViewFieldLabelFontSize,
 } from "~/client/styles/tasks_shared_styles.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
@@ -98,7 +99,7 @@ function TaskDetailNotesField(
                     paddingX: screenPaddingX,
                     paddingBottom: taskDetailNotesFieldLabelPaddingBottom,
                     fontSize: taskDetailViewFieldLabelFontSize,
-                    color: "grey-60",
+                    color: taskDetailViewFieldLabelColor,
                 })}
                 // Affordance for mouse users. Clicking on a label focuses the editor.
                 onClick={() => {

@@ -15,7 +15,7 @@ export const FileModelDataSchema = Schema.object({
     isUploading: Schema.boolean,
     alternative: FileAlternativeSchema.nullable().default(null),
     preview: FilePreviewSchema.nullable(),
-    // When `preview` is `"Image"` this is the bas64 encoded image preview content
+    // When `preview` is `"Image"` this is the base64 encoded image preview content
     // if it's under 100kb. So we can render the image content for small images
     // directly without needing to make a network request.
     imagePreviewContentIfSmall: Schema.string.optional(),

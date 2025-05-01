@@ -16,23 +16,24 @@ import {
 } from "react";
 import {createPortal} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {
-    ContentEditorState,
-    createContentCommentThreadMetaKey,
-    updateContentEditorReferences,
-} from "~/client/content/content_editor_state.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
-    FileInfo,
+    FileInfoWithEntity,
     iterateFileInfosInElement,
 } from "~/client/content/internal/iterate_file_infos_in_element.js";
 import {
     MessageInputFile,
     addMessageInputFiles,
 } from "~/client/content/messaging/add_message_input_files.js";
+import {MessageInputFileEntityPreview} from "~/client/content/messaging/message_input_file_entity_preview.js";
 import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
 import {useMessagingViewDropTarget} from "~/client/content/messaging/use_messaging_view_drop_target.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {
+    ContentEditorState,
+    createContentCommentThreadMetaKey,
+    updateContentEditorReferences,
+} from "~/client/content/state/content_editor_state.js";
 import {trimContentEnd, trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -167,7 +168,7 @@ export function ContentEditorCommentInputFloater({
 
     const addFiles = (
         spanName: string,
-        fileInfos: ReadonlyArray<FileInfo>,
+        fileInfos: ReadonlyArray<FileInfoWithEntity>,
     ): {finally(listener: () => void): void} => {
         if (fileInfos.length === 0) return Promise.resolve();
 
@@ -193,7 +194,7 @@ export function ContentEditorCommentInputFloater({
         isDisabled: false,
         onDrop: event => {
             let hasHtmlFileInfos = false;
-            const fileInfos: Array<FileInfo> = [];
+            const fileInfos: Array<FileInfoWithEntity> = [];
 
             for (const {info} of iterateFileInfosInElement(
                 parseHtml(event.dataTransfer.getData("text/html")),
@@ -304,7 +305,7 @@ function ContentEditorCommentInput({
     setCommentState: Dispatch<SetStateAction<ContentEditorState<MessageContentWithReferences>>>;
     files: ReadonlyArray<MessageInputFile>;
     setFiles: Dispatch<SetStateAction<ReadonlyArray<MessageInputFile>>>;
-    addFiles: (spanName: string, fileInfos: ReadonlyArray<FileInfo>) => void;
+    addFiles: (spanName: string, fileInfos: ReadonlyArray<FileInfoWithEntity>) => void;
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
@@ -371,7 +372,9 @@ function ContentEditorCommentInput({
         transaction.setMeta(createContentCommentThreadMetaKey, {
             commentThreadId,
             initialCommentContent: content,
-            initialCommentFileIds: files.map(({file}) => file.id),
+            initialCommentFileIds: files.map(file =>
+                file.type === "FileEntity" ? file.fileEntityId : file.file.id,
+            ),
             openCommentThreadPromiseRef,
         });
 
@@ -769,21 +772,36 @@ function ContentEditorCommentInput({
                                     paddingX={messageInputFilesOverflowGradientWidth}
                                     style={{width: "fit-content"}}
                                 >
-                                    {files.map(file => (
-                                        <MessageInputFilePreview
-                                            key={file.key}
-                                            signedUrlSearch={file.signedUrlSearch}
-                                            file={file.file}
-                                            attachmentTarget={file.attachmentTarget}
-                                            onRemove={() => {
-                                                setFiles(files =>
-                                                    files.filter(
-                                                        otherFile => otherFile.key !== file.key,
-                                                    ),
-                                                );
-                                            }}
-                                        />
-                                    ))}
+                                    {files.map(file =>
+                                        file.type === "FileEntity" ? (
+                                            <MessageInputFileEntityPreview
+                                                key={file.key}
+                                                fileEntityId={file.fileEntityId}
+                                                fileEntityResult={file.fileEntityResult}
+                                                onRemove={() => {
+                                                    setFiles(files =>
+                                                        files.filter(
+                                                            otherFile => otherFile.key !== file.key,
+                                                        ),
+                                                    );
+                                                }}
+                                            />
+                                        ) : (
+                                            <MessageInputFilePreview
+                                                key={file.key}
+                                                signedUrlSearch={file.signedUrlSearch}
+                                                file={file.file}
+                                                attachmentTarget={file.attachmentTarget}
+                                                onRemove={() => {
+                                                    setFiles(files =>
+                                                        files.filter(
+                                                            otherFile => otherFile.key !== file.key,
+                                                        ),
+                                                    );
+                                                }}
+                                            />
+                                        ),
+                                    )}
                                 </Box>
                             </Box>
                         </Box>

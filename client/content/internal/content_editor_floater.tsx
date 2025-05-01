@@ -16,7 +16,6 @@ import {
 import {FocusScope} from "react-aria";
 import {ContentEditorCommentInputFloater} from "~/client/content/internal/content_editor_comment_input_floater.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
-import {ContentEditorFloaterState} from "~/client/content/internal/content_editor_floater_state.js";
 import {
     ContentEditorHighlightSelector,
     ContentEditorHighlightSelectorRef,
@@ -25,6 +24,7 @@ import {ContentEditorLinkInput} from "~/client/content/internal/content_editor_l
 import {ContentEditorMentionFloater} from "~/client/content/internal/content_editor_mention_floater.js";
 import {ContentEditorPointerToolbar} from "~/client/content/internal/content_editor_pointer_toolbar.js";
 import {getMarksSpanningAcrossEntireRange} from "~/client/content/internal/helpers/get_marks_spanning_across_entire_range.js";
+import {ContentEditorFloaterState} from "~/client/content/state/content_editor_floater_state.js";
 import {Box} from "~/client/design/box.js";
 import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.js";
 import {OverlayRef} from "~/client/design/overlay.js";

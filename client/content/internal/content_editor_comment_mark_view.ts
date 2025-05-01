@@ -1,6 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {MarkViewConstructor} from "prosemirror-view";
-import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/internal/parent_scroll_when_pointer_down_and_over_event.js";
+import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {commentClassName, fileClassName} from "~/shared/content/content_styles.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";

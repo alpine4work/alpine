@@ -1,8 +1,11 @@
 import {Node} from "prosemirror-model";
+import {FileEntityId, FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {FileEntityModel, FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -47,6 +50,9 @@ export const ContentReferencesSchema = Schema.object({
     // `fileById` here adds such a minimal amount of overhead, the excessive extra
     // code complexity isn't worth it at the moment.
     //
+    // Because this property is optional when there are zero files the overhead of
+    // including this property for messages is pretty minimal.
+    //
     // (If you look at the parent commit you can see my half complete, abandoned,
     // attempt at splitting this type in two.)
     fileById: Schema.map(
@@ -55,7 +61,24 @@ export const ContentReferencesSchema = Schema.object({
             signedUrlSearch: Schema.string,
             file: FileModel.schema,
         }),
-    ),
+    )
+        .minSize(1)
+        .optional(),
+
+    /**
+     * Entities attached to content in files.
+     *
+     * In additional to arbitrary binary blobs, we allow attaching some Alpine
+     * entities as files. This allows entities to use the file layout engine, put
+     * multiple entities next to each other in rows, and place entities next to
+     * files.
+     */
+    // NOTE(calebmer, 2025-04-28): Similarly to `fileById`, `MessageContent` will
+    // never have any `fileEntityById`s. See the documentation comment on
+    // `fileById` for more info.
+    fileEntityById: Schema.map(FileEntityIdSchema, FileEntityModelResultSchema)
+        .minSize(1)
+        .optional(),
 });
 
 /**
@@ -70,7 +93,6 @@ export type ContentWithReferences = {
 
 export const emptyContentReferences: ContentReferences = {
     accountById: emptyMap,
-    fileById: emptyMap,
 };
 
 /**
@@ -79,9 +101,13 @@ export const emptyContentReferences: ContentReferences = {
 export function isEmptyContentReferences(references: ContentReferences): boolean {
     // If you add more data to `ContentReferences` in the future, you'll
     // need to come back and update this function.
-    assertEqualTypes<keyof ContentReferences, "accountById" | "fileById">();
+    assertEqualTypes<keyof ContentReferences, "accountById" | "fileById" | "fileEntityById">();
 
-    return references.accountById.size === 0 && references.fileById.size === 0;
+    return (
+        references.accountById.size === 0 &&
+        (references.fileById?.size ?? 0) === 0 &&
+        (references.fileEntityById?.size ?? 0) === 0
+    );
 }
 
 /**
@@ -112,10 +138,14 @@ export function mergeContentReferences(
     return {
         accountById,
         fileById: mergeContentReferencesFileById(references1.fileById, references2.fileById),
+        fileEntityById: mergeContentReferencesFileEntityById(
+            references1.fileEntityById,
+            references2.fileEntityById,
+        ),
     };
 }
 
-export function mergeContentReferencesFileById(
+function mergeContentReferencesFileById(
     fileById1: ContentReferences["fileById"],
     fileById2: ContentReferences["fileById"],
 ): ContentReferences["fileById"] {
@@ -125,34 +155,119 @@ export function mergeContentReferencesFileById(
     //
     // Prefer `existingFileReference` in `FileModel.minLoadingCount()` to avoid
     // unnecessary re-renders. Pick the `signedUrlSearch` that expires later.
-    for (const [fileId2, file2] of fileById2) {
-        const fileReference1 = fileById1.get(fileId2);
+    if (fileById2 !== undefined) {
+        for (const [fileId2, file2] of fileById2) {
+            const fileReference1 = fileById1?.get(fileId2);
 
-        const newFileReference = {
-            signedUrlSearch: fileReference1
-                ? mergeContentReferencesFileSignedUrlSearches(
-                      fileReference1.signedUrlSearch,
-                      file2.signedUrlSearch,
-                  )
-                : file2.signedUrlSearch,
-            file: fileReference1
-                ? FileModel.minLoadingCount(fileReference1.file, file2.file)
-                : file2.file,
-        };
+            const newFileReference = {
+                signedUrlSearch: fileReference1
+                    ? mergeContentReferencesFileSignedUrlSearches(
+                          fileReference1.signedUrlSearch,
+                          file2.signedUrlSearch,
+                      )
+                    : file2.signedUrlSearch,
+                file: fileReference1
+                    ? FileModel.minLoadingCount(fileReference1.file, file2.file)
+                    : file2.file,
+            };
 
-        if (
-            !fileReference1 ||
-            newFileReference.signedUrlSearch !== fileReference1.signedUrlSearch ||
-            newFileReference.file !== fileReference1.file
-        ) {
-            newFileById ??= new Map(fileById1);
-            newFileById.set(fileId2, newFileReference);
+            if (
+                !fileReference1 ||
+                newFileReference.signedUrlSearch !== fileReference1.signedUrlSearch ||
+                newFileReference.file !== fileReference1.file
+            ) {
+                newFileById ??= new Map(fileById1);
+                newFileById.set(fileId2, newFileReference);
+            }
         }
     }
 
     // If there's nothing new in `fileById2` then `newFileById` won't have been
     // initialized.
-    return newFileById ?? fileById1;
+    const actualNewFileById = newFileById ?? fileById1;
+    if (actualNewFileById !== undefined && actualNewFileById.size === 0) return undefined;
+    return actualNewFileById;
+}
+
+function mergeContentReferencesFileEntityById(
+    fileEntityById1: ContentReferences["fileEntityById"],
+    fileEntityById2: ContentReferences["fileEntityById"],
+): ContentReferences["fileEntityById"] {
+    let newFileEntityById: Map<FileEntityId, Result<FileEntityModel>> | undefined;
+
+    // Merge file entities together...
+    if (fileEntityById2 !== undefined) {
+        for (const [fileId2, fileEntityResult2] of fileEntityById2) {
+            const fileEntityResult1 = fileEntityById1?.get(fileId2);
+
+            if (!fileEntityResult1) {
+                newFileEntityById ??= new Map(fileEntityById1);
+                newFileEntityById.set(fileId2, fileEntityResult2);
+                continue;
+            }
+
+            let newFileEntityResult: Result<FileEntityModel> | undefined;
+            if (!fileEntityResult1.ok) {
+                if (!fileEntityResult2.ok) {
+                    // Prefer the first result if neither are ok
+                    newFileEntityResult = fileEntityResult1;
+                } else {
+                    // Prefer the `ok: true` result
+                    newFileEntityResult = fileEntityResult2;
+                }
+            } else {
+                if (!fileEntityResult2.ok) {
+                    // Prefer the `ok: true` result
+                    newFileEntityResult = fileEntityResult1;
+                } else {
+                    const minVersionsLength = Math.min(
+                        fileEntityResult1.value.versions.length,
+                        fileEntityResult2.value.versions.length,
+                    );
+
+                    // Pick the entity with the highest version number. Stop at the first version
+                    // that's not equal to the other entity's version. This is a generic conflict
+                    // resolution mechanism designed to work without us knowing how to interpret the
+                    // underlying file entity data.
+                    for (let i = 0; i < minVersionsLength; i++) {
+                        const version1 = fileEntityResult1.value.versions[i]!;
+                        const version2 = fileEntityResult2.value.versions[i]!;
+
+                        if (version1 > version2) {
+                            newFileEntityResult = fileEntityResult1;
+                            break;
+                        } else if (version1 < version2) {
+                            newFileEntityResult = fileEntityResult2;
+                            break;
+                        }
+                    }
+
+                    if (!newFileEntityResult) {
+                        if (
+                            fileEntityResult1.value.versions.length >
+                            fileEntityResult2.value.versions.length
+                        ) {
+                            newFileEntityResult = fileEntityResult1;
+                        } else {
+                            newFileEntityResult = fileEntityResult2;
+                        }
+                    }
+                }
+            }
+
+            if (newFileEntityResult !== fileEntityResult1) {
+                newFileEntityById ??= new Map(fileEntityById1);
+                newFileEntityById.set(fileId2, newFileEntityResult);
+            }
+        }
+    }
+
+    // If there's nothing new in `fileEntityById2` then `newFileEntityById` won't
+    // have been initialized.
+    const actualNewFileEntityById = newFileEntityById ?? fileEntityById1;
+    if (actualNewFileEntityById !== undefined && actualNewFileEntityById.size === 0)
+        return undefined;
+    return actualNewFileEntityById;
 }
 
 export function getContentReferencesFileSignedUrlSearchExpirationTime(

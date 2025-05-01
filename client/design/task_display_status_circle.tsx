@@ -1,13 +1,17 @@
 import {Check} from "phosphor-react";
 import {
-    accentThemeBackgroundColor,
-    accentThemeForegroundColor,
-    buttonStyles,
-    sprinkles,
-} from "~/client/styles/styles.js";
+    TaskDisplayStatusCircleSize,
+    getTaskDisplayStatusActiveHalfCircleMargin,
+    taskDisplayStatusActiveHalfCircleClassName,
+    taskDisplayStatusActiveHalfCircleContainerClassName,
+    taskDisplayStatusActivePressedOverlayClassName,
+    taskDisplayStatusClosedPressedOverlayClassName,
+    taskDisplayStatusPressedCircleClassNameByDisplayStatus,
+    taskDisplayStatusUnpressedCircleClassNameByDisplayStatus,
+} from "~/client/design/task_display_status_circle_html.js";
+import {buttonStyles} from "~/client/styles/styles.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 
 // Since we can't import `shared/tasks` from `client/design`, manually inline
 // the `TaskDisplayStatus` type. This component lives in `client/design` so we
@@ -29,78 +33,13 @@ type TaskDisplayStatus = "OpenInactive" | "OpenActive" | "Closed";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boolean) =>
-    sprinkles({
-        // In case the circle is in a flexbox container, don't let it shrink.
-        flexShrink: "0",
-        position: "relative",
-        zIndex: "0",
-        borderRadius: "full",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        overflow: "hidden",
-        border:
-            displayStatus === "OpenInactive" || displayStatus === "OpenActive"
-                ? "grey-40"
-                : undefined,
-        color: displayStatus === "Closed" ? accentThemeForegroundColor : undefined,
-        backgroundColor:
-            displayStatus === "Closed"
-                ? accentThemeBackgroundColor
-                : isPressed
-                ? "grey-10"
-                : "grey-0",
-    });
-
-const unpressedCircleClassNameByDisplayStatus = new DefaultMap((displayStatus: TaskDisplayStatus) =>
-    computeCircleClassName(displayStatus, false),
-);
-
-const pressedCircleClassNameByDisplayStatus = new DefaultMap((displayStatus: TaskDisplayStatus) =>
-    computeCircleClassName(displayStatus, true),
-);
-
-const closedPressedOverlayClassName = sprinkles({
-    position: "absolute",
-    zIndex: "10",
-    inset: "0",
-    backgroundColor: "grey-100-const",
-    pointerEvents: "none",
-});
-
-const activeHalfCircleContainerClassName = sprinkles({
-    position: "absolute",
-    top: "0",
-    left: "0",
-    overflow: "hidden",
-});
-
-const activeHalfCircleClassName = sprinkles({
-    position: "absolute",
-    top: "0",
-    right: "0",
-    borderRadius: "full",
-    backgroundColor: {light: "theme-20-const", dark: "theme-30-const"},
-});
-
-const activePressedOverlayClassName = sprinkles({
-    position: "absolute",
-    zIndex: "10",
-    top: "0",
-    right: "0",
-    borderRadius: "full",
-    backgroundColor: "grey-100-const",
-    pointerEvents: "none",
-});
-
 export function TaskDisplayStatusCircle({
     displayStatus,
     size,
     isPressed,
 }: {
     displayStatus: TaskDisplayStatus;
-    size: "3" | "4" | "5" | "6" | "7";
+    size: TaskDisplayStatusCircleSize;
     isPressed?: boolean;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -120,22 +59,7 @@ export function TaskDisplayStatusCircle({
     const sprinkles = null;
 
     const sizeInt = parseInt(size, 10);
-    const activeHalfCircleMargin =
-        sizeInt >= 7
-            ? // On high-pixel density devices round up to 2.5 and on low-pixel density devices round
-              // down to 2.
-              2.48
-            : sizeInt >= 6
-            ? 2
-            : sizeInt >= 5
-            ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
-              // down to 1.
-              1.49
-            : sizeInt >= 4
-            ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round
-              // down to 1.
-              1.48
-            : 1;
+    const activeHalfCircleMargin = getTaskDisplayStatusActiveHalfCircleMargin(sizeInt);
 
     let ariaLabel;
     switch (displayStatus) {
@@ -158,8 +82,12 @@ export function TaskDisplayStatusCircle({
             aria-label={ariaLabel}
             className={
                 isPressed
-                    ? pressedCircleClassNameByDisplayStatus.getOrSetDefault(displayStatus)
-                    : unpressedCircleClassNameByDisplayStatus.getOrSetDefault(displayStatus)
+                    ? taskDisplayStatusPressedCircleClassNameByDisplayStatus.getOrSetDefault(
+                          displayStatus,
+                      )
+                    : taskDisplayStatusUnpressedCircleClassNameByDisplayStatus.getOrSetDefault(
+                          displayStatus,
+                      )
             }
             style={{width: spacing[size], height: spacing[size]}}
         >
@@ -175,7 +103,7 @@ export function TaskDisplayStatusCircle({
                 // darker! This is more fitting for the physical analogy of a button being
                 // pressed down.
                 <div
-                    className={closedPressedOverlayClassName}
+                    className={taskDisplayStatusClosedPressedOverlayClassName}
                     style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                 />
             )}
@@ -192,7 +120,7 @@ export function TaskDisplayStatusCircle({
             )}
             {displayStatus === "OpenActive" && (
                 <div
-                    className={activeHalfCircleContainerClassName}
+                    className={taskDisplayStatusActiveHalfCircleContainerClassName}
                     style={{
                         width: `calc(${parseRemLength(size) / 2}rem - ${
                             1 + activeHalfCircleMargin
@@ -215,7 +143,7 @@ export function TaskDisplayStatusCircle({
                     }}
                 >
                     <div
-                        className={activeHalfCircleClassName}
+                        className={taskDisplayStatusActiveHalfCircleClassName}
                         style={{
                             width: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
                             height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
@@ -233,7 +161,7 @@ export function TaskDisplayStatusCircle({
                         // darker! This is more fitting for the physical analogy of a button being
                         // pressed down.
                         <div
-                            className={activePressedOverlayClassName}
+                            className={taskDisplayStatusActivePressedOverlayClassName}
                             style={{
                                 opacity: buttonStyles.buttonPressedOverlayOpacity,
                                 width: spacing[size],

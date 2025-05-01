@@ -1,9 +1,9 @@
 import {Slice} from "prosemirror-model";
 import {EditorView, serializeForClipboard} from "prosemirror-view";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {writeTextToClipboardFallback} from "~/client/helpers/write_text_to_clipboard.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";

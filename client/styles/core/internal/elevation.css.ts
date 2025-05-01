@@ -29,9 +29,9 @@ export const elevation = {
             },
         ],
     }),
-    "elevation-5-with-grey-10-border": createElevation({
-        lightBorderColor: "grey-10",
-        darkBorderColor: "grey-80",
+    "elevation-5-without-border": createElevation({
+        lightBorderColor: null,
+        darkBorderColor: null,
         shadows: [
             {
                 shadow: "0px 1px 2px 0px",
@@ -40,13 +40,12 @@ export const elevation = {
             },
         ],
     }),
-    "elevation-5-with-grey-10-outset-border": createElevation({
-        isBorderOutset: true,
+    "elevation-5-with-grey-10-border": createElevation({
         lightBorderColor: "grey-10",
         darkBorderColor: "grey-80",
         shadows: [
             {
-                shadow: "0px 1px 2px 1px",
+                shadow: "0px 1px 2px 0px",
                 lightColor: "rgb(18 18 20 / 0.05)",
                 darkColor: "rgb(0 0 0 / 0.15)",
             },
@@ -207,12 +206,10 @@ export const elevation = {
 function createElevation({
     lightBorderColor,
     darkBorderColor,
-    isBorderOutset,
     shadows,
 }: {
     lightBorderColor: `rgb(${string})` | "grey-10" | null;
     darkBorderColor: "grey-70" | "grey-80" | "grey-90" | null;
-    isBorderOutset?: boolean;
     shadows: Array<{shadow: string; lightColor: string; darkColor: string}>;
 }) {
     const lightBoxShadows: Array<string> = [];
@@ -223,7 +220,7 @@ function createElevation({
     // If we are intentionally using a solid border color for our light border then
     // we want to render the shadow like we would an actual border, inset in
     // the box.
-    const borderInset = !isBorderOutset && lightBorderColor === "grey-10" ? "inset " : "";
+    const borderInset = lightBorderColor === "grey-10" ? "inset " : "";
 
     if (lightBorderColor !== null) {
         if (lightBorderColor === "grey-10") {

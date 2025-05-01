@@ -1,9 +1,11 @@
+import {CalendarDate} from "@internationalized/date";
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
 import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/content/content_styles.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -12,6 +14,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {defaultClientInfo} from "~/shared/remix/client_info.js";
 
 const spaceId = generateId<SpaceId>();
+const currentDate = new CalendarDate(2025, 5, 1);
 
 const contentClassNameAndVars = new Set<string>(
     concatIterables(
@@ -58,6 +61,10 @@ function stripHtml(html: string): string {
     return element.innerHTML;
 }
 
+function getContext(): never {
+    throw new UnimplementedError("`getContext()` is unimplemented in this test file");
+}
+
 test("will properly number list items", () => {
     expect(
         stripHtml(
@@ -89,6 +96,7 @@ test("will properly number list items", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    getContext,
                     spaceId: null,
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
@@ -98,6 +106,8 @@ test("will properly number list items", () => {
                     routeLayout: "wide",
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
+                    currentDate,
+                    fileEntityRenderers: null,
                 },
             ).getSnapshot(),
         ),
@@ -182,6 +192,7 @@ test("will properly number list items with indentation", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    getContext,
                     spaceId: null,
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
@@ -191,6 +202,8 @@ test("will properly number list items with indentation", () => {
                     routeLayout: "wide",
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
+                    currentDate,
+                    fileEntityRenderers: null,
                 },
             ).getSnapshot(),
         ),
@@ -233,6 +246,7 @@ test("will properly number list items in quote blocks", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    getContext,
                     spaceId: null,
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
@@ -242,6 +256,8 @@ test("will properly number list items in quote blocks", () => {
                     routeLayout: "wide",
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
+                    currentDate,
+                    fileEntityRenderers: null,
                 },
             ).getSnapshot(),
         ),
@@ -289,6 +305,7 @@ test("will render code block", () => {
                     references: emptyContentReferences,
                 },
                 {
+                    getContext,
                     spaceId: null,
                     accountStore: getAccountClientStore(spaceId),
                     fileStore: getFileClientStore(spaceId),
@@ -298,6 +315,8 @@ test("will render code block", () => {
                     routeLayout: "wide",
                     clientInfo: defaultClientInfo,
                     isInitialAppRender: false,
+                    currentDate,
+                    fileEntityRenderers: null,
                 },
             ).getSnapshot(),
         ),

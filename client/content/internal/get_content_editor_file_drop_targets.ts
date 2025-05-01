@@ -4,6 +4,7 @@ import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/ha
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {fileClassName} from "~/shared/content/content_styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {parseRemLength, screenPaddingXRem} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
@@ -566,7 +567,11 @@ function addContentEditorTableFileDropTargets({
     assert(tableElement);
 
     const tableRect = tableElement.getBoundingClientRect();
-    const tableCellElements = tableElement.querySelectorAll("td");
+    // Find all table cell elements but exclude elements that are children of a
+    // file node. File entities may recursively render content (e.g. document file
+    // entities). The content within file entities is inert so shouldn't get any
+    // interactive behaviors.
+    const tableCellElements = tableElement.querySelectorAll(`td:not(.${fileClassName} td)`);
     const spacingScale = getSpacingScaleWithoutListening();
     const remPx = remPxBySpacingScale[spacingScale];
     const tableMap = ContentTableMap.get(tableNode);

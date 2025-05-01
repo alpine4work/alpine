@@ -7,10 +7,10 @@ import {
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
-    FileId,
     WebSocketConnectionId,
 } from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
@@ -81,7 +81,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                     Schema.object({
                         commentThreadId: Schema.id<DocumentCommentThreadId>(),
                         initialCommentContent: MessageContentSchema,
-                        initialCommentFileIds: Schema.array(Schema.id<FileId>()).default([]),
+                        initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
                     }),
                 ),
                 intentionallyUpdateAccessPolicy: AccessPolicySchema.nullable().default(null),
@@ -147,7 +147,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 commentThreadId: Schema.id<DocumentCommentThreadId>(),
                 parentCommentIndex: Schema.integer.nullable(),
                 content: MessageContentSchema,
-                fileIds: Schema.array(Schema.id<FileId>()),
+                fileIds: Schema.array(FileIdOrFileEntityIdSchema),
             },
             output: {},
         },

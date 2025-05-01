@@ -2,7 +2,7 @@ import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosem
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";
-import {layoutContentFileParent} from "~/client/content/internal/content_file_layout.js";
+import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -19,8 +19,10 @@ import {
     isFileWebSafeAudioContentType,
     isFileWebSafeImageContentType,
 } from "~/shared/files/file_content_type.js";
+import {FileEntityId, printFileEntityIdIntoPath} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // Augment with types for some internal methods from:
@@ -176,9 +178,10 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const layouts = layoutContentFileParent(node, {
                 blockWidth:
                     contentStyles.blockMaxWidthRem[platform] * remPxBySpacingScale[spacingScale],
+                platform,
                 spacingScale,
                 getFile: fileId => {
-                    const fileReference = contentReferences.fileById.get(fileId);
+                    const fileReference = contentReferences.fileById?.get(fileId);
                     if (!fileReference) return null;
                     return fileStore.getFileStore(fileReference).getSnapshot();
                 },
@@ -223,7 +226,8 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     if (
                         fileRowChildDom instanceof HTMLImageElement ||
                         fileRowChildDom instanceof HTMLVideoElement ||
-                        fileRowChildDom instanceof HTMLObjectElement
+                        fileRowChildDom instanceof HTMLObjectElement ||
+                        fileRowChildDom instanceof HTMLIFrameElement
                     ) {
                         fileRowChildDom.width = Math.round(layout.width);
                         fileRowChildDom.height = Math.round(layout.height);
@@ -241,9 +245,26 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         }
 
         if (node.type.name === "file") {
-            const fileId: FileId | null = node.attrs.fileId;
+            const fileId: FileId | FileEntityId | null = node.attrs.fileId;
+
+            // We represent file entities as an `<iframe>`. This way pastes in an app that
+            // supports `<iframe>`s will render the document/channel/whatever.
+            if (fileId && !isId<FileId>(fileId)) {
+                const fileDom = document.createElement("iframe");
+
+                fileDom.setAttribute(
+                    "src",
+                    new URL(
+                        printFileEntityIdIntoPath(this._getSpaceId(), fileId),
+                        window.location.href,
+                    ).toString(),
+                );
+
+                return fileDom;
+            }
+
             const fileReference = fileId
-                ? this._getContentReferences().fileById.get(fileId)
+                ? this._getContentReferences().fileById?.get(fileId)
                 : undefined;
 
             // If the file is a web safe image then let's use an `<img>` element in our

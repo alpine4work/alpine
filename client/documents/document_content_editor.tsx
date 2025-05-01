@@ -26,9 +26,9 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {createContentCommentThreadMetaKey} from "~/client/content/content_editor_state.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
+import {createContentCommentThreadMetaKey} from "~/client/content/state/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -134,6 +134,7 @@ import {
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -1729,7 +1730,7 @@ export function DocumentContentEditor({
                                     const createCommentThread: {
                                         commentThreadId: DocumentCommentThreadId;
                                         initialCommentContent: MessageContentWithReferences;
-                                        initialCommentFileIds: ReadonlyArray<FileId>;
+                                        initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
                                         openCommentThreadPromiseRef?: {
                                             current: Promise<void> | null;
                                         };

@@ -62,8 +62,12 @@ import {
 } from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
+import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {createDocumentCommentThreadSnippetCollector} from "~/shared/documents/create_document_comment_thread_snippet_collector.js";
-import {DocumentCommentThreadReference} from "~/shared/documents/document_content_references.js";
+import {
+    DocumentCommentThreadReference,
+    DocumentContentWithReferences,
+} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
     DocumentContentSchema,
@@ -94,6 +98,8 @@ import {
     NotFoundError,
     PermissionDeniedError,
 } from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {emptyObject} from "~/shared/helpers/array/empty_object.js";
@@ -112,6 +118,7 @@ import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -129,6 +136,7 @@ import {
     getMaxId,
     getMinId,
     idByteLength,
+    isId,
 } from "~/shared/id/id.js";
 import {
     AccountId,
@@ -322,6 +330,34 @@ const DocumentsTable = DynamoTableSchema.new({
                 documentId: DynamoKeyAttributeSchema.id<DocumentId>(),
             },
             sortRanges: [
+                /**
+                 * A preview of the beginning of the document's content. This previewed content
+                 * may be stale. It's updated during by the `IndexSearchEntity` job. This
+                 * preview is used when you just want to show the beginning of the document
+                 * and, for performance reasons, you don't want to load the whole thing. For
+                 * example, in document `file` content previews.
+                 *
+                 * This exists in a sort range above `Attributes` so you can load
+                 * `ContentPreview` + `Attributes` in one query but you don't load
+                 * `ContentPreview` when reading `Attributes` and the rest of the document.
+                 */
+                {
+                    name: "ContentPreview",
+                    sortKeyAttributes: {},
+                    attributes: Schema.object({
+                        /**
+                         * The version of our preview. Will always be less than the `version` number of
+                         * `Attributes`.
+                         */
+                        version: Schema.integer,
+
+                        /**
+                         * The current previewed content.
+                         */
+                        content: DocumentContentSchema,
+                    }),
+                },
+
                 /**
                  * Any information about the document not stored in its content.
                  *
@@ -963,6 +999,20 @@ export async function getDocumentPreviewIfExists(
     return unwrapResult(result);
 }
 
+export function createDocumentNotFoundError(documentId: DocumentId) {
+    return new NotFoundError("Document not found", {
+        aggregateDedupeKey: documentId,
+        displayMessage: errorDisplayMessage`This document doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+    });
+}
+
+function createDocumentCommentThreadNotFoundError(commentThreadId: DocumentCommentThreadId) {
+    return new NotFoundError("Document comment thread not found", {
+        aggregateDedupeKey: commentThreadId,
+        displayMessage: errorDisplayMessage`This comment thread doesn’t exist. Try searching “my documents” to see documents you’ve created.`,
+    });
+}
+
 /**
  * Get a preview of the document with the provided id.
  *
@@ -974,11 +1024,11 @@ export async function getDocumentPreviewIfExists(
  */
 export async function getDocumentPreview(
     context: ServerActionContext,
-    id: DocumentId,
+    documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentPreviewModel> {
-    const document = await getDocumentPreviewIfExists(context, id, options);
-    if (!document) throw new NotFoundError("Document not found");
+    const document = await getDocumentPreviewIfExists(context, documentId, options);
+    if (!document) throw createDocumentNotFoundError(documentId);
     return document;
 }
 
@@ -1094,7 +1144,7 @@ async function getDocumentItemForAuthorization(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<DocumentAttributesItem> {
     const item = await getDocumentItemForAuthorizationIfExists(context, documentId, options);
-    if (!item) throw new NotFoundError("Document not found");
+    if (!item) throw createDocumentNotFoundError(documentId);
     return item;
 }
 
@@ -1382,7 +1432,7 @@ async function getDocumentWithOptionalCommentsAndCommentThreads(
     commentThreads: ReadonlyArray<DocumentCommentThreadModel>;
 }> {
     const result = await getDocumentWithOptionalCommentsAndCommentThreadsIfExists(context, options);
-    if (!result) throw new NotFoundError("Document not found");
+    if (!result) throw createDocumentNotFoundError(options.documentId);
     return result;
 }
 
@@ -1647,9 +1697,8 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
                         referencedCommentThreadById.get(commentThreadId) ??
                         archivedCommentThreadById.get(commentThreadId);
 
-                    if (!commentThread) {
-                        throw new NotFoundError("Comment thread does not exist");
-                    }
+                    if (!commentThread)
+                        throw createDocumentCommentThreadNotFoundError(commentThreadId);
 
                     return createDocumentCommentThreadModelFromItem(
                         context,
@@ -1731,9 +1780,10 @@ export async function getDocumentContent(
     content: DocumentContent;
     creatorId: AccountId | null;
     stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
+    updateContentPreview: (context: ServerActionContext) => Promise<void>;
 }> {
     const internalDocument = await getInternalDocumentIfExists(context, documentId, {consistency});
-    if (!internalDocument) throw new NotFoundError("Document not found");
+    if (!internalDocument) throw createDocumentNotFoundError(documentId);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
@@ -1750,7 +1800,261 @@ export async function getDocumentContent(
         // steps might include comment marks. We might allow viewers to call this
         // function in the future.
         stepCountByNonCreatorAccountId: internalDocument.attributes.stepCountByAccountId,
+
+        updateContentPreview: context =>
+            updateDocumentContentPreviewAfterGetDocumentContent(context, {
+                documentId,
+                version: internalDocument.version,
+                content: internalDocument.content,
+            }),
     };
+}
+
+async function updateDocumentContentPreviewAfterGetDocumentContent(
+    context: ServerActionContext,
+    {
+        documentId,
+        version,
+        content,
+    }: {
+        documentId: DocumentId;
+        version: number;
+        content: DocumentContent;
+    },
+) {
+    // Double check the new context has document access. We don't authorize that
+    // `version` or `content` match what's in the document because we know
+    // `version` and `content` come from `getDocumentContent()`.
+    await authorizeDocumentAccess(context, documentId, "View");
+
+    // Get the first 30 lines of the document for the preview. We want enough lines
+    // that we can render a letter-sized paper preview for documents. See [this
+    // task][1] for images of the documents we used to figure out how many lines of
+    // text fill a letter sized paper. We count 37 lines then we add 1 for safety
+    // giving us 38 lines.
+    //
+    // [1]: https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/bbw1j3ecf5s7fxrhsfjhthkeg0
+    const previewContent = assertDocumentContent(
+        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 38}),
+    );
+
+    await DocumentsTable.updateItem(
+        context,
+        {
+            partitionType: "Document",
+            sortRangeType: "ContentPreview",
+            documentId,
+        },
+        item => {
+            // If the content preview is from a later version than noop.
+            if (item && item.version >= version) return item;
+
+            // If the existing content preview is the same as the new content preview than
+            // noop.
+            //
+            // There is a race condition bug here:
+            //
+            // 1. Document is at version `n`
+            // 2. Document is updated to version `n + 1` which has different
+            //    `previewContent` than version `n`
+            // 3. Document is updated to version `n + 2` which has the same
+            //    `previewContent` as version `n`
+            // 4. We run this content preview update for version `n + 2` _before_ version
+            //    `n + 1` so we skip updating `version` because `previewContent` is the
+            //    same
+            // 5. Now we run this content preview update for version `n + 1` which updates
+            //    `version` and `previewContent`
+            //
+            // Now we have a stale content preview version!
+            //
+            // We don't expect this to be a big issue in practice since we only run
+            // `IndexSearchEntity` for the document every 10 seconds minimum. Since updates
+            // are spaced apart by 10-60 seconds, race conditions shouldn't be an issue in
+            // practice.
+            //
+            // Even if this race condition were to occur and we have stale data in
+            // `previewContent`, likely the reason for the stale data is the user added a
+            // bit of text then immediately deleted it (or deleted a bit of text then
+            // immediately re-added it). Given the difference between the actual doc and
+            // the stale doc is likely fairly minor in practice we further don't mind this
+            // race condition.
+            //
+            // We expect this to be a meaningful optimization for large, frequently
+            // updated, documents. Since we don't need to pay write capacity units to
+            // update the content on every document change. So we accept this potentially
+            // benign race condition bug. In the future, we could choose to remove this
+            // optimization if we find the write cost acceptable to fix race condition bugs
+            // we're seeing.
+            if (item && item.content.eq(previewContent)) return item;
+
+            return {
+                partitionType: "Document",
+                sortRangeType: "ContentPreview",
+                documentId,
+                version,
+                content: previewContent,
+            };
+        },
+    );
+}
+
+/**
+ * Gets a content preview for the document. If the document doesn't exist then
+ * we return null. If we haven't generated the content preview for the document
+ * yet we also return null. If you don't have access to the document we return
+ * a result with `ok: false`.
+ *
+ * The content preview is cheaper to load than the full document (with
+ * `getDocument()` or `getDocumentContent()`) and more expensive to load than
+ * the document preview which only contains the title (with
+ * `getDocumentPreview()`). However, the tradeoff is the content preview will be
+ * 10-60 seconds stale. We only update the content preview every 10-60 seconds
+ * as a part of the `IndexSearchEntity` job.
+ *
+ * This function is useful for rendering a preview of the document in other
+ * parts of the product. e.g. When hovering over a document mention or in a
+ * file preview.
+ *
+ * We strip comment marks from the content preview since they aren't
+ * interesting in a preview. Also, if you only have view access to the document
+ * you aren't allowed to see comment marks anyway.
+ */
+export async function getDocumentContentPreviewIfPossible(
+    context: ServerContentActionContext,
+    documentId: DocumentId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+): Promise<Result<
+    {
+        version: number;
+        titleWithoutFallback: string;
+        preview: {
+            version: number;
+            content: DocumentContentWithReferences;
+        } | null;
+    },
+    ErrorBase
+> | null> {
+    const itemsPromise = (async () => {
+        const items = await arrayFromAsyncIterable(
+            DocumentsTable.query(context, {
+                limit: 2,
+                consistency,
+                partitionKey: {
+                    partitionType: "Document",
+                    documentId,
+                },
+                startSortKey: {sortRangeType: "ContentPreview"},
+                endSortKey: {sortRangeType: "Attributes"},
+            }),
+        );
+
+        const attributesItem = findMapIterable(items, item =>
+            item.sortRangeType === "Attributes" ? item : undefined,
+        );
+
+        const contentPreviewItem = findMapIterable(items, item =>
+            item.sortRangeType === "ContentPreview" ? item : undefined,
+        );
+
+        return {attributesItem, contentPreviewItem};
+    })();
+
+    // Save the document attributes item to our context cache so if
+    // `authorizeDocumentAccess()` is called afterwards (e.g. when reading content
+    // references) the document preview is already available and can be used to
+    // authorize.
+    DocumentItemAuthorizationCache.set(
+        context,
+        consistency,
+        documentId,
+        itemsPromise.then(({attributesItem}) => attributesItem ?? null),
+    );
+
+    const {attributesItem, contentPreviewItem} = await itemsPromise;
+    if (!attributesItem) return null;
+
+    // Must have the view access level to read a document.
+    const result = await authorizeDocumentItemAccessIfPossible(context, attributesItem, "View");
+    if (!result.ok) return result;
+
+    if (!contentPreviewItem)
+        return {
+            ok: true,
+            value: {
+                version: attributesItem.version,
+                titleWithoutFallback: attributesItem.titleWithoutFallback,
+                preview: null,
+            },
+        };
+
+    // Remove comment marks from document preview. Since actor may only have the
+    // `View` permission level. But also since comment marks in a preview are
+    // distracting. We want the preview to be focused on the content. Must open the
+    // document to see comments.
+    const previewContent = assertDocumentContent(
+        stripDocumentContentCommentMarks(contentPreviewItem.content),
+    );
+
+    return {
+        ok: true,
+        value: {
+            version: attributesItem.version,
+            titleWithoutFallback: attributesItem.titleWithoutFallback,
+            preview: {
+                version: contentPreviewItem.version,
+                content: {
+                    doc: previewContent,
+                    references: {
+                        ...(await getContentReferencesForNode(
+                            context,
+                            attributesItem.spaceId,
+                            FileDocumentAuthorizer.bind({type: "Document", documentId}),
+                            previewContent,
+                        )),
+                        commentThreadById: emptyMap,
+                    },
+                },
+            },
+        },
+    };
+}
+
+/**
+ * Gets a content preview for the document. If the document doesn't exist then
+ * we return null. If we haven't generated the content preview for the document
+ * yet we also return null. If you don't have access to the document we throw
+ * an error.
+ *
+ * The content preview is cheaper to load than the full document (with
+ * `getDocument()` or `getDocumentContent()`) and more expensive to load than
+ * the document preview which only contains the title (with
+ * `getDocumentPreview()`). However, the tradeoff is the content preview will be
+ * 10-60 seconds stale. We only update the content preview every 10-60 seconds
+ * as a part of the `IndexSearchEntity` job.
+ *
+ * This function is useful for rendering a preview of the document in other
+ * parts of the product. e.g. When hovering over a document mention or in a
+ * file preview.
+ *
+ * We strip comment marks from the content preview since they aren't
+ * interesting in a preview. Also, if you only have view access to the document
+ * you aren't allowed to see comment marks anyway.
+ */
+export async function getDocumentContentPreviewIfExists(
+    context: ServerContentActionContext,
+    documentId: DocumentId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{
+    version: number;
+    titleWithoutFallback: string;
+    preview: {
+        version: number;
+        content: DocumentContentWithReferences;
+    } | null;
+} | null> {
+    const result = await getDocumentContentPreviewIfPossible(context, documentId, options);
+    if (result === null) return null;
+    return unwrapResult(result);
 }
 
 /**
@@ -1776,7 +2080,7 @@ export async function getDocumentContentWithOptionalComments(
         consistency,
         withOptionalComments: true,
     });
-    if (!internalDocument) throw new NotFoundError("Document not found");
+    if (!internalDocument) throw createDocumentNotFoundError(documentId);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
@@ -1811,7 +2115,7 @@ export async function getDocumentContentForCollaborationServiceInitialization(
         consistency,
         forCollaborationServiceInitialization: true,
     });
-    if (!internalDocument) throw new NotFoundError("Document not found");
+    if (!internalDocument) throw createDocumentNotFoundError(documentId);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
@@ -2594,7 +2898,7 @@ export async function updateDocumentContent(
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
-            initialCommentFileIds: ReadonlyArray<FileId>;
+            initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             /**
              * Optionally allow the caller to specify the time at which we report the
              * thread was created. Used by our document collaboration service to use the
@@ -2819,15 +3123,17 @@ export async function updateDocumentContent(
             runAllPromises(
                 flatMapIterable(createCommentThreads, createCommentThread =>
                     mapIterable(createCommentThread.initialCommentFileIds, fileId =>
-                        getFileFromAttachment(
-                            context,
-                            internalDocument.spaceId,
-                            fileId,
-                            FileDocumentAuthorizer.bind({
-                                type: "DocumentComments",
-                                documentId: documentId,
-                            }),
-                        ),
+                        isId<FileId>(fileId)
+                            ? getFileFromAttachment(
+                                  context,
+                                  internalDocument.spaceId,
+                                  fileId,
+                                  FileDocumentAuthorizer.bind({
+                                      type: "DocumentComments",
+                                      documentId: documentId,
+                                  }),
+                              )
+                            : null,
                     ),
                 ),
             ),
@@ -3763,7 +4069,7 @@ export async function updateDocumentSnapshotForTest(
     assert(import.meta.jest);
 
     const document = await getInternalDocumentIfExists(context, documentId);
-    if (!document) throw new NotFoundError("Document not found");
+    if (!document) throw createDocumentNotFoundError(documentId);
 
     await updateDocumentSnapshotAfterUpdatingContent(context, {
         id: documentId,
@@ -4479,7 +4785,7 @@ export async function createDocumentComment(
         commentThreadId: DocumentCommentThreadId;
         parentCommentIndex: number | null;
         content: MessageContent;
-        fileIds: ReadonlyArray<FileId>;
+        fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ): Promise<{
     spaceId: SpaceId;
@@ -4494,12 +4800,17 @@ export async function createDocumentComment(
                 // Make sure all the provided files exist.
                 await runAllPromises(
                     fileIds.map(fileId =>
-                        getFileFromAttachment(
-                            context,
-                            spaceId,
-                            fileId,
-                            FileDocumentAuthorizer.bind({type: "DocumentComments", documentId}),
-                        ),
+                        isId<FileId>(fileId)
+                            ? getFileFromAttachment(
+                                  context,
+                                  spaceId,
+                                  fileId,
+                                  FileDocumentAuthorizer.bind({
+                                      type: "DocumentComments",
+                                      documentId,
+                                  }),
+                              )
+                            : null,
                     ),
                 );
 

@@ -31,8 +31,8 @@ import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {parseContentFromClipboard} from "~/client/content/parse_content_from_clipboard.js";
-import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/shared/build_shared_content_editor_input_rules_plugin.js";
-import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/shared/shared_content_editor_track_selection_within_plugin.js";
+import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/state/shared/build_shared_content_editor_input_rules_plugin.js";
+import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -83,7 +83,6 @@ import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_
 import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
-    Spacing,
     addRemLengths,
     convertRemLengthToPx,
     parseRemLength,
@@ -117,8 +116,7 @@ import {
     emptyTaskTitleProsemirrorNode,
 } from "~/shared/tasks/task_title.js";
 
-const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
-const taskRowTitleInputSingleLineHeightRem = parseRemLength(taskRowTitleInputSingleLineHeight);
+const taskRowViewMinHeightRem = parseRemLength(taskRowViewMinHeight);
 
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
@@ -140,7 +138,7 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     paddingLeft: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
     paddingRight: tasksStyles.rowTitleInputSingleLineOverflowGradientMarginX,
     maxWidth: "full",
-    height: taskRowTitleInputSingleLineHeight,
+    height: taskRowViewMinHeight,
     overflowY: "hidden",
     overflowX: "scroll",
     backgroundColor: "transparent",
@@ -177,7 +175,7 @@ const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
     // Use an `inline-block` display so the `<div>` width is equal to our content width.
     display: "inline-block",
     maxWidth: "full",
-    minHeight: taskRowTitleInputSingleLineHeight,
+    minHeight: taskRowViewMinHeight,
     backgroundColor: "transparent",
     userSelect: "text",
 })}`;
@@ -209,7 +207,7 @@ const rootClassName = sprinkles({
 const containerClassName = sprinkles({
     position: "relative",
     zIndex: "0",
-    minHeight: taskRowTitleInputSingleLineHeight,
+    minHeight: taskRowViewMinHeight,
     color: "grey-100",
 });
 
@@ -250,7 +248,7 @@ const marginRightContentContainerClassName = sprinkles({
     display: "flex",
     alignItems: "center",
     gap: "3",
-    height: taskRowTitleInputSingleLineHeight,
+    height: taskRowViewMinHeight,
 });
 
 const parentTaskTitleClassName = sprinkles({
@@ -1162,7 +1160,7 @@ function TaskRowTitleInput(
                 if (
                     state.doc.nodeSize > 2 &&
                     // Make sure the input has more than one line...
-                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPx
+                    rootRect.height > taskRowViewMinHeightRem * remPx
                 ) {
                     const endCoords = view.coordsAtPos(state.doc.nodeSize - 2, 1);
                     const remainingWidth = rootRect.left + rootRect.width - endCoords.left;

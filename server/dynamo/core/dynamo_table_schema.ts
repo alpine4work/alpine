@@ -36,7 +36,6 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {isDynamoResourceInUseError} from "~/server/dynamo/core/is_dynamo_resource_in_use_exception.js";
 import {isDynamoResourceNotFoundError} from "~/server/dynamo/core/is_dynamo_resource_not_found_error.js";
 import {isDynamoValidationError} from "~/server/dynamo/core/is_dynamo_validation_exception.js";
-import {checkSchemaBackwardsCompatibility} from "~/server/schema/check_schema_backwards_compatibility.js";
 import {
     DynamoIndexCursor,
     DynamoIndexPartitionKey,
@@ -74,6 +73,7 @@ import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
 import {
     ObjectSchema,
     Schema,
@@ -411,9 +411,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                     sortRangeAttributeNames.add(attributeName);
                                 }
 
-                                let attributesSchema = sortRangeConfig.attributes.merge(
-                                    DynamoTableItemSharedAttributesSchema,
-                                );
+                                let attributesSchema: ObjectSchema<any> =
+                                    sortRangeConfig.attributes.merge(
+                                        DynamoTableItemSharedAttributesSchema,
+                                    );
 
                                 attributesSchema =
                                     sortRangeConfig.withExpirationTime === "Optional"

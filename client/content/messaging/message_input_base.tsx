@@ -21,13 +21,12 @@ import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
 } from "~/client/content/internal/content_editor_mobile_link_modal.js";
 import {
-    FileInfo,
+    FileInfoWithEntity,
     iterateFileInfosInElement,
 } from "~/client/content/internal/iterate_file_infos_in_element.js";
 import {
@@ -36,8 +35,10 @@ import {
 } from "~/client/content/messaging/add_message_input_files.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageInputMobileKeyboardToolbar} from "~/client/content/messaging/internal/message_input_mobile_keyboard_toolbar.js";
+import {MessageInputFileEntityPreview} from "~/client/content/messaging/message_input_file_entity_preview.js";
 import {MessageInputFilePreview} from "~/client/content/messaging/message_input_file_preview.js";
 import {selectFiles} from "~/client/content/select_files.js";
+import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {trimContentEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -258,7 +259,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         },
         addFiles: (
             spanName: string,
-            fileInfos: ReadonlyArray<FileInfo>,
+            fileInfos: ReadonlyArray<FileInfoWithEntity>,
         ): {finally(listener: () => void): void} => {
             // Noop if we don't have an add file callback.
             if (!onAddFile) return Promise.resolve();
@@ -294,7 +295,7 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
         },
         drop: (dataTransfer: DataTransfer): {finally(listener: () => void): void} => {
             let hasHtmlFileInfos = false;
-            const fileInfos: Array<FileInfo> = [];
+            const fileInfos: Array<FileInfoWithEntity> = [];
 
             for (const {info} of iterateFileInfosInElement(
                 parseHtml(dataTransfer.getData("text/html")),
@@ -1283,15 +1284,24 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                                             paddingBottom={messageInputPaddingY}
                                             style={{width: "fit-content"}}
                                         >
-                                            {files.map(file => (
-                                                <MessageInputFilePreview
-                                                    key={file.key}
-                                                    signedUrlSearch={file.signedUrlSearch}
-                                                    file={file.file}
-                                                    attachmentTarget={file.attachmentTarget}
-                                                    onRemove={() => onRemoveFile?.(file.key)}
-                                                />
-                                            ))}
+                                            {files.map(file =>
+                                                file.type === "FileEntity" ? (
+                                                    <MessageInputFileEntityPreview
+                                                        key={file.key}
+                                                        fileEntityId={file.fileEntityId}
+                                                        fileEntityResult={file.fileEntityResult}
+                                                        onRemove={() => onRemoveFile?.(file.key)}
+                                                    />
+                                                ) : (
+                                                    <MessageInputFilePreview
+                                                        key={file.key}
+                                                        signedUrlSearch={file.signedUrlSearch}
+                                                        file={file.file}
+                                                        attachmentTarget={file.attachmentTarget}
+                                                        onRemove={() => onRemoveFile?.(file.key)}
+                                                    />
+                                                ),
+                                            )}
                                         </Box>
                                     </Box>
                                 </Box>

@@ -22,6 +22,9 @@
  *    aspect ratio. So we want to make sure a cinema shot works horizontally
  *    without being cropped.
  *
+ * 4. Paper print outs. [Letter paper aspect ratio is 17:22][4] (~0.77) which
+ *    is greater than 0.42 so letter paper doesn't crop.
+ *
  * We picked 21:50 to just barely include Ultrawide monitors. We could do 2:5
  * which is simpler but we may already be pushing the limits of what can look
  * good visually with 21:50.
@@ -29,6 +32,7 @@
  * [1]: https://iosref.com/res#iphone
  * [2]: https://en.wikipedia.org/wiki/Ultrawide_formats
  * [3]: https://elitescreens.com/understanding-aspect-ratio
+ * [4]: https://en.wikipedia.org/wiki/Letter_(paper_size)
  */
 export const minFilePreviewAspectRatio = 21 / 50;
 
