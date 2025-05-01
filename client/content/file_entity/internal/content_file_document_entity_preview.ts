@@ -7,11 +7,11 @@ import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/conten
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/remix/route_layout_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -41,7 +41,6 @@ export function renderContentFileDocumentEntityPreview(
         accountStore,
         fileStore,
         currentAccount,
-        blockWidth,
         transformScale: originalTransformScale,
         platform,
         spacingScale,
@@ -57,7 +56,6 @@ export function renderContentFileDocumentEntityPreview(
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
-        blockWidth: number;
         transformScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
@@ -68,16 +66,29 @@ export function renderContentFileDocumentEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileDocumentEntityModelSchema);
 
+    const remPx = remPxBySpacingScale[spacingScale];
+    const blockMaxWidthPx = contentStyles.blockMaxWidthRem[platform] * remPx;
+
     const isSmallerThanHalfOfBlockMaxWidth =
-        layout.width <=
-        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem) / 2) *
-            remPxBySpacingScale[spacingScale];
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx) / 2;
 
     const isSmallerThanThirdOfBlockMaxWidth =
-        layout.width <=
-        ((contentStyles.blockMaxWidthRem[platform] - contentStyles.fileRowGapWidthRem * 2) / 3) *
-            remPxBySpacingScale[spacingScale];
+        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 2) / 3;
 
+    const padding = isSmallerThanThirdOfBlockMaxWidth
+        ? "3"
+        : isSmallerThanHalfOfBlockMaxWidth
+        ? "4"
+        : "5";
+    const paddingPx = parseRemLength(padding) * remPx;
+
+    html.setAttribute(
+        "class",
+        classNames(html.getAttribute("class"), sprinkles({paddingX: padding})),
+    );
+
+    // By default, scale font size 100 text to font size 75. Scale to smaller font
+    // sizes depending on the width of our preview.
     const transformScale =
         fontSizesBySpacingScale[
             isSmallerThanThirdOfBlockMaxWidth
@@ -87,27 +98,28 @@ export function renderContentFileDocumentEntityPreview(
                 : "75"
         ].small.fontSize / fontSizesBySpacingScale["100"].small.fontSize;
 
-    const padding = isSmallerThanThirdOfBlockMaxWidth
-        ? "3"
-        : isSmallerThanHalfOfBlockMaxWidth
-        ? "4"
-        : "5";
-    const paddingPx = convertRemLengthToPx(padding, spacingScale);
-    const scaledPaddingPx = paddingPx / transformScale;
+    // The width we need to render our document at to fill the downscaled entity
+    // preview.
+    const scaledWidthPx = (layout.width - paddingPx * 2) / transformScale;
 
-    const scaledBlockMaxWidthPx =
-        convertRemLengthToPx(contentStyles.blockMaxWidth[platform], spacingScale) * transformScale;
-
-    const marginXPx = Math.max(paddingPx * 1.5, (layout.width - scaledBlockMaxWidthPx) / 2);
+    // The margin top we want to use for our document.
+    //
+    // - At least use 150% of our x padding
+    // - If our content reaches the block max width and is centered then we want to
+    //   use the same centering margin x as the margin top
+    const marginTopPx = Math.max(
+        paddingPx * 1.5,
+        (layout.width - blockMaxWidthPx * transformScale) / 2,
+    );
 
     const scaledDocHtml = html.appendChild(new HtmlElementGenerator("div"));
 
     scaledDocHtml.setAttribute(
         "style",
         [
-            `width: ${(1 / transformScale) * 100}%`,
+            `width: ${scaledWidthPx}px`,
             "transform-origin: 0 0",
-            `transform: translateY(${marginXPx}px) scale(${transformScale}) translateY(-${
+            `transform: translateY(${marginTopPx}px) scale(${transformScale}) translateY(-${
                 contentStyles.titlePaddingTop[getPlatformRouteLayout(platform, "narrow")]
             })`,
             // Document title top margin is computed using safe area inset. So zero out
@@ -127,11 +139,6 @@ export function renderContentFileDocumentEntityPreview(
         ),
     );
 
-    docHtml.setAttribute(
-        "style",
-        `padding-left: ${scaledPaddingPx}px; padding-right: ${scaledPaddingPx}px`,
-    );
-
     const docFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(
         get,
         fileEntity.preview?.content ?? {
@@ -146,7 +153,11 @@ export function renderContentFileDocumentEntityPreview(
             accountStore,
             fileStore,
             currentAccount,
-            blockWidth,
+            // If we render files/tables inside the preview make sure they have an
+            // appropriately scaled block width (important for row of 3 recursive docs use
+            // case). Make sure that block width doesn't exceed the max width, though
+            // (important for row of 1 recursive docs use case).
+            blockWidth: Math.min(scaledWidthPx, blockMaxWidthPx),
             transformScale: originalTransformScale * transformScale,
             platform,
             spacingScale,

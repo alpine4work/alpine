@@ -46,7 +46,6 @@ export function renderContentFileChannelEntityPreview(
         accountStore,
         fileStore,
         currentAccount,
-        blockWidth,
         transformScale,
         platform,
         spacingScale,
@@ -62,7 +61,6 @@ export function renderContentFileChannelEntityPreview(
         accountStore: AccountClientStore;
         fileStore: FileClientStore;
         currentAccount: AccountModel | null;
-        blockWidth: number;
         transformScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
@@ -353,7 +351,8 @@ export function renderContentFileChannelEntityPreview(
                     accountStore,
                     fileStore,
                     currentAccount,
-                    blockWidth,
+                    blockWidth:
+                        layout.width - convertRemLengthToPx(containerPadding, spacingScale) * 2,
                     transformScale,
                     platform,
                     spacingScale,

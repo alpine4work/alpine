@@ -89,13 +89,14 @@ export function computeContentFileRowLikeLayout<
     assert(files.length <= 3);
 
     const {
+        maxFileCount,
         blockWidth,
         spacingScale,
         maxHeight: rowMaxHeight = spacing[contentStyles.fileRowMaxHeight],
     } = options;
 
     const remPx = remPxBySpacingScale[spacingScale];
-
+    const minWidth = contentStyles.fileMinSizeRem * remPx;
     const fairlySplitBlockWidth =
         (blockWidth - contentStyles.fileRowGapWidthRem * remPx * (files.length - 1)) / files.length;
 
@@ -141,7 +142,6 @@ export function computeContentFileRowLikeLayout<
         // this loop adding up all `widthVariables` and requiring that they're less
         // than our file row's width.
         {
-            const minWidth = contentStyles.fileMinSizeRem * remPx;
             const maxWidth = width !== null ? Math.max(minWidth, width) : null;
 
             if (minWidth === maxWidth) {
@@ -285,14 +285,23 @@ export function computeContentFileRowLikeLayout<
                 .plus(widthVariable);
         }
 
-        solver.addConstraint(
-            new kiwi.Constraint(
-                widthExpression,
-                kiwi.Operator.Le,
-                blockWidth,
-                kiwi.Strength.required,
-            ),
-        );
+        // If all the files in the row were `minWidth` and still wouldn't fit in
+        // `blockWidth` then we remove the constraint that our widths must sum up to
+        // `blockWidth`. This only kicks in for recursive document file entities which
+        // end up rendering documents at a very small size.
+        if (
+            blockWidth >=
+            minWidth * maxFileCount + contentStyles.fileRowGapWidthRem * remPx * (maxFileCount - 1)
+        ) {
+            solver.addConstraint(
+                new kiwi.Constraint(
+                    widthExpression,
+                    kiwi.Operator.Le,
+                    blockWidth,
+                    kiwi.Strength.required,
+                ),
+            );
+        }
 
         // We think it's most aesthetically pleasing when files fill our row's full
         // width. However, it might not be possible to fill the full width so this

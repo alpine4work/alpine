@@ -31,6 +31,7 @@ import {
     parseFileEntityId,
     printFileEntityIdIntoPath,
 } from "~/shared/files/file_entity_id.js";
+import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -46,6 +47,8 @@ import {Store} from "~/shared/store/store.js";
 
 let reportedErrors: WeakSet<object> | null = null;
 let fallbackErrorByNode: WeakMap<Node, ErrorBase> | null = null;
+
+let depth = 0;
 
 /**
  * Render the provided `file` node to an `HtmlElementGenerator`. This
@@ -112,7 +115,11 @@ export function renderContentFileEntityPreview(
     appendSelectionBoundaryHtml(html);
     appendImageHtmlForSelection(html, platform);
 
-    if (!fileEntityRenderers || !fileEntityResult?.ok) {
+    if (depth >= fileEntityMaxRecursionDepth && !fileEntityResult) {
+        // If we've hit the max depth where the backend stops loading file entities to
+        // prevent infinite recursion then instead of rendering an error message,
+        // render nothing.
+    } else if (!fileEntityRenderers || !fileEntityResult?.ok) {
         const fileEntityIdObject = parseFileEntityId(fileEntityId);
         const entityNoun = getFileEntityNoun(fileEntityIdObject);
 
@@ -157,25 +164,30 @@ export function renderContentFileEntityPreview(
             }),
         );
     } else {
-        const fileEntity = fileEntityResult.value;
+        depth++;
+        try {
+            const fileEntity = fileEntityResult.value;
 
-        fileEntityRenderers.renderPreviewByType[fileEntity.type](get, html, {
-            fileEntity,
-            layout,
-            getContext,
-            clientInfo,
-            spaceId,
-            accountStore,
-            fileStore,
-            currentAccount,
-            blockWidth,
-            transformScale,
-            platform,
-            spacingScale,
-            isInitialAppRender,
-            currentDate,
-            fileEntityRenderers,
-        });
+            fileEntityRenderers.renderPreviewByType[fileEntity.type](get, html, {
+                fileEntity,
+                layout,
+                getContext,
+                clientInfo,
+                spaceId,
+                accountStore,
+                fileStore,
+                currentAccount,
+                blockWidth,
+                transformScale,
+                platform,
+                spacingScale,
+                isInitialAppRender,
+                currentDate,
+                fileEntityRenderers,
+            });
+        } finally {
+            depth--;
+        }
     }
 
     return html;

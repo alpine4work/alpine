@@ -2,6 +2,8 @@ import {expect, test} from "@playwright/test";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {withDebugPagePause} from "~/app/integration_tests/helpers/with_debug_page_pause.js";
+import {getDocumentContent} from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -296,4 +298,115 @@ test("channel file entity", async ({page, context: browserContext}) => {
     await expect(page.getByText("quxbuz")).toBeVisible();
     await expect(page.getByText("Couldn’t find channel")).toBeHidden();
     await expect(page.getByText("Private channel")).toBeHidden();
+});
+
+test("can render recursive file entity with 1 entity in row", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "Doc 1"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            7,
+            9,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const {updateContentPreview} = await getDocumentContent(session.action(), document.id);
+    await updateContentPreview(session.action());
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "Doc 1"})).toHaveCount(4);
+    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+});
+
+test("can render recursive file entity with 2 entities in row", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "Doc 2"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            7,
+            9,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const {updateContentPreview} = await getDocumentContent(session.action(), document.id);
+    await updateContentPreview(session.action());
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "Doc 2"})).toHaveCount(15);
+    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
+});
+
+test("can render recursive file entity with 3 entities in row", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {title: "Doc 3"});
+
+    await document.update(session, [
+        new ReplaceStep(
+            7,
+            9,
+            new Slice(
+                Fragment.from(
+                    schema.node("fileRow", null, [
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                        schema.node("file", {fileId: `Document:${document.id}`}),
+                    ]),
+                ),
+                0,
+                0,
+            ),
+        ),
+    ]);
+
+    const {updateContentPreview} = await getDocumentContent(session.action(), document.id);
+    await updateContentPreview(session.action());
+
+    await services.signIn(browserContext, session);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await expect(page.getByRole("heading", {name: "Doc 3"})).toHaveCount(40);
+    await expect(page.getByText("Couldn’t preview document")).toHaveCount(0);
+    await expect(page.getByText("Couldn’t find document")).toHaveCount(0);
 });
