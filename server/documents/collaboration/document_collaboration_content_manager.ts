@@ -7,7 +7,7 @@ import {WorkerProcessContext} from "~/server/cloudflare/context/worker_process_c
 import {DocumentCollaborationStepCache} from "~/server/documents/collaboration/document_collaboration_step_cache.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {
@@ -274,7 +274,7 @@ export class DocumentCollaborationContentManager {
             }>;
             intentionallyUpdateAccessPolicy: {
                 accessPolicy: AccessPolicy;
-                notification: AccessPolicyNotification | null;
+                notification: ShareNotification | null;
             } | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;

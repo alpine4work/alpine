@@ -4,7 +4,7 @@ import {
     IndexSearchEntityEmbeddingChunksJobDescriptionSchema,
     IndexSearchEntityJobDescriptionSchema,
 } from "~/server/search/core/index_search_entity_job_description.js";
-import {AccessPolicyNotificationSchema} from "~/shared/access/access_policy_notification.js";
+import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -80,13 +80,13 @@ const ProcessFileJobDescriptionSchema = Schema.object({
     contentType: FileContentTypeSchema,
 });
 
-const SendAccessPolicyNotificationJobDescriptionSchema = Schema.object({
-    type: Schema.value("SendAccessPolicyNotification"),
+const SendShareNotificationJobDescriptionSchema = Schema.object({
+    type: Schema.value("SendShareNotification"),
     jobId: Schema.id(),
     spaceId: Schema.id<SpaceId>(),
     actorAccountId: Schema.id<AccountId>(),
     entityId: FileEntityIdSchema,
-    notification: AccessPolicyNotificationSchema,
+    notification: ShareNotificationSchema,
 });
 
 export const JobDescriptionSchema = Schema.union({
@@ -96,5 +96,5 @@ export const JobDescriptionSchema = Schema.union({
     IndexSearchEntityEmbeddingChunks: IndexSearchEntityEmbeddingChunksJobDescriptionSchema,
     NotificationEvent: NotificationEventJobDescriptionSchema,
     ProcessFile: ProcessFileJobDescriptionSchema,
-    SendAccessPolicyNotification: SendAccessPolicyNotificationJobDescriptionSchema,
+    SendShareNotification: SendShareNotificationJobDescriptionSchema,
 });

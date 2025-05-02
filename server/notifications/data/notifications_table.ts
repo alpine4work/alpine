@@ -2876,11 +2876,11 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
             }
         }
 
-        // If this is an access policy notification then override the subtitle to
+        // If this is a share notification then override the subtitle to
         // describe what happened.
         //
         // NOCOMMIT: Test. Does this look good?
-        if (event.clerical?.type === "AccessPolicyNotification") {
+        if (event.clerical?.type === "ShareNotification") {
             const entityNoun = getFileEntityNoun(event.clerical.entityType);
             subtitle = `shared a ${entityNoun} with you`;
         }

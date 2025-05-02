@@ -1188,8 +1188,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                         }}
                                     >
                                         {message.payload.type === "Content" &&
-                                        message.payload.clerical?.type ===
-                                            "AccessPolicyNotification" ? (
+                                        message.payload.clerical?.type === "ShareNotification" ? (
                                             <>
                                                 <AccountShortName account={messageAuthor} /> shared
                                                 a{" "}

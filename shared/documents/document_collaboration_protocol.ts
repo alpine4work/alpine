@@ -1,5 +1,5 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
-import {AccessPolicyNotificationSchema} from "~/shared/access/access_policy_notification.js";
+import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
 import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
 import {DocumentContentReferencesSchema} from "~/shared/documents/document_content_references.js";
 import {DocumentContentStepSchema} from "~/shared/documents/document_content_schema.js";
@@ -87,7 +87,7 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 ),
                 intentionallyUpdateAccessPolicy: Schema.object({
                     accessPolicy: AccessPolicySchema,
-                    notification: AccessPolicyNotificationSchema.nullable(),
+                    notification: ShareNotificationSchema.nullable(),
                 })
                     .nullable()
                     .default(null),

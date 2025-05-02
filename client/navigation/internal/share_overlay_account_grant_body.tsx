@@ -16,7 +16,7 @@ import {messageInputEditorPaddingYPx} from "~/client/styles/messaging_shared_sty
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {AccessLevel, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -42,7 +42,7 @@ export function ShareOverlayAccountGrantBody({
     accessLevel: AccessLevel;
     onAccessPolicyChange: (
         accessPolicy: AccessPolicyAction,
-        notification: AccessPolicyNotification | null,
+        notification: ShareNotification | null,
     ) => MaybePromise<void>;
 }) {
     const context = useAppContext();

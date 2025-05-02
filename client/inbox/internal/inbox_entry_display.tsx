@@ -282,8 +282,8 @@ function getInboxChatEntryDisplay({
 
     const summary: Array<InboxEntryDisplaySummaryItem> = [];
 
-    if (entry.latestMessage.clerical?.type === "AccessPolicyNotification") {
-        // If this was a clerical access policy notification then override the
+    if (entry.latestMessage.clerical?.type === "ShareNotification") {
+        // If this was a clerical share notification then override the
         // notification summary to directly describe what happened.
         summary.push(entry.latestMessage.author);
         summary.push(

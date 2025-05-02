@@ -60,7 +60,7 @@ import {
     AccessPolicySchema,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
@@ -2897,7 +2897,7 @@ export async function updateDocumentContent(
         clientId: ContentEditorClientId;
         intentionallyUpdateAccessPolicy?: {
             accessPolicy: AccessPolicy;
-            notification: AccessPolicyNotification | null;
+            notification: ShareNotification | null;
         };
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
@@ -3477,7 +3477,7 @@ export async function updateDocumentContent(
                             // need to execute this job immediately.
                             if (intentionallyUpdateAccessPolicy?.notification) {
                                 context.jobs.send({
-                                    type: "SendAccessPolicyNotification",
+                                    type: "SendShareNotification",
                                     jobId: generateId(),
                                     spaceId: internalDocument.spaceId,
                                     actorAccountId: context.actor.getAccountId(),

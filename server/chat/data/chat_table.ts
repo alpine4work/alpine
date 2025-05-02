@@ -35,7 +35,7 @@ import {
     getAccount,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
     DataLossError,
@@ -2517,7 +2517,7 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
  * When the user shares an `AccessPolicy` with individual users and selects
  * "Notify people" then this job will be added to the queue.
  */
-export async function processSendAccessPolicyNotificationJob(
+export async function processSendShareNotificationJob(
     context: ServerSystemActionContext,
     {
         jobId,
@@ -2530,7 +2530,7 @@ export async function processSendAccessPolicyNotificationJob(
         spaceId: SpaceId;
         actorAccountId: AccountId;
         entityId: FileEntityId;
-        notification: AccessPolicyNotification;
+        notification: ShareNotification;
     },
 ) {
     await runAllPromises(
@@ -2556,7 +2556,7 @@ export async function processSendAccessPolicyNotificationJob(
                     content: notification.content,
                     fileIds: [entityId],
                     clerical: {
-                        type: "AccessPolicyNotification",
+                        type: "ShareNotification",
                         entityType: parseFileEntityId(entityId).type,
                     },
                     // NOCOMMIT: Test that this job is actually idempotent!

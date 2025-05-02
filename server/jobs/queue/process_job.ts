@@ -1,4 +1,4 @@
-import {processSendAccessPolicyNotificationJob} from "~/server/chat/data/chat_table.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_table.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobTypeByQueueName} from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueServiceSystemActionContext} from "~/server/jobs/queue/job_queue_service_context.js";
@@ -41,8 +41,8 @@ export async function processJob(
             await processNotificationEvent(context, job.event, span);
             return;
         }
-        case "SendAccessPolicyNotification": {
-            await processSendAccessPolicyNotificationJob(context, job);
+        case "SendShareNotification": {
+            await processSendShareNotificationJob(context, job);
             return;
         }
         default:

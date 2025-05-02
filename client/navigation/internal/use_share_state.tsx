@@ -11,7 +11,7 @@ import {
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction, reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -34,7 +34,7 @@ export function useShareState(
         onAccessPolicyChangeWithoutValidations: (
             // The `notification` argument comes first to make it harder for the
             // implementation of this function to ignore the `notification` argument.
-            notification: AccessPolicyNotification | null,
+            notification: ShareNotification | null,
             accessPolicy: AccessPolicy,
         ) => MaybePromise<void>;
         isReadOnly?: boolean;
@@ -78,7 +78,7 @@ export function useShareState(
 
     const changeAccessPolicy = (
         action: AccessPolicyAction,
-        notification: AccessPolicyNotification | null = null,
+        notification: ShareNotification | null = null,
     ): MaybePromise<void> => {
         // Defend against making changes while read only. Ultimately the backend should
         // prevent invalid changes like this but it's nice to catch errors like this

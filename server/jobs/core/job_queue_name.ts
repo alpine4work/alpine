@@ -9,7 +9,7 @@ export const jobQueueNameByType = {
     IndexSearchEntityEmbeddingChunks: "Default",
     NotificationEvent: "Default",
     ProcessFile: "FileProcessor",
-    SendAccessPolicyNotification: "Default",
+    SendShareNotification: "Default",
 } as const satisfies Record<JobDescription["type"], string>;
 
 export type JobTypeByQueueName = {

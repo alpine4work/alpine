@@ -8,9 +8,9 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * it's represented by this object. There's a list of recipient accounts and
  * the optional message content.
  */
-export type AccessPolicyNotification = SchemaType<typeof AccessPolicyNotificationSchema>;
+export type ShareNotification = SchemaType<typeof ShareNotificationSchema>;
 
-export const AccessPolicyNotificationSchema = Schema.object({
+export const ShareNotificationSchema = Schema.object({
     accountIds: Schema.array(Schema.id<AccountId>()),
     content: MessageContentSchema,
 });

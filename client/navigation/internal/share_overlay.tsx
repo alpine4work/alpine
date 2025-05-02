@@ -37,7 +37,7 @@ import {
     allAccessLevels,
 } from "~/shared/access/access_policy.js";
 import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
     RemLength,
     Spacing,
@@ -83,7 +83,7 @@ function ShareOverlay(
         accessPolicy: AccessPolicy;
         onAccessPolicyChange: (
             accessPolicy: AccessPolicyAction,
-            notification?: AccessPolicyNotification | null,
+            notification?: ShareNotification | null,
         ) => MaybePromise<void>;
         isVisible: boolean;
         isReadOnly: boolean;

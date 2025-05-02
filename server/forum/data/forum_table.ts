@@ -64,7 +64,7 @@ import {
     AccessPolicySchema,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
@@ -2319,7 +2319,7 @@ export async function updateChannelAccessPolicy(
     }: {
         channelId: ChannelId;
         accessPolicy: AccessPolicy;
-        notification: AccessPolicyNotification | null;
+        notification: ShareNotification | null;
     },
 ): Promise<{
     getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
@@ -2373,7 +2373,7 @@ export async function updateChannelAccessPolicy(
 
     if (notification) {
         context.jobs.send({
-            type: "SendAccessPolicyNotification",
+            type: "SendShareNotification",
             jobId: generateId(),
             spaceId,
             actorAccountId: context.actor.getAccountId(),

@@ -25,7 +25,7 @@ import {buildContentEditorKeymapPlugin} from "~/client/content/state/internal/co
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {contentEditorTablePlugin} from "~/client/content/state/table/content_editor_table_plugin.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
     ContentReferences,
     ContentWithReferences,
@@ -532,7 +532,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
      */
     public setAccessPolicy(
         accessPolicy: AccessPolicy,
-        notification: AccessPolicyNotification | null,
+        notification: ShareNotification | null,
     ): ContentEditorState<Content> {
         assert(this._state.schema.topNodeType.spec.attrs?.accessPolicy);
 

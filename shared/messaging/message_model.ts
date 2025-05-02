@@ -114,8 +114,8 @@ export const MessageContentPayloadClericalSchema = Schema.union({
      * Clerical message left when someone shares an entity with you and chooses
      * to notify you.
      */
-    AccessPolicyNotification: Schema.object({
-        type: Schema.value("AccessPolicyNotification"),
+    ShareNotification: Schema.object({
+        type: Schema.value("ShareNotification"),
         entityType: Schema.enum(getFileEntityTypes()),
     }),
 });

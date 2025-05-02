@@ -73,7 +73,7 @@ import {
     hasAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -1276,7 +1276,7 @@ export function commitTaskActionTransaction(
             actions: ReadonlyArray<TaskUpdateTaskAction>;
         };
         // NOCOMMIT: Test!
-        updateAccessPolicyNotification?: AccessPolicyNotification;
+        updateAccessPolicyShareNotification?: ShareNotification;
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
@@ -1301,7 +1301,7 @@ export function commitTaskActionTransaction(
         }
 
         if (
-            options.updateAccessPolicyNotification &&
+            options.updateAccessPolicyShareNotification &&
             !actions.some(
                 action =>
                     action.type === "UpdateCollection" &&
@@ -1309,7 +1309,7 @@ export function commitTaskActionTransaction(
             )
         ) {
             throw new FailedPreconditionError(
-                "Can only provide `updateAccessPolicyNotification` if there's an `UpdateAccessPolicy` action in the transaction",
+                "Can only provide `updateAccessPolicyShareNotification` if there's an `UpdateAccessPolicy` action in the transaction",
             );
         }
 
@@ -1350,7 +1350,7 @@ export function commitTaskActionTransaction(
 
         // Send a notification for all collections updated via the `UpdateAccessPolicy`
         // action in this transaction.
-        if (options.updateAccessPolicyNotification) {
+        if (options.updateAccessPolicyShareNotification) {
             for (const action of actions) {
                 if (
                     action.type !== "UpdateCollection" ||
@@ -1360,12 +1360,12 @@ export function commitTaskActionTransaction(
                 }
 
                 context.jobs.send({
-                    type: "SendAccessPolicyNotification",
+                    type: "SendShareNotification",
                     jobId: generateId(),
                     spaceId,
                     actorAccountId: context.actor.getAccountId(),
                     entityId: `TaskCollection:${action.collectionId}`,
-                    notification: options.updateAccessPolicyNotification,
+                    notification: options.updateAccessPolicyShareNotification,
                 });
             }
         }

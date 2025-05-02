@@ -17,7 +17,7 @@ import {
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {
     DocumentContentReferences,
@@ -81,7 +81,7 @@ type DocumentContentEditorExtraState = {
      */
     readonly pendingIntentionallyUpdateAccessPolicy: {
         readonly accessPolicy: AccessPolicy;
-        readonly notification: AccessPolicyNotification | null;
+        readonly notification: ShareNotification | null;
     } | null;
 
     /**
@@ -258,7 +258,7 @@ export function reduceDocumentContentEditorState(
             let isLastTransactionIntentionallyUpdatingAccessPolicy = false;
             let lastIntentionallyUpdateAccessPolicy: {
                 accessPolicy: AccessPolicy;
-                notification: AccessPolicyNotification | null;
+                notification: ShareNotification | null;
             } | null = null;
 
             // We can have multiple steps from the same origin transaction. So uniquify our
@@ -275,7 +275,7 @@ export function reduceDocumentContentEditorState(
 
                     const intentionallyUpdateAccessPolicy: {
                         accessPolicy: AccessPolicy;
-                        notification: AccessPolicyNotification | null;
+                        notification: ShareNotification | null;
                     } | null =
                         transaction.getMeta(intentionallyUpdateContentAccessPolicyMetaKey) ?? null;
 

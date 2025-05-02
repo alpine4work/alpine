@@ -762,7 +762,7 @@ export function TaskCollectionView({
                               undoManager: null,
                               affinityManager,
                               // Include a notification if the user decided to configure one.
-                              updateAccessPolicyNotification: notification ?? undefined,
+                              updateAccessPolicyShareNotification: notification ?? undefined,
                           },
                       );
                   },

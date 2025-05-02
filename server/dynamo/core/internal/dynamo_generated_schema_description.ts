@@ -1095,13 +1095,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                 "type": "Union",
                                                                 "typeKey": "type",
                                                                 "variantSchemaByTypeValue": {
-                                                                    "AccessPolicyNotification": {
+                                                                    "ShareNotification": {
                                                                         "type": "Object",
                                                                         "propertySchemaByKey": {
                                                                             "type": {
                                                                                 "valueSchema": {
                                                                                     "type": "Value",
-                                                                                    "value": "AccessPolicyNotification"
+                                                                                    "value": "ShareNotification"
                                                                                 },
                                                                                 "optional": false
                                                                             },

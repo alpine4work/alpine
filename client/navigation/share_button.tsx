@@ -9,7 +9,7 @@ import {useShareState} from "~/client/navigation/internal/use_share_state.js";
 import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
-import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -28,7 +28,7 @@ export function ShareButton({
     onAccessPolicyChange: (
         // The `notification` argument comes first to make it harder for the
         // implementation of this function to ignore the `notification` argument.
-        notification: AccessPolicyNotification | null,
+        notification: ShareNotification | null,
         accessPolicy: AccessPolicy,
     ) => MaybePromise<void>;
     isReadOnly?: boolean;
