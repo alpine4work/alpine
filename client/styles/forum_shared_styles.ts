@@ -147,5 +147,7 @@ export const channelFilesViewMaxWidth = mapObjectValues(
 // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold for this
 // button. So tone down the font weight a bit.
 //
-// NOCOMMIT: Make sure this gets used in `<ChannelView>`.
+// TODO(calebmer): Consider making this default for all `neutral` variant
+// `<Button>`s. I've been finding this font weight looks better for most
+// `neutral` variant `<Button>`s.
 export const channelSubscribeButtonFontWeight = 425;
