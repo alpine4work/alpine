@@ -962,7 +962,6 @@ function ShareOverlayAccountGrantBody({
                                     paddingRight: spacing["3"],
                                     borderRadius: spacing["1.5"],
                                 }}
-                                // NOCOMMIT: Mod-enter support for account input grant too?
                                 onModEnterKeyDown={() => {
                                     assertExists(buttonRef.current).press();
                                 }}

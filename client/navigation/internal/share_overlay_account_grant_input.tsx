@@ -683,52 +683,6 @@ function ShareOverlayAccountGrantInput(
                                 {accessLevelText[accessLevel]}
                             </Button>
                         </MenuButton>
-                        {/* NOCOMMIT: <Box style={{width: addButtonWidth}}>
-                            <Button
-                                isDisabled={selectedAccounts.length === 0}
-                                variant="neutral"
-                                height="6"
-                                paddingX="3"
-                                fullWidth
-                                withoutMinWidth
-                                onPress={() => {
-                                    const newAccountGrantById = new Map<
-                                        AccountId,
-                                        DistributiveOmit<AccessPolicyAccountGrant, "generation">
-                                    >();
-
-                                    for (const selectedAccount of selectedAccounts) {
-                                        if (!newAccountGrantById.has(selectedAccount.id)) {
-                                            newAccountGrantById.set(selectedAccount.id, {
-                                                level: accessLevel,
-                                            });
-                                        }
-                                    }
-
-                                    // Make sure these both happen in a single React commit.
-                                    flushSync(() => {
-                                        setSelectedAccounts(emptyArray);
-                                        onAccessPolicyChange({
-                                            type: "AddAccountGrants",
-                                            accountGrantById: newAccountGrantById,
-                                        });
-
-                                        // Increase affinity points for all accounts this actor granted access to with
-                                        // a high intent update since the user clearly wants to show something to the
-                                        // granted accounts.
-                                        for (const accountId of newAccountGrantById.keys()) {
-                                            void markSearchAffinityEntityInteraction(context, {
-                                                spaceId: space.id,
-                                                entityId: `Account:${accountId}`,
-                                                interaction: {type: "HighIntentUpdate"},
-                                            });
-                                        }
-                                    });
-                                }}
-                            >
-                                Add
-                            </Button>
-                        </Box> */}
                     </Box>
                 </Box>
             </FocusRing>
