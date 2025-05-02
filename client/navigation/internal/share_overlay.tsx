@@ -1012,13 +1012,12 @@ function ShareOverlayAccountGrantBody({
                             }
                         }
 
-                        onSelectedAccountsChange(emptyArray);
-
                         await onAccessPolicyChange(
                             {
                                 type: "AddAccountGrants",
                                 accountGrantById: newAccountGrantById,
                             },
+                            // NOCOMMIT: Integration test that notification actually gets sent
                             willNotifyPeople
                                 ? {
                                       accountIds: Array.from(newAccountGrantById.keys()),
@@ -1026,6 +1025,8 @@ function ShareOverlayAccountGrantBody({
                                   }
                                 : null,
                         );
+
+                        onSelectedAccountsChange(emptyArray);
 
                         // Increase affinity points for all accounts this actor granted access to with
                         // a high intent update since the user clearly wants to show something to the

@@ -4,7 +4,6 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
-import {useReporter} from "~/client/design/reporter.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
@@ -38,10 +37,7 @@ import {
 import {contentStyles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {
-    AccessPolicy,
-    getAccountAccessLevelAssumingSpaceAccess,
-} from "~/shared/access/access_policy.js";
+import {getAccountAccessLevelAssumingSpaceAccess} from "~/shared/access/access_policy.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
@@ -52,7 +48,6 @@ import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
 import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {
@@ -83,7 +78,6 @@ export function ChannelView({
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
-    const reporter = useReporter();
     const {space, currentAccount} = useSpaceContext();
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
@@ -291,10 +285,11 @@ export function ChannelView({
         shareButton: {
             entityNoun: "channel",
             accessPolicy: channel.accessPolicy,
-            onAccessPolicyChange: async accessPolicy => {
+            onAccessPolicyChange: async (notification, accessPolicy) => {
                 const event = await updateChannelAccessPolicy(context, {
                     channelId,
                     accessPolicy,
+                    notification,
                 });
 
                 handleEventForChannel(event);

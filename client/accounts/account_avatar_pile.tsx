@@ -89,8 +89,8 @@ export function AccountAvatarPile({
                     style={{zIndex: 1 + previewAccounts.length}}
                 >
                     <Box
-                        height={avatarSize}
-                        width={avatarSize}
+                        height={size}
+                        width={size}
                         borderRadius="full"
                         style={{
                             boxShadow: `0px 0px 0px ${borderWidth}px ${backgroundColorVar}`,
@@ -115,7 +115,7 @@ export function AccountAvatarPile({
                 getAllAccounts &&
                 accountCount > previewAccounts.length && (
                     <Box
-                        height={avatarSize}
+                        height={size}
                         width={avatarOverlapWidth}
                         position="relative"
                         style={{zIndex: 1 + previewAccounts.length}}
@@ -160,8 +160,8 @@ export function AccountAvatarPile({
                                 }}
                             >
                                 <Box
-                                    height={avatarSize}
-                                    width={avatarSize}
+                                    height={size}
+                                    width={size}
                                     borderRadius="full"
                                     backgroundColor="grey-10"
                                     color="grey-70"

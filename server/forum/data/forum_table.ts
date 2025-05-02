@@ -64,6 +64,7 @@ import {
     AccessPolicySchema,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DynamoGeneralRealtimeBackfillResult,
@@ -2315,9 +2316,11 @@ export async function updateChannelAccessPolicy(
     {
         channelId,
         accessPolicy,
+        notification,
     }: {
         channelId: ChannelId;
         accessPolicy: AccessPolicy;
+        notification: AccessPolicyNotification | null;
     },
 ): Promise<{
     getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
@@ -2368,6 +2371,17 @@ export async function updateChannelAccessPolicy(
             updatedTraits: {type: "Some", traits: ["Preview", "Authorization"]},
         },
     });
+
+    if (notification) {
+        context.jobs.send({
+            type: "SendAccessPolicyNotification",
+            jobId: generateId(),
+            spaceId,
+            actorAccountId: context.actor.getAccountId(),
+            entityId: `Channel:${channelId}`,
+            notification,
+        });
+    }
 
     return {
         getDynamoGeneralRealtimeEventTransaction: async context => ({
