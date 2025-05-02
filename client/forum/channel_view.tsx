@@ -29,7 +29,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    channelSubscribeButtonFontWeight,
     channelViewAsidePostFileMaxCount,
     postContentViewMinHeightPx,
     postFauxInputCreateButtonInnerButtonHeight,
@@ -529,7 +528,9 @@ function ChannelViewSubscribeButton({
                     style={{
                         // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here.
                         // So tone down the font weight a bit.
-                        fontWeight: !isSubscribed ? channelSubscribeButtonFontWeight : undefined,
+                        fontWeight: !isSubscribed
+                            ? contentStyles.channelSubscribeButtonFontWeight
+                            : undefined,
                     }}
                 >
                     {isSubscribed ? "Subscribed" : "Subscribe"}

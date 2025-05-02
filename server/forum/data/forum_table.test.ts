@@ -4634,6 +4634,37 @@ test("authorizing channel access after getting channel as session actor is cache
 
         expect(getCount()).toEqual(0);
 
+        await runAllPromises([
+            getChannelAndMetadata(actionContext, {channelId: channel.id, postFilesLimit: 100}),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
+        ]);
+
+        expect(getCount()).toEqual(3);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = session2.action();
+
+        expect(getCount()).toEqual(0);
+
         await getChannelContributors(actionContext, channel.id, {limit: 100});
 
         expect(getCount()).toEqual(3);
@@ -4738,6 +4769,35 @@ test("authorizing channel access after getting channel as system actor is cached
         expect(getCount()).toEqual(2);
 
         await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await runAllPromises([
+            getChannelAndMetadata(actionContext, {channelId: channel.id, postFilesLimit: 100}),
+            authorizeChannelAccess(actionContext, channel.id, "View"),
+        ]);
 
         expect(getCount()).toEqual(2);
 

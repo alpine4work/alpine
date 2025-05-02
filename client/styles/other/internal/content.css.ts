@@ -1397,6 +1397,31 @@ export const fileImagePreviewPlaceholderClassName = style({
     },
 });
 
+// NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold for this
+// button. So tone down the font weight a bit.
+//
+// TODO(calebmer): Consider making this default for all `neutral` variant
+// `<Button>`s. I've been finding this font weight looks better for most
+// `neutral` variant `<Button>`s.
+export const channelSubscribeButtonFontWeight = 425;
+
+export const fileChannelEntityPreviewSubscribeButtonBellIconClassName = style({
+    width: spacing["3"],
+    height: spacing["3"],
+});
+
+export const fileChannelEntityPreviewSubscribeButtonBellRingingIconClassName = style({
+    display: "none",
+    width: spacing["3"],
+    height: spacing["3"],
+});
+
+export const fileChannelEntityPreviewSubscribeButtonSpinnerGapIconClassName = style({
+    display: "none",
+    width: spacing["3"],
+    height: spacing["3"],
+});
+
 export const fileChannelEntityPreviewSubscribeButtonClassName = style({
     position: "relative",
     zIndex: "0",
@@ -1412,17 +1437,62 @@ export const fileChannelEntityPreviewSubscribeButtonClassName = style({
     borderRadius: spacing["1"],
     backgroundColor: colorSchemeVars["grey-90"],
     color: colorSchemeVars["grey-0"],
+    fill: colorSchemeVars["grey-0"],
     ...fontSizes["75"],
+    fontWeight: channelSubscribeButtonFontWeight,
     // This button is clickable independently of the rest of the entity
     // preview card.
     pointerEvents: "auto",
     cursor: "default",
     selectors: {
+        "&::after": {
+            content: '"Subscribe"',
+        },
         [`${darkColorSchemeSelector} &`]: {
             backgroundColor: colorSchemeVars["grey-100"],
         },
     },
 });
+
+const fileChannelEntityPreviewSubscribeButtonSubscribedSelector = `${fileChannelEntityPreviewSubscribeButtonClassName}:is([data-subscribed=true], [data-subscribed-override=true]):not([data-subscribed-override=false])`;
+
+globalStyle(fileChannelEntityPreviewSubscribeButtonSubscribedSelector, {
+    backgroundColor: colorSchemeVars["grey-5"],
+    color: colorSchemeVars["grey-40"],
+    fill: colorSchemeVars["grey-40"],
+    fontWeight: 400,
+});
+
+globalStyle(`${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}::after`, {
+    content: '"Subscribed"',
+});
+
+// Make sure we override the unsubscribed `darkColorSchemeSelector` selector
+// that changes background color.
+globalStyle(
+    `${darkColorSchemeSelector} ${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}`,
+    {backgroundColor: colorSchemeVars["grey-5"]},
+);
+
+globalStyle(
+    `${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}:not([data-loading-indicator]) ${fileChannelEntityPreviewSubscribeButtonBellIconClassName}`,
+    {display: "none"},
+);
+
+globalStyle(
+    `${fileChannelEntityPreviewSubscribeButtonSubscribedSelector}:not([data-loading-indicator]) ${fileChannelEntityPreviewSubscribeButtonBellRingingIconClassName}`,
+    {display: "block"},
+);
+
+globalStyle(
+    `${fileChannelEntityPreviewSubscribeButtonClassName}[data-loading-indicator] ${fileChannelEntityPreviewSubscribeButtonBellIconClassName}`,
+    {display: "none"},
+);
+
+globalStyle(
+    `${fileChannelEntityPreviewSubscribeButtonClassName}[data-loading-indicator] ${fileChannelEntityPreviewSubscribeButtonSpinnerGapIconClassName}`,
+    {display: "block"},
+);
 
 export const fileChannelEntityPreviewSubscribeButtonPressedClassName = style({
     selectors: {

@@ -143,11 +143,3 @@ export const channelFilesViewMaxWidth = mapObjectValues(
             contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1)
         }rem`,
 );
-
-// NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold for this
-// button. So tone down the font weight a bit.
-//
-// TODO(calebmer): Consider making this default for all `neutral` variant
-// `<Button>`s. I've been finding this font weight looks better for most
-// `neutral` variant `<Button>`s.
-export const channelSubscribeButtonFontWeight = 425;

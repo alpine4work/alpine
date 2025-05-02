@@ -6,6 +6,7 @@ import {
 import {
     createChannelNotFoundError,
     getChannelAndMetadataIfPossible,
+    isSubscribedToChannel,
 } from "~/server/forum/data/forum_table.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -17,6 +18,7 @@ import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_mod
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
@@ -24,6 +26,8 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
@@ -207,16 +211,27 @@ export async function getFileEntityIfPossible(
         case "Channel": {
             const {channelId} = entityIdObject;
 
-            const channelQueryResult = await getChannelAndMetadataIfPossible(context, {
-                channelId,
-                postFilesLimit: 0,
-            });
+            const [channelQueryResult, isSubscribedResult] = await runAllPromises([
+                getChannelAndMetadataIfPossible(context, {
+                    channelId,
+                    postFilesLimit: 0,
+                }),
+                context.actor.type === "Session"
+                    ? captureResultPromise(
+                          isSubscribedToChannel(context.actor.authorizeSession(), channelId),
+                      )
+                    : null,
+            ]);
 
             if (!channelQueryResult)
                 return {ok: false, error: createChannelNotFoundError(channelId)};
 
             if (!channelQueryResult.ok) return channelQueryResult;
             const channelQuery = channelQueryResult.value;
+
+            // Only throw error from `isSubscribedToChannel()` if we're authorized to view
+            // the channel.
+            const isSubscribed = isSubscribedResult ? unwrapResult(isSubscribedResult) : false;
 
             const channel = assertExists(
                 findMapIterable(channelQuery.items, item =>
@@ -238,6 +253,7 @@ export async function getFileEntityIfPossible(
                     createdTime: channel.model.createdTime,
                     name: channel.model.name,
                     description: channel.model.description,
+                    isSubscribed,
                     contributorCount: channelContributors?.contributorCount ?? 0,
                     topContributors: channelContributors?.topContributors ?? emptyArray,
                 }),

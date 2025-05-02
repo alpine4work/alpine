@@ -9,29 +9,40 @@ import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/conten
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {bellIconSvg} from "~/client/icons/bell_icon_svg.js";
+import {bellRingingIconSvg} from "~/client/icons/bell_ringing_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
 import {
-    channelSubscribeButtonFontWeight,
     channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/styles/forum_shared_styles.js";
-import {backgroundColorVar, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    backgroundColorVar,
+    contentStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/styles/styles.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {renderedMaxChannelTopContributorCount} from "~/shared/forum/channel_model.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
+import {subscribeToChannel, unsubscribeFromChannel} from "~/shared/rpc/forum_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -172,21 +183,44 @@ export function renderContentFileChannelEntityPreview(
 
         subscribeButtonHtml.setAttribute(
             "style",
-            `display: ${
-                isSmallerThanHalfOfBlockMaxWidth ? "none" : "flex"
-            }; font-weight: ${channelSubscribeButtonFontWeight}`,
+            `display: ${isSmallerThanHalfOfBlockMaxWidth ? "none" : "flex"}`,
+        );
+
+        subscribeButtonHtml.setAttribute(
+            "data-subscribed",
+            JSON.stringify(fileEntity.isSubscribed),
         );
 
         subscribeButtonHtml.appendChild(
             createSvgHtmlGenerator(
                 bellIconSvg({
                     weight: "bold",
-                    className: sprinkles({width: "3", height: "3", fill: "grey-0"}),
+                    className:
+                        contentStyles.fileChannelEntityPreviewSubscribeButtonBellIconClassName,
                 }),
             ),
         );
 
-        subscribeButtonHtml.appendChild(new HtmlTextGenerator("Subscribe"));
+        subscribeButtonHtml.appendChild(
+            createSvgHtmlGenerator(
+                bellRingingIconSvg({
+                    weight: "regular",
+                    className:
+                        contentStyles.fileChannelEntityPreviewSubscribeButtonBellRingingIconClassName,
+                }),
+            ),
+        );
+
+        subscribeButtonHtml.appendChild(
+            createSvgHtmlGenerator(
+                spinnerGapIconSvg({
+                    className: classNames(
+                        spinAnimationClassName,
+                        contentStyles.fileChannelEntityPreviewSubscribeButtonSpinnerGapIconClassName,
+                    ),
+                }),
+            ),
+        );
     }
 
     {
@@ -415,23 +449,89 @@ export function renderContentFileChannelEntityPreview(
 export function addContentFileChannelEntityPreviewBehavior(
     getContext: () => AppContext,
     element: HTMLElement,
-    {isInert}: {fileEntity: FileEntityModel; spaceId: SpaceId; isInert: boolean},
+    {
+        fileEntity: unknownFileEntity,
+        getReporter,
+        isInert,
+    }: {
+        fileEntity: FileEntityModel;
+        spaceId: SpaceId;
+        getReporter: () => Reporter;
+        isInert: boolean;
+    },
 ) {
+    const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
+
     const subscribeButtonElement = assertExists(
         element.getElementsByClassName(
             contentStyles.fileChannelEntityPreviewSubscribeButtonClassName,
         )[0],
     ) as HTMLDivElement;
 
-    const cleanupSubscribeButton = !isInert
-        ? addUnfocusableButtonBehaviorToElement(subscribeButtonElement, {
-              pressClassName: contentStyles.fileChannelEntityPreviewSubscribeButtonPressedClassName,
-              onPress: () => {
-                  // NOCOMMIT: Implement subscribing/unsubscribing after merging channel
-                  // subscription code.
-              },
-          })
-        : null;
+    let cleanupSubscribeButton: (() => void) | undefined;
+    if (!isInert) {
+        cleanupSubscribeButton = addUnfocusableButtonBehaviorToElement(subscribeButtonElement, {
+            pressClassName: contentStyles.fileChannelEntityPreviewSubscribeButtonPressedClassName,
+            onPress: () => {
+                // Only run one async operation at a time...
+                if (subscribeButtonElement.hasAttribute("data-loading")) return;
+
+                const isSubscribed: boolean = JSON.parse(
+                    subscribeButtonElement.getAttribute("data-subscribed-override") ??
+                        subscribeButtonElement.getAttribute("data-subscribed") ??
+                        "false",
+                );
+
+                const setIsSubscribed = (isSubscribed: boolean) => {
+                    // Our local `isSubscribed` state is saved in the DOM as a data attribute. We
+                    // need to pick a name for the data attribute which doesn't conflict with
+                    // `data-subscribed` which is managed by `HtmlGenerator`. If
+                    // `renderContentFileChannelEntityPreview()` reruns then we don't want it to
+                    // override our local `isSubscribed` state when patching nodes.
+                    //
+                    // Behaviors functions like this have to manage state in the DOM since we're not
+                    // a traditional stateful React component.
+                    subscribeButtonElement.setAttribute(
+                        "data-subscribed-override",
+                        JSON.stringify(isSubscribed),
+                    );
+                };
+
+                runPromiseWithoutAwaiting(async () => {
+                    subscribeButtonElement.setAttribute("data-loading", "");
+
+                    const timeout = createTimeout(() => {
+                        subscribeButtonElement.setAttribute("data-loading-indicator", "");
+                    }, delayLoadingIndicatorLimitMs);
+
+                    try {
+                        // Optimistically update the button.
+                        setIsSubscribed(!isSubscribed);
+
+                        if (isSubscribed) {
+                            await unsubscribeFromChannel(getContext(), {channelId: fileEntity.id});
+                        } else {
+                            await subscribeToChannel(getContext(), {channelId: fileEntity.id});
+                        }
+                    } catch (error) {
+                        // If the request failed then revert our button back to the original state.
+                        setIsSubscribed(isSubscribed);
+
+                        getReporter().displayError(
+                            !isSubscribed
+                                ? "Couldn’t subscribe to channel"
+                                : "Couldn’t unsubscribe from channel",
+                            error,
+                        );
+                    } finally {
+                        timeout.clear();
+                        subscribeButtonElement.removeAttribute("data-loading");
+                        subscribeButtonElement.removeAttribute("data-loading-indicator");
+                    }
+                });
+            },
+        });
+    }
 
     return () => {
         cleanupSubscribeButton?.();
