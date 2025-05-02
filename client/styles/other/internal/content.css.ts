@@ -452,23 +452,8 @@ globalStyle(listItemClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
-    // NOCOMMIT: Don't use standalone block margin for list items:
-    //
-    // - It's weird when you type `*` and spacing gets added
-    // - Floating files between list items adds standalone margin which is weird
-    // - Editors like the share overlay description editor and task notes that are
-    //   based on paragraph line heights aren't as clean when list items have
-    //   standalone block margin
-    marginTop: standaloneBlockMargin,
-    marginBottom: standaloneBlockMargin,
-});
-
-globalStyle(`${listItemClassName} + ${listItemClassName}`, {
-    marginTop: 0,
-});
-
-globalStyle(`${listItemClassName}:has(+ ${listItemClassName})`, {
-    marginBottom: 0,
+    marginTop: paragraphMargin,
+    marginBottom: paragraphMargin,
 });
 
 export const unorderedListItemBulletTop = createObjectFromKeys(
