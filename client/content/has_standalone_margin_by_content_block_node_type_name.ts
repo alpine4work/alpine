@@ -16,9 +16,9 @@ export const hasStandaloneMarginByContentBlockNodeTypeName: {[key: string]: bool
     [Key in ContentBlockNodeTypeName]: boolean;
 }>({
     paragraph: false,
-    unorderedListItem: false,
-    orderedListItem: false,
-    checkListItem: false,
+    unorderedListItem: true,
+    orderedListItem: true,
+    checkListItem: true,
     heading: false,
     divider: false,
     fileFloat: false,

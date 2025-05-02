@@ -452,8 +452,29 @@ globalStyle(listItemClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
     paddingLeft: `calc((${listItemIndentationVar} + 1) * ${listItemIndentation})`,
-    marginTop: paragraphMargin,
-    marginBottom: paragraphMargin,
+    // NOTE(calebmer, 2025-05-02): I'm conflicted on whether to keep or remove
+    // standalone block margins for list items. The advantage is that it makes
+    // documents look nice. Here are some of the disadvantages:
+    //
+    // - It's weird when you type `*` and spacing gets added
+    // - Floating files between list items adds standalone margin which is weird
+    // - Editors like the share overlay description editor and task notes that are
+    //   based on paragraph line heights aren't as clean when list items have
+    //   standalone block margin
+    //
+    // The advantage of documents looking better is pretty good, though. So I
+    // tolerate these disadvantages. Some we can workaround, e.g. we should be
+    // able to detect when there's only a floating file between two list items.
+    marginTop: standaloneBlockMargin,
+    marginBottom: standaloneBlockMargin,
+});
+
+globalStyle(`${listItemClassName} + ${listItemClassName}`, {
+    marginTop: 0,
+});
+
+globalStyle(`${listItemClassName}:has(+ ${listItemClassName})`, {
+    marginBottom: 0,
 });
 
 export const unorderedListItemBulletTop = createObjectFromKeys(
