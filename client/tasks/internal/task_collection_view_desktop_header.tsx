@@ -210,7 +210,7 @@ function TaskCollectionViewDesktopHeader(
                         <ShareButton
                             entityNoun="task collection"
                             accessPolicy={accessPolicy}
-                            onAccessPolicyChange={accessPolicy => {
+                            onAccessPolicyChange={(notification, accessPolicy) => {
                                 store.commitTaskActionTransaction(
                                     context,
                                     [
@@ -228,6 +228,8 @@ function TaskCollectionViewDesktopHeader(
                                         // Collection access policy changes can't be undone.
                                         undoManager: null,
                                         affinityManager,
+                                        // Include a notification if the user decided to configure one.
+                                        updateAccessPolicyNotification: notification ?? undefined,
                                     },
                                 );
                             }}

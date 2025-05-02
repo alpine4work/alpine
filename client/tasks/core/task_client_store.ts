@@ -9,6 +9,7 @@ import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/core/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/core/task_client_task_subscription.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {Context} from "~/shared/context/context.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
@@ -409,6 +410,7 @@ export class TaskClientStore {
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
             undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
+            updateAccessPolicyNotification?: AccessPolicyNotification;
         },
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
@@ -1625,6 +1627,7 @@ export class TaskClientStoreInternal {
             affinityManager,
             leaseId = null,
             undoableSlice = null,
+            updateAccessPolicyNotification = null,
         }: {
             // This property is required to force callers to make a decision on whether or
             // not to pass in `undoManager`. Most of the time you want to pass in
@@ -1635,6 +1638,7 @@ export class TaskClientStoreInternal {
             affinityManager: TaskClientStoreSearchAffinityManager;
             leaseId?: TaskActionTransactionLeaseId | null;
             undoableSlice?: {startIndex: number | null; endIndex: number | null} | null;
+            updateAccessPolicyNotification?: AccessPolicyNotification | null;
         },
     ): {finally: (callback: () => void) => void} {
         const actions: ReadonlyArray<TaskActionModel> = isReadonlyArray(actionsIterable)
@@ -1814,6 +1818,7 @@ export class TaskClientStoreInternal {
                               .map(fromTaskUpdateTaskActionModel),
                       }
                     : undefined,
+                updateAccessPolicyNotification: updateAccessPolicyNotification ?? undefined,
             }).then(
                 output => {
                     mutexUnlockPromiseResolver.resolve();

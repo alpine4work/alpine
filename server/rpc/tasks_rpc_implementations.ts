@@ -39,6 +39,7 @@ export default implementRpcs(definitions, {
                     clientId: input.clientId,
                     leaseId: input.leaseId,
                     createLeaseIfLostAccess: input.createLeaseIfLostAccess,
+                    updateAccessPolicyNotification: input.updateAccessPolicyNotification,
                 },
             );
 

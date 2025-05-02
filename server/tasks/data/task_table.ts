@@ -73,6 +73,7 @@ import {
     hasAccessLevel,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
+import {AccessPolicyNotification} from "~/shared/access/access_policy_notification.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -1274,6 +1275,8 @@ export function commitTaskActionTransaction(
             id: TaskActionTransactionLeaseId;
             actions: ReadonlyArray<TaskUpdateTaskAction>;
         };
+        // NOCOMMIT: Test!
+        updateAccessPolicyNotification?: AccessPolicyNotification;
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
@@ -1295,6 +1298,19 @@ export function commitTaskActionTransaction(
         //    committed (since ensuring task indexes may take a while)
         if (process.env.NODE_ENV !== "production") {
             await ensureLocalTaskIndexesIfEnabled(context);
+        }
+
+        if (
+            options.updateAccessPolicyNotification &&
+            !actions.some(
+                action =>
+                    action.type === "UpdateCollection" &&
+                    action.collectionAction.type === "UpdateAccessPolicy",
+            )
+        ) {
+            throw new FailedPreconditionError(
+                "Can only provide `updateAccessPolicyNotification` if there's an `UpdateAccessPolicy` action in the transaction",
+            );
         }
 
         const {actionTransactionItem, extraActions} = await TaskActionTransactionCommitState.commit(
@@ -1331,6 +1347,28 @@ export function commitTaskActionTransaction(
         // the same task (e.g. from typing in the title). And helps other users
         // connected to realtime see these actions in the same order they were made.
         await Promise.race([processPromise.catch(() => {}), wait(100)]);
+
+        // Send a notification for all collections updated via the `UpdateAccessPolicy`
+        // action in this transaction.
+        if (options.updateAccessPolicyNotification) {
+            for (const action of actions) {
+                if (
+                    action.type !== "UpdateCollection" ||
+                    action.collectionAction.type !== "UpdateAccessPolicy"
+                ) {
+                    continue;
+                }
+
+                context.jobs.send({
+                    type: "SendAccessPolicyNotification",
+                    jobId: generateId(),
+                    spaceId,
+                    actorAccountId: context.actor.getAccountId(),
+                    entityId: `TaskCollection:${action.collectionId}`,
+                    notification: options.updateAccessPolicyNotification,
+                });
+            }
+        }
 
         return {extraActions};
     });

@@ -1,3 +1,4 @@
+import {AccessPolicyNotificationSchema} from "~/shared/access/access_policy_notification.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
@@ -36,6 +37,7 @@ export const commitTaskActionTransaction = defineRpc({
             id: Schema.id<TaskActionTransactionLeaseId>(),
             actions: Schema.array(TaskUpdateTaskActionSchema),
         }).optional(),
+        updateAccessPolicyNotification: AccessPolicyNotificationSchema.optional(),
     },
     output: {
         extraActions: Schema.array(TaskActionSchema),

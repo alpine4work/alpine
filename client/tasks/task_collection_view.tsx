@@ -743,7 +743,7 @@ export function TaskCollectionView({
             ? {
                   entityNoun: "task collection",
                   accessPolicy,
-                  onAccessPolicyChange: accessPolicy => {
+                  onAccessPolicyChange: (notification, accessPolicy) => {
                       store.commitTaskActionTransaction(
                           context,
                           [
@@ -761,6 +761,8 @@ export function TaskCollectionView({
                               // Collection access policy changes can't be undone.
                               undoManager: null,
                               affinityManager,
+                              // Include a notification if the user decided to configure one.
+                              updateAccessPolicyNotification: notification ?? undefined,
                           },
                       );
                   },
