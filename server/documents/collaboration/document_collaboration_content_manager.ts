@@ -114,7 +114,12 @@ export class DocumentCollaborationContentManager {
                 readonly initialCommentContent: MessageContent;
                 readonly createdTime: Date;
             }>;
-            readonly intentionallyUpdateAccessPolicyRef: {current: AccessPolicy | null};
+            readonly intentionallyUpdateAccessPolicyRef: {
+                current: {
+                    readonly accessPolicy: AccessPolicy;
+                    readonly notification: ShareNotification | null;
+                } | null;
+            };
         } | null;
         promise: Promise<void>;
     } | null = null;

@@ -174,7 +174,10 @@ testMessagingImplementation<DocumentCommentRoomKey>(context, {
                     version: currentDocument.version,
                     steps: [new DocAttrStep("accessPolicy", newAccessPolicy)],
                     clientId: generateId(),
-                    intentionallyUpdateAccessPolicy: newAccessPolicy,
+                    intentionallyUpdateAccessPolicy: {
+                        accessPolicy: newAccessPolicy,
+                        notification: null,
+                    },
                 });
             },
         };

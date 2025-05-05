@@ -929,6 +929,7 @@ test("can't update channel access policy without manage access", async () => {
                 defaultGrant: null,
                 urlGrant: null,
             },
+            notification: null,
         }),
     ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
 
@@ -946,6 +947,7 @@ test("can't update channel access policy without manage access", async () => {
                 defaultGrant: null,
                 urlGrant: null,
             },
+            notification: null,
         }),
     ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
 
@@ -963,6 +965,7 @@ test("can't update channel access policy without manage access", async () => {
                 defaultGrant: null,
                 urlGrant: null,
             },
+            notification: null,
         }),
     ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
 
@@ -980,6 +983,7 @@ test("can't update channel access policy without manage access", async () => {
                 defaultGrant: null,
                 urlGrant: null,
             },
+            notification: null,
         }),
     ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
 
@@ -1002,6 +1006,7 @@ test("can't update channel access policy without manage access", async () => {
             defaultGrant: null,
             urlGrant: null,
         },
+        notification: null,
     });
 
     expect(await channel.access.get()).toEqual({
@@ -1031,6 +1036,7 @@ test("can't update channel access policy with invalid update", async () => {
                 defaultGrant: {level: "Manage", generation: 1},
                 urlGrant: null,
             },
+            notification: null,
         }),
     ).rejects.toThrow(
         "Can't set new account grant manage generation to be less than or equal to our actor's manage generation",
@@ -1046,6 +1052,7 @@ test("can't update channel access policy with invalid update", async () => {
                 defaultGrant: {level: "Manage", generation: 1},
                 urlGrant: null,
             },
+            notification: null,
         }),
     ).rejects.toThrow(
         "Can't revoke manage access from an account with a manage generation less than our actor",
@@ -1062,6 +1069,7 @@ test("can't update channel access policy with invalid update", async () => {
                 defaultGrant: {level: "Manage", generation: 3},
                 urlGrant: null,
             },
+            notification: null,
         }),
     ).rejects.toThrow("Can't change default grant manage generation");
 });

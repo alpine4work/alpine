@@ -5458,7 +5458,7 @@ test("can update access policy", async () => {
         steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
         clientId: client1Id,
         createCommentThreads: [],
-        intentionallyUpdateAccessPolicy: accessPolicy2,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
         updateOurPresenceState: {state: null},
     });
 
@@ -5471,7 +5471,7 @@ test("can update access policy", async () => {
         steps: [new DocAttrStep("accessPolicy", accessPolicy1)],
         clientId: client1Id,
         createCommentThreads: [],
-        intentionallyUpdateAccessPolicy: accessPolicy1,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy1, notification: null},
         updateOurPresenceState: {state: null},
     });
 
@@ -5491,7 +5491,7 @@ test("can update access policy", async () => {
         steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
         clientId: client1Id,
         createCommentThreads: [],
-        intentionallyUpdateAccessPolicy: accessPolicy2,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
         updateOurPresenceState: {state: null},
     });
 
@@ -5506,7 +5506,7 @@ test("can update access policy", async () => {
         steps: [new DocAttrStep("accessPolicy", accessPolicy1)],
         clientId: client1Id,
         createCommentThreads: [],
-        intentionallyUpdateAccessPolicy: accessPolicy1,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy1, notification: null},
         updateOurPresenceState: {state: null},
     });
 
@@ -5525,7 +5525,7 @@ test("can update access policy", async () => {
         steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
         clientId: client1Id,
         createCommentThreads: [],
-        intentionallyUpdateAccessPolicy: accessPolicy2,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
         updateOurPresenceState: {state: null},
     });
 
@@ -5654,7 +5654,7 @@ test("can't update access policy with the wrong intentional policy", async () =>
         steps: [new DocAttrStep("accessPolicy", accessPolicy2a)],
         clientId: client1Id,
         createCommentThreads: [],
-        intentionallyUpdateAccessPolicy: accessPolicy2b,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2b, notification: null},
         updateOurPresenceState: {state: null},
     });
 

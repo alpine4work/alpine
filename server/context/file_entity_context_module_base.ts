@@ -1,4 +1,3 @@
-import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
@@ -22,7 +21,6 @@ export abstract class FileEntityContextModuleBase<
     implements ForkableContextModuleBase
 {
     public abstract getIfPossible(
-        this: FileEntityContextModuleBase<{actor: SessionActorContextModule}>,
         spaceId: SpaceId,
         entityId: FileEntityId,
     ): Promise<Result<FileEntityModel, ErrorBase> | null>;

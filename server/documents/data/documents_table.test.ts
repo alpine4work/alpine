@@ -5587,7 +5587,7 @@ test("must have edit access to edit a document and can change the document's acc
         id: document.id,
         version: 1,
         steps: [new DocAttrStep("accessPolicy", publicAccessPolicy)],
-        intentionallyUpdateAccessPolicy: publicAccessPolicy,
+        intentionallyUpdateAccessPolicy: {accessPolicy: publicAccessPolicy, notification: null},
         clientId: generateId(),
     });
 
@@ -5782,7 +5782,7 @@ test("can't update access policy with a mismatched intentional access policy", a
             id: document.id,
             version: 1,
             steps: [new DocAttrStep("accessPolicy", publicAccessPolicy)],
-            intentionallyUpdateAccessPolicy: otherAccessPolicy,
+            intentionallyUpdateAccessPolicy: {accessPolicy: otherAccessPolicy, notification: null},
             clientId: generateId(),
         }),
     ).rejects.toThrow(
@@ -5882,7 +5882,10 @@ test("can't update the access policy without the manage access level", async () 
                 id: document.id,
                 version: 1,
                 steps: [new DocAttrStep("accessPolicy", publicAccessPolicy)],
-                intentionallyUpdateAccessPolicy: publicAccessPolicy,
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: publicAccessPolicy,
+                    notification: null,
+                },
                 clientId: generateId(),
             }),
         ).rejects.toThrow('Actor doesn\'t have "Edit" access level to document');
@@ -5979,7 +5982,10 @@ test("can't update the access policy without the manage access level", async () 
                 id: document.id,
                 version: 1,
                 steps: [new DocAttrStep("accessPolicy", publicAccessPolicy)],
-                intentionallyUpdateAccessPolicy: publicAccessPolicy,
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: publicAccessPolicy,
+                    notification: null,
+                },
                 clientId: generateId(),
             }),
         ).rejects.toThrow('Actor doesn\'t have "Manage" access level to document');
@@ -6075,7 +6081,7 @@ test("can't update the access policy without the manage access level", async () 
             id: document.id,
             version: 1,
             steps: [new DocAttrStep("accessPolicy", publicAccessPolicy)],
-            intentionallyUpdateAccessPolicy: publicAccessPolicy,
+            intentionallyUpdateAccessPolicy: {accessPolicy: publicAccessPolicy, notification: null},
             clientId: generateId(),
         });
 
@@ -6164,7 +6170,10 @@ test("can't update the access policy without the manage access level even if the
             id: document.id,
             version: 1,
             steps: [new DocAttrStep("accessPolicy", document.initialAccessPolicy)],
-            intentionallyUpdateAccessPolicy: document.initialAccessPolicy,
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: document.initialAccessPolicy,
+                notification: null,
+            },
             clientId: generateId(),
         }),
     ).rejects.toThrow('Actor doesn\'t have "Manage" access level to document');
@@ -6274,7 +6283,10 @@ test("can handle conflicting access policy changes", async () => {
                 id: document.id,
                 version: 1,
                 steps: [new DocAttrStep("accessPolicy", accessPolicyForSession1)],
-                intentionallyUpdateAccessPolicy: accessPolicyForSession1,
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: accessPolicyForSession1,
+                    notification: null,
+                },
                 clientId: generateId(),
             },
         );
@@ -6286,7 +6298,10 @@ test("can handle conflicting access policy changes", async () => {
                 id: document.id,
                 version: 1,
                 steps: [new DocAttrStep("accessPolicy", accessPolicyForSession2)],
-                intentionallyUpdateAccessPolicy: accessPolicyForSession2,
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: accessPolicyForSession2,
+                    notification: null,
+                },
                 clientId: generateId(),
             },
         );
@@ -6396,7 +6411,10 @@ test("can handle conflicting access policy changes", async () => {
                 id: document.id,
                 version: 1,
                 steps: [new DocAttrStep("accessPolicy", accessPolicyForSession1)],
-                intentionallyUpdateAccessPolicy: accessPolicyForSession1,
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: accessPolicyForSession1,
+                    notification: null,
+                },
                 clientId: generateId(),
             },
         );
@@ -6408,7 +6426,10 @@ test("can handle conflicting access policy changes", async () => {
                 id: document.id,
                 version: 1,
                 steps: [new DocAttrStep("accessPolicy", accessPolicyForSession2)],
-                intentionallyUpdateAccessPolicy: accessPolicyForSession2,
+                intentionallyUpdateAccessPolicy: {
+                    accessPolicy: accessPolicyForSession2,
+                    notification: null,
+                },
                 clientId: generateId(),
             },
         );
@@ -6520,7 +6541,7 @@ test("can handle conflicting access policy changes within a single update call",
                     new DocAttrStep("accessPolicy", accessPolicy2),
                     new DocAttrStep("accessPolicy", accessPolicy3),
                 ],
-                intentionallyUpdateAccessPolicy: accessPolicy2,
+                intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
                 clientId: generateId(),
             }),
         ).rejects.toThrow(
@@ -6632,7 +6653,7 @@ test("can handle conflicting access policy changes within a single update call",
                 new DocAttrStep("accessPolicy", accessPolicy2),
                 new DocAttrStep("accessPolicy", accessPolicy3),
             ],
-            intentionallyUpdateAccessPolicy: accessPolicy3,
+            intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy3, notification: null},
             clientId: generateId(),
         });
 
@@ -6741,7 +6762,7 @@ test("can handle conflicting access policy changes within a single update call",
                 new DocAttrStep("accessPolicy", accessPolicy2),
                 new DocAttrStep("accessPolicy", accessPolicy3),
             ],
-            intentionallyUpdateAccessPolicy: accessPolicy3,
+            intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy3, notification: null},
             clientId: generateId(),
         });
 
@@ -6826,7 +6847,10 @@ test("can't revoke access from account with a lower manage generation", async ()
             id: document.id,
             version: 0,
             steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy2)],
-            intentionallyUpdateAccessPolicy: invalidAccessPolicy2,
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: invalidAccessPolicy2,
+                notification: null,
+            },
             clientId: generateId(),
         }),
     ).rejects.toThrow(
@@ -6847,7 +6871,7 @@ test("can't revoke access from account with a lower manage generation", async ()
         id: document.id,
         version: 0,
         steps: [new DocAttrStep("accessPolicy", accessPolicy2)],
-        intentionallyUpdateAccessPolicy: accessPolicy2,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
         clientId: generateId(),
     });
 
@@ -6882,7 +6906,10 @@ test("can't revoke access from account with a lower manage generation", async ()
             id: document.id,
             version: 0,
             steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy3)],
-            intentionallyUpdateAccessPolicy: invalidAccessPolicy3,
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: invalidAccessPolicy3,
+                notification: null,
+            },
             clientId: generateId(),
         }),
     ).rejects.toThrow(
@@ -6904,7 +6931,10 @@ test("can't revoke access from account with a lower manage generation", async ()
             id: document.id,
             version: 1,
             steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy3)],
-            intentionallyUpdateAccessPolicy: invalidAccessPolicy3,
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: invalidAccessPolicy3,
+                notification: null,
+            },
             clientId: generateId(),
         }),
     ).rejects.toThrow(
@@ -6925,7 +6955,7 @@ test("can't revoke access from account with a lower manage generation", async ()
         id: document.id,
         version: 1,
         steps: [new DocAttrStep("accessPolicy", accessPolicy3)],
-        intentionallyUpdateAccessPolicy: accessPolicy3,
+        intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy3, notification: null},
         clientId: generateId(),
     });
 
@@ -6962,7 +6992,10 @@ test("can't revoke access from account with a lower manage generation", async ()
             id: document.id,
             version: 2,
             steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy4a)],
-            intentionallyUpdateAccessPolicy: invalidAccessPolicy4a,
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: invalidAccessPolicy4a,
+                notification: null,
+            },
             clientId: generateId(),
         }),
     ).rejects.toThrow(
@@ -6974,7 +7007,10 @@ test("can't revoke access from account with a lower manage generation", async ()
             id: document.id,
             version: 2,
             steps: [new DocAttrStep("accessPolicy", invalidAccessPolicy4b)],
-            intentionallyUpdateAccessPolicy: invalidAccessPolicy4b,
+            intentionallyUpdateAccessPolicy: {
+                accessPolicy: invalidAccessPolicy4b,
+                notification: null,
+            },
             clientId: generateId(),
         }),
     ).rejects.toThrow(

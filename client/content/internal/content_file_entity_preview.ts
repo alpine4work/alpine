@@ -1,8 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
-import {Link as LinkIcon} from "phosphor-react";
 import {Node} from "prosemirror-model";
-import {createElement} from "react";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";

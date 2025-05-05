@@ -12,6 +12,7 @@ import {
 } from "react-aria";
 import {ComboBoxState, Item, ListState, useListState} from "react-stately";
 import {Box} from "~/client/design/box.js";
+import {Checkbox} from "~/client/design/checkbox.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
     OverlayTriggerButton,

@@ -93,6 +93,7 @@ export class TestChannel {
             await updateChannelAccessPolicy(session.action(), {
                 channelId: this.id,
                 accessPolicy,
+                notification: null,
             });
         },
     });
