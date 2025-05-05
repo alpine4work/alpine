@@ -18,6 +18,7 @@ import {
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
+    sendChannelShareNotification,
     subscribeToChannel,
     unsubscribeFromChannel,
     updateChannelAccessPolicy,
@@ -113,6 +114,18 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             await unsubscribeFromChannel(context.actor.authorizeSession(), input.channelId);
+            return {};
+        },
+    },
+
+    sendChannelShareNotification: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await sendChannelShareNotification(
+                context.actor.authorizeSession(),
+                input.channelId,
+                input.notification,
+            );
             return {};
         },
     },

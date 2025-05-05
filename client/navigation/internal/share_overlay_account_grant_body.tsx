@@ -1,4 +1,4 @@
-import {Dispatch, SetStateAction, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {ContentEditor} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
@@ -14,16 +14,11 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {messageInputEditorPaddingYPx} from "~/client/styles/messaging_shared_styles.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
-import {AccessLevel, AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
-import {AccessPolicyAction} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentWithReferences,
     emptyMessageContentWithReferences,
@@ -33,17 +28,12 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareOverlayAccountGrantBody({
     selectedAccounts,
-    onSelectedAccountsChange,
-    accessLevel,
-    onAccessPolicyChange,
+    willAlwaysNotifyPeople = false,
+    onShare,
 }: {
     selectedAccounts: ReadonlyArray<AccountModel>;
-    onSelectedAccountsChange: Dispatch<SetStateAction<ReadonlyArray<AccountModel>>>;
-    accessLevel: AccessLevel;
-    onAccessPolicyChange: (
-        accessPolicy: AccessPolicyAction,
-        notification: ShareNotification | null,
-    ) => MaybePromise<void>;
+    willAlwaysNotifyPeople?: boolean;
+    onShare: (notification: ShareNotification | null) => MaybePromise<void>;
 }) {
     const context = useAppContext();
     const platform = usePlatform();
@@ -59,6 +49,10 @@ export function ShareOverlayAccountGrantBody({
         willNotifyPeople: true,
         messageState: ContentEditorState.create(emptyMessageContentWithReferences),
     }));
+
+    if (!willNotifyPeople && willAlwaysNotifyPeople) {
+        setState({willNotifyPeople: true, messageState});
+    }
 
     const {isPressed: isNotifyPeoplePressed, pressProps: notifyPeoplePressProps} = usePress({
         onPress: () => {
@@ -140,68 +134,52 @@ export function ShareOverlayAccountGrantBody({
             </Box>
             <Spacer space="5" />
             <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Box
-                    {...notifyPeoplePressProps}
-                    color="grey-60"
-                    // Enough touch slop space (see `use_touch_slop.ts`)
-                    height="6"
-                    display="flex"
-                    alignItems="center"
-                    gap="1.5"
-                >
-                    <Checkbox isChecked={willNotifyPeople} isPressed={isNotifyPeoplePressed} />
+                {willAlwaysNotifyPeople ? (
+                    <Spacer space="6" />
+                ) : (
                     <Box
-                        position="relative"
-                        style={{
-                            // Optically align text with checkbox.
-                            top: `${0.5 / remPxBySpacingScale.medium}rem`,
-                        }}
+                        {...notifyPeoplePressProps}
+                        color="grey-60"
+                        // Enough touch slop space (see `use_touch_slop.ts`)
+                        height="6"
+                        display="flex"
+                        alignItems="center"
+                        gap="1.5"
                     >
-                        Notify people
+                        <Checkbox isChecked={willNotifyPeople} isPressed={isNotifyPeoplePressed} />
+                        <Box
+                            position="relative"
+                            style={{
+                                // Optically align text with checkbox.
+                                top: `${0.5 / remPxBySpacingScale.medium}rem`,
+                            }}
+                        >
+                            Notify people
+                        </Box>
                     </Box>
-                </Box>
+                )}
                 <Button
                     ref={buttonRef}
                     variant="neutral"
                     isDisabled={selectedAccounts.length === 0}
                     pressErrorTitle="Couldn’t share"
                     onPress={async () => {
-                        const newAccountGrantById = new Map<
-                            AccountId,
-                            DistributiveOmit<AccessPolicyAccountGrant, "generation">
-                        >();
-
-                        for (const selectedAccount of selectedAccounts) {
-                            if (!newAccountGrantById.has(selectedAccount.id)) {
-                                newAccountGrantById.set(selectedAccount.id, {
-                                    level: accessLevel,
-                                });
-                            }
-                        }
-
-                        await onAccessPolicyChange(
-                            {
-                                type: "AddAccountGrants",
-                                accountGrantById: newAccountGrantById,
-                            },
-                            // NOCOMMIT: Integration test that notification actually gets sent
+                        await onShare(
                             willNotifyPeople
                                 ? {
-                                      accountIds: Array.from(newAccountGrantById.keys()),
+                                      accountIds: selectedAccounts.map(({id}) => id),
                                       content: messageState.getDoc(),
                                   }
                                 : null,
                         );
 
-                        onSelectedAccountsChange(emptyArray);
-
                         // Increase affinity points for all accounts this actor granted access to with
                         // a high intent update since the user clearly wants to show something to the
                         // granted accounts.
-                        for (const accountId of newAccountGrantById.keys()) {
+                        for (const account of selectedAccounts) {
                             void markSearchAffinityEntityInteraction(context, {
                                 spaceId: space.id,
-                                entityId: `Account:${accountId}`,
+                                entityId: `Account:${account.id}`,
                                 interaction: {type: "HighIntentUpdate"},
                             });
                         }

@@ -14,10 +14,8 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {useStore} from "~/client/helpers/use_store.js";
 import {noAccessLevelText, removeAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {ShareOverlayAccountGrantBody} from "~/client/navigation/internal/share_overlay_account_grant_body.js";
-import {
-    ShareOverlayAccountGrantInput,
-    ShareOverlayAccountGrantInputRef,
-} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
+import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
+import {ShareOverlayAccountInputRef} from "~/client/navigation/internal/share_overlay_account_input.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
@@ -53,6 +51,7 @@ import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {partitionIterable} from "~/shared/helpers/iterable/partition_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -95,7 +94,7 @@ function ShareOverlay(
     const {space} = useSpaceContext();
 
     const hasAccountGrantInput = !isReadOnly;
-    const accountGrantInputRef = useRef<ShareOverlayAccountGrantInputRef>(null);
+    const accountGrantInputRef = useRef<ShareOverlayAccountInputRef>(null);
 
     const [accountGrantInputAccessLevel, setAccountGrantInputAccessLevel] =
         useState<AccessLevel>("Manage");
@@ -230,9 +229,31 @@ function ShareOverlay(
                     {hasAccountGrantInput && accountGrantInputSelectedAccounts.length > 0 ? (
                         <ShareOverlayAccountGrantBody
                             selectedAccounts={accountGrantInputSelectedAccounts}
-                            onSelectedAccountsChange={setAccountGrantInputSelectedAccounts}
-                            accessLevel={accountGrantInputAccessLevel}
-                            onAccessPolicyChange={onAccessPolicyChange}
+                            onShare={async notification => {
+                                const newAccountGrantById = new Map<
+                                    AccountId,
+                                    DistributiveOmit<AccessPolicyAccountGrant, "generation">
+                                >();
+
+                                for (const selectedAccount of accountGrantInputSelectedAccounts) {
+                                    if (!newAccountGrantById.has(selectedAccount.id)) {
+                                        newAccountGrantById.set(selectedAccount.id, {
+                                            level: accountGrantInputAccessLevel,
+                                        });
+                                    }
+                                }
+
+                                await onAccessPolicyChange(
+                                    {
+                                        type: "AddAccountGrants",
+                                        accountGrantById: newAccountGrantById,
+                                    },
+                                    // NOCOMMIT: Integration test that notification actually gets sent
+                                    notification,
+                                );
+
+                                setAccountGrantInputSelectedAccounts(emptyArray);
+                            }}
                         />
                     ) : (
                         <>

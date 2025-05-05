@@ -79,6 +79,7 @@ export function ShareMobileModal({
                         <Spacer space="5" />
                         <Box position="relative" zIndex="10">
                             <ShareOverlayAccountGrantInput
+                                accessLevelText={accessLevelText}
                                 accountGrantById={accessPolicy.accountGrantById}
                                 allAccounts={allAccounts}
                                 accountById={accountById}

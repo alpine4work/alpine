@@ -2117,6 +2117,24 @@ export async function getChannelNotificationSubscribers(
     return accountIds;
 }
 
+// NOCOMMIT: Test?
+export async function sendChannelShareNotification(
+    context: ServerSessionActionContext,
+    channelId: ChannelId,
+    notification: ShareNotification,
+) {
+    const {spaceId} = await authorizeChannelAccess(context, channelId, "View");
+
+    await context.jobs.sendImmediately({
+        type: "SendShareNotification",
+        jobId: generateId(),
+        spaceId,
+        actorAccountId: context.actor.getAccountId(),
+        entityId: `Channel:${channelId}`,
+        notification,
+    });
+}
+
 /**
  * Updates the name of the channel.
  */

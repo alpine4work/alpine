@@ -146,6 +146,15 @@ export const unsubscribeFromChannel = defineRpc({
     output: {},
 });
 
+export const sendChannelShareNotification = defineRpc({
+    name: "sendChannelShareNotification",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        notification: ShareNotificationSchema,
+    },
+    output: {},
+});
+
 export const getChannelPosts = defineRpc({
     name: "getChannelPosts",
     input: {

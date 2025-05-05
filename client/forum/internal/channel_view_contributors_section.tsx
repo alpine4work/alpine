@@ -1,12 +1,12 @@
 import {UserPlus} from "phosphor-react";
-import {useMemo} from "react";
+import {useCallback, useMemo} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useStore} from "~/client/helpers/use_store.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {ShareNotificationButton} from "~/client/navigation/share_notification_button.js";
 import {
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
@@ -19,6 +19,8 @@ import {
     ChannelModel,
     renderedMaxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
+import {sendChannelShareNotification} from "~/shared/rpc/forum_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -31,9 +33,36 @@ export function ChannelViewContributorsSection({
     contributors: ChannelContributorsModel | null;
     withoutTitle?: boolean;
 }) {
-    const navigate = useNavigate();
+    const context = useAppContext();
     const accountsStore = useAccountClientStore();
-    const {space} = useSpaceContext();
+
+    const previewAccounts = useStore(
+        useMemo(() => {
+            return Store.mapMany(
+                (contributors?.topContributors ?? [AccountModel.getUnknown()]).map(account =>
+                    accountsStore.getAccountStore(account),
+                ),
+                accounts => {
+                    return (
+                        Array.from(accounts)
+                            // If we have any removed accounts then sort them to the end of the array.
+                            // Prefer showing accounts that are still a part of the space.
+                            .sort((account1, account2) => {
+                                if (account1.space.wasRemoved) return -1;
+                                if (account2.space.wasRemoved) return 1;
+                                return 0;
+                            })
+                            .slice(0, renderedMaxChannelTopContributorCount)
+                    );
+                },
+            );
+        }, [accountsStore, contributors?.topContributors]),
+    );
+
+    const previewAccountIds = useMemo(
+        () => new Set(previewAccounts.map(({id}) => id)),
+        [previewAccounts],
+    );
 
     return (
         <Box>
@@ -51,44 +80,35 @@ export function ChannelViewContributorsSection({
             <AccountAvatarPile
                 size="7"
                 topPreviewAccount="Last"
-                previewAccounts={useStore(
-                    useMemo(() => {
-                        return Store.mapMany(
-                            (contributors?.topContributors ?? [AccountModel.getUnknown()]).map(
-                                account => accountsStore.getAccountStore(account),
-                            ),
-                            accounts => {
-                                return (
-                                    Array.from(accounts)
-                                        // If we have any removed accounts then sort them to the end of the array.
-                                        // Prefer showing accounts that are still a part of the space.
-                                        .sort((account1, account2) => {
-                                            if (account1.space.wasRemoved) return -1;
-                                            if (account2.space.wasRemoved) return 1;
-                                            return 0;
-                                        })
-                                        .slice(0, renderedMaxChannelTopContributorCount)
-                                );
-                            },
-                        );
-                    }, [accountsStore, contributors?.topContributors]),
-                )}
+                previewAccounts={previewAccounts}
                 lastAvatar={
-                    <IconButton
-                        variant="quiet-darken"
-                        size="base"
-                        // This button doesn't look interactive enough on its own. So use a pointer
-                        // cursor to make clear it's interactive.
-                        cursor="pointer"
-                        description="Invite"
-                        pressErrorTitle="Couldn’t invite people to channel"
-                        onPress={async () => {
-                            // NOCOMMIT: Prefill invite message!
-                            await navigate(`/s/${space.id}/chat/new?focus=picker`);
+                    <ShareNotificationButton
+                        // Exclude previewed accounts from the share dialog. Since clearly those
+                        // accounts already know about the channel. We want the user to share with new
+                        // people!
+                        excludeAccountId={useCallback(
+                            (accountId: AccountId) => previewAccountIds.has(accountId),
+                            [previewAccountIds],
+                        )}
+                        onShare={async notification => {
+                            // NOCOMMIT: Integration test?
+                            await sendChannelShareNotification(context, {
+                                channelId: channel.id,
+                                notification,
+                            });
                         }}
                     >
-                        <UserPlus size={spacing["4"]} />
-                    </IconButton>
+                        <IconButton
+                            variant="quiet-darken"
+                            size="base"
+                            // This button doesn't look interactive enough on its own. So use a pointer
+                            // cursor to make clear it's interactive.
+                            cursor="pointer"
+                            description="Invite"
+                        >
+                            <UserPlus size={spacing["4"]} />
+                        </IconButton>
+                    </ShareNotificationButton>
                 }
             />
         </Box>
