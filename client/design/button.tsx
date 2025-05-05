@@ -358,8 +358,13 @@ function Button(
         <span
             className={sprinkles({
                 display: "block",
-                fontStyle: isBold ? "truncate-semi-bold" : "truncate",
+                fontStyle: "truncate",
             })}
+            style={{
+                // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here.
+                // So tone down the font weight a bit.
+                fontWeight: isBold ? 425 : undefined,
+            }}
         >
             {children}
         </span>

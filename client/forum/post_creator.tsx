@@ -204,7 +204,7 @@ export function PostCreator({
         isDisabled: platform !== "mobile",
         title: "New post",
         withoutDisappearingTitle: true,
-        replaceActions: platform === "mobile" && (
+        replaceActions: (
             <Box
                 display="flex"
                 justifyContent="flex-end"
@@ -266,7 +266,7 @@ export function PostCreator({
                         minHeight="full"
                         display="flex"
                         flexDirection="column"
-                        paddingTop="safe-area-inset"
+                        paddingY="safe-area-inset"
                     >
                         {navigationBar}
                         {platform === "desktop" ? (
@@ -281,8 +281,6 @@ export function PostCreator({
                                 style={{height: postViewNavigationBarSpace[platform]}}
                             >
                                 <Box
-                                    position="absolute"
-                                    top="0"
                                     display="flex"
                                     alignItems="center"
                                     height={
@@ -302,6 +300,8 @@ export function PostCreator({
                                             />
                                         }
                                     />
+                                    <Box flexGrow="1" />
+                                    {createButtonNode}
                                 </Box>
                             </Box>
                         ) : (
@@ -381,21 +381,6 @@ export function PostCreator({
                                 assertExists(createButtonRef.current).press();
                             }}
                         />
-                        {platform !== "mobile" && (
-                            <Box
-                                marginTop="-12"
-                                flexShrink="0"
-                                width="full"
-                                marginX="center"
-                                maxWidth={contentStyles.contentMaxWidth}
-                                paddingBottom="safe-area-inset"
-                            >
-                                <Box height="12" paddingX="2.5" display="flex" alignItems="center">
-                                    <Box flexGrow="1" />
-                                    {createButtonNode}
-                                </Box>
-                            </Box>
-                        )}
                     </Box>
                 </OverlayScopeContextProvider>
             </Box>

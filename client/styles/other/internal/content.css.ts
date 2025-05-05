@@ -1397,14 +1397,6 @@ export const fileImagePreviewPlaceholderClassName = style({
     },
 });
 
-// NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold for this
-// button. So tone down the font weight a bit.
-//
-// TODO(calebmer): Consider making this default for all `neutral` variant
-// `<Button>`s. I've been finding this font weight looks better for most
-// `neutral` variant `<Button>`s.
-export const channelSubscribeButtonFontWeight = 425;
-
 export const fileChannelEntityPreviewSubscribeButtonBellIconClassName = style({
     width: spacing["3"],
     height: spacing["3"],
@@ -1439,7 +1431,8 @@ export const fileChannelEntityPreviewSubscribeButtonClassName = style({
     color: colorSchemeVars["grey-0"],
     fill: colorSchemeVars["grey-0"],
     ...fontSizes["75"],
-    fontWeight: channelSubscribeButtonFontWeight,
+    // Same font weight used by `<Button>` for neutral variant.
+    fontWeight: 425,
     // This button is clickable independently of the rest of the entity
     // preview card.
     pointerEvents: "auto",

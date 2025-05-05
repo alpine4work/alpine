@@ -1626,15 +1626,7 @@ export function DocumentContentEditor({
                     ).presentWithoutConfirmation();
                 }}
             >
-                <span
-                    style={{
-                        // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here.
-                        // So tone down the font weight a bit.
-                        fontWeight: 425,
-                    }}
-                >
-                    Present
-                </span>
+                Present
             </Button>
         ) : undefined,
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,

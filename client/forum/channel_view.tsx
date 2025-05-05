@@ -525,17 +525,7 @@ function ChannelViewSubscribeButton({
                     }
                 }}
             >
-                <span
-                    style={{
-                        // NOTE(calebmer): I'm finding `font-weight: 500` looks a little too bold here.
-                        // So tone down the font weight a bit.
-                        fontWeight: !isSubscribed
-                            ? contentStyles.channelSubscribeButtonFontWeight
-                            : undefined,
-                    }}
-                >
-                    {isSubscribed ? "Subscribed" : "Subscribe"}
-                </span>
+                {isSubscribed ? "Subscribed" : "Subscribe"}
             </Button>
         </Tooltip>
     );
