@@ -77,7 +77,7 @@ export function SpaceLayoutSideBarCreateButton() {
                                 const draftId = generateChronologicalId();
 
                                 await peekStackContext.push(
-                                    `/s/${space.id}/posts/new/${draftId}?focus=channel`,
+                                    `/s/${space.id}/posts/new/${draftId}?focus=content`,
                                 );
                             },
                             render: ({isPressed, shouldShowPendingSpinner}) => (
