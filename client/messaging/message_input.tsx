@@ -16,7 +16,6 @@ import {useFileClientStore} from "~/client/content/file_client_store_context.js"
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
-import {trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
@@ -29,6 +28,7 @@ import {MessageList} from "~/client/messaging/message_list.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";

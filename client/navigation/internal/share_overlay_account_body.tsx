@@ -15,6 +15,7 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {messageInputEditorPaddingYPx} from "~/client/styles/messaging_shared_styles.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {trimContent} from "~/shared/content/trim_content.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -70,20 +71,21 @@ export function ShareOverlayAccountBody({
         messageInputEditorPaddingYPx[platform][spacingScale] * 2;
 
     const messageMaxHeightPx =
-        contentStyles.paragraphLineHeightPx[spacingScale] * 10 +
+        contentStyles.paragraphLineHeightPx[spacingScale] *
+            // Less max height on mobile since there's less vertical screen space and we
+            // don't let the outer view scroll. Only the inner view.
+            (platform === "mobile" ? 7 : 10) +
         messageInputEditorPaddingYPx[platform][spacingScale] * 2;
 
     return (
-        <Box paddingX="5">
+        <>
             <Box display={willNotifyPeople ? "block" : "none"}>
                 <Spacer space="3" />
                 <FocusRing offset="border" isVisibleWhenFocusWithin>
                     <Box
-                        ref={useScrollbar()}
                         position="relative"
                         zIndex="0"
                         borderRadius="1.5"
-                        overflowY="auto"
                         style={{
                             minHeight: messageMinHeightPx,
                             maxHeight: messageMaxHeightPx,
@@ -102,32 +104,46 @@ export function ShareOverlayAccountBody({
                             }}
                         />
                         <Box
-                            display="flex"
-                            flexDirection="column"
-                            style={{minHeight: messageMinHeightPx}}
+                            ref={useScrollbar()}
+                            position="relative"
+                            zIndex="0"
+                            borderRadius="1.5"
+                            overflowY="auto"
+                            style={{
+                                minHeight: messageMinHeightPx,
+                                maxHeight: messageMaxHeightPx,
+                            }}
                         >
-                            <ContentEditor
-                                aria-label="Message"
-                                placeholder="Add a message (optional)"
-                                state={messageState}
-                                onChange={messageState => {
-                                    if (!willNotifyPeople) return;
-                                    setState(state => ({...state, messageState}));
-                                }}
-                                containerClassName={sprinkles({flexGrow: "1"})}
-                                style={{
-                                    paddingTop:
-                                        messageInputEditorPaddingYPx[platform][spacingScale],
-                                    paddingBottom:
-                                        messageInputEditorPaddingYPx[platform][spacingScale],
-                                    paddingLeft: spacing["3"],
-                                    paddingRight: spacing["3"],
-                                    borderRadius: spacing["1.5"],
-                                }}
-                                onModEnterKeyDown={() => {
-                                    assertExists(buttonRef.current).press();
-                                }}
-                            />
+                            <Box
+                                display="flex"
+                                flexDirection="column"
+                                style={{minHeight: messageMinHeightPx}}
+                            >
+                                <ContentEditor
+                                    aria-label="Message"
+                                    placeholder="Add a message (optional)"
+                                    state={messageState}
+                                    onChange={messageState => {
+                                        if (!willNotifyPeople) return;
+                                        setState(state => ({...state, messageState}));
+                                    }}
+                                    containerClassName={sprinkles({flexGrow: "1"})}
+                                    style={{
+                                        paddingTop:
+                                            messageInputEditorPaddingYPx[platform][spacingScale],
+                                        paddingBottom:
+                                            messageInputEditorPaddingYPx[platform][spacingScale],
+                                        paddingLeft: spacing["3"],
+                                        paddingRight: spacing["3"],
+                                        borderRadius: spacing["1.5"],
+                                    }}
+                                    onModEnterKeyDown={() => {
+                                        assertExists(buttonRef.current).press();
+                                    }}
+                                    // Always in editing mode. User won't be reading while in the modal.
+                                    withoutMobileDualModality={true}
+                                />
+                            </Box>
                         </Box>
                     </Box>
                 </FocusRing>
@@ -168,7 +184,7 @@ export function ShareOverlayAccountBody({
                             willNotifyPeople
                                 ? {
                                       accountIds: selectedAccounts.map(({id}) => id),
-                                      content: messageState.getDoc(),
+                                      content: trimContent(messageState.getDoc()),
                                   }
                                 : null,
                         );
@@ -188,6 +204,6 @@ export function ShareOverlayAccountBody({
                     Share
                 </Button>
             </Box>
-        </Box>
+        </>
     );
 }

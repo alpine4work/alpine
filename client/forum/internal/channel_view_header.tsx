@@ -8,12 +8,14 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
+import {ChannelViewSubscribeButton} from "~/client/forum/internal/channel_view_subscribe_button.js";
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MountainRoadAtSunriseIllustration} from "~/client/icons/illustrations/mountain_road_at_sunrise_illustration.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {
@@ -41,6 +43,7 @@ export function ChannelViewHeader({
     channelHeader: PostListChannelHeader & {isOnlyNavigationBar: false};
     hasNoPosts: boolean;
 }) {
+    const platform = usePlatform();
     const routeLayout = useRouteLayout();
 
     let contributors: ChannelContributorsModel | null = null;
@@ -66,11 +69,24 @@ export function ChannelViewHeader({
                     flexDirection="column"
                     gap={channelViewHeaderSectionGap}
                 >
-                    <ChannelViewContributorsSection
-                        channel={channelHeader.channel}
-                        contributors={contributors}
-                        withoutTitle={true}
-                    />
+                    <Box
+                        display="flex"
+                        flexWrap="wrap"
+                        columnGap="2.5"
+                        rowGap={channelViewHeaderSectionGap}
+                    >
+                        {platform === "mobile" && (
+                            <ChannelViewSubscribeButton
+                                channelId={channelHeader.channel.id}
+                                initialIsSubscribed={channelHeader.initialIsSubscribed}
+                            />
+                        )}
+                        <ChannelViewContributorsSection
+                            channel={channelHeader.channel}
+                            contributors={contributors}
+                            withoutTitle={true}
+                        />
+                    </Box>
                     <Box marginBottom="-1.5">
                         <h3 className={sprinkles({color: "grey-50"})}>About</h3>
                         {!channelHeader.isEditingDescription ? (

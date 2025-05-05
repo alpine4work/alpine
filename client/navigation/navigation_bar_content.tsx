@@ -656,6 +656,7 @@ function NavigationBarContentMoreButton({
                     {({onCloseWithAnimation}) => (
                         <ShareMobileModal
                             entityNoun={shareButton.entityNoun}
+                            accessLevelText={shareButton.accessLevelText ?? defaultAccessLevelText}
                             accessPolicy={shareButton.accessPolicy}
                             onAccessPolicyChange={shareState.changeAccessPolicy}
                             isReadOnly={shareState.isReadOnly}

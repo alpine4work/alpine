@@ -1,18 +1,24 @@
 import {UserPlus} from "phosphor-react";
-import {useCallback, useMemo} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {ShareNotificationButton} from "~/client/navigation/share_notification_button.js";
+import {ShareNotificationMobileModal} from "~/client/navigation/share_notification_mobile_modal.js";
+import {usePlatform} from "~/client/remix/platform_context.js";
+import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewMetadataSectionTitleColor,
     channelViewMetadataSectionTitleFontSize,
     channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/styles/forum_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {
     ChannelContributorsModel,
@@ -21,6 +27,7 @@ import {
 } from "~/shared/forum/channel_model.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {sendChannelShareNotification} from "~/shared/rpc/forum_rpc_definitions.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -33,8 +40,18 @@ export function ChannelViewContributorsSection({
     contributors: ChannelContributorsModel | null;
     withoutTitle?: boolean;
 }) {
+    const platform = usePlatform();
     const context = useAppContext();
+    const {space} = useSpaceContext();
     const accountsStore = useAccountClientStore();
+
+    // When we open the `<ShareNotificationOverlay>` we immediately focus the
+    // account input. Preload the account list so we don't need to show a loading
+    // spinner after focusing the account input.
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id});
+
+    const [showShareMobileModal, setShowShareMobileModal] = useState(false);
+    if (platform !== "mobile" && showShareMobileModal) setShowShareMobileModal(false);
 
     const previewAccounts = useStore(
         useMemo(() => {
@@ -64,6 +81,22 @@ export function ChannelViewContributorsSection({
         [previewAccounts],
     );
 
+    // Exclude previewed accounts from the share dialog. Since clearly those
+    // accounts already know about the channel. We want the user to share with new
+    // people!
+    const excludeAccountId = useCallback(
+        (accountId: AccountId) => previewAccountIds.has(accountId),
+        [previewAccountIds],
+    );
+
+    const handleShare = async (notification: ShareNotification) => {
+        // NOCOMMIT: Integration test?
+        await sendChannelShareNotification(context, {
+            channelId: channel.id,
+            notification,
+        });
+    };
+
     return (
         <Box>
             {!withoutTitle && (
@@ -82,22 +115,7 @@ export function ChannelViewContributorsSection({
                 topPreviewAccount="Last"
                 previewAccounts={previewAccounts}
                 lastAvatar={
-                    <ShareNotificationButton
-                        // Exclude previewed accounts from the share dialog. Since clearly those
-                        // accounts already know about the channel. We want the user to share with new
-                        // people!
-                        excludeAccountId={useCallback(
-                            (accountId: AccountId) => previewAccountIds.has(accountId),
-                            [previewAccountIds],
-                        )}
-                        onShare={async notification => {
-                            // NOCOMMIT: Integration test?
-                            await sendChannelShareNotification(context, {
-                                channelId: channel.id,
-                                notification,
-                            });
-                        }}
-                    >
+                    platform === "mobile" ? (
                         <IconButton
                             variant="quiet-darken"
                             size="base"
@@ -105,12 +123,40 @@ export function ChannelViewContributorsSection({
                             // cursor to make clear it's interactive.
                             cursor="pointer"
                             description="Invite"
+                            onPress={() => setShowShareMobileModal(true)}
                         >
                             <UserPlus size={spacing["4"]} />
                         </IconButton>
-                    </ShareNotificationButton>
+                    ) : (
+                        <ShareNotificationButton
+                            excludeAccountId={excludeAccountId}
+                            onShare={handleShare}
+                        >
+                            <IconButton
+                                variant="quiet-darken"
+                                size="base"
+                                // This button doesn't look interactive enough on its own. So use a pointer
+                                // cursor to make clear it's interactive.
+                                cursor="pointer"
+                                description="Invite"
+                            >
+                                <UserPlus size={spacing["4"]} />
+                            </IconButton>
+                        </ShareNotificationButton>
+                    )
                 }
             />
+            {showShareMobileModal && (
+                <MobileFullScreenModal onClose={() => setShowShareMobileModal(false)}>
+                    {({onCloseWithAnimation}) => (
+                        <ShareNotificationMobileModal
+                            onCloseWithAnimation={onCloseWithAnimation}
+                            excludeAccountId={excludeAccountId}
+                            onShare={handleShare}
+                        />
+                    )}
+                </MobileFullScreenModal>
+            )}
         </Box>
     );
 }

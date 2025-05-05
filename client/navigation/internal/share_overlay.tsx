@@ -237,34 +237,36 @@ function ShareOverlay(
                         </Box>
                     )}
                     {hasAccountGrantInput && accountGrantInputSelectedAccounts.length > 0 ? (
-                        <ShareOverlayAccountBody
-                            selectedAccounts={accountGrantInputSelectedAccounts}
-                            onShare={async notification => {
-                                const newAccountGrantById = new Map<
-                                    AccountId,
-                                    DistributiveOmit<AccessPolicyAccountGrant, "generation">
-                                >();
+                        <Box paddingX="5">
+                            <ShareOverlayAccountBody
+                                selectedAccounts={accountGrantInputSelectedAccounts}
+                                onShare={async notification => {
+                                    const newAccountGrantById = new Map<
+                                        AccountId,
+                                        DistributiveOmit<AccessPolicyAccountGrant, "generation">
+                                    >();
 
-                                for (const selectedAccount of accountGrantInputSelectedAccounts) {
-                                    if (!newAccountGrantById.has(selectedAccount.id)) {
-                                        newAccountGrantById.set(selectedAccount.id, {
-                                            level: accountGrantInputAccessLevel,
-                                        });
+                                    for (const selectedAccount of accountGrantInputSelectedAccounts) {
+                                        if (!newAccountGrantById.has(selectedAccount.id)) {
+                                            newAccountGrantById.set(selectedAccount.id, {
+                                                level: accountGrantInputAccessLevel,
+                                            });
+                                        }
                                     }
-                                }
 
-                                await onAccessPolicyChange(
-                                    {
-                                        type: "AddAccountGrants",
-                                        accountGrantById: newAccountGrantById,
-                                    },
-                                    // NOCOMMIT: Integration test that notification actually gets sent
-                                    notification,
-                                );
+                                    await onAccessPolicyChange(
+                                        {
+                                            type: "AddAccountGrants",
+                                            accountGrantById: newAccountGrantById,
+                                        },
+                                        // NOCOMMIT: Integration test that notification actually gets sent
+                                        notification,
+                                    );
 
-                                setAccountGrantInputSelectedAccounts(emptyArray);
-                            }}
-                        />
+                                    setAccountGrantInputSelectedAccounts(emptyArray);
+                                }}
+                            />
+                        </Box>
                     ) : (
                         <>
                             {accessPolicy.accountGrantById.size === 0 ? (

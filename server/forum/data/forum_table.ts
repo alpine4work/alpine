@@ -1137,6 +1137,7 @@ export function internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntr
 /**
  * Create a new channel.
  */
+// NOCOMMIT: Automatically subscribe to channel you create
 export async function createChannel(
     context: ForumSessionActionContextWithBroadcast,
     {

@@ -105,14 +105,16 @@ function ShareNotificationOverlay(
                             excludeAccountId={excludeAccountId}
                         />
                     </Box>
-                    <ShareOverlayAccountBody
-                        willAlwaysNotifyPeople={true}
-                        selectedAccounts={selectedAccounts}
-                        onShare={async notification => {
-                            await onShare(assertExists(notification));
-                            onCloseWithoutAnimation();
-                        }}
-                    />
+                    <Box paddingX="5">
+                        <ShareOverlayAccountBody
+                            willAlwaysNotifyPeople={true}
+                            selectedAccounts={selectedAccounts}
+                            onShare={async notification => {
+                                await onShare(assertExists(notification));
+                                onCloseWithoutAnimation();
+                            }}
+                        />
+                    </Box>
                 </OverlayScopeContextProvider>
             </Box>
         </FocusScope>

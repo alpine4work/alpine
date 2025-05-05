@@ -34,7 +34,6 @@ import {
     createContentCommentThreadMetaKey,
     updateContentEditorReferences,
 } from "~/client/content/state/content_editor_state.js";
-import {trimContentEnd, trimContentWithReferencesEnd} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -73,6 +72,7 @@ import {
     spaceLayoutStyles,
 } from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {trimContentEnd, trimContentWithReferencesEnd} from "~/shared/content/trim_content.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {

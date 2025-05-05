@@ -1,5 +1,5 @@
 import {Fragment, Node} from "prosemirror-model";
-import {trimContentFragment} from "~/client/content/trim_content.js";
+import {trimContentFragment} from "~/shared/content/trim_content.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 
 export type DocumentPresentationSlide = {
