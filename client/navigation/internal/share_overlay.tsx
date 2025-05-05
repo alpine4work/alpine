@@ -13,7 +13,7 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {noAccessLevelText, removeAccessLevelText} from "~/client/navigation/access_level_text.js";
-import {ShareOverlayAccountGrantBody} from "~/client/navigation/internal/share_overlay_account_grant_body.js";
+import {ShareOverlayAccountBody} from "~/client/navigation/internal/share_overlay_account_body.js";
 import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
 import {ShareOverlayAccountInputRef} from "~/client/navigation/internal/share_overlay_account_input.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
@@ -206,28 +206,32 @@ function ShareOverlay(
                                 accessLevel={accountGrantInputAccessLevel}
                                 onAccessLevelChange={setAccountGrantInputAccessLevel}
                             />
-                            <Box
-                                position="absolute"
-                                bottom="-1"
-                                left="0"
-                                right="0"
-                                height="1"
-                                style={{backgroundColor: backgroundColorVar}}
-                            />
-                            <Box
-                                position="absolute"
-                                bottom="-4"
-                                left="0"
-                                right="0"
-                                height="3"
-                                style={{
-                                    background: `linear-gradient(to bottom, ${backgroundColorVar}, transparent)`,
-                                }}
-                            />
+                            {accountGrantInputSelectedAccounts.length === 0 && (
+                                <>
+                                    <Box
+                                        position="absolute"
+                                        bottom="-1"
+                                        left="0"
+                                        right="0"
+                                        height="1"
+                                        style={{backgroundColor: backgroundColorVar}}
+                                    />
+                                    <Box
+                                        position="absolute"
+                                        bottom="-4"
+                                        left="0"
+                                        right="0"
+                                        height="3"
+                                        style={{
+                                            background: `linear-gradient(to bottom, ${backgroundColorVar}, transparent)`,
+                                        }}
+                                    />
+                                </>
+                            )}
                         </Box>
                     )}
                     {hasAccountGrantInput && accountGrantInputSelectedAccounts.length > 0 ? (
-                        <ShareOverlayAccountGrantBody
+                        <ShareOverlayAccountBody
                             selectedAccounts={accountGrantInputSelectedAccounts}
                             onShare={async notification => {
                                 const newAccountGrantById = new Map<

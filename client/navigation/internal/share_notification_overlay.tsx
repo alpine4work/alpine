@@ -2,14 +2,14 @@ import {Memo, Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} f
 import {FocusScope} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
-import {ShareOverlayAccountGrantBody} from "~/client/navigation/internal/share_overlay_account_grant_body.js";
+import {ShareOverlayAccountBody} from "~/client/navigation/internal/share_overlay_account_body.js";
 import {
     ShareOverlayAccountInput,
     ShareOverlayAccountInputRef,
 } from "~/client/navigation/internal/share_overlay_account_input.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {backgroundColorVar, greyElevated1ClassName} from "~/client/styles/styles.js";
+import {greyElevated1ClassName} from "~/client/styles/styles.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -104,26 +104,8 @@ function ShareNotificationOverlay(
                             onSelectedAccountsChange={setSelectedAccounts}
                             excludeAccountId={excludeAccountId}
                         />
-                        <Box
-                            position="absolute"
-                            bottom="-1"
-                            left="0"
-                            right="0"
-                            height="1"
-                            style={{backgroundColor: backgroundColorVar}}
-                        />
-                        <Box
-                            position="absolute"
-                            bottom="-4"
-                            left="0"
-                            right="0"
-                            height="3"
-                            style={{
-                                background: `linear-gradient(to bottom, ${backgroundColorVar}, transparent)`,
-                            }}
-                        />
                     </Box>
-                    <ShareOverlayAccountGrantBody
+                    <ShareOverlayAccountBody
                         willAlwaysNotifyPeople={true}
                         selectedAccounts={selectedAccounts}
                         onShare={async notification => {

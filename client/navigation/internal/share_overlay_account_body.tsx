@@ -26,7 +26,7 @@ import {
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
-export function ShareOverlayAccountGrantBody({
+export function ShareOverlayAccountBody({
     selectedAccounts,
     willAlwaysNotifyPeople = false,
     onShare,
@@ -76,7 +76,7 @@ export function ShareOverlayAccountGrantBody({
     return (
         <Box paddingX="5">
             <Box display={willNotifyPeople ? "block" : "none"}>
-                <Spacer space="5" />
+                <Spacer space="3" />
                 <FocusRing offset="border" isVisibleWhenFocusWithin>
                     <Box
                         ref={useScrollbar()}
@@ -132,11 +132,9 @@ export function ShareOverlayAccountGrantBody({
                     </Box>
                 </FocusRing>
             </Box>
-            <Spacer space="5" />
+            <Spacer space="3" />
             <Box display="flex" justifyContent="space-between" alignItems="center">
-                {willAlwaysNotifyPeople ? (
-                    <Spacer space="6" />
-                ) : (
+                {!willAlwaysNotifyPeople && (
                     <Box
                         {...notifyPeoplePressProps}
                         color="grey-60"
@@ -160,6 +158,8 @@ export function ShareOverlayAccountGrantBody({
                 )}
                 <Button
                     ref={buttonRef}
+                    fullWidth={willAlwaysNotifyPeople}
+                    borderRadius={willAlwaysNotifyPeople ? "1.5" : undefined}
                     variant="neutral"
                     isDisabled={selectedAccounts.length === 0}
                     pressErrorTitle="Couldn’t share"
