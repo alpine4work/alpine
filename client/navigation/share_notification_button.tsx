@@ -5,9 +5,12 @@ import {
     ShareNotificationOverlay,
     ShareNotificationOverlayRef,
 } from "~/client/navigation/internal/share_notification_overlay.js";
+import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
+import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export function ShareNotificationButton({
     excludeAccountId,
@@ -18,7 +21,14 @@ export function ShareNotificationButton({
     onShare: (notification: ShareNotification) => Promise<void>;
     children: ReactElement;
 }) {
+    const {space} = useSpaceContext();
+
     const overlayRef = useRef<ShareNotificationOverlayRef>(null);
+
+    // When we open the `<ShareNotificationOverlay>` we immediately focus the
+    // account input. Preload the account list so we don't need to show a loading
+    // spinner after focusing the account input.
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id});
 
     return (
         <OverlayTriggerButton
