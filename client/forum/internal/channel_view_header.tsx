@@ -71,21 +71,22 @@ export function ChannelViewHeader({
                 >
                     <Box
                         display="flex"
+                        justifyContent="space-between"
                         flexWrap="wrap"
-                        columnGap="2.5"
+                        columnGap="4"
                         rowGap={channelViewHeaderSectionGap}
                     >
+                        <ChannelViewContributorsSection
+                            channel={channelHeader.channel}
+                            contributors={contributors}
+                            withoutTitle={true}
+                        />
                         {platform === "mobile" && (
                             <ChannelViewSubscribeButton
                                 channelId={channelHeader.channel.id}
                                 initialIsSubscribed={channelHeader.initialIsSubscribed}
                             />
                         )}
-                        <ChannelViewContributorsSection
-                            channel={channelHeader.channel}
-                            contributors={contributors}
-                            withoutTitle={true}
-                        />
                     </Box>
                     <Box marginBottom="-1.5">
                         <h3 className={sprinkles({color: "grey-50"})}>About</h3>
