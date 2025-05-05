@@ -3,13 +3,21 @@ import {ShouldRevalidateFunction, useSearchParams} from "react-router-dom";
 import {PostCreator} from "~/client/forum/post_creator.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {getChannelPreview, getPostDraftIfExists} from "~/server/forum/data/forum_table.js";
+import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {
+    FilePostAuthorizer,
+    getChannelPreview,
+    getPostDraftIfExists,
+} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
+    PostContentProsemirrorSchema,
     PostContentWithReferencesSchema,
+    assertPostContent,
     emptyPostContentWithReferences,
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -65,11 +73,48 @@ export async function loader({context: unauthenticatedContext, params, request}:
         channelId ? await getChannelPreview(context, channelId) : null,
     ]);
 
+    let content = draft?.content;
+
+    // If there is no draft content, then check the `share` search parameter and
+    // use it to compute initial content that includes the shared `FileEntityId`.
+    if (!content) {
+        const shareSearchParamString = url.searchParams.get("share");
+
+        if (!shareSearchParamString) {
+            content = emptyPostContentWithReferences;
+        } else {
+            const fileEntityId = FileEntityIdSchema.deserialize(shareSearchParamString);
+
+            const doc = assertPostContent(
+                PostContentProsemirrorSchema.node("doc", null, [
+                    PostContentProsemirrorSchema.node("paragraph", null, []),
+                    PostContentProsemirrorSchema.node("fileRow", null, [
+                        PostContentProsemirrorSchema.node("file", {fileId: fileEntityId}),
+                    ]),
+                ]),
+            );
+
+            content = {
+                doc,
+                references: await getContentReferencesForNode(
+                    context,
+                    spaceId,
+                    FilePostAuthorizer.bind({
+                        type: "PostDraft",
+                        accountId: context.actor.getAccountId(),
+                        draftId,
+                    }),
+                    doc,
+                ),
+            };
+        }
+    }
+
     return jsonWithSchema(LoaderSchema, {
         draftId,
         displayCreatedTime: new Date(),
         channel: channelOverride ?? draft?.channel ?? null,
-        content: draft?.content ?? emptyPostContentWithReferences,
+        content,
     });
 }
 

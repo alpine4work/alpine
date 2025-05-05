@@ -632,6 +632,12 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * allow attaching files to a message.
      */
     onPasteOrDropFiles?: (fileInfos: ReadonlyArray<FileInfoWithEntity>) => void;
+
+    /**
+     * Custom `isBodyEmpty` prop. We'll consider the body empty if
+     * `isContentBodyEmpty()` is true or this function is true.
+     */
+    isBodyEmpty?: boolean;
 } & (
     | {
           /**
@@ -847,6 +853,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         phantomSelections,
         fileAttachmentTarget,
         commentFileAttachmentTarget,
+        isBodyEmpty: isBodyEmptyFromProps,
     } = props;
 
     const hasEditAccessLevel = hasAccessLevel(accessLevel, "Edit");
@@ -3375,38 +3382,6 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
         }
 
-        // Adds the `emptyTitleClassName` class if the editor document is empty and
-        // removes the class when the editor document is not empty.
-        {
-            const addEmptyTitleClassName = isContentTitleEmpty(newState.doc);
-            if (
-                addEmptyTitleClassName &&
-                !viewElement.classList.contains(contentStyles.emptyTitleClassName)
-            ) {
-                viewElement.classList.add(contentStyles.emptyTitleClassName);
-            }
-            if (
-                !addEmptyTitleClassName &&
-                viewElement.classList.contains(contentStyles.emptyTitleClassName)
-            ) {
-                viewElement.classList.remove(contentStyles.emptyTitleClassName);
-            }
-
-            const addEmptyBodyClassName = isContentBodyEmpty(newState.doc);
-            if (
-                addEmptyBodyClassName &&
-                !viewElement.classList.contains(contentStyles.emptyBodyClassName)
-            ) {
-                viewElement.classList.add(contentStyles.emptyBodyClassName);
-            }
-            if (
-                !addEmptyBodyClassName &&
-                viewElement.classList.contains(contentStyles.emptyBodyClassName)
-            ) {
-                viewElement.classList.remove(contentStyles.emptyBodyClassName);
-            }
-        }
-
         // Keep track of the element ProseMirror marks as selected with the
         // `ProseMirror-selectednode` CSS class so that we can render our own custom
         // ring around it.
@@ -3620,14 +3595,39 @@ function ContentEditor<Content extends ContentWithReferences>(
         }
     }, [ariaLabel, ariaLabelledBy]);
 
-    const isTitleEmpty = isContentTitleEmpty(state.getDoc());
-    const isBodyEmpty = isContentBodyEmpty(state.getDoc());
+    const stateDoc = state.getDoc();
+    const isTitleEmpty = isContentTitleEmpty(stateDoc);
+    const isBodyEmpty = isContentBodyEmpty(stateDoc) || isBodyEmptyFromProps;
 
     // Set `aria-placeholder` on the editor for accessibility and then
     // `data-placeholder` on nodes which need to render placeholders.
     useLayoutEffect(() => {
         assert(viewRef.current);
         const viewElement = viewRef.current.dom;
+
+        // Adds the `emptyTitleClassName` class if the editor document is empty and
+        // removes the class when the editor document is not empty.
+        {
+            if (
+                isTitleEmpty &&
+                !viewElement.classList.contains(contentStyles.emptyTitleClassName)
+            ) {
+                viewElement.classList.add(contentStyles.emptyTitleClassName);
+            }
+            if (
+                !isTitleEmpty &&
+                viewElement.classList.contains(contentStyles.emptyTitleClassName)
+            ) {
+                viewElement.classList.remove(contentStyles.emptyTitleClassName);
+            }
+
+            if (isBodyEmpty && !viewElement.classList.contains(contentStyles.emptyBodyClassName)) {
+                viewElement.classList.add(contentStyles.emptyBodyClassName);
+            }
+            if (!isBodyEmpty && viewElement.classList.contains(contentStyles.emptyBodyClassName)) {
+                viewElement.classList.remove(contentStyles.emptyBodyClassName);
+            }
+        }
 
         if (!placeholder) {
             viewElement.removeAttribute("aria-placeholder");

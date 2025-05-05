@@ -3,7 +3,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
-import {trimContentEnd} from "~/client/content/trim_content.js";
+import {trimContent} from "~/client/content/trim_content.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -170,7 +170,7 @@ export function PostCreator({
                 const {post, readTime, eventTransaction} = await createPost(context, {
                     channelId: channel.id,
                     draftId,
-                    content: trimContentEnd(state.getDoc()),
+                    content: trimContent(state.getDoc()),
                 });
 
                 // While the client should get their new post data through `<ChannelView>`s
@@ -341,6 +341,16 @@ export function PostCreator({
                             // editing modality.
                             withoutMobileDualModality={true}
                             placeholder="Share your ideas…"
+                            // Special case for `<ShareOverlay>`'s "Post in channel". If there's an empty
+                            // paragraph followed by a file row then consider the body to be empty so we
+                            // see the placeholder in the first empty paragraph instead of empty space.
+                            isBodyEmpty={
+                                doc.childCount === 2 &&
+                                doc.firstChild!.type.name === "paragraph" &&
+                                doc.firstChild!.childCount === 0 &&
+                                doc.lastChild!.type.name === "fileRow" &&
+                                doc.lastChild!.childCount === 1
+                            }
                             fileAttachmentTarget={useMemo(
                                 () => ({type: "PostDraft", accountId: currentAccount.id, draftId}),
                                 [currentAccount.id, draftId],

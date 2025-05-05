@@ -209,6 +209,7 @@ function TaskCollectionViewDesktopHeader(
                     <Box paddingRight="3">
                         <ShareButton
                             entityNoun="task collection"
+                            entityId={`TaskCollection:${collectionId}`}
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={(notification, accessPolicy) => {
                                 store.commitTaskActionTransaction(

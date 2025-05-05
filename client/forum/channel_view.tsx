@@ -284,6 +284,7 @@ export function ChannelView({
         withWideRouteLayoutShareMenuItem: true,
         shareButton: {
             entityNoun: "channel",
+            entityId: `Channel:${channelId}`,
             accessPolicy: channel.accessPolicy,
             onAccessPolicyChange: async (notification, accessPolicy) => {
                 const event = await updateChannelAccessPolicy(context, {

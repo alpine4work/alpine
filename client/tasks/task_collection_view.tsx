@@ -742,6 +742,7 @@ export function TaskCollectionView({
         shareButton: accessPolicy
             ? {
                   entityNoun: "task collection",
+                  entityId: `TaskCollection:${collectionId}`,
                   accessPolicy,
                   onAccessPolicyChange: (notification, accessPolicy) => {
                       store.commitTaskActionTransaction(

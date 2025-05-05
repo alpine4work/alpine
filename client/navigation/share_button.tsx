@@ -10,12 +10,14 @@ import {useIdlyPreloadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export function ShareButton({
     entityNoun,
+    entityId,
     accessLevelText = defaultAccessLevelText,
     accessPolicy,
     onAccessPolicyChange: onAccessPolicyChangeWithoutValidations,
@@ -23,6 +25,7 @@ export function ShareButton({
     onCopyLink,
 }: {
     entityNoun: string;
+    entityId: FileEntityId;
     accessLevelText?: Record<AccessLevel, string>;
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (
@@ -62,6 +65,7 @@ export function ShareButton({
                         <ShareOverlay
                             ref={overlayRef}
                             id={modalOwnerId}
+                            entityId={entityId}
                             accessLevelText={accessLevelText}
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={changeAccessPolicy}

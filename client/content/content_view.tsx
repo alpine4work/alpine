@@ -233,6 +233,12 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
      * the beginning of our view's content.
      */
     getClipboardSerializerPrefix?: Memo<() => string | null>;
+
+    /**
+     * Custom `isBodyEmpty` prop. We'll consider the body empty if
+     * `isContentBodyEmpty()` is true or this function is true.
+     */
+    isBodyEmpty?: boolean;
 };
 
 /**
@@ -258,6 +264,7 @@ export function ContentView<Content extends ContentWithReferences>({
     withoutBlockMaxWidth = false,
     transformScale = 1,
     getClipboardSerializerPrefix,
+    isBodyEmpty: isBodyEmptyFromProps = false,
 }: ContentViewProps<Content>) {
     assert(
         !content.doc.type.schema.nodes.file || fileAttachmentTarget,
@@ -539,7 +546,7 @@ export function ContentView<Content extends ContentWithReferences>({
 
         return {
             isTitleEmpty: isContentTitleEmpty(content.doc),
-            isBodyEmpty: isContentBodyEmpty(content.doc),
+            isBodyEmpty: isContentBodyEmpty(content.doc) || isBodyEmptyFromProps,
             htmlGeneratorStore,
         };
     }, [
@@ -548,6 +555,7 @@ export function ContentView<Content extends ContentWithReferences>({
         shouldShowSeeLessContentButton,
         content,
         initialCodeBlockDecorations,
+        isBodyEmptyFromProps,
         id,
         clientInfo,
         spaceId,

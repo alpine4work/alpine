@@ -16,6 +16,7 @@ import {noAccessLevelText, removeAccessLevelText} from "~/client/navigation/acce
 import {ShareOverlayAccountBody} from "~/client/navigation/internal/share_overlay_account_body.js";
 import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
 import {ShareOverlayAccountInputRef} from "~/client/navigation/internal/share_overlay_account_input.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
@@ -43,6 +44,7 @@ import {
     parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -53,7 +55,8 @@ import {partitionIterable} from "~/shared/helpers/iterable/partition_iterable.js
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {AccountId, PostDraftId} from "~/shared/id/types/id_types.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -69,6 +72,7 @@ export {ShareOverlayForwardRef as ShareOverlay};
 function ShareOverlay(
     {
         id,
+        entityId,
         accessLevelText,
         accessPolicy,
         onAccessPolicyChange,
@@ -78,6 +82,7 @@ function ShareOverlay(
         onCloseWithoutAnimation,
     }: {
         id: string;
+        entityId: FileEntityId;
         accessLevelText: Record<AccessLevel, string>;
         accessPolicy: AccessPolicy;
         onAccessPolicyChange: (
@@ -92,6 +97,7 @@ function ShareOverlay(
     ref: Ref<ShareOverlayRef>,
 ) {
     const {space} = useSpaceContext();
+    const navigate = useNavigate();
 
     const hasAccountGrantInput = !isReadOnly;
     const accountGrantInputRef = useRef<ShareOverlayAccountInputRef>(null);
@@ -296,22 +302,47 @@ function ShareOverlay(
                                 <Spacer space="5" />
                                 <Box height="border" backgroundColor="grey-5" />
                                 <Spacer space="5" />
-                                <Button
-                                    variant="neutral"
-                                    height="8"
-                                    fullWidth={true}
-                                    borderRadius="1.5"
-                                    icon={<LinkIcon size={spacing["4"]} />}
-                                    pressErrorTitle="Couldn’t copy link"
-                                    onPress={async () => {
-                                        await onCopyLink();
+                                <Box display="flex" gap="4">
+                                    <Box flexGrow="1" style={{flexBasis: 0}}>
+                                        <Button
+                                            variant="outline"
+                                            height="8"
+                                            fullWidth={true}
+                                            icon={<LinkIcon size={spacing["4"]} />}
+                                            pressErrorTitle="Couldn’t copy link"
+                                            onPress={async () => {
+                                                await onCopyLink();
 
-                                        // Assume copy will work and close overlay without flicker.
-                                        onCloseWithoutAnimation();
-                                    }}
-                                >
-                                    Copy link
-                                </Button>
+                                                // Assume copy will work and close overlay without flicker.
+                                                onCloseWithoutAnimation();
+                                            }}
+                                        >
+                                            Copy link
+                                        </Button>
+                                    </Box>
+                                    <Box flexGrow="1" style={{flexBasis: 0}}>
+                                        <Button
+                                            variant="accent"
+                                            height="8"
+                                            fullWidth={true}
+                                            iconGap="1.5"
+                                            pressErrorTitle="Couldn’t copy link"
+                                            onPress={async () => {
+                                                const draftId =
+                                                    generateChronologicalId<PostDraftId>();
+
+                                                await navigate(
+                                                    `/s/${space.id}/posts/new/${draftId}?focus=channel&share=${entityId}`,
+                                                );
+
+                                                // Assume copy will work and close overlay without flicker.
+                                                onCloseWithoutAnimation();
+                                            }}
+                                        >
+                                            Post in channel
+                                        </Button>
+                                    </Box>
+                                </Box>
                             </Box>
                         </>
                     )}

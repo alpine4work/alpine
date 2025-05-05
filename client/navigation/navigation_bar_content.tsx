@@ -426,6 +426,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
                                         <Box paddingRight="4">
                                             <ShareButton
                                                 entityNoun={shareButton.entityNoun}
+                                                entityId={shareButton.entityId}
                                                 isReadOnly={shareButton.isReadOnly}
                                                 accessPolicy={shareButton.accessPolicy}
                                                 onAccessPolicyChange={
@@ -557,6 +558,7 @@ function NavigationBarContentMoreButton({
                             <ShareOverlay
                                 ref={overlayRef}
                                 id={shareState.modalOwnerId}
+                                entityId={shareButton.entityId}
                                 accessLevelText={
                                     shareButton.accessLevelText ?? defaultAccessLevelText
                                 }

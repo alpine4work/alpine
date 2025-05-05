@@ -5,6 +5,7 @@ import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export type NavigationBarRef = {
@@ -22,6 +23,7 @@ export type NavigationBarRef = {
 
 export type NavigationBarShareButtonProps = {
     readonly entityNoun: string;
+    readonly entityId: FileEntityId;
     readonly accessLevelText?: Record<AccessLevel, string>;
     readonly accessPolicy: AccessPolicy;
     readonly onAccessPolicyChange: (

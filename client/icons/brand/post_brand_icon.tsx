@@ -11,11 +11,13 @@ import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 const PostBrandIconMemo = memo(PostBrandIcon);
 export {PostBrandIconMemo as PostBrandIcon};
 
-function PostBrandIcon({size}: {size?: Spacing}) {
+function PostBrandIcon({size, withoutSplash = false}: {size?: Spacing; withoutSplash?: boolean}) {
     const {size: contextSize, color: contextColor} = useContext(IconContext);
 
     const color =
-        contextColor === colorSchemeVars["grey-90"] || contextColor === colorSchemeVars["grey-100"]
+        withoutSplash ||
+        contextColor === colorSchemeVars["grey-90"] ||
+        contextColor === colorSchemeVars["grey-100"]
             ? contextColor
             : colorSchemeVars["grey-80"];
 
@@ -35,10 +37,12 @@ function PostBrandIcon({size}: {size?: Spacing}) {
             // set to rem units so use `style` instead.
             style={{width: actualSize, height: actualSize}}
         >
-            <path
-                className={splashColorClassName}
-                d="M4.896 8.02c0-.23.187-.416.417-.416h13.542c.23 0 .416.187.416.417v10.417c0 .23-.186.416-.416.416H5.313a.417.417 0 0 1-.417-.416V8.02Z"
-            />
+            {!withoutSplash && (
+                <path
+                    className={splashColorClassName}
+                    d="M4.896 8.02c0-.23.187-.416.417-.416h13.542c.23 0 .416.187.416.417v10.417c0 .23-.186.416-.416.416H5.313a.417.417 0 0 1-.417-.416V8.02Z"
+                />
+            )}
             <path
                 fill={color}
                 fillRule="evenodd"

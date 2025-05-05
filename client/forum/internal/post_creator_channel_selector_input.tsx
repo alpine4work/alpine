@@ -41,7 +41,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
-import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
+import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -605,7 +605,13 @@ function PostCreatorChannelSelectorListBox({
             style={{
                 // On mobile the height needs to be less than half of the available space when
                 // the keyboard and navigation bar are open.
-                maxHeight: platform === "mobile" ? "10rem" : spacing["64"],
+                maxHeight:
+                    platform === "mobile"
+                        ? "10rem"
+                        : // Subtract `6` since `64` is a little awkward when we're sharing an entity in
+                          // `<PostCreator>` because it almost exactly touches the bottom of the file
+                          // entity.
+                          subtractRemLengths(spacing["64"], spacing["6"]),
             }}
         >
             <ul {...listBoxProps} ref={listBoxRef}>

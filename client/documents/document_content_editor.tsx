@@ -1602,6 +1602,7 @@ export function DocumentContentEditor({
         shareButton: currentAccount
             ? {
                   entityNoun: "document",
+                  entityId: `Document:${documentId}`,
                   accessPolicy: content.doc.attrs.accessPolicy,
                   onAccessPolicyChange: (notification, accessPolicy) => {
                       onEditorStateChange(editorState.setAccessPolicy(accessPolicy, notification));
