@@ -1,3 +1,4 @@
+import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -87,6 +88,7 @@ export const searchChannelsByKeywords = defineRpc({
             Schema.object({
                 channel: ChannelPreviewModel.schema(),
                 descriptionTextSnippet: Schema.string,
+                accessPolicy: AccessPolicySchema,
             }),
         ),
     },
@@ -103,6 +105,7 @@ export const searchChannelsByAffinity = defineRpc({
             Schema.object({
                 channel: ChannelPreviewModel.schema(),
                 descriptionTextSnippet: Schema.string,
+                accessPolicy: AccessPolicySchema,
                 origin: Schema.enum(["Account", "Space"]),
             }),
         ),

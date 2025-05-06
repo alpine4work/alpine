@@ -62,7 +62,6 @@ import {
 } from "~/client/remix/spacing_scale_context.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
-    channelViewHeaderMinHeight,
     postContentViewMinHeightPx,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
@@ -88,7 +87,11 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {
+    hasAccessLevel,
+    getAccountAccessLevelAssumingSpaceAccess,
+} from "~/shared/access/access_policy.js";
+import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -892,12 +895,7 @@ function PostListView(
                 case "ChannelHeader": {
                     return {
                         key: "ChannelHeader",
-                        minHeight: addRemLengths(
-                            hasNavigationBar ? navigationBarHeight : "0rem",
-                            !item.channelHeader.isOnlyNavigationBar
-                                ? channelViewHeaderMinHeight
-                                : "0rem",
-                        ),
+                        minHeight: hasNavigationBar ? spacing[navigationBarHeight] : "0rem",
                         node: (
                             <div
                                 className={sprinkles({
@@ -1122,9 +1120,9 @@ function PostListView(
                                             fileAttachmentTarget={fileAttachmentTargetByPostId.get(
                                                 item.post.id,
                                             )}
-                                            previousMessage={previousComment}
                                             isFirstMessage={item.postCommentIndex === 0}
                                             isLastMessage={isLastComment}
+                                            previousMessage={previousComment}
                                             nextMessage={nextComment}
                                             messages={item.postComments}
                                             messageEditing={messageEditing}
@@ -1176,6 +1174,18 @@ function PostListView(
                                                 );
                                             }}
                                             roomDisplayedCreatedTime={item.post.createdTime}
+                                            // You shouldn't be able to edit, delete, or reply to comments if you don't
+                                            // have `Comment` access on the post.
+                                            //
+                                            // Use the `accessPolicy` from `channelHeader` if applicable. Because we update
+                                            // the `channel` in `channelHeader` in realtime. Whereas the `channel` preview
+                                            // in the `PostModel` might not update in realtime.
+                                            readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel={
+                                                !channelHeader?.isOnlyNavigationBar &&
+                                                channelHeader?.channel.id === item.post.channel.id
+                                                    ? channelHeader.channel.accessPolicy
+                                                    : item.post.channel.accessPolicy
+                                            }
                                         />
                                     ) : (
                                         <MessageListMessageShimmer
@@ -1326,6 +1336,7 @@ function PostListView(
                         <PostCommentInput
                             isStickyPositioned={true}
                             inputRef={inputRefByPostId.get(item.post.id)}
+                            channelHeader={channelHeader}
                             post={item.post}
                             viewRef={viewRef}
                             proceduresRef={procedures => {
@@ -1580,6 +1591,7 @@ function PostListView(
             platform,
             replyingToPostCommentIndexByPostId,
             inputRefByPostId,
+            channelHeader,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEventTransaction,
             onUpdatePostComments,
@@ -1809,6 +1821,7 @@ function PostListView(
                             <PostCommentInput
                                 isStickyPositioned={false}
                                 inputRef={inputRefByPostId.get(lastPostContentItem.post.id)}
+                                channelHeader={channelHeader}
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}
                                 proceduresRef={procedures => {

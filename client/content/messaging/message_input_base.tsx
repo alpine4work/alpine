@@ -73,6 +73,7 @@ import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mo
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    messageInputBottomBarBackgroundSlopBottom,
     messageInputEditorBorderRadiusPx,
     messageInputEditorIconButtonNegativeMarginX,
     messageInputEditorIconButtonSize,
@@ -625,16 +626,6 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
     const containerId = `${idBase}-container`;
     const id = isBottomBar && clientInfo.isNativeMobile && !isInert ? `nmbb-wkt-${idBase}` : idBase;
 
-    // Extra slop that extends beneath the bottom of the message input. This is
-    // always cut off on desktop. However, it matters in our native mobile app.
-    // When we animate the message input with the keyboard, their translations
-    // aren't perfectly in sync (even though the timing is in sync). So there are
-    // moments in the animation where the content may be revealed between the
-    // message input and the keyboard. To fix this, we just make them message input
-    // bigger so it can cover content below while animating. To debug this turn on
-    // slow animations in an iOS emulator and open the keyboard.
-    const bottomBarBackgroundSlopBottom = spacing["96"];
-
     return (
         <Box
             ref={inputContainerRef}
@@ -669,13 +660,13 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                           }px + var(--window-safe-area-inset-bottom, 0px))`,
                     paddingBottom: isBottomBar
                         ? clientInfo.isNativeMobile
-                            ? `calc(${bottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
+                            ? `calc(${messageInputBottomBarBackgroundSlopBottom} + var(--window-safe-area-inset-bottom, 0px))`
                             : "var(--window-safe-area-inset-bottom, 0px)"
                         : undefined,
                     marginBottom:
                         isBottomBar && clientInfo.isNativeMobile
                             ? `-${addRemLengths(
-                                  bottomBarBackgroundSlopBottom,
+                                  messageInputBottomBarBackgroundSlopBottom,
                                   mobileBottomBarKeyboardToolbarHeight,
                               )}`
                             : isBottomBar && platform === "mobile"

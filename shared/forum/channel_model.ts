@@ -24,6 +24,7 @@ export class ChannelModel extends Model(
             spaceId: this.spaceId,
             createdTime: this.createdTime,
             name: this.name,
+            accessPolicy: this.accessPolicy,
         });
     }
 }
@@ -34,6 +35,7 @@ export class ChannelPreviewModel extends Model(
         spaceId: Schema.id<SpaceId>(),
         createdTime: Schema.date,
         name: LabelStringSchema,
+        accessPolicy: AccessPolicySchema,
     }),
 ) {}
 

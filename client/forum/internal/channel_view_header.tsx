@@ -18,6 +18,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
     channelViewHeaderSectionGap,
@@ -25,6 +26,10 @@ import {
     postFauxInputCreateButtonMarginTop,
 } from "~/client/styles/forum_shared_styles.js";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
@@ -45,6 +50,16 @@ export function ChannelViewHeader({
 }) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
+    const {currentAccount} = useSpaceContext();
+
+    const accessLevel = useMemo(
+        () =>
+            getAccountAccessLevelAssumingSpaceAccess(
+                channelHeader.channel.accessPolicy,
+                currentAccount?.id,
+            ),
+        [channelHeader.channel.accessPolicy, currentAccount?.id],
+    );
 
     let contributors: ChannelContributorsModel | null = null;
 
@@ -102,13 +117,15 @@ export function ChannelViewHeader({
                     </Box>
                 </Box>
             )}
-            <Box
-                paddingTop={postFauxInputCreateButtonMarginTop[routeLayout]}
-                paddingBottom={postContentViewOuterMarginY}
-                paddingX={screenPaddingX}
-            >
-                <PostFauxInputCreateButton channel={channelHeader.channel} />
-            </Box>
+            {hasAccessLevel(accessLevel, "Edit") && (
+                <Box
+                    paddingTop={postFauxInputCreateButtonMarginTop[routeLayout]}
+                    paddingBottom={postContentViewOuterMarginY}
+                    paddingX={screenPaddingX}
+                >
+                    <PostFauxInputCreateButton channel={channelHeader.channel} />
+                </Box>
+            )}
             {hasNoPosts && (
                 <Box position="relative" zIndex="0" style={{paddingBottom: 1}}>
                     <Box

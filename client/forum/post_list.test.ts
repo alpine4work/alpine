@@ -30,6 +30,11 @@ const channel = new ChannelPreviewModel({
     spaceId,
     createdTime,
     name: "Test",
+    accessPolicy: {
+        accountGrantById: emptyMap,
+        defaultGrant: {level: "Manage", generation: 0},
+        urlGrant: null,
+    },
 });
 
 const account1 = new AccountModel({

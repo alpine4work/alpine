@@ -84,6 +84,11 @@ import {
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/client/styles/styles.js";
+import {
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {linkClassName} from "~/shared/content/content_styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
@@ -175,6 +180,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     getMessageUrl,
     roomDisplayedCreatedTime,
     availableWidth: availableWidthProp,
+    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel,
 }: {
     messageNoun?: string;
     messageStartOfSentenceNoun?: string;
@@ -194,6 +200,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date;
     availableWidth?: number;
+    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel?: AccessPolicy;
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
@@ -202,6 +209,19 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
     const {currentAccount, space} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToHour();
     const openContextMenuActions = useContextMenuActions();
+
+    const isReadOnly = useMemo(
+        () =>
+            readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel !== undefined &&
+            !hasAccessLevel(
+                getAccountAccessLevelAssumingSpaceAccess(
+                    readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel,
+                    currentAccount?.id,
+                ),
+                "Comment",
+            ),
+        [currentAccount?.id, readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel],
+    );
 
     const availableWidth =
         availableWidthProp !== undefined
@@ -475,6 +495,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             // case we don't want to allow the user to reply since the reply message will
             // include no text.
             if (
+                !isReadOnly &&
                 message.payload.type === "Content" &&
                 !isContentEmpty(message.payload.content.doc)
             ) {
@@ -504,6 +525,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             ]);
 
             if (
+                !isReadOnly &&
                 currentAccount?.id === message.author.id &&
                 message.payload.type === "Content" &&
                 // Can't update or delete clerical messages.
@@ -604,7 +626,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 return;
             }
 
-            let isReplyGestureDisabled = false;
+            let isReplyGestureDisabled: boolean = isReadOnly;
 
             if (event.target instanceof HTMLElement) {
                 let element: HTMLElement | null = event.target;
@@ -620,13 +642,10 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     // If the user is touching a horizontally scrollable element (e.g. a code
                     // block) then disable the reply gesture if it's been scrolled since swiping
                     // horizontally should scroll. Not reply.
-                    if (
+                    isReplyGestureDisabled ||=
                         (overflowX === "scroll" ||
                             (overflowX === "auto" && element.scrollWidth > element.clientWidth)) &&
-                        element.scrollLeft > 0
-                    ) {
-                        isReplyGestureDisabled = true;
-                    }
+                        element.scrollLeft > 0;
 
                     element = element.parentElement;
                 }
@@ -834,7 +853,14 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             contentContainerElement.removeEventListener("touchmove", handleTouchMove);
             contentContainerElement.removeEventListener("touchcancel", handleTouchCancel);
         };
-    }, [canPrimaryInputHover, events, hasParentMessage, isEditingThisMessage, message.payload]);
+    }, [
+        canPrimaryInputHover,
+        events,
+        hasParentMessage,
+        isEditingThisMessage,
+        isReadOnly,
+        message.payload,
+    ]);
 
     // We try to memoize any UI in this component that changes infrequently to
     // speed up React rendering. Because `<MessageView>` renders during scroll
@@ -1325,6 +1351,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         <MessageViewTouchMenu
                             messageNoun={messageNoun}
                             message={message}
+                            isReadOnly={isReadOnly}
                             top={touchMenuState.top}
                             left={touchMenuState.left}
                             messageEditing={messageEditing}
@@ -1582,6 +1609,7 @@ function MessageViewMenuCreatedTime({
 function MessageViewTouchMenu<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun,
     message,
+    isReadOnly,
     top,
     left,
     messageEditing,
@@ -1594,6 +1622,7 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
 }: {
     messageNoun: string;
     message: Message | OptimisticMessageModel;
+    isReadOnly: boolean;
     top: number;
     left: number;
     messageEditing: MessageEditing<RoomKey>;
@@ -1614,7 +1643,11 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
     // payloads for messages that have attached files, however. In this special
     // case we don't want to allow the user to reply since the reply message will
     // include no text.
-    if (message.payload.type === "Content" && !isContentEmpty(message.payload.content.doc)) {
+    if (
+        !isReadOnly &&
+        message.payload.type === "Content" &&
+        !isContentEmpty(message.payload.content.doc)
+    ) {
         menuActions.push([
             {
                 label: "Reply",
@@ -1655,6 +1688,7 @@ function MessageViewTouchMenu<RoomKey extends string, Message extends MessageMod
     });
 
     if (
+        !isReadOnly &&
         currentAccount?.id === message.author.id &&
         message.payload.type === "Content" &&
         // Can't update or delete clerical messages.

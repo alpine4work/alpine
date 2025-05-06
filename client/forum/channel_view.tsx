@@ -2,6 +2,7 @@ import {Link as LinkIcon, Lock} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {MenuAction} from "~/client/design/menu.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
@@ -35,7 +36,10 @@ import {
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
-import {getAccountAccessLevelAssumingSpaceAccess} from "~/shared/access/access_policy.js";
+import {
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
@@ -46,7 +50,9 @@ import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
 import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
 import {PostModel} from "~/shared/forum/post_model.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {
     backfillChannelAndMetadata,
     backfillChannelPosts,
@@ -259,6 +265,8 @@ export function ChannelView({
                 ) : (
                     <Box
                         onDoubleClick={event => {
+                            if (!hasAccessLevel(accessLevel, "Manage")) return;
+
                             // Disable selection from double click.
                             event.preventDefault();
 
@@ -330,32 +338,38 @@ export function ChannelView({
                     pressErrorTitle: "Couldn’t copy channel link",
                     onPress: handleCopyLink,
                 },
-                ...(favoriteMenuAction ? [favoriteMenuAction] : []),
+                ...(favoriteMenuAction ? [favoriteMenuAction] : emptyArray),
             ],
-            [
-                {
-                    label: "Edit name",
-                    onPress: () => {
-                        if (platform !== "mobile") {
-                            setIsEditingNameInline(true);
-                        } else {
-                            setEditNameAndDescriptionMobileModalState({initiallyFocus: "Name"});
-                        }
-                    },
-                },
-                {
-                    label: "Edit description",
-                    onPress: () => {
-                        if (platform !== "mobile") {
-                            setIsEditingDescriptionInline(true);
-                        } else {
-                            setEditNameAndDescriptionMobileModalState({
-                                initiallyFocus: "Description",
-                            });
-                        }
-                    },
-                },
-            ],
+            ...(hasAccessLevel(accessLevel, "Manage")
+                ? cast<Array<Array<MenuAction>>>([
+                      [
+                          {
+                              label: "Edit name",
+                              onPress: () => {
+                                  if (platform !== "mobile") {
+                                      setIsEditingNameInline(true);
+                                  } else {
+                                      setEditNameAndDescriptionMobileModalState({
+                                          initiallyFocus: "Name",
+                                      });
+                                  }
+                              },
+                          },
+                          {
+                              label: "Edit description",
+                              onPress: () => {
+                                  if (platform !== "mobile") {
+                                      setIsEditingDescriptionInline(true);
+                                  } else {
+                                      setEditNameAndDescriptionMobileModalState({
+                                          initiallyFocus: "Description",
+                                      });
+                                  }
+                              },
+                          },
+                      ],
+                  ])
+                : emptyArray),
             ...(routeLayout === "narrow"
                 ? [
                       [
@@ -369,7 +383,7 @@ export function ChannelView({
                           },
                       ],
                   ]
-                : []),
+                : emptyArray),
         ],
     });
 

@@ -41,9 +41,14 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -104,7 +109,7 @@ function PostCreatorChannelSelectorInput(
     ref: Ref<PostCreatorChannelSelectorInputRef>,
 ) {
     const platform = usePlatform();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
@@ -182,45 +187,93 @@ function PostCreatorChannelSelectorInput(
     const shouldShowSearchLoadingIndicator = useDelayLoadingIndicator(isSearchLoading);
 
     const items: ReadonlyArray<PostCreatorChannelSelectorItem> | null = useMemo(() => {
-        if (searchByKeywordsOutput) {
+        if (!searchByKeywordsOutput) {
+            if (!searchByAffinityOutput) {
+                return null;
+            } else {
+                return filterMapArray(searchByAffinityOutput.results, result => {
+                    // Only show channels here that we're allowed to post in. Even if we're allowed
+                    // to view the channel.
+                    if (
+                        !hasAccessLevel(
+                            getAccountAccessLevelAssumingSpaceAccess(
+                                result.accessPolicy,
+                                currentAccount?.id,
+                            ),
+                            "Edit",
+                        )
+                    ) {
+                        return;
+                    }
+
+                    return {
+                        key: result.channel.id,
+                        ...result,
+                    };
+                });
+            }
+        } else {
             const channelIdsFromSearchByAffinity = searchByAffinityOutput
                 ? new Set(
-                      filterMapIterable(searchByAffinityOutput.results, result =>
-                          result.origin === "Account" ? result.channel.id : undefined,
-                      ),
+                      filterMapIterable(searchByAffinityOutput.results, result => {
+                          if (result.origin !== "Account") return;
+
+                          // Only show channels here that we're allowed to post in. Even if we're allowed
+                          // to view the channel.
+                          if (
+                              !hasAccessLevel(
+                                  getAccountAccessLevelAssumingSpaceAccess(
+                                      result.accessPolicy,
+                                      currentAccount?.id,
+                                  ),
+                                  "Edit",
+                              )
+                          ) {
+                              return;
+                          }
+
+                          return result.channel.id;
+                      }),
                   )
                 : null;
 
             // Re-sort results so that if any keyword results were also in our affinity
             // search then we put the affinity search results at the top.
-            const results = searchByKeywordsOutput.results
-                .map(result => ({
+            const results = filterMapArray(searchByKeywordsOutput.results, result => {
+                // Only show channels here that we're allowed to post in. Even if we're allowed
+                // to view the channel.
+                if (
+                    !hasAccessLevel(
+                        getAccountAccessLevelAssumingSpaceAccess(
+                            result.accessPolicy,
+                            currentAccount?.id,
+                        ),
+                        "Edit",
+                    )
+                ) {
+                    return;
+                }
+
+                return {
                     key: result.channel.id,
                     ...result,
-                }))
-                .sort((result1, result2) => {
-                    const isResult1InSearchByAffinity =
-                        channelIdsFromSearchByAffinity?.has(result1.channel.id) ?? false;
-                    const isResult2InSearchByAffinity =
-                        channelIdsFromSearchByAffinity?.has(result2.channel.id) ?? false;
+                };
+            }).sort((result1, result2) => {
+                const isResult1InSearchByAffinity =
+                    channelIdsFromSearchByAffinity?.has(result1.channel.id) ?? false;
+                const isResult2InSearchByAffinity =
+                    channelIdsFromSearchByAffinity?.has(result2.channel.id) ?? false;
 
-                    if (isResult1InSearchByAffinity && isResult2InSearchByAffinity) return 0;
-                    if (isResult1InSearchByAffinity) return -1;
-                    if (isResult2InSearchByAffinity) return 1;
+                if (isResult1InSearchByAffinity && isResult2InSearchByAffinity) return 0;
+                if (isResult1InSearchByAffinity) return -1;
+                if (isResult2InSearchByAffinity) return 1;
 
-                    return 0;
-                });
+                return 0;
+            });
 
             return results;
-        } else if (searchByAffinityOutput) {
-            return searchByAffinityOutput.results.map(result => ({
-                key: result.channel.id,
-                ...result,
-            }));
-        } else {
-            return null;
         }
-    }, [searchByAffinityOutput, searchByKeywordsOutput]);
+    }, [currentAccount?.id, searchByAffinityOutput, searchByKeywordsOutput]);
 
     const areItemsLoading = !items;
 

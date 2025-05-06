@@ -347,7 +347,7 @@ function ShareOverlay(
                                                 onCloseWithoutAnimation();
                                             }}
                                         >
-                                            Post in channel
+                                            Share with post
                                         </Button>
                                     </Box>
                                 </Box>

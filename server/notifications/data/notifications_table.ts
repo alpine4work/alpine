@@ -3063,6 +3063,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
     {}
 >({
     getSubscribers: async (context, event) => {
+        // NOCOMMIT: We need to double check if the account has access to the channel.
         const accountIds = await getChannelNotificationSubscribers(context, event.channelId, {
             consistency: "Strong",
         });

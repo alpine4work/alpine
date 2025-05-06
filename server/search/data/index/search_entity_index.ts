@@ -81,6 +81,7 @@ import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfExists,
 } from "~/server/tasks/data/task_table.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {
@@ -2080,6 +2081,7 @@ export async function searchByAffinity(
 function getChannelStandaloneSearchResult(channel: ChannelModel): {
     channel: ChannelPreviewModel;
     descriptionTextSnippet: string;
+    accessPolicy: AccessPolicy;
 } {
     const descriptionContentSnippet = getContentSnippet(channel.description.doc.resolve(0), 3);
 
@@ -2091,6 +2093,7 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
     return {
         channel: channel.asPreview(),
         descriptionTextSnippet,
+        accessPolicy: channel.accessPolicy,
     };
 }
 
@@ -2225,6 +2228,7 @@ export async function searchChannelsByKeywords(
  * space-wide recommendation we return `origin: "Space"`. Only personal
  * recommendations should be used to boost keyword search results.
  */
+// NOCOMMIT: Make sure we test for permissions here
 export async function searchChannelsByAffinity(
     context: Context<
         ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
@@ -2234,6 +2238,7 @@ export async function searchChannelsByAffinity(
     Array<{
         channel: ChannelPreviewModel;
         descriptionTextSnippet: string;
+        accessPolicy: AccessPolicy;
         origin: "Account" | "Space";
     }>
 > {
@@ -2416,6 +2421,7 @@ export async function searchTaskCollectionsByKeywords(
  * space-wide recommendation we return `origin: "Space"`. Only personal
  * recommendations should be used to boost keyword search results.
  */
+// NOCOMMIT: Make sure we test for permissions here
 export async function searchTaskCollectionsByAffinity(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},

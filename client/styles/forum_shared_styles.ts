@@ -1,7 +1,6 @@
 import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/styles.js";
 import {
     RemLength,
-    addRemLengths,
     convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
@@ -96,12 +95,6 @@ export const postViewMinHeightPx = createObjectFromKeys(
         convertRemLengthToPx(navigationBarStyles.navigationBarHeight, spacingScale) +
         getPostContentViewMinHeightWithoutHeaderBasePx(spacingScale) +
         convertRemLengthToPx(postContentViewOuterMarginBottom, spacingScale),
-);
-
-export const channelViewHeaderMinHeight = addRemLengths(
-    postFauxInputCreateButtonMarginTop.wide,
-    postFauxInputCreateButtonHeight,
-    postContentViewOuterMarginY,
 );
 
 export const postListViewAsideMaxWidth = "96";

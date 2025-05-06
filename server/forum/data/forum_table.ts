@@ -1818,6 +1818,7 @@ export async function getChannelPreviewIfPossible(
             spaceId: channelItem.spaceId,
             createdTime: channelItem.createdTime,
             name: channelItem.name,
+            accessPolicy: channelItem.accessPolicy,
         }),
     };
 }
@@ -1897,6 +1898,7 @@ export async function getChannelPreviewAndAccessPolicyIfPossible(
                 spaceId: channelItem.spaceId,
                 createdTime: channelItem.createdTime,
                 name: channelItem.name,
+                accessPolicy: channelItem.accessPolicy,
             }),
             accessPolicy: channelItem.accessPolicy,
         },
