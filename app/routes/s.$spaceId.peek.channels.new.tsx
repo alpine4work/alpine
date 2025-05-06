@@ -1,1 +1,1 @@
-export {default, meta} from "~/app/routes/s.$spaceId.channels.new.js";
+export {default, meta, shouldRevalidate} from "~/app/routes/s.$spaceId.channels.new.js";
