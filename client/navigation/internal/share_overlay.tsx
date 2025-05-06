@@ -73,6 +73,7 @@ function ShareOverlay(
     {
         id,
         entityId,
+        withoutUrlGrantIfNull,
         accessLevelText,
         accessPolicy,
         onAccessPolicyChange,
@@ -83,6 +84,7 @@ function ShareOverlay(
     }: {
         id: string;
         entityId: FileEntityId;
+        withoutUrlGrantIfNull?: boolean;
         accessLevelText: Record<AccessLevel, string>;
         accessPolicy: AccessPolicy;
         onAccessPolicyChange: (
@@ -294,13 +296,17 @@ function ShareOverlay(
                                     isReadOnly={isReadOnly}
                                     isAltKeyDown={isAltKeyDown}
                                 />
-                                <Spacer space="3" />
-                                <ShareOverlayUrlGrant
-                                    accessLevelText={accessLevelText}
-                                    urlGrant={accessPolicy.urlGrant}
-                                    onAccessPolicyChange={onAccessPolicyChange}
-                                    isReadOnly={isReadOnly}
-                                />
+                                {(!withoutUrlGrantIfNull || accessPolicy.urlGrant) && (
+                                    <>
+                                        <Spacer space="3" />
+                                        <ShareOverlayUrlGrant
+                                            accessLevelText={accessLevelText}
+                                            urlGrant={accessPolicy.urlGrant}
+                                            onAccessPolicyChange={onAccessPolicyChange}
+                                            isReadOnly={isReadOnly}
+                                        />
+                                    </>
+                                )}
                                 <Spacer space="5" />
                                 <Box height="border" backgroundColor="grey-5" />
                                 <Spacer space="5" />

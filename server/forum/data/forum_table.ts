@@ -1168,6 +1168,11 @@ export async function createChannel(
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
+    // NOCOMMIT: Test!
+    if (accessPolicy.urlGrant) {
+        throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
+    }
+
     if (
         !(await evaluateAccessPolicy(
             context,
@@ -2360,6 +2365,11 @@ export async function updateChannelAccessPolicy(
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
 }> {
+    // NOCOMMIT: Test!
+    if (accessPolicy.urlGrant) {
+        throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
+    }
+
     let spaceId: SpaceId | null = null;
 
     const readTime = new Date();

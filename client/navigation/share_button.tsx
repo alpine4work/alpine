@@ -18,6 +18,7 @@ import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definition
 export function ShareButton({
     entityNoun,
     entityId,
+    withoutUrlGrantIfNull,
     accessLevelText = defaultAccessLevelText,
     accessPolicy,
     onAccessPolicyChange: onAccessPolicyChangeWithoutValidations,
@@ -26,6 +27,7 @@ export function ShareButton({
 }: {
     entityNoun: string;
     entityId: FileEntityId;
+    withoutUrlGrantIfNull?: boolean;
     accessLevelText?: Record<AccessLevel, string>;
     accessPolicy: AccessPolicy;
     onAccessPolicyChange: (
@@ -66,6 +68,7 @@ export function ShareButton({
                             ref={overlayRef}
                             id={modalOwnerId}
                             entityId={entityId}
+                            withoutUrlGrantIfNull={withoutUrlGrantIfNull}
                             accessLevelText={accessLevelText}
                             accessPolicy={accessPolicy}
                             onAccessPolicyChange={changeAccessPolicy}

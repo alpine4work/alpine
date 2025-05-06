@@ -279,6 +279,8 @@ export function ChannelView({
         shareButton: {
             entityNoun: "channel",
             entityId: `Channel:${channelId}`,
+            // Channels don't currently support URL grants. So hide the URL grant input.
+            withoutUrlGrantIfNull: true,
             accessPolicy: channel.accessPolicy,
             onAccessPolicyChange: async (notification, accessPolicy) => {
                 const event = await updateChannelAccessPolicy(context, {
