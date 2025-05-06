@@ -19,13 +19,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export function ChannelViewNameEditor({
-    isCreatingChannel,
     shouldInitiallyFocusChannelName = true,
     initialName,
     onCancel,
     onSave,
 }: {
-    isCreatingChannel: boolean;
     shouldInitiallyFocusChannelName?: boolean;
     initialName: string;
     onCancel: () => MaybePromise<void>;
@@ -70,7 +68,7 @@ export function ChannelViewNameEditor({
                                     // immediately close the peek.
                                     //
                                     // We won't auto-focus this input when create a channel through search.
-                                    isDisabled: isCreatingChannel && name.length === 0,
+                                    isDisabled: name.length === 0,
 
                                     shouldConfirmSave:
                                         // If the initial name is empty, we are creating an optimistic collection and

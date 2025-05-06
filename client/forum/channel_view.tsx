@@ -241,7 +241,6 @@ export function ChannelView({
                     )}
                 {isEditingNameInline ? (
                     <ChannelViewNameEditor
-                        isCreatingChannel={false}
                         initialName={channel.name}
                         onCancel={() => setIsEditingNameInline(false)}
                         onSave={async name => {
@@ -380,7 +379,6 @@ export function ChannelView({
             channel,
             channelAndMetadataQuery,
             initialIsSubscribed,
-            isCreatingChannel: false,
             isEditingDescription: isEditingDescriptionInline,
             onCancelDescriptionEditing: () => setIsEditingDescriptionInline(false),
             onSaveDescription: async description => {

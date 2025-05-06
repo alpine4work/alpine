@@ -18,13 +18,7 @@ import {
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 
-export function PostFauxInputCreateButton({
-    channel,
-    isCreatingChannel,
-}: {
-    channel: ChannelModel;
-    isCreatingChannel: boolean;
-}) {
+export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space} = useSpaceContext();
@@ -33,7 +27,6 @@ export function PostFauxInputCreateButton({
     const {buttonProps, isPressed} = useButton(
         {
             elementType: "div",
-            isDisabled: isCreatingChannel,
             onPress: () => {
                 const draftId = generateChronologicalId();
 
@@ -68,7 +61,7 @@ export function PostFauxInputCreateButton({
                 alignItems="center"
                 // This is meant to be a fake text input so show text cursor to sell the
                 // illusion.
-                cursor={!isCreatingChannel ? "text" : undefined}
+                cursor="text"
                 {...(buttonProps as any)}
             >
                 {isPressed && (

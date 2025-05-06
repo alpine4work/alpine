@@ -35,6 +35,7 @@ export function TextShimmer({
     color = "grey-5",
     ragRight: ragRightProp,
     fontSize,
+    withoutPulseAnimation = false,
 }: {
     width: Sprinkles["maxWidth"];
     color?: "grey-5" | "grey-10";
@@ -42,6 +43,7 @@ export function TextShimmer({
     // same width.
     ragRight?: Spacing | "random";
     fontSize: FontSize | {readonly fontSize: string; readonly lineHeight: string};
+    withoutPulseAnimation?: boolean;
 }) {
     const id = useId();
 
@@ -67,7 +69,7 @@ export function TextShimmer({
             style={{height: fontSize.lineHeight}}
         >
             <Box
-                className={pulseAnimationClassName}
+                className={!withoutPulseAnimation ? pulseAnimationClassName : undefined}
                 width="full"
                 backgroundColor={color}
                 borderRadius="full"

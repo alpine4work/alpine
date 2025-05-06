@@ -454,6 +454,7 @@ function ChannelRouteShimmer() {
                             <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
                                 <TextShimmer
                                     width="16"
+                                    ragRight="6"
                                     fontSize={channelViewMetadataSectionTitleFontSize}
                                     color="grey-5"
                                 />
@@ -471,25 +472,17 @@ function ChannelRouteShimmer() {
                             </Box>
                         </Box>
                         <Box>
-                            <Box marginBottom={channelViewMetadataSectionTitleMarginBottom}>
-                                <TextShimmer
-                                    width="8"
-                                    fontSize={channelViewMetadataSectionTitleFontSize}
-                                    color="grey-5"
-                                />
-                            </Box>
-                            <Box
-                                gap={channelViewAsideFileGap}
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: `repeat(${channelViewAsidePostFileColumnCount}, 1fr)`,
-                                    gridTemplateRows: `repeat(${channelViewAsidePostFileRowCount}, ${channelViewAsideFileHeight})`,
-                                }}
-                            >
-                                {createArrayWithLength(channelViewAsidePostFileMaxCount, index => {
-                                    return <Box key={index} border="grey-5" />;
-                                })}
-                            </Box>
+                            <TextShimmer
+                                width="9"
+                                fontSize={channelViewMetadataSectionTitleFontSize}
+                                color="grey-5"
+                            />
+                            <Spacer space="1" />
+                            <TextShimmer
+                                width="32"
+                                fontSize={contentStyles.paragraphFontSize}
+                                color="grey-5"
+                            />
                         </Box>
                     </Box>
                 </Box>

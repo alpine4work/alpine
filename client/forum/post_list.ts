@@ -51,7 +51,6 @@ export type PostListChannelHeader =
           readonly channel: ChannelModel;
           readonly channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel> | null;
           readonly initialIsSubscribed: boolean;
-          readonly isCreatingChannel: boolean;
           readonly isEditingDescription: boolean;
           readonly onCancelDescriptionEditing: () => void;
           readonly onSaveDescription: (description: MessageContent) => Promise<void>;

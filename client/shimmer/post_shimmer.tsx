@@ -17,9 +17,11 @@ import {screenPaddingX} from "~/shared/design/core/spacing.js";
 export function PostShimmer({
     children,
     withoutHeader = false,
+    withoutPulseAnimation = false,
 }: {
     children?: ReactNode;
     withoutHeader?: boolean;
+    withoutPulseAnimation?: boolean;
 }) {
     const spacingScale = useSpacingScale();
 
@@ -43,16 +45,9 @@ export function PostShimmer({
                 height="border"
                 paddingX={screenPaddingX}
             >
-                <Box
-                    height="full"
-                    width="full"
-                    style={{
-                        // Draw border with `box-shadow` so it doesn't contribute to layout.
-                        boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                    }}
-                />
+                <Box height="full" width="full" backgroundColor="grey-5" />
             </Box>
-            {!withoutHeader && <PostShimmerHeader />}
+            {!withoutHeader && <PostShimmerHeader withoutPulseAnimation={withoutPulseAnimation} />}
             <Box flexGrow="1" paddingX={screenPaddingX} paddingY={postContentViewInnerMarginY}>
                 {children}
             </Box>
@@ -63,15 +58,29 @@ export function PostShimmer({
                 display="flex"
                 alignItems="center"
             >
-                <TextShimmer fontSize="75" width="20" />
+                <TextShimmer
+                    fontSize="75"
+                    width="20"
+                    withoutPulseAnimation={withoutPulseAnimation}
+                />
                 <Box flexGrow="1" />
-                <TextShimmer fontSize="75" width="20" />
+                <TextShimmer
+                    fontSize="75"
+                    width="20"
+                    withoutPulseAnimation={withoutPulseAnimation}
+                />
             </Box>
         </Box>
     );
 }
 
-export function PostShimmerHeader({avatarSize = "8"}: {avatarSize?: "7" | "8"}) {
+export function PostShimmerHeader({
+    avatarSize = "8",
+    withoutPulseAnimation = false,
+}: {
+    avatarSize?: "7" | "8";
+    withoutPulseAnimation?: boolean;
+}) {
     return (
         <Box
             flexShrink="0"
@@ -81,7 +90,7 @@ export function PostShimmerHeader({avatarSize = "8"}: {avatarSize?: "7" | "8"}) 
             alignItems="center"
         >
             <Box
-                className={pulseAnimationClassName}
+                className={!withoutPulseAnimation ? pulseAnimationClassName : undefined}
                 flexShrink="0"
                 width={avatarSize}
                 height={avatarSize}
@@ -89,8 +98,16 @@ export function PostShimmerHeader({avatarSize = "8"}: {avatarSize?: "7" | "8"}) 
                 borderRadius="full"
             />
             <Box flexGrow="1" paddingLeft={{mobile: "2", desktop: "3"}}>
-                <TextShimmer fontSize="75" width="32" />
-                <TextShimmer fontSize="50" width="16" />
+                <TextShimmer
+                    fontSize="75"
+                    width="32"
+                    withoutPulseAnimation={withoutPulseAnimation}
+                />
+                <TextShimmer
+                    fontSize="50"
+                    width="16"
+                    withoutPulseAnimation={withoutPulseAnimation}
+                />
             </Box>
         </Box>
     );

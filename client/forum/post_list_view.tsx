@@ -829,9 +829,7 @@ function PostListView(
             messageEditing.state.isEditing ||
             // Comments aren't expandable on mobile (unless we're in a post view) so don't
             // allow file dropping.
-            (platform === "mobile" && !isPostView) ||
-            // Can't drop files while creating the channel.
-            (!channelHeader?.isOnlyNavigationBar && !!channelHeader?.isCreatingChannel),
+            (platform === "mobile" && !isPostView),
         onDrop: event => {
             const view = assertExists(viewRef.current);
             const renderedRange = view.getRenderedRange();

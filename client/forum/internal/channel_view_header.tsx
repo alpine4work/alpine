@@ -12,19 +12,19 @@ import {ChannelViewSubscribeButton} from "~/client/forum/internal/channel_view_s
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {MountainRoadAtSunriseIllustration} from "~/client/icons/illustrations/mountain_road_at_sunrise_illustration.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
 import {
     channelViewHeaderNarrowRouteLayoutMarginTop,
     channelViewHeaderSectionGap,
     postContentViewOuterMarginY,
     postFauxInputCreateButtonMarginTop,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
@@ -78,7 +78,6 @@ export function ChannelViewHeader({
                     >
                         <ChannelViewContributorsSection
                             channel={channelHeader.channel}
-                            isCreatingChannel={channelHeader.isCreatingChannel}
                             contributors={contributors}
                             withoutTitle={true}
                         />
@@ -108,33 +107,32 @@ export function ChannelViewHeader({
                 paddingBottom={postContentViewOuterMarginY}
                 paddingX={screenPaddingX}
             >
-                <PostFauxInputCreateButton
-                    channel={channelHeader.channel}
-                    isCreatingChannel={channelHeader.isCreatingChannel}
-                />
+                <PostFauxInputCreateButton channel={channelHeader.channel} />
             </Box>
             {hasNoPosts && (
-                <Box
-                    height={routeLayout === "narrow" ? "96" : "128"}
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                >
+                <Box position="relative" zIndex="0" style={{paddingBottom: 1}}>
                     <Box
-                        display="flex"
-                        flexDirection="column"
-                        justifyContent="center"
-                        alignItems="center"
-                        gap="2"
+                        position="absolute"
+                        zIndex="20"
+                        inset="0"
+                        pointerEvents="none"
+                        opacity="70"
+                        style={{background: `linear-gradient(transparent, ${backgroundColorVar})`}}
+                    ></Box>
+                    <Box
+                        position="absolute"
+                        zIndex="10"
+                        top="0"
+                        left={screenPaddingX}
+                        right={screenPaddingX}
+                        height="border"
                     >
-                        <Box width="64" color="grey-30">
-                            <MountainRoadAtSunriseIllustration strokeWidth={1.75} />
-                        </Box>
-                        <Box color="grey-40" fontSize="100" fontStyle="light" textAlign="center">
-                            Nothing here yet. Start a<br />
-                            conversation by creating a post
-                        </Box>
+                        <Box width="full" height="full" backgroundColor="grey-5" />
                     </Box>
+                    <PostShimmer withoutPulseAnimation={true} />
+                    <PostShimmer withoutPulseAnimation={true} />
+                    <PostShimmer withoutPulseAnimation={true} />
+                    <Box height="safe-area-inset-bottom" />
                 </Box>
             )}
         </>
