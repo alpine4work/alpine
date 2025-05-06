@@ -1,6 +1,7 @@
 import {UserPlus} from "phosphor-react";
 import {useCallback, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -19,7 +20,7 @@ import {
 } from "~/client/styles/forum_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {
     ChannelContributorsModel,
     ChannelModel,
@@ -97,6 +98,8 @@ export function ChannelViewContributorsSection({
         });
     };
 
+    const accountAvatarSize = "7";
+
     return (
         <Box>
             {!withoutTitle && (
@@ -111,7 +114,7 @@ export function ChannelViewContributorsSection({
                 </h3>
             )}
             <AccountAvatarPile
-                size="7"
+                size={accountAvatarSize}
                 topPreviewAccount="Last"
                 previewAccounts={previewAccounts}
                 lastAvatar={
@@ -129,6 +132,11 @@ export function ChannelViewContributorsSection({
                         </IconButton>
                     ) : (
                         <ShareNotificationButton
+                            overlayOffsetAlong={`-${
+                                parseRemLength(
+                                    accountAvatarPileSizes[accountAvatarSize].avatarOverlapWidth,
+                                ) * previewAccounts.length
+                            }rem`}
                             excludeAccountId={excludeAccountId}
                             onShare={handleShare}
                         >

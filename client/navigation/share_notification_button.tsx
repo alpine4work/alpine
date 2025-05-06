@@ -6,14 +6,17 @@ import {
     ShareNotificationOverlayRef,
 } from "~/client/navigation/internal/share_notification_overlay.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 export function ShareNotificationButton({
+    overlayOffsetAlong,
     excludeAccountId,
     onShare,
     children,
 }: {
+    overlayOffsetAlong?: ParsableRemLength;
     excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
     onShare: (notification: ShareNotification) => Promise<void>;
     children: ReactElement;
@@ -23,10 +26,11 @@ export function ShareNotificationButton({
     return (
         <OverlayTriggerButton
             aria-haspopup="dialog"
-            placement="bottom"
+            placement="bottom-start"
             offset="3"
+            offsetAlong={overlayOffsetAlong}
             overlay={({isVisible, onCloseWithoutAnimation}) => (
-                <Box paddingX="3">
+                <Box>
                     <ShareNotificationOverlay
                         ref={overlayRef}
                         isVisible={isVisible}
