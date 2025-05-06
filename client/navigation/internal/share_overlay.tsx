@@ -1,5 +1,14 @@
 import {CaretDown, Globe, Link as LinkIcon} from "phosphor-react";
-import {Ref, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {
+    Ref,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {FocusScope} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
@@ -13,9 +22,12 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {noAccessLevelText, removeAccessLevelText} from "~/client/navigation/access_level_text.js";
+import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {ShareOverlayAccountBody} from "~/client/navigation/internal/share_overlay_account_body.js";
-import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
-import {ShareOverlayAccountInputRef} from "~/client/navigation/internal/share_overlay_account_input.js";
+import {
+    ShareOverlayAccountInput,
+    ShareOverlayAccountInputRef,
+} from "~/client/navigation/internal/share_overlay_account_input.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
@@ -104,13 +116,19 @@ function ShareOverlay(
     const hasAccountGrantInput = !isReadOnly;
     const accountGrantInputRef = useRef<ShareOverlayAccountInputRef>(null);
 
-    const [accountGrantInputAccessLevel, setAccountGrantInputAccessLevel] =
-        useState<AccessLevel>("Manage");
+    const [accountGrantInputAccessLevel, setAccountGrantInputAccessLevel] = useState<AccessLevel>(
+        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+    );
 
     const [accountGrantInputSelectedAccounts, setAccountGrantInputSelectedAccounts] =
         useState<ReadonlyArray<AccountModel>>(emptyArray);
     if (!hasAccountGrantInput && accountGrantInputSelectedAccounts.length > 0)
         setAccountGrantInputSelectedAccounts(emptyArray);
+
+    const excludeAccountGrantInputAccountId = useCallback(
+        (accountId: AccountId) => accessPolicy.accountGrantById.has(accountId),
+        [accessPolicy.accountGrantById],
+    );
 
     useImperativeHandle(
         ref,
@@ -202,17 +220,19 @@ function ShareOverlay(
                 >
                     {hasAccountGrantInput && (
                         <Box position="relative" zIndex="10" paddingX="5">
-                            <ShareOverlayAccountGrantInput
+                            <ShareOverlayAccountInput
                                 ref={accountGrantInputRef}
-                                accessLevelText={accessLevelText}
-                                accountGrantById={accessPolicy.accountGrantById}
                                 allAccounts={allAccounts}
                                 accountById={accountById}
-                                isAltKeyDown={isAltKeyDown}
                                 selectedAccounts={accountGrantInputSelectedAccounts}
                                 onSelectedAccountsChange={setAccountGrantInputSelectedAccounts}
-                                accessLevel={accountGrantInputAccessLevel}
-                                onAccessLevelChange={setAccountGrantInputAccessLevel}
+                                excludeAccountId={excludeAccountGrantInputAccountId}
+                                accessLevel={{
+                                    accessLevelText,
+                                    accessLevel: accountGrantInputAccessLevel,
+                                    onAccessLevelChange: setAccountGrantInputAccessLevel,
+                                    isAltKeyDown,
+                                }}
                             />
                             {accountGrantInputSelectedAccounts.length === 0 && (
                                 <>
@@ -347,7 +367,7 @@ function ShareOverlay(
                                                 onCloseWithoutAnimation();
                                             }}
                                         >
-                                            Share with post
+                                            Share in channel
                                         </Button>
                                     </Box>
                                 </Box>

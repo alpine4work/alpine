@@ -8,6 +8,7 @@ import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useDynamoGeneralRealtimeIndexQueryBase} from "~/client/dynamo/use_dynamo_general_realtime_index_query.js";
 import {useDynamoGeneralRealtimeQuery} from "~/client/dynamo/use_dynamo_general_realtime_query.js";
 import {ChannelMobileEditor} from "~/client/forum/channel_mobile_editor.js";
+import {channelAccessLevelText} from "~/client/forum/internal/channel_access_level_text.js";
 import {ChannelViewAside} from "~/client/forum/internal/channel_view_aside.js";
 import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_editor.js";
 import {ChannelViewSubscribeButton} from "~/client/forum/internal/channel_view_subscribe_button.js";
@@ -19,7 +20,6 @@ import {
 } from "~/client/forum/post_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {defaultAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -318,12 +318,7 @@ export function ChannelView({
                 handleEventForChannel(event);
             },
             onCopyLink: handleCopyLink,
-            accessLevelText: {
-                Manage: "can post",
-                Edit: "can post (can’t share)",
-                Comment: defaultAccessLevelText.Comment,
-                View: defaultAccessLevelText.View,
-            },
+            accessLevelText: channelAccessLevelText,
         },
         // Move the menu further away from the subscribe button. It's quite large and
         // the default offset renders our menu too close to the subscribe button in my
@@ -407,6 +402,15 @@ export function ChannelView({
                 // our realtime WebSocket connection is slow.
                 handleEventForChannel(event);
             },
+            onUpdateAccessPolicy: async ({accessPolicy, notification}) => {
+                const event = await updateChannelAccessPolicy(context, {
+                    channelId,
+                    accessPolicy,
+                    notification,
+                });
+
+                handleEventForChannel(event);
+            },
         }),
         [
             channel,
@@ -464,6 +468,7 @@ export function ChannelView({
                             isEditingDescription={isEditingDescriptionInline}
                             onCancelEditingDescription={channelHeader.onCancelDescriptionEditing}
                             onSaveDescription={channelHeader.onSaveDescription}
+                            onUpdateAccessPolicy={channelHeader.onUpdateAccessPolicy}
                         />
                     )
                 }

@@ -4,6 +4,8 @@ import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_re
 import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/virtualized/helpers/virtualized_tree.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
     DynamoGeneralRealtimeEvent,
     DynamoGeneralRealtimeIndexQueryResult,
@@ -54,6 +56,10 @@ export type PostListChannelHeader =
           readonly isEditingDescription: boolean;
           readonly onCancelDescriptionEditing: () => void;
           readonly onSaveDescription: (description: MessageContent) => Promise<void>;
+          readonly onUpdateAccessPolicy: (event: {
+              accessPolicy: AccessPolicy;
+              notification: ShareNotification | null;
+          }) => Promise<void>;
       };
 
 export type PostCommentsState = PostCommentsOpenState | "Closed";

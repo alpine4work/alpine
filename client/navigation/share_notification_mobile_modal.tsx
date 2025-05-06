@@ -2,6 +2,7 @@ import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_navigation_animation.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {ShareOverlayAccountBody} from "~/client/navigation/internal/share_overlay_account_body.js";
 import {
     ShareOverlayAccountInput,
@@ -10,6 +11,12 @@ import {
 import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -19,15 +26,19 @@ import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definition
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export function ShareNotificationMobileModal({
-    onCloseWithAnimation,
+    accessLevelText,
+    accessPolicy,
     excludeAccountId,
+    onCloseWithAnimation,
     onShare,
 }: {
-    onCloseWithAnimation: () => void;
+    accessLevelText: Record<AccessLevel, string>;
+    accessPolicy: AccessPolicy;
     excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
-    onShare: (notification: ShareNotification) => Promise<void>;
+    onCloseWithAnimation: () => void;
+    onShare: (notification: ShareNotification & {accessLevel: AccessLevel}) => Promise<void>;
 }) {
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const accountInputRef = useRef<ShareOverlayAccountInputRef>(null);
 
@@ -43,6 +54,20 @@ export function ShareNotificationMobileModal({
 
     const [selectedAccounts, setSelectedAccounts] =
         useState<ReadonlyArray<AccountModel>>(emptyArray);
+
+    const currentAccountAccessLevel = useMemo(
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
+    );
+
+    const defaultAccessLevel = useMemo(
+        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+        [accessPolicy],
+    );
+
+    const [accessLevel, setAccessLevel] = useState<AccessLevel>(defaultAccessLevel);
+    if (!hasAccessLevel(currentAccountAccessLevel, "Manage") && accessLevel !== defaultAccessLevel)
+        setAccessLevel(defaultAccessLevel);
 
     const hasInitiallyMountedRef = useRef(false);
 
@@ -79,6 +104,17 @@ export function ShareNotificationMobileModal({
                         selectedAccounts={selectedAccounts}
                         onSelectedAccountsChange={setSelectedAccounts}
                         excludeAccountId={excludeAccountId}
+                        accessLevel={
+                            hasAccessLevel(currentAccountAccessLevel, "Manage")
+                                ? {
+                                      accessLevelText,
+                                      accessLevel,
+                                      minAccessLevel: accessPolicy.defaultGrant?.level,
+                                      onAccessLevelChange: setAccessLevel,
+                                      isAltKeyDown: false,
+                                  }
+                                : undefined
+                        }
                     />
                 </Box>
             </Box>
@@ -86,7 +122,7 @@ export function ShareNotificationMobileModal({
                 <ShareOverlayAccountBody
                     selectedAccounts={selectedAccounts}
                     onShare={async notification => {
-                        await onShare(assertExists(notification));
+                        await onShare({...assertExists(notification), accessLevel});
                         onCloseWithAnimation();
                     }}
                 />

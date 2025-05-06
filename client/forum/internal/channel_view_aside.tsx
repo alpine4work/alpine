@@ -33,6 +33,8 @@ import {
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
@@ -59,12 +61,17 @@ export function ChannelViewAside({
     isEditingDescription,
     onCancelEditingDescription,
     onSaveDescription,
+    onUpdateAccessPolicy,
 }: {
     channel: ChannelModel;
     channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel>;
     isEditingDescription: boolean;
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
+    onUpdateAccessPolicy: (event: {
+        accessPolicy: AccessPolicy;
+        notification: ShareNotification | null;
+    }) => Promise<void>;
 }) {
     const spacingScale = useSpacingScale();
 
@@ -109,7 +116,11 @@ export function ChannelViewAside({
                 gap={channelViewAsideSectionGap}
                 style={{paddingTop: channelViewAsidePaddingTop}}
             >
-                <ChannelViewContributorsSection channel={channel} contributors={contributors} />
+                <ChannelViewContributorsSection
+                    channel={channel}
+                    contributors={contributors}
+                    onUpdateAccessPolicy={onUpdateAccessPolicy}
+                />
                 <Box
                     // Negative margin bottom to optically align our description. Visually, the
                     // bottom of the text in our `<ContentView>` should be the bottom of our

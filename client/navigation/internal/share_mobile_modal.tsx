@@ -1,13 +1,14 @@
-import {useMemo, useState} from "react";
+import {useCallback, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {
     ShareOverlayAccountGrantsScrollView,
     ShareOverlayDefaultGrant,
     ShareOverlayUrlGrant,
 } from "~/client/navigation/internal/share_overlay.js";
 import {ShareOverlayAccountBody} from "~/client/navigation/internal/share_overlay_account_body.js";
-import {ShareOverlayAccountGrantInput} from "~/client/navigation/internal/share_overlay_account_grant_input.js";
+import {ShareOverlayAccountInput} from "~/client/navigation/internal/share_overlay_account_input.js";
 import {ShareSwitch} from "~/client/navigation/internal/share_switch.js";
 import {NavigationBarContent} from "~/client/navigation/navigation_bar_content.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
@@ -62,13 +63,19 @@ export function ShareMobileModal({
         return accountById;
     }, [allAccounts]);
 
-    const [accountGrantInputAccessLevel, setAccountGrantInputAccessLevel] =
-        useState<AccessLevel>("Manage");
+    const [accountGrantInputAccessLevel, setAccountGrantInputAccessLevel] = useState<AccessLevel>(
+        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+    );
 
     const [accountGrantInputSelectedAccounts, setAccountGrantInputSelectedAccounts] =
         useState<ReadonlyArray<AccountModel>>(emptyArray);
     if (!hasAccountGrantInput && accountGrantInputSelectedAccounts.length > 0)
         setAccountGrantInputSelectedAccounts(emptyArray);
+
+    const excludeAccountGrantInputAccountId = useCallback(
+        (accountId: AccountId) => accessPolicy.accountGrantById.has(accountId),
+        [accessPolicy.accountGrantById],
+    );
 
     return (
         <Box
@@ -100,16 +107,18 @@ export function ShareMobileModal({
                     <>
                         <Spacer space="5" />
                         <Box position="relative" zIndex="10">
-                            <ShareOverlayAccountGrantInput
-                                accessLevelText={accessLevelText}
-                                accountGrantById={accessPolicy.accountGrantById}
+                            <ShareOverlayAccountInput
                                 allAccounts={allAccounts}
                                 accountById={accountById}
-                                isAltKeyDown={false}
                                 selectedAccounts={accountGrantInputSelectedAccounts}
                                 onSelectedAccountsChange={setAccountGrantInputSelectedAccounts}
-                                accessLevel={accountGrantInputAccessLevel}
-                                onAccessLevelChange={setAccountGrantInputAccessLevel}
+                                excludeAccountId={excludeAccountGrantInputAccountId}
+                                accessLevel={{
+                                    accessLevelText,
+                                    accessLevel: accountGrantInputAccessLevel,
+                                    onAccessLevelChange: setAccountGrantInputAccessLevel,
+                                    isAltKeyDown: false,
+                                }}
                             />
                             {accountGrantInputSelectedAccounts.length === 0 && (
                                 <>

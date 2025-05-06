@@ -95,6 +95,7 @@ export function ChannelViewHeader({
                             channel={channelHeader.channel}
                             contributors={contributors}
                             withoutTitle={true}
+                            onUpdateAccessPolicy={channelHeader.onUpdateAccessPolicy}
                         />
                         {platform === "mobile" && (
                             <ChannelViewSubscribeButton

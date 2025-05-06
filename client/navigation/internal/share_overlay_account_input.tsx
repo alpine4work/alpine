@@ -2,12 +2,11 @@ import {isFocusVisible, setInteractionModality, usePress} from "@react-aria/inte
 import {Node} from "@react-types/shared";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
-import {MagnifyingGlass} from "phosphor-react";
+import {CaretDown, MagnifyingGlass} from "phosphor-react";
 import {
     Dispatch,
     KeyboardEvent,
     Memo,
-    ReactNode,
     Ref,
     RefObject,
     SetStateAction,
@@ -24,7 +23,10 @@ import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {MenuAction} from "~/client/design/menu.js";
+import {MenuButton} from "~/client/design/menu_button.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -41,6 +43,7 @@ import {
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -78,14 +81,20 @@ function ShareOverlayAccountInput(
         selectedAccounts,
         onSelectedAccountsChange,
         excludeAccountId,
-        buttons,
+        accessLevel,
     }: {
         allAccounts: ReadonlyArray<AccountModel>;
         accountById: ReadonlyMap<AccountId, AccountModel>;
         selectedAccounts: ReadonlyArray<AccountModel>;
         onSelectedAccountsChange: Dispatch<SetStateAction<ReadonlyArray<AccountModel>>>;
         excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
-        buttons?: ReactNode;
+        accessLevel?: {
+            accessLevelText: Record<AccessLevel, string>;
+            accessLevel: AccessLevel;
+            minAccessLevel?: AccessLevel;
+            onAccessLevelChange: (accessLevel: AccessLevel) => void;
+            isAltKeyDown: boolean;
+        };
     },
     ref: Ref<ShareOverlayAccountInputRef>,
 ) {
@@ -622,22 +631,86 @@ function ShareOverlayAccountInput(
                             }}
                         />
                     </Box>
-                    {buttons && (
-                        <Box
-                            ref={buttonsRef}
-                            className={pointerEventsNoneNotInheritedClassName}
-                            position="absolute"
-                            zIndex="10"
-                            top="2"
-                            right="2"
-                            height="6"
-                            display="flex"
-                            alignItems="center"
-                            gap="2"
-                        >
-                            {buttons}
-                        </Box>
-                    )}
+                    {accessLevel &&
+                        (() => {
+                            const actions: Array<MenuAction> = [];
+                            const minAccessLevel = accessLevel.minAccessLevel ?? "View";
+
+                            if (hasAccessLevel("Manage", minAccessLevel)) {
+                                actions.push({
+                                    isSelected: accessLevel.accessLevel === "Manage",
+                                    label: accessLevel.accessLevelText.Manage,
+                                    onPress: () => accessLevel.onAccessLevelChange("Manage"),
+                                });
+                            }
+
+                            if (
+                                (accessLevel.isAltKeyDown &&
+                                    hasAccessLevel("Edit", minAccessLevel)) ||
+                                // We need to show the edit access level without holding alt when
+                                // `minAccessLevel` is `Edit` otherwise there will be no access level selector
+                                // even when you're allowed to change access level to `Manage`.
+                                minAccessLevel === "Edit"
+                            ) {
+                                actions.push({
+                                    isSelected: accessLevel.accessLevel === "Edit",
+                                    label: accessLevel.accessLevelText.Edit,
+                                    onPress: () => accessLevel.onAccessLevelChange("Edit"),
+                                });
+                            }
+
+                            if (hasAccessLevel("Comment", minAccessLevel)) {
+                                actions.push({
+                                    isSelected: accessLevel.accessLevel === "Comment",
+                                    label: accessLevel.accessLevelText.Comment,
+                                    onPress: () => accessLevel.onAccessLevelChange("Comment"),
+                                });
+                            }
+
+                            if (hasAccessLevel("View", minAccessLevel)) {
+                                actions.push({
+                                    isSelected: accessLevel.accessLevel === "View",
+                                    label: accessLevel.accessLevelText.View,
+                                    onPress: () => accessLevel.onAccessLevelChange("View"),
+                                });
+                            }
+
+                            if (actions.length <= 1) return;
+
+                            return (
+                                <Box
+                                    ref={buttonsRef}
+                                    className={pointerEventsNoneNotInheritedClassName}
+                                    position="absolute"
+                                    zIndex="10"
+                                    top="2"
+                                    right="2"
+                                    height="6"
+                                    display="flex"
+                                    alignItems="center"
+                                    gap="2"
+                                >
+                                    <MenuButton
+                                        placement="bottom-end"
+                                        // Align this menu to the right edge of the input. So it's consistent with the
+                                        // access level menus from account grants. We can do this thanks to the add
+                                        // button's fixed width. This helps the design especially on mobile where
+                                        // otherwise the overlay is pushed to the right side of the screen.
+                                        offsetAlong="2"
+                                        actions={actions}
+                                    >
+                                        <Button
+                                            height="6"
+                                            paddingX="2"
+                                            icon={<CaretDown />}
+                                            iconPlacement="end"
+                                        >
+                                            {accessLevel.accessLevelText[accessLevel.accessLevel]}
+                                        </Button>
+                                    </MenuButton>
+                                </Box>
+                            );
+                        })()}
                 </Box>
             </FocusRing>
         </OverlayAnimated>

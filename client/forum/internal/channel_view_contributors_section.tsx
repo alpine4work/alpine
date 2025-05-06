@@ -7,6 +7,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MobileFullScreenModal} from "~/client/design/mobile_full_screen_modal.js";
+import {channelAccessLevelText} from "~/client/forum/internal/channel_access_level_text.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {ShareNotificationButton} from "~/client/navigation/share_notification_button.js";
 import {ShareNotificationMobileModal} from "~/client/navigation/share_notification_mobile_modal.js";
@@ -19,6 +20,13 @@ import {
     channelViewMetadataSectionTitleMarginBottom,
 } from "~/client/styles/forum_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
+import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {
@@ -26,6 +34,7 @@ import {
     ChannelModel,
     renderedMaxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {sendChannelShareNotification} from "~/shared/rpc/forum_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
@@ -36,15 +45,25 @@ export function ChannelViewContributorsSection({
     channel,
     contributors,
     withoutTitle,
+    onUpdateAccessPolicy,
 }: {
     channel: ChannelModel;
     contributors: ChannelContributorsModel | null;
     withoutTitle?: boolean;
+    onUpdateAccessPolicy: (event: {
+        accessPolicy: AccessPolicy;
+        notification: ShareNotification | null;
+    }) => Promise<void>;
 }) {
     const platform = usePlatform();
     const context = useAppContext();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
     const accountsStore = useAccountClientStore();
+
+    const accessLevel = useMemo(
+        () => getAccountAccessLevelAssumingSpaceAccess(channel.accessPolicy, currentAccount?.id),
+        [channel.accessPolicy, currentAccount?.id],
+    );
 
     // When we open the `<ShareNotificationOverlay>` we immediately focus the
     // account input. Preload the account list so we don't need to show a loading
@@ -90,12 +109,35 @@ export function ChannelViewContributorsSection({
         [previewAccountIds],
     );
 
-    const handleShare = async (notification: ShareNotification) => {
-        // NOCOMMIT: Integration test?
-        await sendChannelShareNotification(context, {
-            channelId: channel.id,
-            notification,
-        });
+    // NOCOMMIT: Integration test?
+    const handleShare = async ({
+        accessLevel,
+        ...notification
+    }: ShareNotification & {accessLevel: AccessLevel}) => {
+        assert(currentAccount);
+
+        // If the user didn't change the access level then all we do is send a
+        // notification. If the user did change the access level then we need to update
+        // the channel's access policy with the new accounts.
+        if (
+            channel.accessPolicy.defaultGrant &&
+            hasAccessLevel(channel.accessPolicy.defaultGrant.level, accessLevel)
+        ) {
+            await sendChannelShareNotification(context, {
+                channelId: channel.id,
+                notification,
+            });
+        } else {
+            await onUpdateAccessPolicy({
+                accessPolicy: reduceAccessPolicy(currentAccount.id, channel.accessPolicy, {
+                    type: "AddAccountGrants",
+                    accountGrantById: new Map(
+                        notification.accountIds.map(accountId => [accountId, {level: accessLevel}]),
+                    ),
+                }),
+                notification,
+            });
+        }
     };
 
     const accountAvatarSize = "7";
@@ -118,7 +160,10 @@ export function ChannelViewContributorsSection({
                 topPreviewAccount="Last"
                 previewAccounts={previewAccounts}
                 lastAvatar={
-                    platform === "mobile" ? (
+                    // You can't invite people unless there's a default grant (so you can reliably
+                    // send people a link) or you have manage access.
+                    !channel.accessPolicy.defaultGrant &&
+                    !hasAccessLevel(accessLevel, "Manage") ? null : platform === "mobile" ? (
                         <IconButton
                             variant="quiet-darken"
                             size="base"
@@ -132,12 +177,14 @@ export function ChannelViewContributorsSection({
                         </IconButton>
                     ) : (
                         <ShareNotificationButton
+                            accessLevelText={channelAccessLevelText}
+                            accessPolicy={channel.accessPolicy}
+                            excludeAccountId={excludeAccountId}
                             overlayOffsetAlong={`-${
                                 parseRemLength(
                                     accountAvatarPileSizes[accountAvatarSize].avatarOverlapWidth,
                                 ) * previewAccounts.length
                             }rem`}
-                            excludeAccountId={excludeAccountId}
                             onShare={handleShare}
                         >
                             <IconButton
@@ -158,6 +205,8 @@ export function ChannelViewContributorsSection({
                 <MobileFullScreenModal onClose={() => setShowShareMobileModal(false)}>
                     {({onCloseWithAnimation}) => (
                         <ShareNotificationMobileModal
+                            accessLevelText={channelAccessLevelText}
+                            accessPolicy={channel.accessPolicy}
                             onCloseWithAnimation={onCloseWithAnimation}
                             excludeAccountId={excludeAccountId}
                             onShare={handleShare}

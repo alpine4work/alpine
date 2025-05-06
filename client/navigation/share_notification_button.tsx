@@ -1,24 +1,30 @@
 import {Memo, ReactElement, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {defaultAccessLevelText} from "~/client/navigation/access_level_text.js";
 import {
     ShareNotificationOverlay,
     ShareNotificationOverlayRef,
 } from "~/client/navigation/internal/share_notification_overlay.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
 export function ShareNotificationButton({
-    overlayOffsetAlong,
+    accessLevelText = defaultAccessLevelText,
+    accessPolicy,
     excludeAccountId,
+    overlayOffsetAlong,
     onShare,
     children,
 }: {
-    overlayOffsetAlong?: ParsableRemLength;
+    accessLevelText?: Record<AccessLevel, string>;
+    accessPolicy: AccessPolicy;
     excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
-    onShare: (notification: ShareNotification) => Promise<void>;
+    overlayOffsetAlong?: ParsableRemLength;
+    onShare: (notification: ShareNotification & {accessLevel: AccessLevel}) => Promise<void>;
     children: ReactElement;
 }) {
     const overlayRef = useRef<ShareNotificationOverlayRef>(null);
@@ -33,9 +39,11 @@ export function ShareNotificationButton({
                 <Box>
                     <ShareNotificationOverlay
                         ref={overlayRef}
+                        accessLevelText={accessLevelText}
+                        accessPolicy={accessPolicy}
+                        excludeAccountId={excludeAccountId}
                         isVisible={isVisible}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
-                        excludeAccountId={excludeAccountId}
                         onShare={onShare}
                     />
                 </Box>

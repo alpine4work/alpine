@@ -1,7 +1,17 @@
-import {Memo, Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {
+    Memo,
+    Ref,
+    forwardRef,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {FocusScope} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
+import {getDefaultShareOverlyAccountInputAccessLevel} from "~/client/navigation/internal/get_default_share_overlay_account_input_access_level.js";
 import {ShareOverlayAccountBody} from "~/client/navigation/internal/share_overlay_account_body.js";
 import {
     ShareOverlayAccountInput,
@@ -10,6 +20,12 @@ import {
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {greyElevated1ClassName} from "~/client/styles/styles.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    getAccountAccessLevelAssumingSpaceAccess,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -28,24 +44,42 @@ export {ShareNotificationOverlayForwardRef as ShareNotificationOverlay};
 
 function ShareNotificationOverlay(
     {
+        accessLevelText,
+        accessPolicy,
+        excludeAccountId,
         isVisible,
         onCloseWithoutAnimation,
-        excludeAccountId,
         onShare,
     }: {
+        accessLevelText: Record<AccessLevel, string>;
+        accessPolicy: AccessPolicy;
+        excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
         isVisible: boolean;
         onCloseWithoutAnimation: () => void;
-        excludeAccountId?: Memo<(accountId: AccountId) => boolean>;
-        onShare: (notification: ShareNotification) => Promise<void>;
+        onShare: (notification: ShareNotification & {accessLevel: AccessLevel}) => Promise<void>;
     },
     ref: Ref<ShareNotificationOverlayRef>,
 ) {
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const accountInputRef = useRef<ShareOverlayAccountInputRef>(null);
 
     const [selectedAccounts, setSelectedAccounts] =
         useState<ReadonlyArray<AccountModel>>(emptyArray);
+
+    const currentAccountAccessLevel = useMemo(
+        () => getAccountAccessLevelAssumingSpaceAccess(accessPolicy, currentAccount?.id),
+        [accessPolicy, currentAccount?.id],
+    );
+
+    const defaultAccessLevel = useMemo(
+        () => getDefaultShareOverlyAccountInputAccessLevel(accessPolicy),
+        [accessPolicy],
+    );
+
+    const [accessLevel, setAccessLevel] = useState<AccessLevel>(defaultAccessLevel);
+    if (!hasAccessLevel(currentAccountAccessLevel, "Manage") && accessLevel !== defaultAccessLevel)
+        setAccessLevel(defaultAccessLevel);
 
     useImperativeHandle(
         ref,
@@ -69,6 +103,29 @@ function ShareNotificationOverlay(
         for (const account of allAccounts) accountById.set(account.id, account);
         return accountById;
     }, [allAccounts]);
+
+    const [isAltKeyDown, setIsAltKeyDown] = useState(false);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Alt") {
+                setIsAltKeyDown(true);
+            }
+        };
+
+        const handleKeyUp = (event: KeyboardEvent) => {
+            if (event.key === "Alt") {
+                setIsAltKeyDown(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+        };
+    }, []);
 
     return (
         <FocusScope
@@ -103,6 +160,17 @@ function ShareNotificationOverlay(
                             selectedAccounts={selectedAccounts}
                             onSelectedAccountsChange={setSelectedAccounts}
                             excludeAccountId={excludeAccountId}
+                            accessLevel={
+                                hasAccessLevel(currentAccountAccessLevel, "Manage")
+                                    ? {
+                                          accessLevelText,
+                                          accessLevel,
+                                          minAccessLevel: accessPolicy.defaultGrant?.level,
+                                          onAccessLevelChange: setAccessLevel,
+                                          isAltKeyDown,
+                                      }
+                                    : undefined
+                            }
                         />
                     </Box>
                     <Box paddingX="5">
@@ -110,7 +178,7 @@ function ShareNotificationOverlay(
                             willAlwaysNotifyPeople={true}
                             selectedAccounts={selectedAccounts}
                             onShare={async notification => {
-                                await onShare(assertExists(notification));
+                                await onShare({...assertExists(notification), accessLevel});
                                 onCloseWithoutAnimation();
                             }}
                         />

@@ -301,7 +301,9 @@ export function PostCreator({
                                         }
                                     />
                                     <Box flexGrow="1" />
-                                    {createButtonNode}
+                                    <Box position="relative" top="-2">
+                                        {createButtonNode}
+                                    </Box>
                                 </Box>
                             </Box>
                         ) : (

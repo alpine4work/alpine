@@ -175,6 +175,7 @@ export function ShareOverlayAccountBody({
                 <Button
                     ref={buttonRef}
                     fullWidth={willAlwaysNotifyPeople}
+                    height={willAlwaysNotifyPeople ? "8" : "7"}
                     borderRadius={willAlwaysNotifyPeople ? "1.5" : undefined}
                     variant="neutral"
                     isDisabled={selectedAccounts.length === 0}
