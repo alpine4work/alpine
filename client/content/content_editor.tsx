@@ -439,6 +439,7 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * `<div>`.
      */
     style?: {
+        minHeight?: RemLength | number;
         paddingTop?: RemLength | number;
         paddingBottom?: RemLength | number;
         paddingLeft?: RemLength | number;
@@ -3507,6 +3508,13 @@ function ContentEditor<Content extends ContentWithReferences>(
         ).split(" ");
         viewElement.classList.add(...classList);
 
+        if (style?.minHeight !== undefined) {
+            if (typeof style.minHeight === "number") {
+                viewElement.style.minHeight = `${style.minHeight}px`;
+            } else {
+                viewElement.style.minHeight = style.minHeight;
+            }
+        }
         if (style?.paddingTop !== undefined) {
             if (typeof style.paddingTop === "number") {
                 viewElement.style.paddingTop = `${style.paddingTop}px`;
@@ -3546,6 +3554,9 @@ function ContentEditor<Content extends ContentWithReferences>(
         return () => {
             viewElement.classList.remove(...classList);
 
+            if (style?.minHeight !== undefined) {
+                viewElement.style.removeProperty("min-height");
+            }
             if (style?.paddingTop !== undefined) {
                 viewElement.style.removeProperty("padding-top");
             }
@@ -3566,6 +3577,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         className,
         routeLayout,
         style?.borderRadius,
+        style?.minHeight,
         style?.paddingBottom,
         style?.paddingLeft,
         style?.paddingRight,

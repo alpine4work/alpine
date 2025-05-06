@@ -36,9 +36,7 @@ export default function CreateMoreRoute() {
                     label="Channel"
                     pressErrorTitle="Couldn’t create channel"
                     onPress={async () => {
-                        const channelId = generateId();
-
-                        await rootNavigate(`/s/${space.id}/channels/${channelId}?create`);
+                        await rootNavigate(`/s/${space.id}/channels/new`);
                     }}
                 />
                 <MobileSettingsRow

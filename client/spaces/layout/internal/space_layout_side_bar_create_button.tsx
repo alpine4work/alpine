@@ -156,10 +156,8 @@ export function SpaceLayoutSideBarCreateButton() {
                                     icon: <ChannelBrandIcon />,
                                     pressErrorTitle: "Couldn’t create channel",
                                     onPress: async () => {
-                                        const channelId = generateId();
-
                                         await peekStackContext.push(
-                                            `/s/${space.id}/channels/${channelId}?create`,
+                                            `/s/${space.id}/channels/new?focus=name`,
                                         );
                                     },
                                 },

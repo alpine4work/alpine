@@ -30,6 +30,7 @@ export const createChannel = defineRpc({
         channelId: Schema.id<ChannelId>().optional(),
         name: Schema.string,
         description: MessageContentSchema.optional(),
+        accessPolicy: AccessPolicySchema.optional(),
     },
     output: {
         channelId: Schema.id<ChannelId>(),

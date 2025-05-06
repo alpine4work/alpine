@@ -78,6 +78,7 @@ export function ChannelViewHeader({
                     >
                         <ChannelViewContributorsSection
                             channel={channelHeader.channel}
+                            isCreatingChannel={channelHeader.isCreatingChannel}
                             contributors={contributors}
                             withoutTitle={true}
                         />

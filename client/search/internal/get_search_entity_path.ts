@@ -43,11 +43,7 @@ export function getSearchEntityPath({
             return `/s/${spaceId}/posts/new/${draftId}`;
         }
         case "CreateChannel": {
-            // Make sure we use the same `channelId` consistently for the current search
-            // result list.
-            const channelId = unsafelyGenerateStableId(getStableRandom(), entityId);
-
-            return `/s/${spaceId}/channels/${channelId}?create&focus=none`;
+            return `/s/${spaceId}/channels/new?focus=none`;
         }
         case "CreateDocument": {
             // Make sure we use the same `documentId` consistently for the current search

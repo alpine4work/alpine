@@ -2738,8 +2738,13 @@ export class DynamoGeneralRealtimeTableSchema<
         }
 
         return {
+            name: config.name,
             partitionKeyAttributes: Index.partitionKeyAttributes,
             sortKeyAttributes: Index.sortKeyAttributes,
+
+            getRealtimeQueryPartitionKey: partitionKey => {
+                return Index.serializeOpaquePartitionKey(partitionKey);
+            },
 
             realtimeQuery: async (
                 context,
@@ -3051,8 +3056,13 @@ export class DynamoGeneralRealtimeTableSchema<
         }
 
         return {
+            name: config.name,
             partitionKeyAttributes: Index.partitionKeyAttributes,
             sortKeyAttributes: Index.sortKeyAttributes,
+
+            getRealtimeQueryPartitionKey: partitionKey => {
+                return Index.serializeOpaquePartitionKey(partitionKey);
+            },
 
             realtimeQuery: async (
                 context,
@@ -3482,6 +3492,8 @@ export class DynamoGeneralRealtimeTableSchema<
  * The type to use for accessing an index on our DynamoDB table.
  */
 export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey, IndexSortKey> {
+    readonly name: string;
+
     readonly partitionKeyAttributes: {
         readonly [Key in keyof IndexPartitionKey]: DynamoKeyAttributeSchema<IndexPartitionKey[Key]>;
     };
@@ -3489,6 +3501,8 @@ export interface DynamoGeneralRealtimeTableSchemaIndex<Model, IndexPartitionKey,
     readonly sortKeyAttributes: {
         readonly [Key in keyof IndexSortKey]: DynamoKeyAttributeSchema<IndexSortKey[Key]>;
     };
+
+    getRealtimeQueryPartitionKey(partitionKey: IndexPartitionKey): DynamoIndexPartitionKey;
 
     /**
      * Query the index.

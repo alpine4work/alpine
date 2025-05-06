@@ -76,6 +76,7 @@ import {
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     DynamoIndexCursor,
+    DynamoIndexPartitionKey,
     DynamoItemKey,
     DynamoItemPartitionKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
@@ -1137,7 +1138,6 @@ export function internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntr
 /**
  * Create a new channel.
  */
-// NOCOMMIT: Automatically subscribe to channel you create
 export async function createChannel(
     context: ForumSessionActionContextWithBroadcast,
     {
@@ -1210,6 +1210,15 @@ export async function createChannel(
                 contributionCountByAccountId: new Map([[context.actor.getAccountId(), 1]]),
             },
         ),
+        // Automatically subscribe the channel creator to the channel they've just
+        // created.
+        ForumTable.transactionCreateOrReplaceItem({
+            partitionType: "Channel",
+            sortRangeType: "Subscription",
+            channelId,
+            accountId: context.actor.getAccountId(),
+            createdTime: channelItem.createdTime,
+        }),
     ]);
 
     // Future `authorizeChannelAccess()` calls in the request should not need to
@@ -2069,15 +2078,20 @@ export async function unsubscribeFromChannel(
 export async function isSubscribedToChannel(
     context: ServerSessionActionContext,
     channelId: ChannelId,
+    {consistency}: {consistency?: DynamoReadConsistency} = emptyObject,
 ): Promise<boolean> {
     await authorizeChannelAccess(context, channelId, "View");
 
-    const item = await ForumTable.getItemIfExists(context, {
-        partitionType: "Channel",
-        sortRangeType: "Subscription",
-        channelId,
-        accountId: context.actor.getAccountId(),
-    });
+    const item = await ForumTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Subscription",
+            channelId,
+            accountId: context.actor.getAccountId(),
+        },
+        {consistency},
+    );
 
     return !!item;
 }
@@ -2407,6 +2421,14 @@ export async function updateChannelAccessPolicy(
             eventTransaction: [await result.getEvent(context)],
         }),
     };
+}
+
+export function getChannelPostsIndexName(): string {
+    return ChannelPostsIndex.name;
+}
+
+export function getChannelPostsPartitionKey(channelId: ChannelId): DynamoIndexPartitionKey {
+    return ChannelPostsIndex.getRealtimeQueryPartitionKey({channelId});
 }
 
 /**

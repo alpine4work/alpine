@@ -1,7 +1,9 @@
-import {useCallback, useEffect, useId, useRef, useState} from "react";
+import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react";
+import {usePress} from "react-aria";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -17,43 +19,51 @@ import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_s
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
+import {ShareSwitchBase} from "~/client/navigation/share_switch_base.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {
     useCurrentDate,
     useCurrentTimeRoundedToHour,
 } from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
-import {contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {
+    backgroundColorVar,
+    colorSchemeVars,
+    contentStyles,
+    sprinkles,
+} from "~/client/styles/styles.js";
+import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {
-    MessageContent,
-    MessageContentWithReferences,
-} from "~/shared/messaging/message_content_schema.js";
+import {generateId} from "~/shared/id/id.js";
+import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
+import {createChannel} from "~/shared/rpc/forum_rpc_definitions.js";
 
-export function ChannelMobileEditor({
+export function ChannelCreator({
     title,
     initiallyFocus,
     initialName,
     initialDescription,
-    onCloseWithAnimation,
-    onSave,
 }: {
     title: string;
-    initiallyFocus: "Name" | "Description";
+    initiallyFocus: "Name" | "Description" | null;
     initialName: string;
     initialDescription: MessageContentWithReferences;
-    onCloseWithAnimation: (options: {hasSaved: boolean}) => void;
-    onSave: (update: {name: string; description: MessageContent}) => Promise<void>;
 }) {
+    const context = useAppContext();
+    const navigate = useNavigate();
     const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
     const isInitialAppRender = useIsInitialAppRender();
     const currentDate = useCurrentDate();
     const currentTime = useCurrentTimeRoundedToHour();
+    const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
@@ -77,12 +87,16 @@ export function ChannelMobileEditor({
         contentStyles.paragraphLineHeightPx[spacingScale] * 3 +
         convertRemLengthToPx(descriptionPaddingY, spacingScale) * 2;
 
+    const [isPublic, setIsPublic] = useState(true);
+
     const descriptionLabelId = useId();
 
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
+
+        if (initiallyFocus === null) return;
 
         const nameInputElement = assertExists(nameInputRef.current);
         const descriptionEditor = assertExists(descriptionEditorRef.current);
@@ -109,6 +123,8 @@ export function ChannelMobileEditor({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title,
         withoutDisappearingTitle: true,
+        desktopTitleFontSize: "300",
+        desktopTitleFontWeight: "bold",
         replaceActions: (
             <Box
                 display="flex"
@@ -117,29 +133,83 @@ export function ChannelMobileEditor({
             >
                 <Button
                     ref={saveButtonRef}
+                    variant="neutral"
                     fontSize="100"
                     isDisabled={
                         (!hasNameChanged && !hasDescriptionChanged) || name.trim().length === 0
                     }
                     pressErrorTitle="Couldn’t save channel"
                     onPress={async () => {
-                        await onSave({name: name.trim(), description: descriptionState.getDoc()});
-                        onCloseWithAnimation({hasSaved: true});
+                        if (isContentEmpty(descriptionState.getDoc()) && isPublic) {
+                            await navigate(
+                                `/s/${
+                                    space.id
+                                }/channels/${generateId()}?create=${encodeURIComponent(name)}`,
+                                {
+                                    replace: true,
+                                    // In our native mobile app, we want to call
+                                    // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                                    // push animation while replacing in the history stack.
+                                    state: NativeMobileBridge
+                                        ? {withPushAnimation: true}
+                                        : undefined,
+                                },
+                            );
+                        } else {
+                            // It's slightly more efficient to create a channel with the `create` URL
+                            // parameter because:
+                            //
+                            // 1. We don't need to read the channel back from DynamoDB in the loader since
+                            //    we created the DynamoDB item in the loader.
+                            //
+                            // 2. We need to read the channel back from DynamoDB with strong read
+                            //    consistency (which is more expensive than eventual consistency) or else
+                            //    we risk telling the user the channel they just created doesn't exist.
+                            //
+                            // However, the `create` URL parameter doesn't support descriptions. We
+                            // couldn't fit a long description into the URL. So if the user typed up a
+                            // description we need to create the channel with an RPC then navigate to
+                            // its URL.
+                            const channel = await createChannel(context, {
+                                spaceId: space.id,
+                                name,
+                                description: descriptionState.getDoc(),
+                                // NOCOMMIT: Integration test
+                                accessPolicy: !isPublic
+                                    ? {
+                                          accountGrantById: new Map([
+                                              [currentAccount.id, {level: "Manage", generation: 0}],
+                                          ]),
+                                          defaultGrant: null,
+                                          urlGrant: null,
+                                      }
+                                    : undefined,
+                            });
+
+                            await navigate(
+                                `/s/${space.id}/channels/${channel.channelId}?consistency=strong`,
+                                {
+                                    replace: true,
+                                    // In our native mobile app, we want to call
+                                    // `NativeMobileBridge.navigation.replaceWithPushAnimation()` to run the native
+                                    // push animation while replacing in the history stack.
+                                    state: NativeMobileBridge
+                                        ? {withPushAnimation: true}
+                                        : undefined,
+                                },
+                            );
+                        }
                     }}
                 >
-                    Save
+                    Create
                 </Button>
             </Box>
         ),
-        // Instead of calling `navigate(-1)` the navigation bar needs a cancel button.
-        onMobileCancel: () => onCloseWithAnimation({hasSaved: false}),
     });
 
     useScrollToAvoidBottomBarsAndMobileKeyboard(containerRef, {
-        // - Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
-        //   initial render.
-        // - Disable on `sidebarState.isOpen` since the comment view should be
-        //   scrolling not the document.
+        // Disable on `isInitialAppRender` since `coordsAtPos()` won't work on
+        // initial render.
         isDisabled: isInitialAppRender,
         getAnchorPosition: useCallback(
             () => getContentEditorScrollAnchorPosition(descriptionEditorRef),
@@ -252,9 +322,105 @@ export function ChannelMobileEditor({
                                 links.
                             </Box>
                         </Box>
+                        <Box>
+                            <label
+                                id={descriptionLabelId}
+                                className={sprinkles({
+                                    display: "inline-block",
+                                    fontSize: "75",
+                                    fontStyle: "semi-bold",
+                                    paddingBottom: "1",
+                                })}
+                            >
+                                Share
+                            </label>
+                            <Box display="flex" flexDirection="column" gap="2">
+                                <ChannelCreatorShareItem
+                                    isSelected={isPublic}
+                                    onPress={() => setIsPublic(true)}
+                                    switchIcon="Buildings"
+                                    title="Public"
+                                    subtitle={
+                                        <>
+                                            Everyone in{" "}
+                                            <span
+                                                className={sprinkles({
+                                                    color: "grey-60",
+                                                    fontStyle: "semi-bold",
+                                                })}
+                                            >
+                                                {space.name}
+                                            </span>
+                                        </>
+                                    }
+                                />
+                                <ChannelCreatorShareItem
+                                    isSelected={!isPublic}
+                                    onPress={() => setIsPublic(false)}
+                                    switchIcon="Lock"
+                                    title="Private"
+                                    subtitle="Only specific people"
+                                />
+                            </Box>
+                        </Box>
                     </Box>
                 </Box>
             </OverlayScopeContextProvider>
+        </Box>
+    );
+}
+
+function ChannelCreatorShareItem({
+    switchIcon,
+    isSelected,
+    onPress,
+    title,
+    subtitle,
+}: {
+    switchIcon: "Lock" | "Buildings";
+    isSelected: boolean;
+    onPress: () => void;
+    title: string;
+    subtitle: ReactNode;
+}) {
+    const {isPressed, pressProps} = usePress({onPress});
+
+    return (
+        <Box
+            {...pressProps}
+            position="relative"
+            zIndex="0"
+            flexGrow="1"
+            padding="4"
+            borderRadius="2"
+            display="flex"
+            alignItems="center"
+            gap="4"
+            boxShadow="elevation-5-with-grey-10-border"
+            backgroundColor={isPressed ? "grey-5" : undefined}
+        >
+            <ShareSwitchBase isInert={true} entityNoun="channel" icon={switchIcon} />
+            <Box flexGrow="1" display="flex" alignItems="baseline" gap="1.5">
+                <Box fontStyle="truncate" fontSize="75">
+                    {title}
+                </Box>
+                <Box fontStyle="truncate" fontSize="50" color="grey-50">
+                    {subtitle}
+                </Box>
+            </Box>
+            <Box
+                flexShrink="0"
+                width="3"
+                height="3"
+                borderRadius="full"
+                border={!isSelected ? "grey-20" : undefined}
+                style={{
+                    backgroundColor: isSelected ? colorSchemeVars["grey-90"] : undefined,
+                    boxShadow: isSelected
+                        ? `inset 0 0 0 1px ${colorSchemeVars["grey-90"]}, inset 0 0 0 3px ${backgroundColorVar}`
+                        : undefined,
+                }}
+            />
         </Box>
     );
 }
