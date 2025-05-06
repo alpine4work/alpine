@@ -1,4 +1,4 @@
-import {Link as LinkIcon} from "phosphor-react";
+import {Link as LinkIcon, Lock} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -32,11 +32,11 @@ import {
     postContentViewMinHeightPx,
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {getAccountAccessLevelAssumingSpaceAccess} from "~/shared/access/access_policy.js";
-import {addRemLengths} from "~/shared/design/core/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {
     DynamoGeneralRealtimeIndexQueryResult,
     DynamoGeneralRealtimeQueryResult,
@@ -221,37 +221,56 @@ export function ChannelView({
 
     const navigationBar = useNavigationBar({
         withoutDisappearingTitle: true,
-        title: isEditingNameInline ? (
-            <ChannelViewNameEditor
-                isCreatingChannel={false}
-                initialName={channel.name}
-                onCancel={() => setIsEditingNameInline(false)}
-                onSave={async name => {
-                    const event = await updateChannelName(context, {
-                        channelId,
-                        name,
-                    });
+        title: (
+            <Box display="flex" alignItems="center" gap="1.5">
+                {platform !== "mobile" &&
+                    !channel.accessPolicy.defaultGrant &&
+                    !channel.accessPolicy.urlGrant && (
+                        // We add a lock icon to private channels because unlike other entities we don't
+                        // show the share switch in the navigation bar. Since knowing whether a channel
+                        // is public or private is important context, we include a lock to make sure you
+                        // know the channel is private before posting.
+                        //
+                        // We don't show the lock on mobile since none of our entities have logic to
+                        // show their share state on mobile without opening the more menu.
+                        <Lock
+                            className={sprinkles({flexShrink: "0"})}
+                            size={spacing["4"]}
+                            weight="fill"
+                        />
+                    )}
+                {isEditingNameInline ? (
+                    <ChannelViewNameEditor
+                        isCreatingChannel={false}
+                        initialName={channel.name}
+                        onCancel={() => setIsEditingNameInline(false)}
+                        onSave={async name => {
+                            const event = await updateChannelName(context, {
+                                channelId,
+                                name,
+                            });
 
-                    setIsEditingNameInline(false);
+                            setIsEditingNameInline(false);
 
-                    // Immediately apply a realtime event transaction to update our channel in case
-                    // our realtime WebSocket connection is slow.
-                    handleEventForChannel(event);
-                }}
-            />
-        ) : (
-            <Box
-                display="inline"
-                onDoubleClick={event => {
-                    // Disable selection from double click.
-                    event.preventDefault();
+                            // Immediately apply a realtime event transaction to update our channel in case
+                            // our realtime WebSocket connection is slow.
+                            handleEventForChannel(event);
+                        }}
+                    />
+                ) : (
+                    <Box
+                        onDoubleClick={event => {
+                            // Disable selection from double click.
+                            event.preventDefault();
 
-                    if (platform !== "mobile") {
-                        setIsEditingNameInline(true);
-                    }
-                }}
-            >
-                {channel.name}
+                            if (platform !== "mobile") {
+                                setIsEditingNameInline(true);
+                            }
+                        }}
+                    >
+                        {channel.name}
+                    </Box>
+                )}
             </Box>
         ),
         desktopMaxWidth:
