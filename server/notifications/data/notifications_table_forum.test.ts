@@ -1,6 +1,7 @@
 import {addMinutes, subMinutes} from "date-fns";
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {subscribeToChannel} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {
@@ -104,6 +105,12 @@ test("won't create two inbox entries if inbox is observed between serial event p
 
     const channel = await TestChannel.create(scenario.session2);
 
+    await runAllPromises([
+        subscribeToChannel(scenario.session1.action(), channel.id),
+        subscribeToChannel(scenario.session2.action(), channel.id),
+        subscribeToChannel(scenario.session3.action(), channel.id),
+    ]);
+
     await channel.createPost(scenario.session1);
     await ProcessContextModule.waitForTestTasks();
 
@@ -206,6 +213,12 @@ for (const [currentProcessingType, processingMultiple] of [
             );
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post = await channel.createPost(scenario.session1);
 
@@ -594,6 +607,12 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const channel = await TestChannel.create(scenario.session1);
 
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
+
             const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
@@ -669,6 +688,12 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post = await channel.createPost(scenario.session1);
 
@@ -1104,6 +1129,12 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const channel = await TestChannel.create(scenario.session1);
 
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
+
             const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
@@ -1453,11 +1484,14 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
-
-            const post = await channel.createPost(scenario.session1);
-
             const otherChannel = await TestChannel.create(scenario.otherSession);
 
+            await runAllPromises([
+                subscribeToChannel(scenario.sharedSession.action(), channel.id),
+                subscribeToChannel(scenario.sharedSession.action(), otherChannel.id),
+            ]);
+
+            const post = await channel.createPost(scenario.session1);
             const otherPost = await otherChannel.createPost(scenario.otherSession);
 
             await ProcessContextModule.waitForTestTasks();
@@ -10804,550 +10838,556 @@ for (const [currentProcessingType, processingMultiple] of [
                 eventTransaction: [],
             });
         });
-    });
 
-    test("if an account is mentioned then the mentioned message sticks around until archival", async () => {
-        const space = await TestSpace.create(context);
+        test("if an account is mentioned then the mentioned message sticks around until archival", async () => {
+            const space = await TestSpace.create(context);
 
-        const session1 = await space.createSession();
-        const session2 = await space.createSession();
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
 
-        const channel = await TestChannel.create(session1);
-        const post = await channel.createPost(session1);
+            const channel = await TestChannel.create(session1);
 
-        await ProcessContextModule.waitForTestTasks();
+            await runAllPromises([
+                subscribeToChannel(session1.action(), channel.id),
+                subscribeToChannel(session2.action(), channel.id),
+            ]);
 
-        expect(
-            await getInboxEntries(session2.action(), {
+            const post = await channel.createPost(session1);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: expect.any(ChannelPreviewModel),
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: expect.any(Object),
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            await post.createComment(session2, "Test comment 1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: expect.any(ChannelPreviewModel),
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: expect.any(Object),
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
                 spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChannelPostsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                loudNotificationCount: 0,
-                channel: expect.any(ChannelPreviewModel),
-                bucketGeneration: 0,
-                postCount: 1,
-                postAuthorCount: 1,
-                latestPost: expect.any(Object),
-                otherPostAuthor: null,
-            }),
-        ]);
+                key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
+            });
 
-        await post.createComment(session2, "Test comment 1");
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
 
-        await ProcessContextModule.waitForTestTasks();
+            const comment2 = await post.createComment(session1, "Test comment 2");
 
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChannelPostsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                loudNotificationCount: 0,
-                channel: expect.any(ChannelPreviewModel),
-                bucketGeneration: 0,
-                postCount: 1,
-                postAuthorCount: 1,
-                latestPost: expect.any(Object),
-                otherPostAuthor: null,
-            }),
-        ]);
+            await ProcessContextModule.waitForTestTasks();
 
-        await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-            spaceId: space.id,
-            key: {type: "ChannelPosts", channelId: channel.id, bucketGeneration: 0},
-        });
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
-
-        const comment2 = await post.createComment(session1, "Test comment 2");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 0,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment2.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: printContentSingleLineTextSnippet({
-                        doc: createSimpleMessageContent("Test comment 2"),
-                        references: emptyContentReferences,
-                    }),
-                    isStickyMention: false,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
-
-        const comment3 = await post.createComment(session1, "Test comment 3");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 0,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment3.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: printContentSingleLineTextSnippet({
-                        doc: createSimpleMessageContent("Test comment 3"),
-                        references: emptyContentReferences,
-                    }),
-                    isStickyMention: false,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
-
-        const comment4 = await post.createComment(
-            session1,
-            assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text("Test comment 4 "),
-                        MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id, isShort: false},
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment2.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("Test comment 2"),
+                            references: emptyContentReferences,
                         }),
-                    ]),
-                ]),
-            ),
-        );
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
 
-        await ProcessContextModule.waitForTestTasks();
+            const comment3 = await post.createComment(session1, "Test comment 3");
 
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 1,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment4.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
+            await ProcessContextModule.waitForTestTasks();
 
-        await post.createComment(session1, "Test comment 5");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 1,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment4.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
-
-        await post.createComment(session1, "Test comment 6");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 1,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment4.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
-
-        const comment7 = await post.createComment(
-            session1,
-            assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text("Test comment 7 "),
-                        MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id, isShort: false},
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment3.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("Test comment 3"),
+                            references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            const comment4 = await post.createComment(
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Test comment 4 "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session2.account.id, isShort: false},
+                            }),
+                        ]),
                     ]),
-                ]),
-            ),
-        );
+                ),
+            );
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getInboxEntries(session2.action(), {
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment4.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await post.createComment(session1, "Test comment 5");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment4.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await post.createComment(session1, "Test comment 6");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment4.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            const comment7 = await post.createComment(
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Test comment 7 "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session2.account.id, isShort: false},
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 2,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment7.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await post.createComment(session1, "Test comment 8");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 2,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment7.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
                 spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
+                key: {type: "PostComments", postId: post.id},
+            });
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const comment9 = await post.createComment(session1, "Test comment 9");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: expect.any(ChannelPreviewModel),
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment9.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "Test comment 9",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("if an account is removed from a space their inbox won't update anymore", async () => {
+            const space = await TestSpace.create(context);
+
+            const session1 = await space.createSession({hasInternalAccess: true});
+            const session2 = await space.createSession();
+
+            const channel = await TestChannel.create(session1);
+            const post = await channel.createPost(session2);
+
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
+                }),
+            ).rejects.toThrow(NotFoundError);
+
+            await post.createComment(session1, "Test comment 1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
+                }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 1,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 1",
+                    }),
+                }),
+            });
+
+            await post.createComment(session1, "Test comment 2");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
+                }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 2,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 2",
+                    }),
+                }),
+            });
+
+            await post.createComment(session1, "Test comment 3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
+                }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 3,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 3",
+                    }),
+                }),
+            });
+
+            await removeSpaceAccountAsAdmin(session1.action(), {
                 spaceId: space.id,
                 accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 2,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment7.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
+            });
 
-        await post.createComment(session1, "Test comment 8");
+            const spaceAccountsCache = getSpaceAccountsCacheForTest();
+            spaceAccountsCache.clearForTest();
 
-        await ProcessContextModule.waitForTestTasks();
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
 
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
+            await post.createComment(session1, "Test comment 4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await post.createComment(session1, "Test comment 5");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
                 spaceId: space.id,
                 accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 2,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment7.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
+            });
 
-        await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-            spaceId: space.id,
-            key: {type: "PostComments", postId: post.id},
-        });
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
-
-        const comment9 = await post.createComment(session1, "Test comment 9");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxPostCommentsEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                postId: post.id,
-                postAuthor: await session1.get(),
-                channel: expect.any(ChannelPreviewModel),
-                loudNotificationCount: 0,
-                postCreatedTime: post.createdTime,
-                postContentTextSnippetIfMentioned: null,
-                latestComment: {
-                    createdTime: comment9.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: "Test comment 9",
-                    isStickyMention: false,
-                },
-                otherCommentAuthor: null,
-            }),
-        ]);
-    });
-
-    test("if an account is removed from a space their inbox won't update anymore", async () => {
-        const space = await TestSpace.create(context);
-
-        const session1 = await space.createSession({hasInternalAccess: true});
-        const session2 = await space.createSession();
-
-        const channel = await TestChannel.create(session1);
-        const post = await channel.createPost(session2);
-
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).rejects.toThrow(NotFoundError);
-
-        await post.createComment(session1, "Test comment 1");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 1,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 1",
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
                 }),
-            }),
-        });
-
-        await post.createComment(session1, "Test comment 2");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 2,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 2",
+            ).toEqual({
+                key: expect.any(String),
+                version: 3,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 3",
+                    }),
                 }),
-            }),
-        });
+            });
 
-        await post.createComment(session1, "Test comment 3");
+            await post.createComment(session1, "Test comment 6");
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 3,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 3",
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
                 }),
-            }),
-        });
-
-        await removeSpaceAccountAsAdmin(session1.action(), {
-            spaceId: space.id,
-            accountId: session2.account.id,
-        });
-
-        const spaceAccountsCache = getSpaceAccountsCacheForTest();
-        spaceAccountsCache.clearForTest();
-
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).rejects.toThrow(PermissionDeniedError);
-
-        await post.createComment(session1, "Test comment 4");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).rejects.toThrow(PermissionDeniedError);
-
-        await post.createComment(session1, "Test comment 5");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).rejects.toThrow(PermissionDeniedError);
-
-        await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
-            spaceId: space.id,
-            accountId: session2.account.id,
-        });
-
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 3,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 3",
+            ).toEqual({
+                key: expect.any(String),
+                version: 4,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 6",
+                    }),
                 }),
-            }),
-        });
+            });
 
-        await post.createComment(session1, "Test comment 6");
+            await post.createComment(session1, "Test comment 7");
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 4,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 6",
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {type: "PostComments", postId: post.id},
                 }),
-            }),
-        });
-
-        await post.createComment(session1, "Test comment 7");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {type: "PostComments", postId: post.id},
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 5,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 7",
+            ).toEqual({
+                key: expect.any(String),
+                version: 5,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 7",
+                    }),
                 }),
-            }),
+            });
         });
     });
 }

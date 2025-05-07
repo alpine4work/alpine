@@ -2116,7 +2116,13 @@ export async function searchChannelsByKeywords(
         queryText: string;
         limit: number;
     },
-): Promise<Array<{channel: ChannelPreviewModel; descriptionTextSnippet: string}>> {
+): Promise<
+    Array<{
+        channel: ChannelPreviewModel;
+        descriptionTextSnippet: string;
+        accessPolicy: AccessPolicy;
+    }>
+> {
     await authorizeSpaceAccess(context, spaceId);
 
     const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
