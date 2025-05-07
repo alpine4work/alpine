@@ -16,7 +16,7 @@ import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -91,7 +91,25 @@ export const updateChannelAccessPolicy = defineRpc({
     output: {
         readTime: Schema.date,
         eventTransaction: Schema.array(
-            createDynamoGeneralRealtimeEventSchema(ChannelModel.schema()),
+            createDynamoGeneralRealtimeEventSchema(ChannelOrMetadataModelSchema),
+        ),
+    },
+});
+
+export const addAccountGrantsToChannelAccessPolicy = defineRpc({
+    name: "addAccountGrantsToChannelAccessPolicy",
+    input: {
+        channelId: Schema.id<ChannelId>(),
+        accountGrantById: Schema.map(
+            Schema.id<AccountId>(),
+            Schema.object({level: AccessLevelSchema}),
+        ),
+        notification: ShareNotificationSchema.nullable(),
+    },
+    output: {
+        readTime: Schema.date,
+        eventTransaction: Schema.array(
+            createDynamoGeneralRealtimeEventSchema(ChannelOrMetadataModelSchema),
         ),
     },
 });

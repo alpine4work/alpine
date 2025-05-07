@@ -1,6 +1,7 @@
 import {getMessageContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     FilePostAuthorizer,
+    addAccountGrantsToChannelAccessPolicy,
     authorizeChannelAccess,
     authorizePostAccess,
     backfillChannelAndMetadata,
@@ -82,6 +83,18 @@ export default implementRpcs(definitions, {
                 context.actor.authorizeSession(),
                 input,
             );
+            return getDynamoGeneralRealtimeEventTransaction(context);
+        },
+    },
+
+    addAccountGrantsToChannelAccessPolicy: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {getDynamoGeneralRealtimeEventTransaction} =
+                await addAccountGrantsToChannelAccessPolicy(
+                    context.actor.authorizeSession(),
+                    input,
+                );
             return getDynamoGeneralRealtimeEventTransaction(context);
         },
     },

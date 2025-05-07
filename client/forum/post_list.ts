@@ -4,7 +4,7 @@ import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_re
 import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {VirtualizedTreeBase} from "~/client/virtualized/helpers/virtualized_tree.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {
     DynamoGeneralRealtimeEvent,
@@ -28,7 +28,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {decodeIdInto} from "~/shared/id/id.js";
-import {ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
@@ -56,8 +56,8 @@ export type PostListChannelHeader =
           readonly isEditingDescription: boolean;
           readonly onCancelDescriptionEditing: () => void;
           readonly onSaveDescription: (description: MessageContent) => Promise<void>;
-          readonly onUpdateAccessPolicy: (event: {
-              accessPolicy: AccessPolicy;
+          readonly onAddAccountGrantsToAccessPolicy: (event: {
+              accountGrantById: ReadonlyMap<AccountId, {level: AccessLevel}>;
               notification: ShareNotification | null;
           }) => Promise<void>;
       };

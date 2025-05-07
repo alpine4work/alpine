@@ -64,6 +64,7 @@ import {
     AccessPolicySchema,
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
+import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -263,7 +264,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                  * order of accounts is based on first contribution time. Accounts with an
                  * earlier first contribution time are earlier in the map.
                  *
-                 * We stop increase contribution counts at a maximum value as a way to reduce
+                 * We stop increasing contribution counts at a maximum value as a way to reduce
                  * write cost against the database. Maybe the write cost savings are pointless
                  * and we shouldn't have a contribution count max. Also, we should really
                  * consider adding some exponential decay for the accounts in this list. So if
@@ -275,10 +276,29 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
+
+                        /**
+                         * Contribution count for each `AccountId` in the channel. We stop incrementing
+                         * contribution count after `maxChannelContributionCount`.
+                         *
+                         * Order in this map matters. The map is ordered by first contribution count.
+                         */
                         contributionCountByAccountId: Schema.map(
                             Schema.id<AccountId>(),
                             Schema.integer.min(1).max(maxChannelContributionCount),
                         ).minSize(1),
+
+                        /**
+                         * The same as `channelItem.accessPolicy.accountGrant.keys()`. We copy the
+                         * property here so we can include shared accounts in the contributor list even
+                         * before they've created their first post.
+                         *
+                         * Order in this array is the same as the order in
+                         * `channelItem.accessPolicy.accountGrant.keys()`.
+                         */
+                        accountIdsWithGrant: Schema.array(Schema.id<AccountId>()).default(
+                            emptyArray,
+                        ),
                     }),
                 },
 
@@ -437,7 +457,7 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                     // 1. Who has the highest contribution count up to
                     //    `maxChannelTopContributorCount`
                     // 2. Earliest contribution time
-                    const topContributorIds: Array<AccountId> = [];
+                    const topContributorIds = new Set<AccountId>();
 
                     outer: for (
                         let contributionCount = maxChannelContributionCount;
@@ -448,16 +468,25 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                             accountIdsByContributionCount.get(contributionCount) ?? emptyArray;
 
                         for (const accountId of accountIds) {
-                            topContributorIds.push(accountId);
+                            topContributorIds.add(accountId);
 
-                            if (topContributorIds.length >= maxChannelTopContributorCount) {
+                            if (topContributorIds.size >= maxChannelTopContributorCount) {
                                 break outer;
                             }
                         }
                     }
 
+                    // Fill the top contributors array with accounts that have been explicitly
+                    // granted access even if those accounts haven't posted in the channel yet.
+                    // This is especially useful for private channels. Since you can see who's been
+                    // added to the private channel.
+                    for (const accountId of item.accountIdsWithGrant) {
+                        if (topContributorIds.size >= maxChannelTopContributorCount) break;
+                        topContributorIds.add(accountId);
+                    }
+
                     const topContributors = await runAllPromises(
-                        topContributorIds.map(accountId =>
+                        mapIterable(topContributorIds, accountId =>
                             getAccount(context, item.spaceId, accountId),
                         ),
                     );
@@ -1213,6 +1242,7 @@ export async function createChannel(
                 channelId,
                 spaceId,
                 contributionCountByAccountId: new Map([[context.actor.getAccountId(), 1]]),
+                accountIdsWithGrant: Array.from(channelItem.accessPolicy.accountGrantById.keys()),
             },
         ),
         // Automatically subscribe the channel creator to the channel they've just
@@ -2377,61 +2407,132 @@ export async function updateChannelNameAndDescription(
     };
 }
 
-/**
- * Updates the channel's `AccessPolicy`. The session actor must be a manager on
- * the channel to update the channel's access policy.
- */
-export async function updateChannelAccessPolicy(
+async function updateChannelAccessPolicyBase(
     context: ForumSessionActionContextWithBroadcast,
     {
         channelId,
-        accessPolicy,
+        updateAccessPolicy,
         notification,
     }: {
         channelId: ChannelId;
-        accessPolicy: AccessPolicy;
+        updateAccessPolicy: (accessPolicy: AccessPolicy) => AccessPolicy;
         notification: ShareNotification | null;
     },
 ): Promise<{
     getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
         readTime: Date;
-        eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
+        eventTransaction: ReadonlyArray<
+            DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
+        >;
     }>;
 }> {
-    if (accessPolicy.urlGrant) {
-        throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
-    }
-
-    let spaceId: SpaceId | null = null;
-
     const readTime = new Date();
 
-    const result = await ForumRealtimeTable.updateItem(
-        context,
-        {partitionType: "Channel", sortRangeType: "Attributes", channelId},
-        async channelItem => {
-            if (!channelItem) throw createChannelNotFoundError(channelId);
-            spaceId = channelItem.spaceId;
+    const {spaceId, getDynamoGeneralRealtimeEventTransaction} =
+        await context.dynamo.retryTransaction(
+            async (
+                context,
+            ): Promise<{
+                spaceId: SpaceId;
+                getDynamoGeneralRealtimeEventTransaction: (
+                    context: ServerContentActionContext,
+                ) => Promise<{
+                    readTime: Date;
+                    eventTransaction: ReadonlyArray<
+                        DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
+                    >;
+                }>;
+            }> => {
+                const channelItem = await ForumRealtimeTable.getItemIfExists(context, {
+                    partitionType: "Channel",
+                    sortRangeType: "Attributes",
+                    channelId,
+                });
+                if (!channelItem) throw createChannelNotFoundError(channelId);
 
-            await authorizeChannelItemAccess(context, channelItem, "Manage");
+                await authorizeChannelItemAccess(context, channelItem, "Manage");
 
-            const result = validateAccessPolicyUpdate(
-                context.actor.getAccountId(),
-                channelItem.accessPolicy,
-                accessPolicy,
-            );
-            if (!result.ok) {
-                throw new FailedPreconditionError(result.reason);
-            }
+                const oldAccessPolicy = channelItem.accessPolicy;
+                const newAccessPolicy = updateAccessPolicy(oldAccessPolicy);
 
-            return {
-                ...channelItem,
-                accessPolicy,
-            };
-        },
-    );
+                if (newAccessPolicy.urlGrant) {
+                    throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
+                }
 
-    assert(spaceId);
+                const result = validateAccessPolicyUpdate(
+                    context.actor.getAccountId(),
+                    oldAccessPolicy,
+                    newAccessPolicy,
+                );
+                if (!result.ok) {
+                    throw new FailedPreconditionError(result.reason);
+                }
+
+                const oldAccountIdsWithGrant = Array.from(oldAccessPolicy.accountGrantById.keys());
+                const newAccountIdsWithGrant = Array.from(newAccessPolicy.accountGrantById.keys());
+
+                // If we're adding or removing accounts to the `accessPolicy` then we also want
+                // to update the `Contributors` item. The `Contributors` item includes the
+                // granted `AccountId`s in the contributor list when we're out of accounts that
+                // have actually contributed content.
+                //
+                // We do it in a transaction so that the `eventTransaction` we return to the
+                // client includes the updated contributors model. So we can immediately
+                // re-render the contributors item with the new data.
+                if (isDeepEqual(oldAccountIdsWithGrant, newAccountIdsWithGrant)) {
+                    const {getEvent} = await ForumRealtimeTable.directlyUpdateItem(context, {
+                        ...channelItem,
+                        accessPolicy: newAccessPolicy,
+                    });
+
+                    return {
+                        spaceId: channelItem.spaceId,
+                        getDynamoGeneralRealtimeEventTransaction: async context => ({
+                            readTime,
+                            eventTransaction: [await getEvent(context)],
+                        }),
+                    };
+                } else {
+                    const contributorsItem = (await ForumRealtimeTable.getItemIfExists(context, {
+                        partitionType: "Channel",
+                        sortRangeType: "Contributors",
+                        channelId,
+                    })) ?? {
+                        partitionType: "Channel",
+                        sortRangeType: "Contributors",
+                        channelId,
+                        spaceId: channelItem.spaceId,
+                        contributionCountByAccountId: new Map(),
+                        accountIdsWithGrant: emptyArray,
+                    };
+
+                    const {getEventTransaction} =
+                        await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
+                            ForumRealtimeTable.transactionDirectlyUpdateItem({
+                                ...channelItem,
+                                accessPolicy: newAccessPolicy,
+                            }),
+                            ForumRealtimeTable.transactionDirectlyUpdateItem({
+                                ...contributorsItem,
+                                accountIdsWithGrant: newAccountIdsWithGrant,
+                            }),
+                        ]);
+
+                    return {
+                        spaceId: channelItem.spaceId,
+                        getDynamoGeneralRealtimeEventTransaction: async context => ({
+                            readTime,
+                            eventTransaction: (await getEventTransaction(
+                                context,
+                                ForumRealtimeTable,
+                            )) as ReadonlyArray<
+                                DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
+                            >,
+                        }),
+                    };
+                }
+            },
+        );
 
     context.jobs.send({
         type: "IndexSearchEntity",
@@ -2457,12 +2558,72 @@ export async function updateChannelAccessPolicy(
         });
     }
 
-    return {
-        getDynamoGeneralRealtimeEventTransaction: async context => ({
-            readTime,
-            eventTransaction: [await result.getEvent(context)],
-        }),
-    };
+    return {getDynamoGeneralRealtimeEventTransaction};
+}
+
+/**
+ * Updates the channel's `AccessPolicy`. The session actor must be a manager on
+ * the channel to update the channel's access policy.
+ */
+export async function updateChannelAccessPolicy(
+    context: ForumSessionActionContextWithBroadcast,
+    {
+        channelId,
+        accessPolicy,
+        notification,
+    }: {
+        channelId: ChannelId;
+        accessPolicy: AccessPolicy;
+        notification: ShareNotification | null;
+    },
+): Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<
+            DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
+        >;
+    }>;
+}> {
+    return updateChannelAccessPolicyBase(context, {
+        channelId,
+        updateAccessPolicy: () => accessPolicy,
+        notification,
+    });
+}
+
+/**
+ * Updates the channel's `AccessPolicy` by adding account grants. This allows
+ * you to avoid conflicting update race conditions since you're not replacing
+ * the entire access policy.
+ */
+export async function addAccountGrantsToChannelAccessPolicy(
+    context: ForumSessionActionContextWithBroadcast,
+    {
+        channelId,
+        accountGrantById,
+        notification,
+    }: {
+        channelId: ChannelId;
+        accountGrantById: ReadonlyMap<AccountId, {readonly level: AccessLevel}>;
+        notification: ShareNotification | null;
+    },
+): Promise<{
+    getDynamoGeneralRealtimeEventTransaction: (context: ServerContentActionContext) => Promise<{
+        readTime: Date;
+        eventTransaction: ReadonlyArray<
+            DynamoGeneralRealtimeEvent<ChannelModel | ChannelContributorsModel>
+        >;
+    }>;
+}> {
+    return updateChannelAccessPolicyBase(context, {
+        channelId,
+        updateAccessPolicy: accessPolicy =>
+            reduceAccessPolicy(context.actor.getAccountId(), accessPolicy, {
+                type: "AddAccountGrants",
+                accountGrantById,
+            }),
+        notification,
+    });
 }
 
 export function getChannelPostsIndexName(): string {
@@ -2716,6 +2877,7 @@ export async function createPost(
                     channelId: postItem.channelId,
                     spaceId: postItem.spaceId,
                     contributionCountByAccountId: new Map(),
+                    accountIdsWithGrant: emptyArray,
                 };
 
                 oldContributionCount =
@@ -3473,6 +3635,7 @@ export async function createPostComment(
                             channelId: postItem.channelId,
                             spaceId: postItem.spaceId,
                             contributionCountByAccountId: new Map(),
+                            accountIdsWithGrant: emptyArray,
                         };
 
                         oldContributionCount =

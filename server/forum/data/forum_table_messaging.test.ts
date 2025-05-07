@@ -72,6 +72,7 @@ testMessagingImplementation<PostId>(context, {
                 defaultGrant: null,
                 urlGrant: null,
             },
+            notification: null,
         });
 
         const post = await createPost(context, {
@@ -101,6 +102,7 @@ testMessagingImplementation<PostId>(context, {
                 await updateChannelAccessPolicy(context, {
                     channelId: channel.id,
                     accessPolicy: newAccessPolicy,
+                    notification: null,
                 });
             },
         };

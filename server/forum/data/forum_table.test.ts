@@ -8,6 +8,7 @@ import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/f
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {
     FilePostAuthorizer,
+    addAccountGrantsToChannelAccessPolicy,
     authorizeChannelAccess,
     authorizePostAccess,
     authorizePostDraftAccess,
@@ -1048,6 +1049,91 @@ test("can't update channel access policy without manage access", async () => {
             [session1.account.id, {level: "Manage", generation: 0}],
             [session2.account.id, {level: "Manage", generation: 2}],
             [session3.account.id, {level: "Manage", generation: 3}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    });
+});
+
+test("can't update channel access policy (with add account grants function) without manage access", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+    const channel = await TestChannel.create(session1);
+
+    await channel.access.revokeDefault(session1);
+
+    await expect(
+        addAccountGrantsToChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage"}],
+                [session3.account.id, {level: "Manage"}],
+            ]),
+            notification: null,
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "View");
+
+    await expect(
+        addAccountGrantsToChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage"}],
+                [session3.account.id, {level: "Manage"}],
+            ]),
+            notification: null,
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "Comment");
+
+    await expect(
+        addAccountGrantsToChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage"}],
+                [session3.account.id, {level: "Manage"}],
+            ]),
+            notification: null,
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "Edit");
+
+    await expect(
+        addAccountGrantsToChannelAccessPolicy(session2.action(), {
+            channelId: channel.id,
+            accountGrantById: new Map([
+                [session2.account.id, {level: "Manage"}],
+                [session3.account.id, {level: "Manage"}],
+            ]),
+            notification: null,
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "Manage" access level to channel');
+
+    await channel.access.grantDefault(session1, "Manage");
+
+    expect(await channel.access.get()).toEqual({
+        accountGrantById: new Map([[session1.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "Manage", generation: 1},
+        urlGrant: null,
+    });
+
+    await addAccountGrantsToChannelAccessPolicy(session2.action(), {
+        channelId: channel.id,
+        accountGrantById: new Map([
+            [session2.account.id, {level: "Manage"}],
+            [session3.account.id, {level: "Manage"}],
+        ]),
+        notification: null,
+    });
+
+    expect(await channel.access.get()).toEqual({
+        accountGrantById: new Map([
+            [session1.account.id, {level: "Manage", generation: 0}],
+            [session2.account.id, {level: "Manage", generation: 2}],
+            [session3.account.id, {level: "Manage", generation: 2}],
         ]),
         defaultGrant: null,
         urlGrant: null,

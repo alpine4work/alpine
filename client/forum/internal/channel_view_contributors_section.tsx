@@ -22,11 +22,9 @@ import {
 import {sprinkles} from "~/client/styles/styles.js";
 import {
     AccessLevel,
-    AccessPolicy,
     getAccountAccessLevelAssumingSpaceAccess,
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {
@@ -45,13 +43,13 @@ export function ChannelViewContributorsSection({
     channel,
     contributors,
     withoutTitle,
-    onUpdateAccessPolicy,
+    onAddAccountGrantsToAccessPolicy,
 }: {
     channel: ChannelModel;
     contributors: ChannelContributorsModel | null;
     withoutTitle?: boolean;
-    onUpdateAccessPolicy: (event: {
-        accessPolicy: AccessPolicy;
+    onAddAccountGrantsToAccessPolicy: (event: {
+        accountGrantById: ReadonlyMap<AccountId, {level: AccessLevel}>;
         notification: ShareNotification | null;
     }) => Promise<void>;
 }) {
@@ -128,13 +126,10 @@ export function ChannelViewContributorsSection({
                 notification,
             });
         } else {
-            await onUpdateAccessPolicy({
-                accessPolicy: reduceAccessPolicy(currentAccount.id, channel.accessPolicy, {
-                    type: "AddAccountGrants",
-                    accountGrantById: new Map(
-                        notification.accountIds.map(accountId => [accountId, {level: accessLevel}]),
-                    ),
-                }),
+            await onAddAccountGrantsToAccessPolicy({
+                accountGrantById: new Map(
+                    notification.accountIds.map(accountId => [accountId, {level: accessLevel}]),
+                ),
                 notification,
             });
         }

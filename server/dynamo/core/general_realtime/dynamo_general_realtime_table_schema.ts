@@ -1515,7 +1515,15 @@ export class DynamoGeneralRealtimeTableSchema<
         context: ServerActionContextWithBroadcast,
         entries: ReadonlyArray<DynamoTransactionEntry | DynamoGeneralRealtimeTransactionEntry>,
         options?: {clientRequestToken?: string},
-    ): Promise<void> {
+    ): Promise<{
+        getEventTransaction: <
+            Types extends DynamoTableSchemaTypesBase,
+            ModelMap extends {[partitionType: string]: {[sortRangeType: string]: any}},
+        >(
+            context: ServerContentActionContext,
+            schema: DynamoGeneralRealtimeTableSchema<Types, ModelMap>,
+        ) => Promise<Array<DynamoGeneralRealtimeEvent<ModelMap[string][string]>>>;
+    }> {
         const eventsBySchema = new Map<
             DynamoGeneralRealtimeTableSchema<
                 DynamoTableSchemaTypesBase,
@@ -1551,6 +1559,31 @@ export class DynamoGeneralRealtimeTableSchema<
                 ),
             );
         });
+
+        return {
+            getEventTransaction: (context, schema) => {
+                const events = eventsBySchema.get(schema);
+
+                return runAllPromises(
+                    (events ?? emptyArray).map(event => {
+                        switch (event.type) {
+                            case "PutItem": {
+                                return event.getEvent(context);
+                            }
+                            case "DeleteItem": {
+                                return {
+                                    type: "DeleteItem",
+                                    item: {key: event.key, version: event.version},
+                                    indexes: schema._getDeleteItemEventIndexes(event),
+                                };
+                            }
+                            default:
+                                throw exhaustive(event);
+                        }
+                    }),
+                );
+            },
+        };
     }
 
     /**

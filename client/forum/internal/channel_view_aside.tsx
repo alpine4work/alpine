@@ -33,7 +33,7 @@ import {
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
-import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
@@ -48,7 +48,7 @@ import {
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {AccountId, PostId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     MessageContentWithReferences,
@@ -61,15 +61,15 @@ export function ChannelViewAside({
     isEditingDescription,
     onCancelEditingDescription,
     onSaveDescription,
-    onUpdateAccessPolicy,
+    onAddAccountGrantsToAccessPolicy,
 }: {
     channel: ChannelModel;
     channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel>;
     isEditingDescription: boolean;
     onCancelEditingDescription: () => void;
     onSaveDescription: (description: MessageContent) => Promise<void>;
-    onUpdateAccessPolicy: (event: {
-        accessPolicy: AccessPolicy;
+    onAddAccountGrantsToAccessPolicy: (event: {
+        accountGrantById: ReadonlyMap<AccountId, {level: AccessLevel}>;
         notification: ShareNotification | null;
     }) => Promise<void>;
 }) {
@@ -119,7 +119,7 @@ export function ChannelViewAside({
                 <ChannelViewContributorsSection
                     channel={channel}
                     contributors={contributors}
-                    onUpdateAccessPolicy={onUpdateAccessPolicy}
+                    onAddAccountGrantsToAccessPolicy={onAddAccountGrantsToAccessPolicy}
                 />
                 <Box
                     // Negative margin bottom to optically align our description. Visually, the

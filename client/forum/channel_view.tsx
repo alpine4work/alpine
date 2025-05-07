@@ -54,6 +54,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {
+    addAccountGrantsToChannelAccessPolicy,
     backfillChannelAndMetadata,
     backfillChannelPosts,
     getChannelAndMetadata,
@@ -402,10 +403,10 @@ export function ChannelView({
                 // our realtime WebSocket connection is slow.
                 handleEventForChannel(event);
             },
-            onUpdateAccessPolicy: async ({accessPolicy, notification}) => {
-                const event = await updateChannelAccessPolicy(context, {
+            onAddAccountGrantsToAccessPolicy: async ({accountGrantById, notification}) => {
+                const event = await addAccountGrantsToChannelAccessPolicy(context, {
                     channelId,
-                    accessPolicy,
+                    accountGrantById,
                     notification,
                 });
 
@@ -468,7 +469,9 @@ export function ChannelView({
                             isEditingDescription={isEditingDescriptionInline}
                             onCancelEditingDescription={channelHeader.onCancelDescriptionEditing}
                             onSaveDescription={channelHeader.onSaveDescription}
-                            onUpdateAccessPolicy={channelHeader.onUpdateAccessPolicy}
+                            onAddAccountGrantsToAccessPolicy={
+                                channelHeader.onAddAccountGrantsToAccessPolicy
+                            }
                         />
                     )
                 }
