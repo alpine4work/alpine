@@ -79,7 +79,7 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
-    getTaskCollectionSearchResultIfExists,
+    getTaskCollectionSearchResultIfPossible,
 } from "~/server/tasks/data/task_table.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -2228,7 +2228,6 @@ export async function searchChannelsByKeywords(
  * space-wide recommendation we return `origin: "Space"`. Only personal
  * recommendations should be used to boost keyword search results.
  */
-// NOCOMMIT: Make sure we test for permissions here
 export async function searchChannelsByAffinity(
     context: Context<
         ServerContentSessionActionContextModules & {opensearch: OpensearchContextModule}
@@ -2402,9 +2401,10 @@ export async function searchTaskCollectionsByKeywords(
 
             const collectionId = hit.id.slice(15) as TaskCollectionId;
 
-            const result = await getTaskCollectionSearchResultIfExists(context, collectionId);
+            const result = await getTaskCollectionSearchResultIfPossible(context, collectionId);
             if (!result) return null;
-            return {...result, score: hit.score};
+            if (!result.ok) return null;
+            return {...result.value, score: hit.score};
         }),
     );
 
@@ -2421,7 +2421,6 @@ export async function searchTaskCollectionsByKeywords(
  * space-wide recommendation we return `origin: "Space"`. Only personal
  * recommendations should be used to boost keyword search results.
  */
-// NOCOMMIT: Make sure we test for permissions here
 export async function searchTaskCollectionsByAffinity(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
@@ -2438,16 +2437,10 @@ export async function searchTaskCollectionsByAffinity(
     if (collectionIdsFromAccountAffinities.length >= limit) {
         const collections = await runAllPromises(
             collectionIdsFromAccountAffinities.slice(0, limit).map(async collectionId => {
-                const collectionResult = await getTaskCollectionSearchResultIfExists(
-                    context,
-                    collectionId,
-                );
-                if (!collectionResult) return null;
-
-                return {
-                    ...collectionResult,
-                    origin: "Account" as const,
-                };
+                const result = await getTaskCollectionSearchResultIfPossible(context, collectionId);
+                if (!result) return null;
+                if (!result.ok) return null;
+                return {...result.value, origin: "Account" as const};
             }),
         );
         return collections.filter(isNonNullable);
@@ -2472,14 +2465,15 @@ export async function searchTaskCollectionsByAffinity(
                     !collectionIdsFromAccountAffinitiesSet.has(channelId.item.collectionId),
             ),
         ].map(async collectionId => {
-            const collectionResult = await getTaskCollectionSearchResultIfExists(
+            const result = await getTaskCollectionSearchResultIfPossible(
                 context,
                 typeof collectionId === "string" ? collectionId : collectionId.item.collectionId,
             );
-            if (!collectionResult) return null;
+            if (!result) return null;
+            if (!result.ok) return null;
 
             return {
-                ...collectionResult,
+                ...result.value,
                 origin:
                     typeof collectionId === "string" ? ("Account" as const) : ("Space" as const),
             };

@@ -12,6 +12,7 @@ import {
     createTestSession,
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
+import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {addSpaceAccountForTest, removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
@@ -98,7 +99,17 @@ import {
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 
-const context = createTestContext();
+let jobs: Array<JobDescription> = [];
+
+afterEach(() => {
+    jobs = [];
+});
+
+const context = createTestContext({
+    processJob: async (context, job) => {
+        jobs.push(job);
+    },
+});
 
 // Old style tests shadow the `context` variable and add some modules.
 const baseContext = context;
@@ -21592,4 +21603,142 @@ test("can't revoke access from a collection manager that invited you", async () 
     );
 
     await collection.access.revoke(session3a, session3b);
+});
+
+test("can only send share notifications when committing an update access policy action", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const [task, collection] = await runAllPromises([
+        TestTask.create(session1),
+        TestTaskCollection.create(session1, {name: "Test Collection 1"}),
+    ]);
+
+    expect((await collection.getItem()).name.value).toEqual("Test Collection 1");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([]);
+
+    const time1 = testClock.nowLogical();
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: time1,
+                    taskId: task.id,
+                    taskAction: {
+                        type: "UpdateStatus",
+                        status: {
+                            type: "Closed",
+                            closerId: session1.account.id,
+                            closedTime: new TaskFilterableTime({
+                                absoluteTime: time1,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                },
+            ],
+            {
+                updateAccessPolicyShareNotification: {
+                    accountIds: [session2.account.id, session3.account.id],
+                    content: createSimpleMessageContent("foobar1"),
+                },
+            },
+        ),
+    ).rejects.toThrow(
+        "Can only provide `updateAccessPolicyShareNotification` if there's an `UpdateAccessPolicy` action in the transaction",
+    );
+
+    expect((await collection.getItem()).name.value).toEqual("Test Collection 1");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([]);
+
+    const time2 = testClock.nowLogical();
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateCollection",
+                    time: time2,
+                    collectionId: collection.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "buzqax",
+                    },
+                },
+            ],
+            {
+                updateAccessPolicyShareNotification: {
+                    accountIds: [session2.account.id, session3.account.id],
+                    content: createSimpleMessageContent("foobar2"),
+                },
+            },
+        ),
+    ).rejects.toThrow(
+        "Can only provide `updateAccessPolicyShareNotification` if there's an `UpdateAccessPolicy` action in the transaction",
+    );
+
+    expect((await collection.getItem()).name.value).toEqual("Test Collection 1");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([]);
+
+    const time3 = testClock.nowLogical();
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateCollection",
+                time: time3,
+                collectionId: collection.id,
+                collectionAction: {
+                    type: "UpdateAccessPolicy",
+                    accessPolicy: {
+                        accountGrantById: new Map([
+                            [session1.account.id, {level: "Manage", generation: 0}],
+                            [session2.account.id, {level: "Manage", generation: 1}],
+                            [session3.account.id, {level: "Manage", generation: 1}],
+                        ]),
+                        defaultGrant: {level: "Manage", generation: 1},
+                        urlGrant: null,
+                    },
+                },
+            },
+        ],
+        {
+            updateAccessPolicyShareNotification: {
+                accountIds: [session2.account.id, session3.account.id],
+                content: createSimpleMessageContent("foobar3"),
+            },
+        },
+    );
+
+    expect((await collection.getItem()).name.value).toEqual("Test Collection 1");
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(jobs.filter(job => job.type === "SendShareNotification")).toEqual([
+        {
+            type: "SendShareNotification",
+            jobId: expect.any(String),
+            spaceId: space.id,
+            actorAccountId: session1.account.id,
+            entityId: `TaskCollection:${collection.id}`,
+            notification: {
+                accountIds: [session2.account.id, session3.account.id],
+                content: createSimpleMessageContent("foobar3"),
+            },
+        },
+    ]);
 });

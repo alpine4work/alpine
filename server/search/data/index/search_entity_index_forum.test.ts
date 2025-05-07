@@ -443,6 +443,71 @@ test("can search channels by affinity", async () => {
         {channelId: channel5.id, origin: "Space"},
     ]);
 
+    await channel5.access.revokeDefault(session1);
+
+    expect(
+        (await searchChannelsByAffinity(session1.action(), {spaceId: space.id, limit: 100})).map(
+            result => ({channelId: result.channel.id, origin: result.origin}),
+        ),
+    ).toEqual([
+        {channelId: channel2.id, origin: "Account"},
+        {channelId: channel5.id, origin: "Account"},
+        {channelId: channel1.id, origin: "Account"},
+        {channelId: channel3.id, origin: "Account"},
+        {channelId: channel4.id, origin: "Space"},
+    ]);
+
+    expect(
+        (await searchChannelsByAffinity(session2.action(), {spaceId: space.id, limit: 100})).map(
+            result => ({channelId: result.channel.id, origin: result.origin}),
+        ),
+    ).toEqual([
+        {channelId: channel4.id, origin: "Account"},
+        {channelId: channel3.id, origin: "Account"},
+        {channelId: channel2.id, origin: "Space"},
+        {channelId: channel1.id, origin: "Space"},
+    ]);
+
+    expect(
+        (await searchChannelsByAffinity(session3.action(), {spaceId: space.id, limit: 100})).map(
+            result => ({channelId: result.channel.id, origin: result.origin}),
+        ),
+    ).toEqual([
+        {channelId: channel4.id, origin: "Account"},
+        {channelId: channel3.id, origin: "Account"},
+        {channelId: channel2.id, origin: "Space"},
+        {channelId: channel1.id, origin: "Space"},
+    ]);
+
+    expect(
+        (await searchChannelsByAffinity(session1.action(), {spaceId: space.id, limit: 3})).map(
+            result => ({channelId: result.channel.id, origin: result.origin}),
+        ),
+    ).toEqual([
+        {channelId: channel2.id, origin: "Account"},
+        {channelId: channel5.id, origin: "Account"},
+        {channelId: channel1.id, origin: "Account"},
+    ]);
+
+    expect(
+        (await searchChannelsByAffinity(session2.action(), {spaceId: space.id, limit: 3})).map(
+            result => ({channelId: result.channel.id, origin: result.origin}),
+        ),
+    ).toEqual([
+        {channelId: channel4.id, origin: "Account"},
+        {channelId: channel3.id, origin: "Account"},
+    ]);
+
+    expect(
+        (await searchChannelsByAffinity(session3.action(), {spaceId: space.id, limit: 3})).map(
+            result => ({channelId: result.channel.id, origin: result.origin}),
+        ),
+    ).toEqual([
+        {channelId: channel4.id, origin: "Account"},
+        {channelId: channel3.id, origin: "Account"},
+        {channelId: channel2.id, origin: "Space"},
+    ]);
+
     await expect(
         searchChannelsByAffinity(otherSession.action(), {spaceId: space.id, limit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
@@ -535,12 +600,18 @@ test("channel access policies are enforced in search", async () => {
     await channel5.access.grant(session1, session2);
     await channel5.access.grant(session1, session3);
 
-    await channel6.access.grantUrl(session6);
+    await expect(channel6.access.grantUrl(session6)).rejects.toThrow(
+        "Channels don't currently support `urlGrant`s",
+    );
 
-    await channel7.access.grantUrl(session6);
+    await expect(channel7.access.grantUrl(session6)).rejects.toThrow(
+        "Channels don't currently support `urlGrant`s",
+    );
     await channel7.access.grant(session6, session5);
 
-    await channel8.access.grantUrl(session6);
+    await expect(channel8.access.grantUrl(session6)).rejects.toThrow(
+        "Channels don't currently support `urlGrant`s",
+    );
     await channel8.access.grantDefault(session6);
 
     import.meta.jest.advanceTimersByTime(10 * 1000);

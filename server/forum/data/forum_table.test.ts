@@ -23,6 +23,7 @@ import {
     getChannelContributorsKey,
     getChannelIfPossible,
     getChannelNameAndDescriptionContentAndContributors,
+    getChannelNotificationSubscribers,
     getChannelPosts,
     getChannelPreview,
     getPost,
@@ -34,6 +35,10 @@ import {
     getPostContentAndChannelPreview,
     getPostDraftIfExists,
     getPostNotificationSubscribers,
+    isSubscribedToChannel,
+    sendChannelShareNotification,
+    subscribeToChannel,
+    unsubscribeFromChannel,
     updateChannelAccessPolicy,
     updateChannelDescription,
     updateChannelName,
@@ -134,6 +139,35 @@ test("can't create a channel if the actor doesn't have manage access", async () 
             },
         }),
     ).rejects.toThrow('Account actor must have "Manage" access level on channels they create');
+
+    await createChannel(session1.action(), {
+        spaceId: space.id,
+        name: "Test",
+        accessPolicy: {
+            accountGrantById: new Map([[session2.account.id, {level: "Manage", generation: 0}]]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        },
+    });
+});
+
+test("can't create a channel with URL grant", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2] = await space.createSessions(2);
+
+    await expect(
+        createChannel(session1.action(), {
+            spaceId: space.id,
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([
+                    [session2.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "Manage", generation: 1},
+                urlGrant: {level: "View"},
+            },
+        }),
+    ).rejects.toThrow("Channels don't currently support `urlGrant`s");
 
     await createChannel(session1.action(), {
         spaceId: space.id,
@@ -1074,6 +1108,26 @@ test("can't update channel access policy with invalid update", async () => {
     ).rejects.toThrow("Can't change default grant manage generation");
 });
 
+test("can't update channel access policy with `urlGrant``", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const channel = await TestChannel.create(session);
+
+    await expect(
+        updateChannelAccessPolicy(session.action(), {
+            channelId: channel.id,
+            accessPolicy: {
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: {level: "Manage", generation: 1},
+                urlGrant: {level: "View"},
+            },
+            notification: null,
+        }),
+    ).rejects.toThrow("Channels don't currently support `urlGrant`s");
+
+    expect((await channel.access.get()).urlGrant).toEqual(null);
+});
+
 test("can create a post", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -1527,6 +1581,7 @@ test("can get the first few posts in a channel", async () => {
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -1573,6 +1628,7 @@ test("can get the first few posts in a channel", async () => {
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -1596,6 +1652,7 @@ test("can get the first few posts in a channel", async () => {
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -1642,6 +1699,7 @@ test("can get the first few posts in a channel", async () => {
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -1665,6 +1723,7 @@ test("can get the first few posts in a channel", async () => {
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -1688,6 +1747,7 @@ test("can get the first few posts in a channel", async () => {
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session3.get(),
@@ -1751,6 +1811,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -1774,6 +1835,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -1797,6 +1859,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session3.get(),
@@ -1820,6 +1883,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -1843,6 +1907,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -1887,6 +1952,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session3.get(),
@@ -1910,6 +1976,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -1933,6 +2000,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -1977,6 +2045,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -2000,6 +2069,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session3.get(),
@@ -2023,6 +2093,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -2046,6 +2117,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -2090,6 +2162,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -2113,6 +2186,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -2136,6 +2210,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session3.get(),
@@ -2159,6 +2234,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -2182,6 +2258,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -2226,6 +2303,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -2249,6 +2327,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -2272,6 +2351,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session3.get(),
@@ -2316,6 +2396,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -2339,6 +2420,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session3.get(),
@@ -2383,6 +2465,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session1.get(),
@@ -2406,6 +2489,7 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                         createdTime: channel.createdTime,
                         name: channel.initialName,
                         spaceId: space.id,
+                        accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
                     author: await session2.get(),
@@ -3348,6 +3432,7 @@ test("can update a post's contents", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session.get(),
@@ -3372,6 +3457,7 @@ test("can update a post's contents", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session.get(),
@@ -3396,6 +3482,7 @@ test("can update a post's contents", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session.get(),
@@ -3425,6 +3512,7 @@ test("can't update another account's post", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session1.get(),
@@ -3451,6 +3539,7 @@ test("can't update another account's post", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session1.get(),
@@ -3481,6 +3570,7 @@ test("can't update another space's post", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session.get(),
@@ -3507,6 +3597,7 @@ test("can't update another space's post", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session.get(),
@@ -3535,6 +3626,7 @@ test("can't update a post with invalid content", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session.get(),
@@ -3567,6 +3659,7 @@ test("can't update a post with invalid content", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
         author: await session.get(),
@@ -3596,6 +3689,7 @@ test("can't update a post after losing channel access", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
         author: await session2.get(),
@@ -3620,6 +3714,7 @@ test("can't update a post after losing channel access", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
         author: await session2.get(),
@@ -3648,6 +3743,7 @@ test("can't update a post after losing channel access", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
         author: await session2.get(),
@@ -3676,6 +3772,7 @@ test("can't update a post after losing channel access", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
         author: await session2.get(),
@@ -3702,6 +3799,7 @@ test("can't update a post after losing channel access", async () => {
             createdTime: channel.createdTime,
             name: channel.initialName,
             spaceId: space.id,
+            accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
         author: await session2.get(),
@@ -5572,6 +5670,203 @@ test("will attach referenced files to post when creating from draft", async () =
             preview: expect.any(Object),
         }),
     );
+});
+
+test("can check if actor is subscribed to channel", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel = await TestChannel.create(session1);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
+    expect(await isSubscribedToChannel(session3.action(), channel.id)).toEqual(false);
+
+    // Session actors aren't allowed to get a list of channel subscribers.
+    await expect(
+        getChannelNotificationSubscribers(session1.action() as any, channel.id),
+    ).rejects.toThrow("Session actor is not a system actor");
+    await expect(
+        getChannelNotificationSubscribers(session2.action() as any, channel.id),
+    ).rejects.toThrow("Session actor is not a system actor");
+
+    await expect(
+        getChannelNotificationSubscribers(otherSpace.systemAction(), channel.id),
+    ).rejects.toThrow("System actor doesn't have access to channel's space");
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session1.account.id,
+    ]);
+
+    await channel.access.revokeDefault(session1);
+    await channel.access.grant(session1, session2);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session1.account.id,
+    ]);
+
+    await subscribeToChannel(session2.action(), channel.id);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual(
+        [session1.account.id, session2.account.id].sort(),
+    );
+
+    await subscribeToChannel(session2.action(), channel.id);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual(
+        [session1.account.id, session2.account.id].sort(),
+    );
+
+    await unsubscribeFromChannel(session2.action(), channel.id);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session1.account.id,
+    ]);
+
+    await unsubscribeFromChannel(session2.action(), channel.id);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session1.account.id,
+    ]);
+
+    await expect(subscribeToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    await expect(unsubscribeFromChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(true);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session1.account.id,
+    ]);
+
+    await unsubscribeFromChannel(session1.action(), channel.id);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(false);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([]);
+
+    await subscribeToChannel(session2.action(), channel.id);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session2.account.id,
+    ]);
+
+    await channel.access.revoke(session1, session2);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
+    await expect(isSubscribedToChannel(session2.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([]);
+
+    await expect(unsubscribeFromChannel(session2.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
+    await expect(isSubscribedToChannel(session2.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([]);
+
+    await channel.access.grant(session1, session2);
+
+    expect(await isSubscribedToChannel(session1.action(), channel.id)).toEqual(false);
+    expect(await isSubscribedToChannel(session2.action(), channel.id)).toEqual(true);
+    await expect(isSubscribedToChannel(session3.action(), channel.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+
+    expect(await getChannelNotificationSubscribers(space.systemAction(), channel.id)).toEqual([
+        session2.account.id,
+    ]);
+});
+
+test("can only send share notification as a member of channel", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3] = await space.createSessions(3);
+
+    const channel = await TestChannel.create(session1);
+
+    await channel.access.revokeDefault(session1);
+    await channel.access.grant(session1, session2);
+
+    await expect(
+        sendChannelShareNotification(session1.action(), channel.id, {
+            accountIds: [session2.account.id],
+            content: emptyMessageContent,
+        }),
+    ).resolves.toEqual(undefined);
+
+    await expect(
+        sendChannelShareNotification(session2.action(), channel.id, {
+            accountIds: [session1.account.id],
+            content: emptyMessageContent,
+        }),
+    ).resolves.toEqual(undefined);
+
+    await expect(
+        sendChannelShareNotification(session3.action(), channel.id, {
+            accountIds: [session1.account.id],
+            content: emptyMessageContent,
+        }),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
 });
 
 describe("Notification subscribers", () => {

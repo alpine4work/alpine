@@ -128,6 +128,7 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
@@ -1168,7 +1169,6 @@ export async function createChannel(
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
-    // NOCOMMIT: Test!
     if (accessPolicy.urlGrant) {
         throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
     }
@@ -2029,7 +2029,10 @@ export async function authorizeChannelAccess(
     return {spaceId: channelItem.spaceId, accessPolicy: channelItem.accessPolicy};
 }
 
-// NOCOMMIT: Document and test!
+/**
+ * Subscribes the session actor to the channel. When new posts are made in the
+ * channel they'll go into the session actor's inbox.
+ */
 export async function subscribeToChannel(
     context: ServerSessionActionContext,
     channelId: ChannelId,
@@ -2058,7 +2061,10 @@ export async function subscribeToChannel(
     );
 }
 
-// NOCOMMIT: Document and test!
+/**
+ * Unsubscribes the session actor from the channel. They'll no longer see new
+ * posts appear in their inbox.
+ */
 export async function unsubscribeFromChannel(
     context: ServerSessionActionContext,
     channelId: ChannelId,
@@ -2081,7 +2087,9 @@ export async function unsubscribeFromChannel(
     );
 }
 
-// NOCOMMIT: Document and test!
+/**
+ * Returns true if the actor is subscribed to the channel.
+ */
 export async function isSubscribedToChannel(
     context: ServerSessionActionContext,
     channelId: ChannelId,
@@ -2103,7 +2111,13 @@ export async function isSubscribedToChannel(
     return !!item;
 }
 
-// NOCOMMIT: Document and test!
+/**
+ * Get all subscribers to the channel.
+ *
+ * Tries to avoid returning accounts that don't have access to the channel
+ * anymore. But it's possible due to race conditions we'll return an account
+ * who's lost access to the channel.
+ */
 export async function getChannelNotificationSubscribers(
     context: ServerSystemActionContext,
     channelId: ChannelId,
@@ -2116,30 +2130,47 @@ export async function getChannelNotificationSubscribers(
     // "Caleb left the channel" message).
     context.actor.authorizeSystem();
 
-    await authorizeChannelAccess(context, channelId, "View");
-
-    const accountIds: Array<AccountId> = [];
-
-    for await (const item of ForumTable.query(context, {
+    const channelItem = await getChannelPreviewItemForAuthorization(context, channelId, {
         consistency,
-        limit: "All",
-        partitionKey: {partitionType: "Channel", channelId},
-        startSortKey: {
-            sortRangeType: "Subscription",
-            accountId: DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
-        },
-        endSortKey: {
-            sortRangeType: "Subscription",
-            accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
-        },
-    })) {
-        accountIds.push(item.accountId);
-    }
+    });
 
-    return accountIds;
+    await authorizeChannelItemAccess(context, channelItem, "View");
+
+    const accountIds = await parallelMapAsyncIterableToArray(
+        ForumTable.query(context, {
+            consistency,
+            limit: "All",
+            partitionKey: {partitionType: "Channel", channelId},
+            startSortKey: {
+                sortRangeType: "Subscription",
+                accountId: DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
+            },
+            endSortKey: {
+                sortRangeType: "Subscription",
+                accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+            },
+        }),
+        async item => {
+            const hasAccess = await evaluateAccessPolicy(
+                context,
+                channelItem.spaceId,
+                item.accountId,
+                channelItem.accessPolicy,
+                "View",
+            );
+
+            if (!hasAccess) return null;
+            return item.accountId;
+        },
+    );
+
+    return accountIds.filter(isNonNullable);
 }
 
-// NOCOMMIT: Test?
+/**
+ * Send a `ShareNotification` for the channel without updating the channel's
+ * `AccessPolicy`.
+ */
 export async function sendChannelShareNotification(
     context: ServerSessionActionContext,
     channelId: ChannelId,
@@ -2367,7 +2398,6 @@ export async function updateChannelAccessPolicy(
         eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<ChannelModel>>;
     }>;
 }> {
-    // NOCOMMIT: Test!
     if (accessPolicy.urlGrant) {
         throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
     }

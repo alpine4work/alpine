@@ -2650,9 +2650,11 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
     {spaceId: SpaceId; accountIds: ReadonlyArray<AccountId>}
 >({
     getSubscribers: async (context, event) => {
+        // NOCOMMIT: Reauthorize accounts?
         const {spaceId, accountIds} = await getChatAccountIds(context, event.chatId, {
             consistency: "Strong",
         });
+
         return {
             info: {spaceId, accountIds},
             accountIds,
@@ -2894,11 +2896,13 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
     {postCreatedTime: Date}
 >({
     getSubscribers: async (context, event) => {
+        // NOCOMMIT: Reauthorize accounts?
         const {accountIds, postCreatedTime} = await getPostNotificationSubscribers(
             context,
             event.postId,
             {consistency: "Strong"},
         );
+
         return {
             info: {postCreatedTime},
             accountIds,
@@ -3067,6 +3071,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
         const accountIds = await getChannelNotificationSubscribers(context, event.channelId, {
             consistency: "Strong",
         });
+
         return {
             info: {},
             accountIds,
@@ -3189,6 +3194,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
     {}
 >({
     getSubscribers: async (context, event) => {
+        // NOCOMMIT: Reauthorize accounts?
         const {accountIds} = await getDocumentCommentThreadNotificationSubscribers(context, {
             documentId: event.documentId,
             commentThreadId: event.commentThreadId,
@@ -3452,9 +3458,11 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
     {}
 >({
     getSubscribers: async (context, event) => {
+        // NOCOMMIT: Reauthorize accounts?
         const {accountIds} = await getTaskNotificationSubscribers(context, event.taskId, {
             consistency: "Strong",
         });
+
         return {
             info: {},
             accountIds,

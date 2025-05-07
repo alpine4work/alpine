@@ -2559,7 +2559,6 @@ export async function processSendShareNotificationJob(
                         type: "ShareNotification",
                         entityType: parseFileEntityId(entityId).type,
                     },
-                    // NOCOMMIT: Test that this job is actually idempotent!
                     clientRequestToken: [
                         jobId.slice(0, clientRequestTokenIdLength),
                         otherAccountId.slice(0, clientRequestTokenIdLength),
@@ -2570,7 +2569,6 @@ export async function processSendShareNotificationJob(
                 // account twice.
                 if (isDynamoIdempotentParameterMismatchError(error)) return;
 
-                // NOCOMMIT: Test that some other error still gets thrown?
                 throw error;
             }
         }),

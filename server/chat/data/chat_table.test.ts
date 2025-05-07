@@ -14,6 +14,7 @@ import {
     getOptimisticChatId,
     getOrCreateChatForAccounts,
     getSharedChatsForTest,
+    processSendShareNotificationJob,
     sendChatMessage,
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
@@ -26,11 +27,12 @@ import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     MessageContent,
     createSimpleMessageContent,
@@ -552,7 +554,20 @@ test("can reply to message by sending to account", async () => {
     });
 });
 
-test("can not send messages to accounts in a different space", async () => {
+test("can't send messages to an account that doesn't exist", async () => {
+    const scenario = await createScenario();
+
+    await expect(
+        sendChatMessageToAccounts(context.action(scenario.sessionA1), {
+            spaceId: scenario.spaceA.id,
+            otherAccountIds: [generateId()],
+            parentMessageIndex: null,
+            content: content1,
+        }),
+    ).rejects.toThrow(new NotFoundError("Can't find account in space"));
+});
+
+test("can't send messages to accounts in a different space", async () => {
     const scenario = await createScenario();
 
     await expect(
@@ -3442,9 +3457,7 @@ test("can not authorize which accounts are in the chat if session does not have 
             message.chatId,
             scenario.sessionX3.account.id,
         ),
-    ).rejects.toThrow(
-        new AggregateError([], "Account doesn't have access to chat (and 1 other error)"),
-    );
+    ).rejects.toThrow("Session actor account doesn't have access to chat");
 
     await expect(
         authorizeChatAccessForAccount(
@@ -3452,9 +3465,7 @@ test("can not authorize which accounts are in the chat if session does not have 
             message.chatId,
             scenario.sessionB1.account.id,
         ),
-    ).rejects.toThrow(
-        new AggregateError([], "Account doesn't have access to chat (and 1 other error)"),
-    );
+    ).rejects.toThrow("Session actor account doesn't have access to chat");
 });
 
 test("correctly authorizes which accounts are in the chat as system", async () => {
@@ -3943,6 +3954,429 @@ test("authorizing chat access after getting chat as system actor is cached", asy
 
         expect(getCount()).toEqual(1);
     }
+});
+
+test("will send share notification messages separately to each account", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3, session4] = await space.createSessions(4);
+
+    const chat1And2 = await TestChat.get(session1, session2);
+    const chat1And3 = await TestChat.get(session1, session3);
+    const chat2And3 = await TestChat.get(session2, session3);
+    const chat1And2And3 = await TestChat.get(session1, session2, session3);
+    const chat1And4 = await TestChat.get(session1, session4);
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    const entity1Id: FileEntityId = `Document:${generateId<DocumentId>()}`;
+
+    await processSendShareNotificationJob(space.systemAction(), {
+        jobId: generateId(),
+        spaceId: space.id,
+        actorAccountId: session1.account.id,
+        entityId: entity1Id,
+        notification: {
+            accountIds: [session2.account.id, session3.account.id],
+            content: createSimpleMessageContent("foobar"),
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entity1Id],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entity1Id],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    const entity2Id: FileEntityId = `Document:${generateId<DocumentId>()}`;
+
+    await processSendShareNotificationJob(space.systemAction(), {
+        jobId: generateId(),
+        spaceId: space.id,
+        actorAccountId: session1.account.id,
+        entityId: entity2Id,
+        notification: {
+            accountIds: [session2.account.id, session4.account.id],
+            content: createSimpleMessageContent("quxbaz"),
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entity1Id],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entity1Id],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("quxbaz"),
+            contentUpdatedTime: null,
+            fileIds: [entity2Id],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("quxbaz"),
+            contentUpdatedTime: null,
+            fileIds: [entity2Id],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+});
+
+test("processing send share notification message job is idempotent", async () => {
+    const space = await TestSpace.create(context);
+    const [session1, session2, session3, session4] = await space.createSessions(4);
+
+    const chat1And2 = await TestChat.get(session1, session2);
+    const chat1And3 = await TestChat.get(session1, session3);
+    const chat2And3 = await TestChat.get(session2, session3);
+    const chat1And2And3 = await TestChat.get(session1, session2, session3);
+    const chat1And4 = await TestChat.get(session1, session4);
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    const jobId = generateId();
+    const entityId: FileEntityId = `Document:${generateId<DocumentId>()}`;
+
+    await processSendShareNotificationJob(space.systemAction(), {
+        jobId,
+        spaceId: space.id,
+        actorAccountId: session1.account.id,
+        entityId: entityId,
+        notification: {
+            accountIds: [session2.account.id, session3.account.id],
+            content: createSimpleMessageContent("foobar"),
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entityId],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entityId],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await processSendShareNotificationJob(space.systemAction(), {
+        jobId,
+        spaceId: space.id,
+        actorAccountId: session1.account.id,
+        entityId: entityId,
+        notification: {
+            accountIds: [session2.account.id, session3.account.id],
+            content: createSimpleMessageContent("foobar"),
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entityId],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
+    ).resolves.toEqual({
+        authorId: session1.account.id,
+        createdTime: expect.any(Date),
+        payload: {
+            type: "Content",
+            parentMessageIndex: null,
+            content: createSimpleMessageContent("foobar"),
+            contentUpdatedTime: null,
+            fileIds: [entityId],
+            clerical: {type: "ShareNotification", entityType: "Document"},
+        },
+    });
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+
+    await expect(
+        getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
+    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
 });
 
 testMessagingImplementation<ChatId>(context, {

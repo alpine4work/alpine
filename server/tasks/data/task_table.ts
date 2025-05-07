@@ -1275,7 +1275,6 @@ export function commitTaskActionTransaction(
             id: TaskActionTransactionLeaseId;
             actions: ReadonlyArray<TaskUpdateTaskAction>;
         };
-        // NOCOMMIT: Test!
         updateAccessPolicyShareNotification?: ShareNotification;
     } = {},
 ): Promise<{
@@ -6405,10 +6404,10 @@ export async function getTaskCollectionSearchResult(
  * collection doesn't exist or the account doesn't have access. If the task
  * collection exists but is deleted we return null.
  */
-export async function getTaskCollectionSearchResultIfExists(
+export async function getTaskCollectionSearchResultIfPossible(
     context: ServerSessionActionContext,
     collectionId: TaskCollectionId,
-): Promise<TaskCollectionModelSearchResult | null> {
+): Promise<Result<TaskCollectionModelSearchResult, ErrorBase> | null> {
     const collectionItem = await TaskTable.getItem(context, {
         partitionType: "TaskCollection",
         sortRangeType: "EssentialAttributes",
@@ -6428,7 +6427,7 @@ export async function getTaskCollectionSearchResultIfExists(
         collectionItem,
         expectedAccessLevel,
     );
-    if (!result.ok) return null;
+    if (!result.ok) return result;
 
-    return createTaskCollectionModelSearchResultFromItem(collectionItem);
+    return {ok: true, value: createTaskCollectionModelSearchResultFromItem(collectionItem)};
 }
