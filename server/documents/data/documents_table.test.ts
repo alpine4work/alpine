@@ -14,6 +14,7 @@ import {
     DocumentContentCacheForUpdate,
     FileDocumentAuthorizer,
     authorizeDocumentAccess,
+    authorizeDocumentAccessIfPossible,
     batchGetDocumentCommentThreadReferencesIfExists,
     confirmDocumentResolvedCommentThreadIdsWithStrongReadConsistency,
     createDocument,
@@ -3678,7 +3679,7 @@ test("authorizing document access as session actor is cached", async () => {
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -3695,7 +3696,7 @@ test("authorizing document access as session actor is cached", async () => {
         await runAllPromises([
             authorizeDocumentAccess(actionContext, document.id, "Manage"),
             authorizeDocumentAccess(actionContext, document.id, "Manage"),
-            authorizeDocumentAccess(actionContext, document.id, "Manage"),
+            authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
         ]);
 
         expect(getCount()).toEqual(2);
@@ -3741,7 +3742,7 @@ test("authorizing document access as system actor is cached", async () => {
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -3758,7 +3759,7 @@ test("authorizing document access as system actor is cached", async () => {
         await runAllPromises([
             authorizeDocumentAccess(actionContext, document.id, "Manage"),
             authorizeDocumentAccess(actionContext, document.id, "Manage"),
-            authorizeDocumentAccess(actionContext, document.id, "Manage"),
+            authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
         ]);
 
         expect(getCount()).toEqual(1);
@@ -3814,7 +3815,7 @@ test("authorizing document access after getting document as session actor is cac
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -3844,7 +3845,7 @@ test("authorizing document access after getting document as session actor is cac
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -3874,7 +3875,7 @@ test("authorizing document access after getting document as session actor is cac
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -3908,7 +3909,7 @@ test("authorizing document access after getting document as session actor is cac
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -3944,7 +3945,7 @@ test("authorizing document access after getting document as session actor is cac
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -3980,7 +3981,7 @@ test("authorizing document access after getting document as session actor is cac
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4010,7 +4011,7 @@ test("authorizing document access after getting document as session actor is cac
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4061,7 +4062,7 @@ test("authorizing document access after getting document as system actor is cach
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4091,7 +4092,7 @@ test("authorizing document access after getting document as system actor is cach
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4121,7 +4122,7 @@ test("authorizing document access after getting document as system actor is cach
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4155,7 +4156,7 @@ test("authorizing document access after getting document as system actor is cach
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4191,7 +4192,7 @@ test("authorizing document access after getting document as system actor is cach
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4227,7 +4228,7 @@ test("authorizing document access after getting document as system actor is cach
             await runAllPromises([
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
                 authorizeDocumentAccess(actionContext, document.id, "Manage"),
-                authorizeDocumentAccess(actionContext, document.id, "Manage"),
+                authorizeDocumentAccessIfPossible(actionContext, document.id, "Manage"),
             ]);
         }
 
@@ -4398,8 +4399,22 @@ test("authorization fails if session has no access to document", async () => {
 
     const document = await TestDocument.create(session1);
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4424,8 +4439,22 @@ test("authorization succeeds if session has access to document", async () => {
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4453,8 +4482,22 @@ test("authorization succeeds at view level when session has view access to docum
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4487,8 +4530,22 @@ test("authorization succeeds at comment level and below when session has comment
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4521,8 +4578,22 @@ test("authorization succeeds at edit level and below when session has edit acces
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4555,8 +4626,22 @@ test("authorization succeeds at manage level and below when session has manage a
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4586,8 +4671,22 @@ test("authorization succeeds at view level when default grant has view access to
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4617,8 +4716,22 @@ test("authorization succeeds at comment level and below when default grant has v
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4648,8 +4761,22 @@ test("authorization succeeds at edit level and below when default grant has view
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4679,8 +4806,22 @@ test("authorization succeeds at manage level and below when default grant has vi
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4712,8 +4853,22 @@ test("authorization fails for session in another space", async () => {
         },
     });
 
-    const authorize = (session: TestSpaceSession, expectedAccessLevel: AccessLevel) =>
-        authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+    const authorize = async (session: TestSpaceSession, expectedAccessLevel: AccessLevel) => {
+        const result = await authorizeDocumentAccessIfPossible(
+            session.action(),
+            document.id,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeDocumentAccess(session.action(), document.id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -4739,11 +4894,11 @@ test("authorization succeeds for session actor in the same space", async () => {
 
     const document = await TestDocument.create(session1);
 
-    const authorize = (
+    const authorize = async (
         session: TestSpaceSession | TestSpace | "Anonymous",
         expectedAccessLevel: AccessLevel,
-    ) =>
-        authorizeDocumentAccess(
+    ) => {
+        const result = await authorizeDocumentAccessIfPossible(
             session === "Anonymous"
                 ? context.anonymousAction()
                 : session instanceof TestSpace
@@ -4752,6 +4907,24 @@ test("authorization succeeds for session actor in the same space", async () => {
             document.id,
             expectedAccessLevel,
         );
+
+        try {
+            await authorizeDocumentAccess(
+                session === "Anonymous"
+                    ? context.anonymousAction()
+                    : session instanceof TestSpace
+                    ? session.systemAction()
+                    : session.action(),
+                document.id,
+                expectedAccessLevel,
+            );
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
 
     await authorize(session1, "View");
     await authorize(session1, "Comment");
@@ -7485,7 +7658,14 @@ test("can get a document with references as actors that don't have access to the
                         ],
                     ]),
                     fileById: new Map([
-                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                        [
+                            file.id,
+                            {
+                                type: "File",
+                                signedUrlSearch: expect.any(String),
+                                file: await file.get(),
+                            },
+                        ],
                     ]),
                     commentThreadById: new Map([
                         [
@@ -7593,7 +7773,14 @@ test("can get a document with references as actors that don't have access to the
                         ],
                     ]),
                     fileById: new Map([
-                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                        [
+                            file.id,
+                            {
+                                type: "File",
+                                signedUrlSearch: expect.any(String),
+                                file: await file.get(),
+                            },
+                        ],
                     ]),
                     commentThreadById: new Map([
                         [
@@ -7679,7 +7866,14 @@ test("can get a document with references as actors that don't have access to the
                         ],
                     ]),
                     fileById: new Map([
-                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                        [
+                            file.id,
+                            {
+                                type: "File",
+                                signedUrlSearch: expect.any(String),
+                                file: await file.get(),
+                            },
+                        ],
                     ]),
                     commentThreadById: new Map([]),
                 },
@@ -7757,7 +7951,14 @@ test("can get a document with references as actors that don't have access to the
                         ],
                     ]),
                     fileById: new Map([
-                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                        [
+                            file.id,
+                            {
+                                type: "File",
+                                signedUrlSearch: expect.any(String),
+                                file: await file.get(),
+                            },
+                        ],
                     ]),
                     commentThreadById: new Map([]),
                 },
@@ -7835,7 +8036,14 @@ test("can get a document with references as actors that don't have access to the
                         ],
                     ]),
                     fileById: new Map([
-                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                        [
+                            file.id,
+                            {
+                                type: "File",
+                                signedUrlSearch: expect.any(String),
+                                file: await file.get(),
+                            },
+                        ],
                     ]),
                     commentThreadById: new Map([]),
                 },
@@ -7913,7 +8121,14 @@ test("can get a document with references as actors that don't have access to the
                         ],
                     ]),
                     fileById: new Map([
-                        [file.id, {signedUrlSearch: expect.any(String), file: await file.get()}],
+                        [
+                            file.id,
+                            {
+                                type: "File",
+                                signedUrlSearch: expect.any(String),
+                                file: await file.get(),
+                            },
+                        ],
                     ]),
                     commentThreadById: new Map([]),
                 },
@@ -8410,7 +8625,9 @@ test("can get and update document content preview", async () => {
 
     await document.type(session, "Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
 
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(null);
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual(null);
 
     // Can update the content preview:
     {
@@ -8428,9 +8645,9 @@ test("can get and update document content preview", async () => {
             ]),
         );
 
-        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(
-            null,
-        );
+        expect(
+            (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+        ).toEqual(null);
 
         await expect(updateContentPreview(otherSession.action())).rejects.toThrow(
             PermissionDeniedError,
@@ -8439,16 +8656,18 @@ test("can get and update document content preview", async () => {
             PermissionDeniedError,
         );
 
-        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(
-            null,
-        );
+        expect(
+            (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+        ).toEqual(null);
 
         await updateContentPreview(session.action());
     }
 
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 1,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
                 schema.node("paragraph", null, [
@@ -8468,9 +8687,11 @@ test("can get and update document content preview", async () => {
 
     const commentThread = await document.createCommentThread(session, range, "Test comment");
 
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 1,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
                 schema.node("paragraph", null, [
@@ -8503,9 +8724,11 @@ test("can get and update document content preview", async () => {
             ]),
         );
 
-        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        expect(
+            (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+        ).toEqual({
             version: 1,
-            contentPreview: {
+            content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
                     schema.node("paragraph", null, [
@@ -8519,9 +8742,11 @@ test("can get and update document content preview", async () => {
         await updateContentPreview(session.action());
     }
 
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 5,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
                 schema.node("paragraph", null, [
@@ -8559,9 +8784,11 @@ test("can get and update document content preview", async () => {
             ]),
         );
 
-        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        expect(
+            (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+        ).toEqual({
             version: 5,
-            contentPreview: {
+            content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
                     schema.node("paragraph", null, [
@@ -8577,9 +8804,11 @@ test("can get and update document content preview", async () => {
         await updateContentPreview(session.action());
     }
 
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 6,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
                 schema.node("paragraph", null, [
@@ -8619,9 +8848,11 @@ test("can get and update document content preview", async () => {
             ]),
         );
 
-        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        expect(
+            (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+        ).toEqual({
             version: 6,
-            contentPreview: {
+            content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
                     schema.node("paragraph", null, [
@@ -8638,9 +8869,11 @@ test("can get and update document content preview", async () => {
         await updateContentPreview(session.action());
     }
 
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 6,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
                 schema.node("paragraph", null, [
@@ -8680,9 +8913,11 @@ test("can get and update document content preview", async () => {
             ]),
         );
 
-        expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+        expect(
+            (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+        ).toEqual({
             version: 6,
-            contentPreview: {
+            content: {
                 doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                     schema.node("title", null, [schema.text("Hello, world!")]),
                     schema.node("paragraph", null, [
@@ -8699,9 +8934,11 @@ test("can get and update document content preview", async () => {
         await updateContentPreview(session.action());
     }
 
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 8,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hello, world!")]),
                 schema.node("paragraph", null, [

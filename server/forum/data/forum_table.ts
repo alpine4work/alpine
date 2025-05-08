@@ -2060,6 +2060,34 @@ export async function authorizeChannelAccess(
 }
 
 /**
+ * Authorize that the current user has access to a channel. Implicitly also
+ * authorizes that the current user has access to the space the channel is in.
+ *
+ * Returns a result instead of throwing an error if the user doesn't have
+ * access.
+ */
+export async function authorizeChannelAccessIfPossible(
+    context: ServerActionContext,
+    channelId: ChannelId,
+    expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<{spaceId: SpaceId; accessPolicy: AccessPolicy}, ErrorBase>> {
+    const channelItem = await getChannelPreviewItemForAuthorization(context, channelId, options);
+
+    const result = await authorizeChannelItemAccessIfPossible(
+        context,
+        channelItem,
+        expectedAccessLevel,
+    );
+    if (!result.ok) return result;
+
+    return {
+        ok: true,
+        value: {spaceId: channelItem.spaceId, accessPolicy: channelItem.accessPolicy},
+    };
+}
+
+/**
  * Subscribes the session actor to the channel. When new posts are made in the
  * channel they'll go into the session actor's inbox.
  */
@@ -3436,14 +3464,35 @@ export async function authorizePostAccess(
     expectedAccessLevel: "View" | "Edit",
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{spaceId: SpaceId; channelId: ChannelId; channelAccessPolicy: AccessPolicy}> {
+    return unwrapResult(
+        await authorizePostAccessIfPossible(context, id, expectedAccessLevel, options),
+    );
+}
+
+/**
+ * Authorizes that the session user can access the provided post.
+ * Implicitly also authorizes that the session user can access the channel the
+ * post is in and the space the channel is in.
+ *
+ * Returns a result if there's an authorization failure instead of throwing.
+ */
+export async function authorizePostAccessIfPossible(
+    context: ServerActionContext,
+    id: PostId,
+    expectedAccessLevel: "View" | "Edit",
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<
+    Result<{spaceId: SpaceId; channelId: ChannelId; channelAccessPolicy: AccessPolicy}, ErrorBase>
+> {
     const postItem = await getPostItemForAuthorization(context, id, options);
 
-    const {accessPolicy: channelAccessPolicy} = await authorizeChannelAccess(
+    const result = await authorizeChannelAccessIfPossible(
         context,
         postItem.channelId,
         expectedAccessLevel,
         options,
     );
+    if (!result.ok) return result;
 
     switch (expectedAccessLevel) {
         case "View": {
@@ -3458,12 +3507,17 @@ export async function authorizePostAccess(
                 }
                 case "Session": {
                     if (postItem.authorId !== context.actor.getAccountId()) {
-                        throw new PermissionDeniedError("Account doesn't have edit access to post");
+                        return {
+                            ok: false,
+                            error: new PermissionDeniedError(
+                                "Account doesn't have edit access to post",
+                            ),
+                        };
                     }
                     break;
                 }
                 case "Anonymous": {
-                    throw unauthenticatedSessionError();
+                    return {ok: false, error: unauthenticatedSessionError()};
                 }
                 default:
                     throw exhaustive(context.actor);
@@ -3474,7 +3528,14 @@ export async function authorizePostAccess(
             throw exhaustive(expectedAccessLevel);
     }
 
-    return {spaceId: postItem.spaceId, channelId: postItem.channelId, channelAccessPolicy};
+    return {
+        ok: true,
+        value: {
+            spaceId: postItem.spaceId,
+            channelId: postItem.channelId,
+            channelAccessPolicy: result.value.accessPolicy,
+        },
+    };
 }
 
 /**

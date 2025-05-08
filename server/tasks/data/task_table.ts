@@ -4018,6 +4018,45 @@ export async function authorizeTaskAccess(
 }
 
 /**
+ * Tests if the context's actor is allowed to access the provided task with the
+ * provided access level. Returns an error result if access is unauthorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
+export async function authorizeTaskAccessIfPossible(
+    context: ServerActionContext,
+    taskId: TaskId,
+    expectedAccessLevel: AccessLevel,
+    loaders: {
+        getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined;
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null = null,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<{spaceId: SpaceId; createdTime: HybridLogicalTime}, ErrorBase>> {
+    const taskItem = await getTaskItemForAuthorization(context, taskId, loaders, options);
+
+    const result = await authorizeTaskItemAccessIfPossibleForActor(
+        context,
+        context.actor,
+        taskItem,
+        expectedAccessLevel,
+        {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, loaders, options),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, loaders, options),
+        },
+    );
+    if (!result.ok) return result;
+
+    return {ok: true, value: {spaceId: taskItem.spaceId, createdTime: taskItem.createdTime}};
+}
+
+/**
  * Tests if the context's actor is allowed to access the provided task item
  * with the provided access level. Throws an error if access is unauthorized.
  *

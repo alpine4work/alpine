@@ -2,6 +2,7 @@ import {
     FileChatAuthorizer,
     authorizeChatAccess,
     authorizeChatAccessForAccount,
+    authorizeChatAccessIfPossible,
     backfillChatMessages,
     createChatForTest,
     deleteChatMessage,
@@ -3586,7 +3587,7 @@ test("can not authorize which accounts are in the chat if system context does no
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("only authorizes chat access for accounts in a chat", async () => {
+testd("only authorizes chat access for accounts in a chat", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
@@ -3609,6 +3610,22 @@ test("only authorizes chat access for accounts in a chat", async () => {
 
     await expect(authorizeChatAccess(context.anonymousAction(), chat.id)).rejects.toThrow(
         UnauthenticatedError,
+    );
+
+    expect((await authorizeChatAccessIfPossible(session1.action(), chat.id)).ok).toBe(true);
+
+    expect((await authorizeChatAccessIfPossible(session2.action(), chat.id)).ok).toBe(true);
+
+    expect((await authorizeChatAccessIfPossible(session3.action(), chat.id)).ok).toBe(false);
+
+    expect((await authorizeChatAccessIfPossible(space.systemAction(), chat.id)).ok).toBe(true);
+
+    expect((await authorizeChatAccessIfPossible(otherSpace.systemAction(), chat.id)).ok).toBe(
+        false,
+    );
+
+    expect((await authorizeChatAccessIfPossible(context.anonymousAction(), chat.id)).ok).toBe(
+        false,
     );
 
     await authorizeChatAccessForAccount(session1.action(), chat.id, session1.account.id);
@@ -3659,7 +3676,7 @@ test("authorizing chat access as session actor is cached", async () => {
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 
@@ -3676,7 +3693,7 @@ test("authorizing chat access as session actor is cached", async () => {
         await runAllPromises([
             authorizeChatAccess(actionContext, chatId),
             authorizeChatAccess(actionContext, chatId),
-            authorizeChatAccess(actionContext, chatId),
+            authorizeChatAccessIfPossible(actionContext, chatId),
         ]);
 
         expect(getCount()).toEqual(2);
@@ -3716,7 +3733,7 @@ test("authorizing chat access as system actor is cached", async () => {
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 
@@ -3733,7 +3750,7 @@ test("authorizing chat access as system actor is cached", async () => {
         await runAllPromises([
             authorizeChatAccess(actionContext, chatId),
             authorizeChatAccess(actionContext, chatId),
-            authorizeChatAccess(actionContext, chatId),
+            authorizeChatAccessIfPossible(actionContext, chatId),
         ]);
 
         expect(getCount()).toEqual(1);
@@ -3777,7 +3794,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 
@@ -3807,7 +3824,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 
@@ -3842,7 +3859,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 
@@ -3877,7 +3894,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 
@@ -3918,7 +3935,7 @@ test("authorizing chat access after getting chat as system actor is cached", asy
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 
@@ -3948,7 +3965,7 @@ test("authorizing chat access after getting chat as system actor is cached", asy
             await runAllPromises([
                 authorizeChatAccess(actionContext, chatId),
                 authorizeChatAccess(actionContext, chatId),
-                authorizeChatAccess(actionContext, chatId),
+                authorizeChatAccessIfPossible(actionContext, chatId),
             ]);
         }
 

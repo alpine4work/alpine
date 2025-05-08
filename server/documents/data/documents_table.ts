@@ -1053,6 +1053,38 @@ export async function authorizeDocumentAccess(
     };
 }
 
+/**
+ * Authorizes that the current request can access the document.
+ *
+ * Returns a result instead of throwing an error if authorization fails.
+ */
+export async function authorizeDocumentAccessIfPossible(
+    context: ServerActionContext,
+    documentId: DocumentId,
+    expectedAccessLevel: AccessLevel,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<
+    Result<{spaceId: SpaceId; creatorId: AccountId | null; accessPolicy: AccessPolicy}, ErrorBase>
+> {
+    const documentItem = await getDocumentItemForAuthorization(context, documentId, options);
+
+    const result = await authorizeDocumentItemAccessIfPossible(
+        context,
+        documentItem,
+        expectedAccessLevel,
+    );
+    if (!result.ok) return result;
+
+    return {
+        ok: true,
+        value: {
+            spaceId: documentItem.spaceId,
+            creatorId: documentItem.creatorId,
+            accessPolicy: documentItem.accessPolicy,
+        },
+    };
+}
+
 async function authorizeDocumentItemAccess(
     context: ServerActionContext,
     documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},

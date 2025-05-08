@@ -10,7 +10,9 @@ import {
     FilePostAuthorizer,
     addAccountGrantsToChannelAccessPolicy,
     authorizeChannelAccess,
+    authorizeChannelAccessIfPossible,
     authorizePostAccess,
+    authorizePostAccessIfPossible,
     authorizePostDraftAccess,
     backfillChannelAndMetadata,
     backfillChannelPosts,
@@ -243,6 +245,9 @@ test("can't get a channel that does not exist", async () => {
     await expect(authorizeChannelAccess(session.action(), badChannelId, "View")).rejects.toThrow(
         NotFoundError,
     );
+    await expect(
+        authorizeChannelAccessIfPossible(session.action(), badChannelId, "View"),
+    ).rejects.toThrow(NotFoundError);
 });
 
 test("can't get a channel for a different space", async () => {
@@ -285,6 +290,9 @@ test("can't get a channel for a different space", async () => {
     await expect(authorizeChannelAccess(otherSession.action(), channel.id, "View")).rejects.toThrow(
         PermissionDeniedError,
     );
+    expect(
+        (await authorizeChannelAccessIfPossible(otherSession.action(), channel.id, "View")).ok,
+    ).toBe(false);
 });
 
 test("can't get a private channel", async () => {
@@ -323,6 +331,9 @@ test("can't get a private channel", async () => {
     await expect(
         authorizeChannelAccess(session3.action(), channel.id, "View"),
     ).resolves.toBeTruthy();
+    expect((await authorizeChannelAccessIfPossible(session3.action(), channel.id, "View")).ok).toBe(
+        true,
+    );
 
     await channel.access.revokeDefault(session1);
     await channel.access.grant(session1, session2);
@@ -356,6 +367,9 @@ test("can't get a private channel", async () => {
     await expect(
         authorizeChannelAccess(session1.action(), channel.id, "View"),
     ).resolves.toBeTruthy();
+    expect((await authorizeChannelAccessIfPossible(session1.action(), channel.id, "View")).ok).toBe(
+        true,
+    );
 
     await expect(getChannel(session2.action(), channel.id)).resolves.toBeTruthy();
     await expect(getChannelIfPossible(session2.action(), channel.id)).resolves.toEqual(
@@ -386,6 +400,9 @@ test("can't get a private channel", async () => {
     await expect(
         authorizeChannelAccess(session2.action(), channel.id, "View"),
     ).resolves.toBeTruthy();
+    expect((await authorizeChannelAccessIfPossible(session2.action(), channel.id, "View")).ok).toBe(
+        true,
+    );
 
     await expect(getChannel(session3.action(), channel.id)).rejects.toThrow(
         'Actor doesn\'t have "View" access level to channel',
@@ -422,6 +439,9 @@ test("can't get a private channel", async () => {
     ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
     await expect(authorizeChannelAccess(session3.action(), channel.id, "View")).rejects.toThrow(
         'Actor doesn\'t have "View" access level to channel',
+    );
+    expect((await authorizeChannelAccessIfPossible(session3.action(), channel.id, "View")).ok).toBe(
+        false,
     );
 });
 
@@ -464,6 +484,9 @@ test("can get a channel", async () => {
     await expect(
         authorizeChannelAccess(session.action(), channel.id, "View"),
     ).resolves.toBeTruthy();
+    expect((await authorizeChannelAccessIfPossible(session.action(), channel.id, "View")).ok).toBe(
+        true,
+    );
 });
 
 test("can update a channel's name", async () => {
@@ -1135,7 +1158,7 @@ test("can't update channel access policy (with add account grants function) with
             [session2.account.id, {level: "Manage", generation: 2}],
             [session3.account.id, {level: "Manage", generation: 2}],
         ]),
-        defaultGrant: null,
+        defaultGrant: {level: "Manage", generation: 1},
         urlGrant: null,
     });
 });
@@ -4366,13 +4389,20 @@ test("can authorize post access at different levels", async () => {
         id: PostId,
         expectedAccessLevel: "View" | "Edit",
     ) => {
+        const result = await authorizePostAccessIfPossible(context, id, expectedAccessLevel);
+
         try {
             await authorizePostAccess(context, id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
             return null;
         } catch (error) {
             if (error instanceof PermissionDeniedError) {
+                expect(result.ok).toEqual(false);
+                expect(result.error).toBeInstanceOf(PermissionDeniedError);
                 return "PermissionDenied";
             } else if (error instanceof UnauthenticatedError) {
+                expect(result.ok).toEqual(false);
+                expect(result.error).toBeInstanceOf(UnauthenticatedError);
                 return "Unauthenticated";
             } else {
                 throw error;
@@ -4544,13 +4574,20 @@ test("can authorize channel access at different levels", async () => {
         id: ChannelId,
         expectedAccessLevel: AccessLevel,
     ) => {
+        const result = await authorizeChannelAccessIfPossible(context, id, expectedAccessLevel);
+
         try {
             await authorizeChannelAccess(context, id, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
             return null;
         } catch (error) {
             if (error instanceof PermissionDeniedError) {
+                expect(result.ok).toEqual(false);
+                expect(result.error).toBeInstanceOf(PermissionDeniedError);
                 return "PermissionDenied";
             } else if (error instanceof UnauthenticatedError) {
+                expect(result.ok).toEqual(false);
+                expect(result.error).toBeInstanceOf(UnauthenticatedError);
                 return "Unauthenticated";
             } else {
                 throw error;
@@ -4638,7 +4675,7 @@ test("authorizing channel access as session actor is cached", async () => {
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4655,7 +4692,7 @@ test("authorizing channel access as session actor is cached", async () => {
         await runAllPromises([
             authorizeChannelAccess(actionContext, channel.id, "View"),
             authorizeChannelAccess(actionContext, channel.id, "View"),
-            authorizeChannelAccess(actionContext, channel.id, "View"),
+            authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
         ]);
 
         expect(getCount()).toEqual(2);
@@ -4693,7 +4730,7 @@ test("authorizing channel access as system actor is cached", async () => {
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4710,7 +4747,7 @@ test("authorizing channel access as system actor is cached", async () => {
         await runAllPromises([
             authorizeChannelAccess(actionContext, channel.id, "View"),
             authorizeChannelAccess(actionContext, channel.id, "View"),
-            authorizeChannelAccess(actionContext, channel.id, "View"),
+            authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
         ]);
 
         expect(getCount()).toEqual(1);
@@ -4752,7 +4789,7 @@ test("authorizing channel access after getting channel as session actor is cache
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4782,7 +4819,7 @@ test("authorizing channel access after getting channel as session actor is cache
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4812,7 +4849,7 @@ test("authorizing channel access after getting channel as session actor is cache
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4843,7 +4880,7 @@ test("authorizing channel access after getting channel as session actor is cache
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4873,7 +4910,7 @@ test("authorizing channel access after getting channel as session actor is cache
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4912,7 +4949,7 @@ test("authorizing channel access after getting channel as system actor is cached
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4942,7 +4979,7 @@ test("authorizing channel access after getting channel as system actor is cached
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -4972,7 +5009,7 @@ test("authorizing channel access after getting channel as system actor is cached
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -5001,7 +5038,7 @@ test("authorizing channel access after getting channel as system actor is cached
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
@@ -5031,11 +5068,50 @@ test("authorizing channel access after getting channel as system actor is cached
             await runAllPromises([
                 authorizeChannelAccess(actionContext, channel.id, "View"),
                 authorizeChannelAccess(actionContext, channel.id, "View"),
-                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
             ]);
         }
 
         expect(getCount()).toEqual(2);
+    }
+});
+
+test("authorizing channel access after getting channel notification subscribers is cached", async () => {
+    const space = await TestSpace.create(context);
+    const [session1] = await space.createSessions(1);
+
+    const channel = await TestChannel.create(session1);
+    await ProcessContextModule.waitForTestTasks();
+
+    const {getCount} = dynamoClientExecuteActionTestCounter.recordAllForTest();
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getChannelNotificationSubscribers(actionContext, channel.id);
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        await authorizeChannelAccess(actionContext, channel.id, "View");
+
+        expect(getCount()).toEqual(3);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccess(actionContext, channel.id, "View"),
+                authorizeChannelAccessIfPossible(actionContext, channel.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(3);
     }
 });
 
@@ -5068,7 +5144,7 @@ test("authorizing post access as session actor is cached", async () => {
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5094,7 +5170,7 @@ test("authorizing post access as session actor is cached", async () => {
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "Edit"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5111,7 +5187,7 @@ test("authorizing post access as session actor is cached", async () => {
         await runAllPromises([
             authorizePostAccess(actionContext, post.id, "View"),
             authorizePostAccess(actionContext, post.id, "View"),
-            authorizePostAccess(actionContext, post.id, "View"),
+            authorizePostAccessIfPossible(actionContext, post.id, "View"),
         ]);
 
         expect(getCount()).toEqual(3);
@@ -5150,7 +5226,7 @@ test("authorizing post access as system actor is cached", async () => {
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5167,7 +5243,7 @@ test("authorizing post access as system actor is cached", async () => {
         await runAllPromises([
             authorizePostAccess(actionContext, post.id, "View"),
             authorizePostAccess(actionContext, post.id, "View"),
-            authorizePostAccess(actionContext, post.id, "View"),
+            authorizePostAccessIfPossible(actionContext, post.id, "View"),
         ]);
 
         expect(getCount()).toEqual(2);
@@ -5219,7 +5295,7 @@ test("authorizing post access after getting post as session actor is cached", as
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5249,7 +5325,7 @@ test("authorizing post access after getting post as session actor is cached", as
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5284,7 +5360,7 @@ test("authorizing post access after getting post as session actor is cached", as
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5319,7 +5395,7 @@ test("authorizing post access after getting post as session actor is cached", as
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5368,7 +5444,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5398,7 +5474,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5428,7 +5504,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5463,7 +5539,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 
@@ -5498,7 +5574,7 @@ test("authorizing post access after getting post as system actor is cached", asy
             await runAllPromises([
                 authorizePostAccess(actionContext, post.id, "View"),
                 authorizePostAccess(actionContext, post.id, "View"),
-                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
             ]);
         }
 

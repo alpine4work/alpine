@@ -32,6 +32,7 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {
     authorizeOwnAccountAccess,
     authorizeSpaceAccess,
+    authorizeSpaceAccessIfPossible,
     getAccount,
     isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
@@ -39,6 +40,7 @@ import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {
     DataLossError,
+    ErrorBase,
     FailedPreconditionError,
     InternalError,
     NotFoundError,
@@ -51,8 +53,10 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
@@ -1176,30 +1180,57 @@ export async function authorizeChatAccess(
     return {spaceId};
 }
 
+/**
+ * Authorize that the current account is allowed to access the chat. Returns a
+ * result if authorization fails instead of throwing.
+ *
+ * Cached at the action level so multiple requests with the same `ChatId` in
+ * the same action will only load data from the database once.
+ */
+export async function authorizeChatAccessIfPossible(
+    context: ServerActionContext,
+    chatId: ChatId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<{spaceId: SpaceId}, ErrorBase>> {
+    const result = await authorizeChatAccessAndReturnItemIfPossible(context, chatId, options);
+    if (!result.ok) return result;
+    return {ok: true, value: {spaceId: result.value.spaceId}};
+}
+
 async function authorizeChatAccessAndReturnItem(
     context: ServerActionContext,
     chatId: ChatId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<ChatAttributesItem> {
+    return unwrapResult(await authorizeChatAccessAndReturnItemIfPossible(context, chatId, options));
+}
+
+async function authorizeChatAccessAndReturnItemIfPossible(
+    context: ServerActionContext,
+    chatId: ChatId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<ChatAttributesItem, ErrorBase>> {
     switch (context.actor.type) {
         case "Session": {
-            const {chatItem} = await authorizeChatAccessForAccountAndReturnItems(
+            const chatItemResult = await authorizeChatAccessForAccountAndReturnItemsIfPossible(
                 context,
                 chatId,
                 context.actor.getAccountId(),
             );
-            return chatItem;
+            if (!chatItemResult.ok) return chatItemResult;
+            return {ok: true, value: chatItemResult.value.chatItem};
         }
 
         // If we have access to the space, we have access to the chat...
         case "System": {
             const chatItem = await getChatItemForAuthorization(context, chatId, options);
-            await authorizeSpaceAccess(context, chatItem.spaceId);
-            return chatItem;
+            const result = await authorizeSpaceAccessIfPossible(context, chatItem.spaceId);
+            if (!result.ok) return result;
+            return {ok: true, value: chatItem};
         }
 
         case "Anonymous": {
-            throw unauthenticatedSessionError();
+            return {ok: false, error: unauthenticatedSessionError()};
         }
 
         default:
@@ -1236,13 +1267,32 @@ async function authorizeChatAccessForAccountAndReturnItems(
     accountId: AccountId,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{chatItem: ChatAttributesItem; chatAccountItem: ChatAccountItem}> {
-    const [chatItem, chatAccountItem, actorChatAccountItem] = await runAllPromises([
-        getChatItemForAuthorization(context, chatId, options).then(async chatItem => {
-            await authorizeSpaceAccess(context, chatItem.spaceId);
-            return chatItem;
-        }),
+    return unwrapResult(
+        await authorizeChatAccessForAccountAndReturnItemsIfPossible(
+            context,
+            chatId,
+            accountId,
+            options,
+        ),
+    );
+}
+
+async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
+    context: ServerActionContext,
+    chatId: ChatId,
+    accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<{chatItem: ChatAttributesItem; chatAccountItem: ChatAccountItem}, ErrorBase>> {
+    const [chatItemResult, chatAccountItem, actorChatAccountItem] = await runAllPromises([
+        getChatItemForAuthorization(context, chatId, options).then(
+            async (chatItem): Promise<Result<ChatAttributesItem, ErrorBase>> => {
+                const result = await authorizeSpaceAccessIfPossible(context, chatItem.spaceId);
+                if (!result.ok) return result;
+                return {ok: true, value: chatItem};
+            },
+        ),
         getChatAccountItemIfExistsForAuthorization(context, chatId, accountId, options),
-        (async () => {
+        (async (): Promise<"Ignored" | "Unauthenticated" | ChatAccountItem | null> => {
             switch (context.actor.type) {
                 case "Session": {
                     // We already are loading our session's chat account item above.
@@ -1261,7 +1311,9 @@ async function authorizeChatAccessForAccountAndReturnItems(
                     return "Ignored";
                 }
                 case "Anonymous": {
-                    throw unauthenticatedSessionError();
+                    // We don't need to return an `unauthenticatedSessionError()` error here since
+                    // `authorizeSpaceAccessIfPossible()` above will error for anonymous actors.
+                    return "Ignored";
                 }
                 default:
                     throw exhaustive(context.actor);
@@ -1269,15 +1321,21 @@ async function authorizeChatAccessForAccountAndReturnItems(
         })(),
     ]);
 
+    if (!chatItemResult.ok) return chatItemResult;
+    const chatItem = chatItemResult.value;
+
     if (!actorChatAccountItem) {
-        throw new PermissionDeniedError("Session actor account doesn't have access to chat");
+        return {
+            ok: false,
+            error: new PermissionDeniedError("Session actor account doesn't have access to chat"),
+        };
     }
 
     if (!chatAccountItem) {
-        throw new PermissionDeniedError("Account doesn't have access to chat");
+        return {ok: false, error: new PermissionDeniedError("Account doesn't have access to chat")};
     }
 
-    return {chatItem, chatAccountItem};
+    return {ok: true, value: {chatItem, chatAccountItem}};
 }
 
 /**

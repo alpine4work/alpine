@@ -5,6 +5,7 @@ import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {
     FileChatAuthorizer,
     authorizeChatAccessForAccount,
+    authorizeChatAccessIfPossible,
     getChatAccountIds,
 } from "~/server/chat/data/chat_table.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
@@ -16,6 +17,7 @@ import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
+    ServerSessionActionContext,
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -27,6 +29,7 @@ import {
 } from "~/server/context/server_content_action_context.js";
 import {
     FileDocumentAuthorizer,
+    authorizeDocumentAccessIfPossible,
     getDocumentAndCommentThreadsWithInitialComments,
     getDocumentCommentAuthorId,
     getDocumentCommentThreadNotificationSubscribers,
@@ -45,6 +48,7 @@ import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_
 import {FileAuthorizer} from "~/server/files/data/files_table.js";
 import {
     FilePostAuthorizer,
+    authorizePostAccessIfPossible,
     getChannelNotificationSubscribers,
     getChannelPreview,
     getPost,
@@ -66,11 +70,11 @@ import {
     authorizeSpaceAccess,
     getAccount,
     getRegisteredAccountDevices,
-    isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {
     FileTaskAuthorizer,
+    authorizeTaskAccessIfPossible,
     getTaskNotificationSubscribers,
     getTaskOwner,
 } from "~/server/tasks/data/task_table.js";
@@ -104,6 +108,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
@@ -1925,6 +1930,7 @@ function actuallyProcessNotificationEvent(
  */
 function createNotificationEventProcessor<Event extends NotificationEvent, Info>({
     getSubscribers,
+    authorizeAccess,
     updateInboxEntry,
     getAlertContent,
 }: {
@@ -1945,6 +1951,13 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         info: Info;
         accountIds: Iterable<AccountId | ContentMentionAccountId>;
     }>;
+
+    // NOCOMMIT: Document!
+    authorizeAccess: (
+        context: ServerSessionActionContext,
+        event: Event,
+        options: {info: Info},
+    ) => Promise<Result<unknown>>;
 
     /**
      * Update the inbox entry for each subscriber. Called in parallel.
@@ -2040,11 +2053,18 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
 
         await runAllPromises(
             mapIterable(accountIds, async accountOrMentionId => {
-                // Only update the inbox entry for accounts that are a member of the space the
-                // event is a part of.
-                if (!(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))) {
-                    return;
-                }
+                // Make sure the subscriber still has access to the entity (and space) relevant
+                // to this notification.
+                //
+                // We expect strong read consistency here too since we need read-after-write
+                // consistency. For example, in cases where we're sending a notification right
+                // after the account was granted access to the notification's subject.
+                const result = await authorizeAccess(
+                    context.impersonate().dynamo.expectStrongReadConsistency(),
+                    event,
+                    {info},
+                );
+                if (!result.ok) return;
 
                 // This is a verified `AccountId` after the `isAccountMemberOfSpace()`
                 // check above.
@@ -2650,15 +2670,20 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
     {spaceId: SpaceId; accountIds: ReadonlyArray<AccountId>}
 >({
     getSubscribers: async (context, event) => {
-        // NOCOMMIT: Reauthorize accounts?
         const {spaceId, accountIds} = await getChatAccountIds(context, event.chatId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
 
         return {
             info: {spaceId, accountIds},
             accountIds,
         };
+    },
+    authorizeAccess: (context, event) => {
+        // NOCOMMIT: Test!
+        return authorizeChatAccessIfPossible(context, event.chatId, {
+            consistency: "StrongWithinCache",
+        });
     },
     updateInboxEntry: (
         context,
@@ -2896,17 +2921,22 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
     {postCreatedTime: Date}
 >({
     getSubscribers: async (context, event) => {
-        // NOCOMMIT: Reauthorize accounts?
         const {accountIds, postCreatedTime} = await getPostNotificationSubscribers(
             context,
             event.postId,
-            {consistency: "Strong"},
+            {consistency: "StrongWithinCache"},
         );
 
         return {
             info: {postCreatedTime},
             accountIds,
         };
+    },
+    authorizeAccess: (context, event) => {
+        // NOCOMMIT: Test!
+        return authorizePostAccessIfPossible(context, event.postId, "View", {
+            consistency: "StrongWithinCache",
+        });
     },
     updateInboxEntry: (context, event, {info: {postCreatedTime}, accountId}) => {
         return updateInboxEntry(
@@ -3067,15 +3097,20 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
     {}
 >({
     getSubscribers: async (context, event) => {
-        // NOCOMMIT: We need to double check if the account has access to the channel.
         const accountIds = await getChannelNotificationSubscribers(context, event.channelId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
 
         return {
             info: {},
             accountIds,
         };
+    },
+    authorizeAccess: (context, event) => {
+        // NOCOMMIT: Test!
+        return authorizePostAccessIfPossible(context, event.postId, "View", {
+            consistency: "StrongWithinCache",
+        });
     },
     updateInboxEntry: async (context, event, {info: {}, accountId}) => {
         // Don't update an entry for the account who created the post.
@@ -3194,18 +3229,23 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
     {}
 >({
     getSubscribers: async (context, event) => {
-        // NOCOMMIT: Reauthorize accounts?
         const {accountIds} = await getDocumentCommentThreadNotificationSubscribers(context, {
             documentId: event.documentId,
             commentThreadId: event.commentThreadId,
             isFirstComment: event.commentIndex === 0,
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
 
         return {
             info: {},
             accountIds,
         };
+    },
+    authorizeAccess: (context, event) => {
+        // NOCOMMIT: Test
+        return authorizeDocumentAccessIfPossible(context, event.documentId, "View", {
+            consistency: "StrongWithinCache",
+        });
     },
     updateInboxEntry: async (context, event, {info: {}, accountId}) => {
         const isFirstComment = event.commentIndex === 0;
@@ -3458,15 +3498,20 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
     {}
 >({
     getSubscribers: async (context, event) => {
-        // NOCOMMIT: Reauthorize accounts?
         const {accountIds} = await getTaskNotificationSubscribers(context, event.taskId, {
-            consistency: "Strong",
+            consistency: "StrongWithinCache",
         });
 
         return {
             info: {},
             accountIds,
         };
+    },
+    authorizeAccess: (context, event) => {
+        // NOCOMMIT: Test
+        return authorizeTaskAccessIfPossible(context, event.taskId, "View", null, {
+            consistency: "StrongWithinCache",
+        });
     },
     updateInboxEntry: (context, event, {info: {}, accountId}) => {
         return updateInboxEntry(
