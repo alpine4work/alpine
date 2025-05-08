@@ -972,12 +972,12 @@ test("`isAccountMemberOfSpace()` caches a true result in context", async () => {
         // `isAccountMemberOfSpaceWithoutAuthorization()`.
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(
-                session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+                session.action().clone({cache: context.cache.forkForChangedActor()}),
                 space.id,
             ),
         );
         const result3 = await authorizeSpaceAccessIfPossible(
-            session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+            session.action().clone({cache: context.cache.forkForChangedActor()}),
             space.id,
         );
 
@@ -1221,12 +1221,12 @@ test("`isAccountMemberOfSpace()` ignores cached false result in context", async 
         // `isAccountMemberOfSpaceWithoutAuthorization()`.
         const result2 = await captureResultPromise(() =>
             authorizeSpaceAccess(
-                session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+                session.action().clone({cache: context.cache.forkForChangedActor()}),
                 space.id,
             ),
         );
         const result3 = await authorizeSpaceAccessIfPossible(
-            session.action().clone({cache: context.cache.dangerouslyForkWithSharedCaches()}),
+            session.action().clone({cache: context.cache.forkForChangedActor()}),
             space.id,
         );
 
@@ -2307,14 +2307,17 @@ test("can delete an account's registered apple devices", async () => {
     const deviceToken1A = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
     const deviceToken1B = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
     const deviceToken1C = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
+    const deviceToken1D = new Uint8Array(createArrayWithLength(32, () => randomInteger(0, 255)));
 
     expect(deviceToken1A).toEqual(deviceToken1A);
     expect(deviceToken1A).not.toEqual(deviceToken1B);
     expect(deviceToken1A).not.toEqual(deviceToken1C);
+    expect(deviceToken1A).not.toEqual(deviceToken1D);
 
     await registerOurAccountAppleDeviceToken(session1.action(), deviceToken1A);
     await registerOurAccountAppleDeviceToken(session1.action(), deviceToken1B);
     await registerOurAccountAppleDeviceToken(session1.action(), deviceToken1C);
+    await registerOurAccountAppleDeviceToken(session1.action(), deviceToken1D);
 
     await expect(
         getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
@@ -2331,6 +2334,7 @@ test("can delete an account's registered apple devices", async () => {
             {type: "Apple", deviceToken: deviceToken1A},
             {type: "Apple", deviceToken: deviceToken1B},
             {type: "Apple", deviceToken: deviceToken1C},
+            {type: "Apple", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -2353,6 +2357,14 @@ test("can delete an account's registered apple devices", async () => {
     ).rejects.toThrow(UnauthenticatedError);
 
     await expect(
+        deleteAccountAppleDeviceTokenIfExists(
+            context.impersonatedAccountAction(space.id, session2.account.id),
+            session1.account.id,
+            deviceToken1A,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
         getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
             Array.from(devices).sort((a, b) =>
                 compareArrays(
@@ -2367,6 +2379,7 @@ test("can delete an account's registered apple devices", async () => {
             {type: "Apple", deviceToken: deviceToken1A},
             {type: "Apple", deviceToken: deviceToken1B},
             {type: "Apple", deviceToken: deviceToken1C},
+            {type: "Apple", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -2392,6 +2405,7 @@ test("can delete an account's registered apple devices", async () => {
         [
             {type: "Apple", deviceToken: deviceToken1B},
             {type: "Apple", deviceToken: deviceToken1C},
+            {type: "Apple", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -2418,6 +2432,7 @@ test("can delete an account's registered apple devices", async () => {
         [
             {type: "Apple", deviceToken: deviceToken1B},
             {type: "Apple", deviceToken: deviceToken1C},
+            {type: "Apple", deviceToken: deviceToken1D},
         ].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
@@ -2440,7 +2455,32 @@ test("can delete an account's registered apple devices", async () => {
             ),
         ),
     ).resolves.toEqual(
-        [{type: "Apple", deviceToken: deviceToken1C}].sort((a, b) =>
+        [
+            {type: "Apple", deviceToken: deviceToken1C},
+            {type: "Apple", deviceToken: deviceToken1D},
+        ].sort((a, b) =>
+            compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
+        ),
+    );
+
+    await deleteAccountAppleDeviceTokenIfExists(
+        context.impersonatedAccountAction(space.id, session1.account.id),
+        session1.account.id,
+        deviceToken1C,
+    );
+
+    await expect(
+        getRegisteredAccountDevices(space.systemAction(), session1.account.id).then(devices =>
+            Array.from(devices).sort((a, b) =>
+                compareArrays(
+                    Array.from(a.deviceToken),
+                    Array.from(b.deviceToken),
+                    (a, b) => a - b,
+                ),
+            ),
+        ),
+    ).resolves.toEqual(
+        [{type: "Apple", deviceToken: deviceToken1D}].sort((a, b) =>
             compareArrays(Array.from(a.deviceToken), Array.from(b.deviceToken), (a, b) => a - b),
         ),
     );
@@ -2516,5 +2556,78 @@ test("can't authorize space access for anonymous actor", async () => {
     expect(await authorizeSpaceAccessIfPossible(context.anonymousAction(), otherSpace.id)).toEqual({
         ok: false,
         error: expect.any(UnauthenticatedError),
+    });
+});
+
+test("can't authorize space access for impersonated actor", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+    await otherSpace.addAccount(session);
+
+    await authorizeSpaceAccess(session.action(), space.id);
+    await authorizeSpaceAccess(session.action(), otherSpace.id);
+
+    await authorizeSpaceAccess(
+        context.impersonatedAccountAction(space.id, session.account.id),
+        space.id,
+    );
+    await authorizeSpaceAccess(
+        context.impersonatedAccountAction(otherSpace.id, session.account.id),
+        otherSpace.id,
+    );
+
+    await expect(
+        authorizeSpaceAccess(
+            context.impersonatedAccountAction(otherSpace.id, session.account.id),
+            space.id,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        authorizeSpaceAccess(
+            context.impersonatedAccountAction(space.id, session.account.id),
+            otherSpace.id,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await authorizeSpaceAccessIfPossible(session.action(), space.id)).toEqual({ok: true});
+    expect(await authorizeSpaceAccessIfPossible(session.action(), otherSpace.id)).toEqual({
+        ok: true,
+    });
+
+    expect(
+        await authorizeSpaceAccessIfPossible(
+            context.impersonatedAccountAction(space.id, session.account.id),
+            space.id,
+        ),
+    ).toEqual({
+        ok: true,
+    });
+    expect(
+        await authorizeSpaceAccessIfPossible(
+            context.impersonatedAccountAction(otherSpace.id, session.account.id),
+            otherSpace.id,
+        ),
+    ).toEqual({
+        ok: true,
+    });
+
+    expect(
+        await authorizeSpaceAccessIfPossible(
+            context.impersonatedAccountAction(otherSpace.id, session.account.id),
+            space.id,
+        ),
+    ).toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
+    });
+    expect(
+        await authorizeSpaceAccessIfPossible(
+            context.impersonatedAccountAction(space.id, session.account.id),
+            otherSpace.id,
+        ),
+    ).toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
     });
 });

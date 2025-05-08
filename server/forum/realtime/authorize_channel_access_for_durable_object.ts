@@ -3,7 +3,9 @@ import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {authorizeChannelAccess} from "~/shared/rpc/forum_rpc_definitions.js";
 
-const ChannelAccessCache = new ContextCache<ChannelId, {spaceId: SpaceId}>();
+const ChannelAccessCache = new ContextCache<ChannelId, {spaceId: SpaceId}>({
+    whenActorChanges: "SafelyReset",
+});
 
 export function authorizeChannelAccessForDurableObject(
     context: WorkerActionContext,

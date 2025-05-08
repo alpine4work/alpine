@@ -183,11 +183,7 @@ export async function run({
         >(
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
-                // Optimization: Share some caches that opt-in to sharing with the session
-                // context. This is dangerous since we don't want to let system data leak into
-                // session actions and vice-versa. We trust the cache author to make the right
-                // determination about their cache.
-                cache: context.cache.dangerouslyForkWithSharedCaches(),
+                cache: context.cache.forkForChangedActor(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,

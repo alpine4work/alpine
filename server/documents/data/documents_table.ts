@@ -1169,7 +1169,11 @@ async function authorizeDocumentItemAccessIfPossible(
 const DocumentItemAuthorizationCache = new DynamoContextCache<
     DocumentId,
     DocumentAttributesItem | null
->();
+>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 async function getDocumentItemForAuthorization(
     context: ServerActionContext,

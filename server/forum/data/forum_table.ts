@@ -1321,12 +1321,25 @@ async function authorizeChannelItemAccessIfPossible(
             return okResult;
         }
         case "Session":
+        case "ImpersonatedAccount":
         case "Anonymous": {
+            if (
+                context.actor.type === "ImpersonatedAccount" &&
+                context.actor.getSpaceId() !== channelItem.spaceId
+            ) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "Impersonated account actor doesn't have access to channel's space",
+                    ),
+                };
+            }
+
             // Evaluate the document access policy.
             const isAccessAuthorized = await evaluateAccessPolicy(
                 context,
                 channelItem.spaceId,
-                context.actor.type === "Session" ? context.actor.getAccountId() : null,
+                context.actor.type !== "Anonymous" ? context.actor.getAccountId() : null,
                 channelItem.accessPolicy,
                 expectedAccessLevel,
             );
@@ -1778,7 +1791,11 @@ assertAssignableTypes<ChannelModel, ChannelPreviewAttributesItem>();
 const ChannelPreviewItemAuthorizationCache = new DynamoContextCache<
     ChannelId,
     ChannelPreviewAttributesItem | null
->();
+>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 async function getChannelPreviewItemForAuthorizationIfExists(
     context: ServerActionContext,
@@ -3425,7 +3442,11 @@ const PostItemAuthorizationCache = new DynamoContextCache<
         PostAttributesItem,
         "partitionType" | "sortRangeType" | "postId" | "spaceId" | "channelId" | "authorId"
     >
->();
+>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 async function getPostItemForAuthorization(
     context: ServerActionContext,
@@ -3505,7 +3526,8 @@ export async function authorizePostAccessIfPossible(
                     // System actor can edit any post.
                     break;
                 }
-                case "Session": {
+                case "Session":
+                case "ImpersonatedAccount": {
                     if (postItem.authorId !== context.actor.getAccountId()) {
                         return {
                             ok: false,
@@ -4912,7 +4934,8 @@ export async function authorizePostDraftAccess(
             // block it.
             throw new PermissionDeniedError("System actors can't access post drafts");
         }
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount": {
             if (accountId !== context.actor.getAccountId()) {
                 throw new PermissionDeniedError("Can't access drafts from other accounts");
             }

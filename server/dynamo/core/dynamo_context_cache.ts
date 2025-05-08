@@ -24,13 +24,17 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
  * in the case of a context like `ServerActionContext`).
  */
 export class DynamoContextCache<Key extends string | number, Value> {
-    private readonly _cache = new ContextCache<
+    private readonly _cache: ContextCache<
         Key,
         {
             readonly consistency: DynamoReadConsistency;
             readonly value: Value;
         }
-    >();
+    >;
+
+    constructor(options: {whenActorChanges: "DangerouslyShare" | "SafelyReset"}) {
+        this._cache = new ContextCache(options);
+    }
 
     /**
      * Get the value at `key` from our cache with the provided `consistency`.

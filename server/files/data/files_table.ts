@@ -746,6 +746,17 @@ export class FileUploader {
                 }
                 break;
             }
+            case "ImpersonatedAccount": {
+                if (this.spaceId !== context.actor.getSpaceId()) {
+                    throw new PermissionDeniedError(
+                        "Impersonated account actor is not for the file's space",
+                    );
+                }
+                if (this.uploaderId !== context.actor.getAccountId()) {
+                    throw new PermissionDeniedError("Account is not the file's uploader account");
+                }
+                break;
+            }
             case "Anonymous": {
                 throw unauthenticatedSessionError();
             }
@@ -1466,7 +1477,11 @@ export class FileUploader {
     }
 }
 
-const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, FileItem | null>();
+const FileItemContextCache = new DynamoContextCache<`${SpaceId}:${FileId}`, FileItem | null>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 function getFileItemIfExistsWithCache(
     context: ServerActionContext,
@@ -1503,6 +1518,14 @@ async function getFileItemIfExistsAsUploader(
             break;
         }
         case "Session": {
+            if (item.uploaderId !== context.actor.getAccountId()) {
+                throw new PermissionDeniedError("Account didn't upload file");
+            }
+            break;
+        }
+        case "ImpersonatedAccount": {
+            await authorizeSpaceAccess(context, spaceId);
+
             if (item.uploaderId !== context.actor.getAccountId()) {
                 throw new PermissionDeniedError("Account didn't upload file");
             }

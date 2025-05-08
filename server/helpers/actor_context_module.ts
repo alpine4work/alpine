@@ -30,7 +30,8 @@ assertAssignableTypes<ActorServiceName, TracerServiceName>();
 export type ActorContextModule =
     | SessionActorContextModule
     | SystemActorContextModule
-    | AnonymousActorContextModule;
+    | AnonymousActorContextModule
+    | ImpersonatedAccountActorContextModule;
 
 export interface ActorContextModuleBase extends ContextModuleBase, ForkableContextModuleBase {
     /**
@@ -59,6 +60,11 @@ export interface ActorContextModuleBase extends ContextModuleBase, ForkableConte
     ): Context<Replace<Modules, {actor: SystemActorContextModule}>>;
 }
 
+/**
+ * When an account signs in to our service they're represented with a session
+ * actor. Their session actor has access to everything the account has access
+ * to.
+ */
 export interface SessionActorContextModule extends ActorContextModuleBase {
     readonly type: "Session";
 
@@ -66,12 +72,34 @@ export interface SessionActorContextModule extends ActorContextModuleBase {
     getAccountId(): AccountId;
 }
 
+/**
+ * System actors have access to everything in a single space.
+ */
 export interface SystemActorContextModule extends ActorContextModuleBase {
     readonly type: "System";
 
     getSpaceId(): SpaceId;
 }
 
+/**
+ * Anonymous actors aren't signed into our service. They may be viewing a
+ * read-only document or some other shared link.
+ */
 export interface AnonymousActorContextModule extends ActorContextModuleBase {
     readonly type: "Anonymous";
+}
+
+/**
+ * Impersonated account actors have access to everything the account has access
+ * to in a single space. They don't have access to documents or tasks or
+ * anything else the account has access to in another space.
+ *
+ * Since system actors have access to everything in a space, they're allowed to
+ * impersonate any accounts in their space.
+ */
+export interface ImpersonatedAccountActorContextModule extends ActorContextModuleBase {
+    readonly type: "ImpersonatedAccount";
+
+    getSpaceId(): SpaceId;
+    getAccountId(): AccountId;
 }

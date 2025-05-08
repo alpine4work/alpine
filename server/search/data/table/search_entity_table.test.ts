@@ -1855,6 +1855,42 @@ test("can favorite and unfavorite search entities", async () => {
             ),
         ),
     ).toEqual([false, false, false, true, true, false]);
+
+    expect(
+        await runAllPromises(
+            [session1, session2].flatMap(session =>
+                [document1, document2, document3].flatMap(document =>
+                    isSearchFavoriteEntity(
+                        context.impersonatedAccountAction(space.id, session.account.id),
+                        {
+                            spaceId: space.id,
+                            entityId: `Document:${document.id}`,
+                        },
+                    ),
+                ),
+            ),
+        ),
+    ).toEqual([false, false, false, true, true, false]);
+
+    const otherSpace = await TestSpace.create(context);
+    await otherSpace.addAccount(session1);
+    await otherSpace.addAccount(session2);
+
+    expect(
+        await runAllPromises(
+            [session1, session2].flatMap(session =>
+                [document1, document2, document3].flatMap(document =>
+                    isSearchFavoriteEntity(
+                        context.impersonatedAccountAction(otherSpace.id, session.account.id),
+                        {
+                            spaceId: space.id,
+                            entityId: `Document:${document.id}`,
+                        },
+                    ),
+                ),
+            ),
+        ),
+    ).toEqual([false, false, false, false, false, false]);
 });
 
 test("will show top three favorites at the start of affinity list when querying specific entities", async () => {

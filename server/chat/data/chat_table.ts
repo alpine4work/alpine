@@ -1099,7 +1099,11 @@ function sendChatMessageForAccount(
     });
 }
 
-const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatAttributesItem | null>();
+const ChatItemAuthorizationCache = new DynamoContextCache<ChatId, ChatAttributesItem | null>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 async function getChatItemIfExistsForAuthorization(
     context: ServerActionContext,
@@ -1132,7 +1136,11 @@ async function getChatItemForAuthorization(
 const ChatAccountItemAuthorizationCache = new DynamoContextCache<
     `${ChatId}:${AccountId}`,
     ChatAccountItem | null
->();
+>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 async function getChatAccountItemIfExistsForAuthorization(
     context: ServerActionContext,
@@ -1211,7 +1219,8 @@ async function authorizeChatAccessAndReturnItemIfPossible(
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<ChatAttributesItem, ErrorBase>> {
     switch (context.actor.type) {
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount": {
             const chatItemResult = await authorizeChatAccessForAccountAndReturnItemsIfPossible(
                 context,
                 chatId,
@@ -1294,7 +1303,8 @@ async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
         getChatAccountItemIfExistsForAuthorization(context, chatId, accountId, options),
         (async (): Promise<"Ignored" | "Unauthenticated" | ChatAccountItem | null> => {
             switch (context.actor.type) {
-                case "Session": {
+                case "Session":
+                case "ImpersonatedAccount": {
                     // We already are loading our session's chat account item above.
                     if (context.actor.getAccountId() === accountId) return "Ignored";
 
@@ -1556,7 +1566,8 @@ async function createChatModelFromItems(
     ]);
 
     switch (context.actor.type) {
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount": {
             const sessionAccountId = context.actor.getAccountId();
             if (!accounts.some(account => account.id === sessionAccountId))
                 throw new PermissionDeniedError("Account doesn't have access to chat");
@@ -1658,7 +1669,8 @@ export async function getChatAccountIds(
     await authorizeSpaceAccess(context, chatItem.spaceId);
 
     switch (context.actor.type) {
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount": {
             const sessionAccountId = context.actor.getAccountId();
             if (!accountIds.some(accountId => accountId === sessionAccountId))
                 throw new PermissionDeniedError("Account doesn't have access to chat");

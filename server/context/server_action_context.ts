@@ -1,6 +1,7 @@
 import {
     DynamoActorContextModule,
     DynamoAnonymousActorContextModule,
+    DynamoImpersonatedAccountActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
@@ -75,6 +76,19 @@ export type ServerAnonymousActionContext = Context<ServerAnonymousActionContextM
 export type ServerAnonymousActionContextModules = MergeObjectIntersection<
     ServerActionContextModulesBase & {
         actor: DynamoAnonymousActorContextModule;
+    }
+>;
+
+/**
+ * Context for actions where we know the actor is an impersonated account
+ * actor.
+ */
+export type ServerImpersonatedAccountActionContext =
+    Context<ServerImpersonatedAccountActionContextModules>;
+
+export type ServerImpersonatedAccountActionContextModules = MergeObjectIntersection<
+    ServerActionContextModulesBase & {
+        actor: DynamoImpersonatedAccountActorContextModule;
     }
 >;
 

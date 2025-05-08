@@ -30,18 +30,15 @@ export class CacheContextModule extends ContextModuleBase implements ForkableCon
 
     /**
      * Create a new `CacheContextModule` and share any caches that set
-     * `dangerouslyAllowSharing: true` between this cache context module and the
-     * new cache context module. See the documentation on `dangerouslyAllowSharing`
+     * `whenActorChanges: "DangerouslyShare"` between this cache context module and
+     * the new cache context module. See the documentation on `whenActorChanges`
      * for more info.
-     *
-     * The API for this isn't the cleanest and the default (don't allow cache
-     * sharing) is much safer so we prefix with "dangerously" to discourage usage.
      */
-    public dangerouslyForkWithSharedCaches() {
+    public forkForChangedActor() {
         const module = new CacheContextModule();
 
         for (const [cache, cacheMap] of this._caches) {
-            if (!cache.dangerouslyAllowSharing) continue;
+            if (cache.whenActorChanges === "SafelyReset") continue;
             module._caches.set(cache, cacheMap);
         }
 
@@ -57,27 +54,28 @@ export class CacheContextModule extends ContextModuleBase implements ForkableCon
  */
 export class ContextCache<Key, Value> {
     /**
-     * Is this cache shareable across distinct contexts with an action?
+     * What should happen to the cache when the actor changes? Should we share
+     * the cache's contents with the new action or should we reset the cache? The
+     * actor may change within an action through a
+     * `dangerouslyEscalateToSystemContext()` call or an
+     * `impersonateAccountAsSystemContext()` call.
      *
-     * For example, we have this function `dangerouslyEscalateToSystemContext`. It
-     * allows a scope of a session action to run with a system actor. By default,
-     * the system context has completely separate caches from the session context.
-     * Since we don't want privileged system data to bleed into the session context
-     * and vice versa. However, some caches aren't affected by what's in the
-     * context (like the actor). For these contexts we allow sharing between
-     * contexts.
+     * If the value is `DangerouslyShare` then the cache will be shared between the
+     * action context for the old actor and new actor. If we add to the cache as
+     * the old actor it can be read as the new actor and vice versa. You should
+     * only use `Share` if cache values don't depend on the actor! This option is
+     * the most performant since we get more cache hits.
      *
-     * The API for this isn't the cleanest and the default (don't allow cache
-     * sharing) is much safer so we prefix with "dangerously" to discourage usage.
+     * If the value is `SafelyReset` then we create a new, empty, cache for the new
+     * context and if we write a value to this new cache it won't be propagated
+     * back to the old cache. This option is safer since if a system actor writes a
+     * value to the cache with escalated permissions it won't be seen by the
+     * session actor.
      */
-    public readonly dangerouslyAllowSharing: boolean;
+    public readonly whenActorChanges: "DangerouslyShare" | "SafelyReset";
 
-    constructor({
-        dangerouslyAllowSharing = false,
-    }: {
-        dangerouslyAllowSharing?: boolean;
-    } = {}) {
-        this.dangerouslyAllowSharing = dangerouslyAllowSharing;
+    constructor({whenActorChanges}: {whenActorChanges: "DangerouslyShare" | "SafelyReset"}) {
+        this.whenActorChanges = whenActorChanges;
     }
 
     /**

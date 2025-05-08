@@ -12,6 +12,7 @@ import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
     DynamoAnonymousActorContextModule,
+    DynamoImpersonatedAccountActorContextModule,
     DynamoSessionActorContextModule,
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
@@ -29,6 +30,7 @@ import {
 } from "~/server/context/files_context_module.js";
 import {
     ServerAnonymousActionContextModules,
+    ServerImpersonatedAccountActionContextModules,
     ServerSessionActionContextModules,
     ServerSystemActionContextModules,
     ServerUnknownActionContextModules,
@@ -111,6 +113,12 @@ export type TestAnonymousActionContextModules = ServerAnonymousActionContextModu
 
 export type TestAnonymousActionContext = Context<TestAnonymousActionContextModules>;
 
+export type TestImpersonatedAccountActionContextModules =
+    ServerImpersonatedAccountActionContextModules & TestContextExtraModules;
+
+export type TestImpersonatedAccountActionContext =
+    Context<TestImpersonatedAccountActionContextModules>;
+
 export type TestUnknownActionContextModules = ServerUnknownActionContextModules &
     TestContextExtraModules;
 
@@ -151,6 +159,15 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
      * An anonymous action.
      */
     anonymousAction(options?: {serviceName: ActorServiceName}): TestAnonymousActionContext;
+
+    /**
+     * An authenticated impersonated account action.
+     */
+    impersonatedAccountAction(
+        spaceId: SpaceId,
+        accountId: AccountId,
+        options?: {serviceName: ActorServiceName},
+    ): TestImpersonatedAccountActionContext;
 
     /**
      * An action where we don't know whether we're authenticated or not. When
@@ -340,7 +357,7 @@ export function createTestContext({
         >(
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
-                cache: context.cache.dangerouslyForkWithSharedCaches(),
+                cache: context.cache.forkForChangedActor(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,
@@ -412,6 +429,26 @@ export function createTestContext({
         });
     };
 
+    const createImpersonatedAccountContext = (
+        spaceId: SpaceId,
+        accountId: AccountId,
+        {
+            // Dangerously allow pretending to be from any context in tests.
+            serviceName = "Test",
+        }: {
+            serviceName?: ActorServiceName;
+        } = {},
+    ): TestImpersonatedAccountActionContext => {
+        return processContext.clone({
+            cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
+            actor: DynamoImpersonatedAccountActorContextModule.dangerouslyNew(
+                DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
+                accountId,
+            ),
+        });
+    };
+
     const withCache = () => {
         return processContext.clone({
             cache: new CacheContextModule(),
@@ -448,6 +485,7 @@ export function createTestContext({
         action: createSessionContext,
         systemAction: createSystemContext,
         anonymousAction: createAnonymousContext,
+        impersonatedAccountAction: createImpersonatedAccountContext,
         unknownAnonymousAction: createUnknownAnonymousContext,
         withCache,
         escalateToSystemContext,

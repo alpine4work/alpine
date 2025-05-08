@@ -26,6 +26,7 @@ import {
     InternalError,
     NotFoundError,
     PermissionDeniedError,
+    UnimplementedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -1059,6 +1060,12 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
         case "System": {
             throw new PermissionDeniedError("System actor does not have internal access");
         }
+        case "ImpersonatedAccount": {
+            // TODO(calebmer): Implement this when we need it in the future.
+            throw new UnimplementedError(
+                "Impersonated account actor does not have internal access",
+            );
+        }
         case "Anonymous": {
             throw unauthenticatedSessionError();
         }
@@ -1309,7 +1316,8 @@ export async function deleteAccountAppleDeviceTokenIfExists(
     deviceToken: Uint8Array,
 ): Promise<void> {
     switch (context.actor.type) {
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount": {
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError(
                     "Can't delete device token for a different account",

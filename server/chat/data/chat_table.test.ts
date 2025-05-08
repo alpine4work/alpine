@@ -3322,6 +3322,45 @@ test("can not get chat you don't have access to", async () => {
         getChatAccountIds(context.action(scenario.sessionA3), message.chatId),
     ).rejects.toThrow(PermissionDeniedError);
 
+    await expect(
+        getChat(
+            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA2.account.id),
+            message.chatId,
+        ),
+    ).resolves.not.toBeNull();
+    await expect(
+        getChatAccountIds(
+            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA2.account.id),
+            message.chatId,
+        ),
+    ).resolves.not.toBeNull();
+
+    await expect(
+        getChat(
+            context.impersonatedAccountAction(scenario.spaceB.id, scenario.sessionA2.account.id),
+            message.chatId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getChatAccountIds(
+            context.impersonatedAccountAction(scenario.spaceB.id, scenario.sessionA2.account.id),
+            message.chatId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        getChat(
+            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA3.account.id),
+            message.chatId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        getChatAccountIds(
+            context.impersonatedAccountAction(scenario.spaceA.id, scenario.sessionA3.account.id),
+            message.chatId,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
     await expect(getChat(context.anonymousAction(), message.chatId)).rejects.toThrow(
         UnauthenticatedError,
     );
@@ -3587,10 +3626,12 @@ test("can not authorize which accounts are in the chat if system context does no
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-testd("only authorizes chat access for accounts in a chat", async () => {
+test("only authorizes chat access for accounts in a chat", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
+
+    await otherSpace.addAccount(session1);
 
     const chat = await TestChat.get(session1, session2);
 
@@ -3612,6 +3653,30 @@ testd("only authorizes chat access for accounts in a chat", async () => {
         UnauthenticatedError,
     );
 
+    await authorizeChatAccess(
+        context.impersonatedAccountAction(space.id, session1.account.id),
+        chat.id,
+    );
+
+    await authorizeChatAccess(
+        context.impersonatedAccountAction(space.id, session2.account.id),
+        chat.id,
+    );
+
+    await expect(
+        authorizeChatAccess(
+            context.impersonatedAccountAction(space.id, session3.account.id),
+            chat.id,
+        ),
+    ).rejects.toThrow("Account doesn't have access to chat");
+
+    await expect(
+        authorizeChatAccess(
+            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+            chat.id,
+        ),
+    ).rejects.toThrow("Impersonated account actor doesn't have access to space");
+
     expect((await authorizeChatAccessIfPossible(session1.action(), chat.id)).ok).toBe(true);
 
     expect((await authorizeChatAccessIfPossible(session2.action(), chat.id)).ok).toBe(true);
@@ -3627,6 +3692,42 @@ testd("only authorizes chat access for accounts in a chat", async () => {
     expect((await authorizeChatAccessIfPossible(context.anonymousAction(), chat.id)).ok).toBe(
         false,
     );
+
+    expect(
+        (
+            await authorizeChatAccessIfPossible(
+                context.impersonatedAccountAction(space.id, session1.account.id),
+                chat.id,
+            )
+        ).ok,
+    ).toEqual(true);
+
+    expect(
+        (
+            await authorizeChatAccessIfPossible(
+                context.impersonatedAccountAction(space.id, session2.account.id),
+                chat.id,
+            )
+        ).ok,
+    ).toEqual(true);
+
+    expect(
+        (
+            await authorizeChatAccessIfPossible(
+                context.impersonatedAccountAction(space.id, session3.account.id),
+                chat.id,
+            )
+        ).ok,
+    ).toEqual(false);
+
+    expect(
+        (
+            await authorizeChatAccessIfPossible(
+                context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+                chat.id,
+            )
+        ).ok,
+    ).toEqual(false);
 
     await authorizeChatAccessForAccount(session1.action(), chat.id, session1.account.id);
 
@@ -3645,6 +3746,42 @@ testd("only authorizes chat access for accounts in a chat", async () => {
     await expect(
         authorizeChatAccessForAccount(context.anonymousAction(), chat.id, session1.account.id),
     ).rejects.toThrow(UnauthenticatedError);
+
+    await authorizeChatAccessForAccount(
+        context.impersonatedAccountAction(space.id, session1.account.id),
+        chat.id,
+        session1.account.id,
+    );
+
+    await authorizeChatAccessForAccount(
+        context.impersonatedAccountAction(space.id, session2.account.id),
+        chat.id,
+        session1.account.id,
+    );
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.impersonatedAccountAction(space.id, session3.account.id),
+            chat.id,
+            session1.account.id,
+        ),
+    ).rejects.toThrow("Session actor account doesn't have access to chat");
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+            chat.id,
+            session1.account.id,
+        ),
+    ).rejects.toThrow("Impersonated account actor doesn't have access to space");
+
+    await expect(
+        authorizeChatAccessForAccount(
+            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+            chat.id,
+            session2.account.id,
+        ),
+    ).rejects.toThrow("Impersonated account actor doesn't have access to space");
 });
 
 test("authorizing chat access as session actor is cached", async () => {

@@ -4367,6 +4367,8 @@ test("can authorize post access at different levels", async () => {
         await space1.createSessions(7);
     const session4 = await space2.createSession();
 
+    await space2.addAccount(session1);
+
     const channel = await TestChannel.create(session1);
 
     const post4 = await channel.createPost(session6);
@@ -4384,7 +4386,11 @@ test("can authorize post access at different levels", async () => {
     const post2 = await channel.createPost(session2);
     const post3 = await channel.createPost(session3);
 
-    const authorize = async (
+    const impersonate = (space: TestSpace, session: TestSession) => {
+        return context.impersonatedAccountAction(space.id, session.account.id);
+    };
+
+    const auth = async (
         context: ServerActionContext,
         id: PostId,
         expectedAccessLevel: "View" | "Edit",
@@ -4410,149 +4416,257 @@ test("can authorize post access at different levels", async () => {
         }
     };
 
-    expect(await authorize(space1.systemAction(), post1.id, "View")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post1.id, "View")).toEqual(null);
-    expect(await authorize(session2.action(), post1.id, "View")).toEqual(null);
-    expect(await authorize(session3.action(), post1.id, "View")).toEqual(null);
-    expect(await authorize(session4.action(), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post1.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post1.id, "View")).toEqual(null);
-    expect(await authorize(session7.action(), post1.id, "View")).toEqual(null);
-    expect(await authorize(session8.action(), post1.id, "View")).toEqual(null);
-    expect(await authorize(context.anonymousAction(), post1.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post1.id, "View")).toEqual(null);
+    expect(await auth(space2.systemAction(), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post1.id, "View")).toEqual(null);
+    expect(await auth(session2.action(), post1.id, "View")).toEqual(null);
+    expect(await auth(session3.action(), post1.id, "View")).toEqual(null);
+    expect(await auth(session4.action(), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post1.id, "View")).toEqual(null);
+    expect(await auth(session7.action(), post1.id, "View")).toEqual(null);
+    expect(await auth(session8.action(), post1.id, "View")).toEqual(null);
+    expect(await auth(context.anonymousAction(), post1.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post1.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), post1.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), post1.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post1.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post1.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session7), post1.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session8), post1.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space2, session1), post1.id, "View")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post1.id, "Edit")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post1.id, "Edit")).toEqual(null);
-    expect(await authorize(session2.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session4.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session7.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session8.action(), post1.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), post1.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post1.id, "Edit")).toEqual(null);
+    expect(await auth(space2.systemAction(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post1.id, "Edit")).toEqual(null);
+    expect(await auth(session2.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session4.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session7.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session8.action(), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), post1.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post1.id, "Edit")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session4), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session7), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session8), post1.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), post1.id, "Edit")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post2.id, "View")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post2.id, "View")).toEqual(null);
-    expect(await authorize(session2.action(), post2.id, "View")).toEqual(null);
-    expect(await authorize(session3.action(), post2.id, "View")).toEqual(null);
-    expect(await authorize(session4.action(), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post2.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post2.id, "View")).toEqual(null);
-    expect(await authorize(session7.action(), post2.id, "View")).toEqual(null);
-    expect(await authorize(session8.action(), post2.id, "View")).toEqual(null);
-    expect(await authorize(context.anonymousAction(), post2.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post2.id, "View")).toEqual(null);
+    expect(await auth(space2.systemAction(), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post2.id, "View")).toEqual(null);
+    expect(await auth(session2.action(), post2.id, "View")).toEqual(null);
+    expect(await auth(session3.action(), post2.id, "View")).toEqual(null);
+    expect(await auth(session4.action(), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post2.id, "View")).toEqual(null);
+    expect(await auth(session7.action(), post2.id, "View")).toEqual(null);
+    expect(await auth(session8.action(), post2.id, "View")).toEqual(null);
+    expect(await auth(context.anonymousAction(), post2.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post2.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), post2.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), post2.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post2.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post2.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session7), post2.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session8), post2.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space2, session1), post2.id, "View")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post2.id, "Edit")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session2.action(), post2.id, "Edit")).toEqual(null);
-    expect(await authorize(session3.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session4.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session7.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session8.action(), post2.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), post2.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post2.id, "Edit")).toEqual(null);
+    expect(await auth(space2.systemAction(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session2.action(), post2.id, "Edit")).toEqual(null);
+    expect(await auth(session3.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session4.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session7.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session8.action(), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), post2.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session2), post2.id, "Edit")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session4), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session7), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session8), post2.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), post2.id, "Edit")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post3.id, "View")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post3.id, "View")).toEqual(null);
-    expect(await authorize(session2.action(), post3.id, "View")).toEqual(null);
-    expect(await authorize(session3.action(), post3.id, "View")).toEqual(null);
-    expect(await authorize(session4.action(), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post3.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post3.id, "View")).toEqual(null);
-    expect(await authorize(session7.action(), post3.id, "View")).toEqual(null);
-    expect(await authorize(session8.action(), post3.id, "View")).toEqual(null);
-    expect(await authorize(context.anonymousAction(), post3.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post3.id, "View")).toEqual(null);
+    expect(await auth(space2.systemAction(), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post3.id, "View")).toEqual(null);
+    expect(await auth(session2.action(), post3.id, "View")).toEqual(null);
+    expect(await auth(session3.action(), post3.id, "View")).toEqual(null);
+    expect(await auth(session4.action(), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post3.id, "View")).toEqual(null);
+    expect(await auth(session7.action(), post3.id, "View")).toEqual(null);
+    expect(await auth(session8.action(), post3.id, "View")).toEqual(null);
+    expect(await auth(context.anonymousAction(), post3.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post3.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), post3.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), post3.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post3.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post3.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session7), post3.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session8), post3.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space2, session1), post3.id, "View")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post3.id, "Edit")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session2.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), post3.id, "Edit")).toEqual(null);
-    expect(await authorize(session4.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session7.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session8.action(), post3.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), post3.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post3.id, "Edit")).toEqual(null);
+    expect(await auth(space2.systemAction(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session2.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), post3.id, "Edit")).toEqual(null);
+    expect(await auth(session4.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session7.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session8.action(), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), post3.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session2), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), post3.id, "Edit")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session7), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session8), post3.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), post3.id, "Edit")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post4.id, "View")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session2.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session3.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session7.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session8.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post4.id, "View")).toEqual(null);
+    expect(await auth(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session2.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session3.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session7.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session8.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session7), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session8), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space2, session1), post4.id, "View")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post4.id, "Edit")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session2.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session4.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session7.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session8.action(), post4.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), post4.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post4.id, "Edit")).toEqual(null);
+    expect(await auth(space2.systemAction(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session2.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session4.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session7.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session8.action(), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), post4.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session2), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session4), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session7), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session8), post4.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), post4.id, "Edit")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post4.id, "View")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session2.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session3.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session7.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(session8.action(), post4.id, "View")).toEqual(null);
-    expect(await authorize(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post4.id, "View")).toEqual(null);
+    expect(await auth(space2.systemAction(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session2.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session3.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session4.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session7.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(session8.action(), post4.id, "View")).toEqual(null);
+    expect(await auth(context.anonymousAction(), post4.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post4.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session7), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session8), post4.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space2, session1), post4.id, "View")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post5.id, "Edit")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session2.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session4.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session7.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session8.action(), post5.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), post5.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post5.id, "Edit")).toEqual(null);
+    expect(await auth(space2.systemAction(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session2.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session4.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session7.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session8.action(), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), post5.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session2), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session4), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session7), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session8), post5.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), post5.id, "Edit")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post6.id, "View")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post6.id, "View")).toEqual(null);
-    expect(await authorize(session2.action(), post6.id, "View")).toEqual(null);
-    expect(await authorize(session3.action(), post6.id, "View")).toEqual(null);
-    expect(await authorize(session4.action(), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post6.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post6.id, "View")).toEqual(null);
-    expect(await authorize(session7.action(), post6.id, "View")).toEqual(null);
-    expect(await authorize(session8.action(), post6.id, "View")).toEqual(null);
-    expect(await authorize(context.anonymousAction(), post6.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post6.id, "View")).toEqual(null);
+    expect(await auth(space2.systemAction(), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post6.id, "View")).toEqual(null);
+    expect(await auth(session2.action(), post6.id, "View")).toEqual(null);
+    expect(await auth(session3.action(), post6.id, "View")).toEqual(null);
+    expect(await auth(session4.action(), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post6.id, "View")).toEqual(null);
+    expect(await auth(session7.action(), post6.id, "View")).toEqual(null);
+    expect(await auth(session8.action(), post6.id, "View")).toEqual(null);
+    expect(await auth(context.anonymousAction(), post6.id, "View")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post6.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), post6.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), post6.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post6.id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post6.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session7), post6.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session8), post6.id, "View")).toEqual(null);
+    expect(await auth(impersonate(space2, session1), post6.id, "View")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), post6.id, "Edit")).toEqual(null);
-    expect(await authorize(space2.systemAction(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session2.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session4.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session7.action(), post6.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session8.action(), post6.id, "Edit")).toEqual(null);
-    expect(await authorize(context.anonymousAction(), post6.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(space1.systemAction(), post6.id, "Edit")).toEqual(null);
+    expect(await auth(space2.systemAction(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session2.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session4.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session7.action(), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session8.action(), post6.id, "Edit")).toEqual(null);
+    expect(await auth(context.anonymousAction(), post6.id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session2), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session4), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session7), post6.id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session8), post6.id, "Edit")).toEqual(null);
+    expect(await auth(impersonate(space2, session1), post6.id, "Edit")).toEqual("PermissionDenied");
 });
 
 test("can authorize channel access at different levels", async () => {
@@ -4562,14 +4676,21 @@ test("can authorize channel access at different levels", async () => {
     const [session1, session2, session3, session4, session5] = await space1.createSessions(7);
     const session6 = await space2.createSession();
 
+    await space2.addAccount(session1);
+
     const channel = await TestChannel.create(session1);
+    const {id} = channel;
 
     await channel.access.revokeDefault(session1);
     await channel.access.grant(session1, session2, "View");
     await channel.access.grant(session1, session3, "Comment");
     await channel.access.grant(session1, session4, "Edit");
 
-    const authorize = async (
+    const impersonate = (space: TestSpace, session: TestSession) => {
+        return context.impersonatedAccountAction(space.id, session.account.id);
+    };
+
+    const auth = async (
         context: ServerActionContext,
         id: ChannelId,
         expectedAccessLevel: AccessLevel,
@@ -4595,57 +4716,73 @@ test("can authorize channel access at different levels", async () => {
         }
     };
 
-    expect(await authorize(space1.systemAction(), channel.id, "View")).toEqual(null);
-    expect(await authorize(space2.systemAction(), channel.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), channel.id, "View")).toEqual(null);
-    expect(await authorize(session2.action(), channel.id, "View")).toEqual(null);
-    expect(await authorize(session3.action(), channel.id, "View")).toEqual(null);
-    expect(await authorize(session4.action(), channel.id, "View")).toEqual(null);
-    expect(await authorize(session5.action(), channel.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), channel.id, "View")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), channel.id, "View")).toEqual(
-        "Unauthenticated",
-    );
+    expect(await auth(space1.systemAction(), id, "View")).toEqual(null);
+    expect(await auth(space2.systemAction(), id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), id, "View")).toEqual(null);
+    expect(await auth(session2.action(), id, "View")).toEqual(null);
+    expect(await auth(session3.action(), id, "View")).toEqual(null);
+    expect(await auth(session4.action(), id, "View")).toEqual(null);
+    expect(await auth(session5.action(), id, "View")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), id, "View")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), id, "View")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session3), id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), id, "View")).toEqual(null);
+    expect(await auth(impersonate(space1, session5), id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), id, "View")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), id, "View")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), channel.id, "Comment")).toEqual(null);
-    expect(await authorize(space2.systemAction(), channel.id, "Comment")).toEqual(
-        "PermissionDenied",
-    );
-    expect(await authorize(session1.action(), channel.id, "Comment")).toEqual(null);
-    expect(await authorize(session2.action(), channel.id, "Comment")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), channel.id, "Comment")).toEqual(null);
-    expect(await authorize(session4.action(), channel.id, "Comment")).toEqual(null);
-    expect(await authorize(session5.action(), channel.id, "Comment")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), channel.id, "Comment")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), channel.id, "Comment")).toEqual(
-        "Unauthenticated",
-    );
+    expect(await auth(space1.systemAction(), id, "Comment")).toEqual(null);
+    expect(await auth(space2.systemAction(), id, "Comment")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), id, "Comment")).toEqual(null);
+    expect(await auth(session2.action(), id, "Comment")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), id, "Comment")).toEqual(null);
+    expect(await auth(session4.action(), id, "Comment")).toEqual(null);
+    expect(await auth(session5.action(), id, "Comment")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), id, "Comment")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), id, "Comment")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), id, "Comment")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), id, "Comment")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), id, "Comment")).toEqual(null);
+    expect(await auth(impersonate(space1, session4), id, "Comment")).toEqual(null);
+    expect(await auth(impersonate(space1, session5), id, "Comment")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), id, "Comment")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), id, "Comment")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), channel.id, "Edit")).toEqual(null);
-    expect(await authorize(space2.systemAction(), channel.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session1.action(), channel.id, "Edit")).toEqual(null);
-    expect(await authorize(session2.action(), channel.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), channel.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session4.action(), channel.id, "Edit")).toEqual(null);
-    expect(await authorize(session5.action(), channel.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), channel.id, "Edit")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), channel.id, "Edit")).toEqual(
-        "Unauthenticated",
-    );
+    expect(await auth(space1.systemAction(), id, "Edit")).toEqual(null);
+    expect(await auth(space2.systemAction(), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), id, "Edit")).toEqual(null);
+    expect(await auth(session2.action(), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session4.action(), id, "Edit")).toEqual(null);
+    expect(await auth(session5.action(), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), id, "Edit")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), id, "Edit")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session4), id, "Edit")).toEqual(null);
+    expect(await auth(impersonate(space1, session5), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), id, "Edit")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), id, "Edit")).toEqual("PermissionDenied");
 
-    expect(await authorize(space1.systemAction(), channel.id, "Manage")).toEqual(null);
-    expect(await authorize(space2.systemAction(), channel.id, "Manage")).toEqual(
-        "PermissionDenied",
-    );
-    expect(await authorize(session1.action(), channel.id, "Manage")).toEqual(null);
-    expect(await authorize(session2.action(), channel.id, "Manage")).toEqual("PermissionDenied");
-    expect(await authorize(session3.action(), channel.id, "Manage")).toEqual("PermissionDenied");
-    expect(await authorize(session4.action(), channel.id, "Manage")).toEqual("PermissionDenied");
-    expect(await authorize(session5.action(), channel.id, "Manage")).toEqual("PermissionDenied");
-    expect(await authorize(session6.action(), channel.id, "Manage")).toEqual("PermissionDenied");
-    expect(await authorize(context.anonymousAction(), channel.id, "Manage")).toEqual(
-        "Unauthenticated",
-    );
+    expect(await auth(space1.systemAction(), id, "Manage")).toEqual(null);
+    expect(await auth(space2.systemAction(), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(session1.action(), id, "Manage")).toEqual(null);
+    expect(await auth(session2.action(), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(session3.action(), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(session4.action(), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(session5.action(), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(session6.action(), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(context.anonymousAction(), id, "Manage")).toEqual("Unauthenticated");
+    expect(await auth(impersonate(space1, session1), id, "Manage")).toEqual(null);
+    expect(await auth(impersonate(space1, session2), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session3), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session4), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session5), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space1, session6), id, "Manage")).toEqual("PermissionDenied");
+    expect(await auth(impersonate(space2, session1), id, "Manage")).toEqual("PermissionDenied");
 });
 
 test("authorizing channel access as session actor is cached", async () => {
@@ -5627,11 +5764,27 @@ test("can create, get, update, and authorize a post draft", async () => {
 
     await expect(
         authorizePostDraftAccess(otherSpace.systemAction(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("System action doesn't have access to space");
+    ).rejects.toThrow("System actor doesn't have access to space");
 
     await expect(
         authorizePostDraftAccess(context.anonymousAction(), space.id, session1.account.id, draftId),
     ).rejects.toThrow("Unauthenticated session");
+
+    await authorizePostDraftAccess(
+        context.impersonatedAccountAction(space.id, session1.account.id),
+        space.id,
+        session1.account.id,
+        draftId,
+    );
+
+    await expect(
+        authorizePostDraftAccess(
+            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+            space.id,
+            session1.account.id,
+            draftId,
+        ),
+    ).rejects.toThrow("Impersonated account actor doesn't have access to space");
 
     await expect(
         createOrReplacePostDraft(session2.action(), space.id, session1.account.id, draftId, {
@@ -5665,7 +5818,7 @@ test("can create, get, update, and authorize a post draft", async () => {
                 content: createSimplePostContent("Test post content 2"),
             },
         ),
-    ).rejects.toThrow("System action doesn't have access to space");
+    ).rejects.toThrow("System actor doesn't have access to space");
 
     await expect(
         createOrReplacePostDraft(
@@ -5719,7 +5872,7 @@ test("can create, get, update, and authorize a post draft", async () => {
 
     await expect(
         getPostDraftIfExists(otherSpace.systemAction(), space.id, session1.account.id, draftId),
-    ).rejects.toThrow("System action doesn't have access to space");
+    ).rejects.toThrow("System actor doesn't have access to space");
 
     await expect(
         getPostDraftIfExists(context.anonymousAction(), space.id, session1.account.id, draftId),

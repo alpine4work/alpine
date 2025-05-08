@@ -482,6 +482,9 @@ test("can't finish file preview processing with a different account", async () =
     const session = await space.createSession();
     const otherSession = await space.createSession();
 
+    const otherSpace = await TestSpace.create(context);
+    await otherSpace.addAccount(session);
+
     const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
         contentType: "image/png",
@@ -526,6 +529,22 @@ test("can't finish file preview processing with a different account", async () =
             fileImagePreviewPlaceholder1,
         ),
     ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewPlaceholder(
+            context.impersonatedAccountAction(space.id, otherSession.account.id),
+            fileImagePreviewPlaceholder1,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account is not the file's uploader account"));
+
+    await expect(
+        fileUploader.finishProcessingImagePreviewPlaceholder(
+            context.impersonatedAccountAction(otherSpace.id, session.account.id),
+            fileImagePreviewPlaceholder1,
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError("Impersonated account actor is not for the file's space"),
+    );
 
     expect(await getFileAsUploader(space.systemAction(), space.id, fileUploader.fileId)).toEqual(
         new FileModel({
@@ -6796,13 +6815,16 @@ test("system action from the wrong space can't access file", async () => {
 
     await expect(
         getFileAsUploader(otherSpace.systemAction(), space.id, fileUploader.fileId),
-    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn't have access to space"));
 });
 
 test("only the uploader account can access their file", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
+
+    const otherSpace = await TestSpace.create(context);
+    await otherSpace.addAccount(session);
 
     const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
@@ -6833,6 +6855,24 @@ test("only the uploader account can access their file", async () => {
     await expect(
         getFileAsUploader(context.anonymousAction(), space.id, fileUploader.fileId),
     ).rejects.toThrow(new UnauthenticatedError("Unauthenticated session"));
+
+    await expect(
+        getFileAsUploader(
+            context.impersonatedAccountAction(space.id, otherSession.account.id),
+            space.id,
+            fileUploader.fileId,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file"));
+
+    await expect(
+        getFileAsUploader(
+            context.impersonatedAccountAction(otherSpace.id, session.account.id),
+            space.id,
+            fileUploader.fileId,
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError("Impersonated account actor doesn't have access to space"),
+    );
 });
 
 test("can get file from attachment after it's been attached", async () => {
@@ -6951,7 +6991,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -6960,7 +7000,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn't have access to space"));
 
     await attachFileAsUploader(
         session1.action(),
@@ -7008,7 +7048,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -7017,7 +7057,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn't have access to space"));
 });
 
 test("can't attach file as uploader if not the uploader", async () => {
@@ -7062,7 +7102,9 @@ test("can't attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account didn't upload file (and 1 other error)"));
+    ).rejects.toThrow(
+        new PermissionDeniedError("Account doesn't have access to space (and 1 other error)"),
+    );
 
     await expect(
         attachFileAsUploader(
@@ -7071,7 +7113,7 @@ test("can't attach file as uploader if not the uploader", async () => {
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn't have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -7613,7 +7655,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
 
     await expect(
         getFileFromAttachment(
@@ -7622,7 +7664,7 @@ test("can't get file from attachment if you don't have access to the attachment 
             fileUploader.fileId,
             FileChatAuthorizer.bind({type: "ChatMessages", chatId}),
         ),
-    ).rejects.toThrow(new PermissionDeniedError("System action doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("System actor doesn't have access to space"));
 });
 
 test("can't attach file when uploading if you don't have view access to the target", async () => {

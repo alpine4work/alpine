@@ -7,7 +7,11 @@ import {
     getAccountByIdAsAdmin,
     internalGetRegisteredAccountDevicesWithoutAuthorization,
 } from "~/server/accounts/accounts_table.js";
-import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {
+    DynamoActorContextModule,
+    DynamoImpersonatedAccountActorContextModule,
+    DynamoSystemActorContextModule,
+} from "~/server/accounts/dynamo_actor_context_module.js";
 import {
     ServerActionContext,
     ServerSessionActionContext,
@@ -51,6 +55,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId, getMaxId, getMinId} from "~/shared/id/id.js";
 import {
     AccountId,
@@ -1163,9 +1168,31 @@ export async function authorizeSpaceAccess(
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
-                throw new PermissionDeniedError("System action doesn't have access to space", {
+                throw new PermissionDeniedError("System actor doesn't have access to space", {
                     aggregateDedupeKey: spaceId,
                 });
+            }
+            break;
+        }
+        case "ImpersonatedAccount": {
+            if (context.actor.getSpaceId() !== spaceId) {
+                throw new PermissionDeniedError(
+                    "Impersonated account actor doesn't have access to space",
+                    {aggregateDedupeKey: spaceId},
+                );
+            }
+
+            if (
+                !(await isAccountMemberOfSpaceWithoutAuthorization(
+                    context,
+                    spaceId,
+                    context.actor.getAccountId(),
+                ))
+            ) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getAccountId(),
+                );
             }
             break;
         }
@@ -1237,8 +1264,46 @@ export async function authorizeSpaceAccessIfPossible(
                         // When this function is called, frequently we only check `ok`. So lazily
                         // create an error only when needed.
                         error ??= new PermissionDeniedError(
-                            "System action doesn't have access to space",
+                            "System actor doesn't have access to space",
                             {aggregateDedupeKey: spaceId},
+                        );
+                        return error;
+                    },
+                };
+            }
+            return okResult;
+        }
+        case "ImpersonatedAccount": {
+            const accountId = context.actor.getAccountId();
+
+            if (context.actor.getSpaceId() !== spaceId) {
+                let error: ErrorBase | undefined;
+
+                return {
+                    ok: false,
+                    get error() {
+                        // When this function is called, frequently we only check `ok`. So lazily
+                        // create an error only when needed.
+                        error ??= new PermissionDeniedError(
+                            "Impersonated account actor doesn't have access to space",
+                            {aggregateDedupeKey: spaceId},
+                        );
+                        return error;
+                    },
+                };
+            }
+
+            if (!(await isAccountMemberOfSpaceWithoutAuthorization(context, spaceId, accountId))) {
+                let error: ErrorBase | undefined;
+
+                return {
+                    ok: false,
+                    get error() {
+                        // When this function is called, frequently we only check `ok`. So lazily
+                        // create an error only when needed.
+                        error ??= createAuthorizeSpaceAccessPermissionDeniedError(
+                            spaceId,
+                            accountId,
                         );
                         return error;
                     },
@@ -1284,7 +1349,8 @@ export async function authorizeOwnAccountAccess(
             }
             break;
         }
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount": {
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError(
                     "Can't access account that's not the session actor's",
@@ -1300,14 +1366,69 @@ export async function authorizeOwnAccountAccess(
     }
 }
 
+/**
+ * As a system actor, impersonate any account in the system actor's space.
+ * Throws an error if the provided account isn't a member of the space.
+ *
+ * You may only access the account's data in the system actor's space. You
+ * can't use this function to read an account's data in another space. (If
+ * authorization checks for impersonated accounts are implemented properly.)
+ *
+ * A system actor should have access to all data in a space. So impersonating
+ * an account means you end up with a subset of data your system actor has
+ * access to.
+ *
+ * This function is useful for performing an action with the permissions of an
+ * account from a system action.
+ */
+export async function impersonateAccountAsSystemContext<
+    Modules extends {
+        process: ProcessContextModule;
+        actor: DynamoSystemActorContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    },
+    Value,
+>(
+    context: Context<Modules>,
+    accountId: AccountId,
+    action: (
+        context: Context<
+            Replace<
+                Modules,
+                {cache: CacheContextModule; actor: DynamoImpersonatedAccountActorContextModule}
+            >
+        >,
+    ) => Promise<Value>,
+): Promise<Value> {
+    // Make sure the account exists and its a member of our space before we can
+    // impersonate it.
+    if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
+        throw new PermissionDeniedError(
+            "Can't impersonate account that's not a member of system actor's space",
+        );
+    }
+
+    return context.with(
+        {
+            cache: context.cache.forkForChangedActor(),
+            actor: DynamoImpersonatedAccountActorContextModule.dangerouslyNew(
+                context.actor,
+                accountId,
+            ),
+        },
+        action,
+    );
+}
+
 const SpaceAccountItemContextCache = new ContextCache<
     `${SpaceId}:${AccountId | ContentMentionAccountId}`,
     SpaceAccountItem | null
 >({
-    // Allow sharing this cache because the results do not depend on anything in
-    // the context (like the `actor`). Whether we're using a session actor or a
-    // system actor does not affect wither an account is a member of a space.
-    dangerouslyAllowSharing: true,
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    whenActorChanges: "DangerouslyShare",
 });
 
 /**
@@ -1377,7 +1498,14 @@ async function dangerouslyGetSpaceAccountItemIfExists(
 const AccountModelContextCache = new ContextCache<
     `${SpaceId}:${ContentMentionAccountId}`,
     AccountModel | null
->();
+>({
+    // Allow sharing this cache because the results do not depend on who the
+    // actor is.
+    //
+    // We do use the session actor to optimize account item loading if available
+    // but it doesn't change cache semantics.
+    whenActorChanges: "DangerouslyShare",
+});
 
 /**
  * Get an account through a provided space. We can only authorize whether you

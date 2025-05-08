@@ -3622,7 +3622,11 @@ export async function backfillTaskActionTransactionHistory(
 const TaskItemAuthorizationCache = new DynamoContextCache<
     TaskId,
     TaskEssentialAttributesItem | null
->();
+>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 /**
  * Gets a task to be used in authorization. If used in `TaskRealtimeService`
@@ -3675,7 +3679,11 @@ async function getTaskItemForAuthorization(
 const TaskCollectionItemAuthorizationCache = new DynamoContextCache<
     TaskCollectionId,
     TaskCollectionEssentialAttributesItem
->();
+>({
+    // Allow sharing this cache because the loaded DynamoDB item doesn't depend
+    // on who the actor is.
+    whenActorChanges: "DangerouslyShare",
+});
 
 /**
  * Gets a collection to be used in authorization. If used in
@@ -3734,7 +3742,8 @@ async function getTaskCollectionItemForAuthorization(
 export type TaskAuthorizationActor =
     | {readonly type: "System"; getSpaceId(): SpaceId}
     | {readonly type: "Session"; getAccountId(): AccountId}
-    | {readonly type: "Anonymous"};
+    | {readonly type: "Anonymous"}
+    | {readonly type: "ImpersonatedAccount"; getSpaceId(): SpaceId; getAccountId(): AccountId};
 
 assertAssignableTypes<ActorContextModule, TaskAuthorizationActor>();
 
@@ -3801,7 +3810,8 @@ async function authorizeTaskCollectionItemAccessIfPossibleForActor(
                 isMemberOfSpace = false;
                 break;
             }
-            case "Session": {
+            case "Session":
+            case "ImpersonatedAccount": {
                 isMemberOfSpace = await isAccountMemberOfSpaceWithoutAuthorization(
                     context,
                     collectionItem.spaceId,
@@ -3862,11 +3872,24 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
             return okResult;
         }
         case "Session":
+        case "ImpersonatedAccount":
         case "Anonymous": {
+            if (
+                actor.type === "ImpersonatedAccount" &&
+                actor.getSpaceId() !== collectionItem.spaceId
+            ) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "Impersonated account actor doesn't have access to task collection's space",
+                    ),
+                };
+            }
+
             const isAccessAuthorized = await evaluateAccessPolicy(
                 context,
                 collectionItem.spaceId,
-                actor.type === "Session" ? actor.getAccountId() : null,
+                actor.type !== "Anonymous" ? actor.getAccountId() : null,
                 collectionItem.accessPolicy.value,
                 expectedAccessLevel,
             );
@@ -4148,7 +4171,8 @@ async function authorizeTaskItemAccessIfPossibleForActor(
                 isMemberOfSpace = false;
                 break;
             }
-            case "Session": {
+            case "Session":
+            case "ImpersonatedAccount": {
                 isMemberOfSpace = await isAccountMemberOfSpaceWithoutAuthorization(
                     context,
                     taskItem.spaceId,
@@ -4214,8 +4238,18 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
             return okResult;
         }
         case "Session":
+        case "ImpersonatedAccount":
         case "Anonymous": {
-            const accountId = actor.type === "Session" ? actor.getAccountId() : null;
+            if (actor.type === "ImpersonatedAccount" && actor.getSpaceId() !== taskItem.spaceId) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "Impersonated account actor doesn't have access to task's space",
+                    ),
+                };
+            }
+
+            const accountId = actor.type !== "Anonymous" ? actor.getAccountId() : null;
 
             if (accountId !== null) {
                 // The task creator has edit access level on their own task.

@@ -17,7 +17,7 @@ import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
-    ServerSessionActionContext,
+    ServerImpersonatedAccountActionContext,
     ServerSessionActionContextModules,
     ServerSystemActionContext,
     ServerSystemActionContextModules,
@@ -70,6 +70,8 @@ import {
     authorizeSpaceAccess,
     getAccount,
     getRegisteredAccountDevices,
+    impersonateAccountAsSystemContext,
+    isAccountMemberOfSpace,
     isAccountMemberOfSpaceWithoutAuthorization,
 } from "~/server/spaces/spaces_table.js";
 import {
@@ -1952,9 +1954,26 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         accountIds: Iterable<AccountId | ContentMentionAccountId>;
     }>;
 
-    // NOCOMMIT: Document!
+    /**
+     * Authorize that the account actor has access to the notification subject.
+     *
+     * This is run for every subscriber returned by `getSubscribers()` that is
+     * a current space member before we call `updateInboxEntry()`.
+     *
+     * You could implement authorization yourself in `getSubscribers()` by only
+     * returning `AccountId`s that have access to the notification subject.
+     * We've chosen to add a required function here to force you to consider
+     * authorization instead of accidentally ignoring it.
+     *
+     * IMPORTANT: This function needs read-after-write consistency which means you
+     * can't make eventually consistent reads. If reading from DynamoDB, always
+     * make sure to explicitly use `Strong` consistency.
+     *
+     * We need read-after-write consistency since the update which caused a
+     * notification event may have just itself added a subscriber.
+     */
     authorizeAccess: (
-        context: ServerSessionActionContext,
+        context: ServerImpersonatedAccountActionContext,
         event: Event,
         options: {info: Info},
     ) => Promise<Result<unknown>>;
@@ -2053,16 +2072,25 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
 
         await runAllPromises(
             mapIterable(accountIds, async accountOrMentionId => {
-                // Make sure the subscriber still has access to the entity (and space) relevant
-                // to this notification.
-                //
-                // We expect strong read consistency here too since we need read-after-write
-                // consistency. For example, in cases where we're sending a notification right
-                // after the account was granted access to the notification's subject.
-                const result = await authorizeAccess(
-                    context.impersonate().dynamo.expectStrongReadConsistency(),
-                    event,
-                    {info},
+                // Make sure the account is a current member of the space.
+                if (!(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))) {
+                    return;
+                }
+
+                // Make sure the subscriber still has access to the subject of this
+                // notification.
+                const result = await impersonateAccountAsSystemContext(
+                    context,
+                    accountOrMentionId as AccountId,
+                    context =>
+                        authorizeAccess(
+                            // We expect strong read consistency here too since we need read-after-write
+                            // consistency. For example, in cases where we're sending a notification right
+                            // after the account was granted access to the notification's subject.
+                            context.dynamo.expectStrongReadConsistency(),
+                            event,
+                            {info},
+                        ),
                 );
                 if (!result.ok) return;
 

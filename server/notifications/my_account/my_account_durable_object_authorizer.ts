@@ -24,7 +24,8 @@ export class MyAccountDurableObjectAuthorizer {
 
     async authorizeMyAccountAccess(context: WorkerActionContext, accountId: AccountId) {
         switch (context.actor.type) {
-            case "Session": {
+            case "Session":
+            case "ImpersonatedAccount": {
                 if (context.actor.getAccountId() !== accountId) {
                     throw new PermissionDeniedError(
                         "Can only access the durable object for your own account",

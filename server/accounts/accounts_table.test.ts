@@ -1147,4 +1147,12 @@ test("can authorize internal access", async () => {
     await expect(authorizeInternalAccess(context.anonymousAction())).rejects.toThrow(
         "Unauthenticated session",
     );
+
+    await expect(
+        authorizeInternalAccess(context.impersonatedAccountAction(space.id, account1.id)),
+    ).rejects.toThrow("Impersonated account actor does not have internal access");
+
+    await expect(
+        authorizeInternalAccess(context.impersonatedAccountAction(space.id, account2.id)),
+    ).rejects.toThrow("Impersonated account actor does not have internal access");
 });

@@ -2371,7 +2371,15 @@ export async function isSearchFavoriteEntity(
         case "System":
         case "Anonymous":
             return false;
-        case "Session": {
+        case "Session":
+        case "ImpersonatedAccount": {
+            if (
+                context.actor.type === "ImpersonatedAccount" &&
+                context.actor.getSpaceId() !== spaceId
+            ) {
+                return false;
+            }
+
             if (
                 !(await isAccountMemberOfSpaceWithoutAuthorization(
                     context,

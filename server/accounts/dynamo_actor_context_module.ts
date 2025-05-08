@@ -4,6 +4,7 @@ import {
     ActorContextModuleBase,
     ActorServiceName,
     AnonymousActorContextModule,
+    ImpersonatedAccountActorContextModule,
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
@@ -15,7 +16,8 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -28,7 +30,8 @@ import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 export type DynamoActorContextModule =
     | DynamoSessionActorContextModule
     | DynamoSystemActorContextModule
-    | DynamoAnonymousActorContextModule;
+    | DynamoAnonymousActorContextModule
+    | DynamoImpersonatedAccountActorContextModule;
 
 interface DynamoActorContextModuleBase extends ActorContextModuleBase {
     /**
@@ -179,7 +182,20 @@ export class DynamoSessionActorContextModule
         return this._context as any;
     }
 
+    /**
+     * Get the token payload for the session so we can sign new tokens for
+     * communicating with other services in our system.
+     *
+     * If this is an impersonated session (a session created by
+     * `impersonateAccountAsSystemContext()`) then we throw an `InternalError`.
+     * We don't currently support creating tokens for communicating with other
+     * services as an impersonated session.
+     */
     public getTokenPayload(): TokenPayload {
+        if (this._session.id === "Impersonated") {
+            throw new InternalError("Can't get token payload for impersonated session");
+        }
+
         return {
             type: "Session",
             sessionId: this._session.id,
@@ -201,8 +217,16 @@ export class DynamoSessionActorContextModule
 
     /**
      * Get the `SessionId` we authenticated with.
+     *
+     * If this is an impersonated session (a session created by
+     * `impersonateAccountAsSystemContext()`) then we throw an
+     * `InternalError`.
      */
     public getSessionId(): SessionId {
+        if (this._session.id === "Impersonated") {
+            throw new InternalError("Can't get `SessionId` for impersonated session");
+        }
+
         return this._session.id;
     }
 
@@ -364,5 +388,77 @@ export class DynamoAnonymousActorContextModule
 
     public fork() {
         return new DynamoAnonymousActorContextModule(this.serviceName);
+    }
+}
+
+export class DynamoImpersonatedAccountActorContextModule
+    extends DynamoUnknownActorContextModule
+    implements DynamoActorContextModuleBase, ImpersonatedAccountActorContextModule
+{
+    public readonly type = "ImpersonatedAccount";
+
+    public readonly serviceName: ActorServiceName;
+    private readonly _spaceId: SpaceId;
+    private readonly _accountId: AccountId;
+
+    private constructor(serviceName: ActorServiceName, spaceId: SpaceId, accountId: AccountId) {
+        super(() => Promise.resolve(this));
+        this.serviceName = serviceName;
+        this._spaceId = spaceId;
+        this._accountId = accountId;
+    }
+
+    /**
+     * Dangerous since you can pass in an arbitrary `SpaceId` and `AccountId` here.
+     * We don't verify that the `SpaceId` exists or the `AccountId` is a member of
+     * the space. You should use `impersonateAccountAsSystemContext()` to construct
+     * this context module.
+     */
+    public static dangerouslyNew(
+        actorContextModule: DynamoSystemActorContextModule,
+        accountId: AccountId,
+    ) {
+        // Double check that we have a real actor context module class instance.
+        assert(actorContextModule instanceof DynamoSystemActorContextModule);
+
+        return new DynamoImpersonatedAccountActorContextModule(
+            actorContextModule.serviceName,
+            actorContextModule.getSpaceId(),
+            accountId,
+        );
+    }
+
+    public getTokenPayload(): TokenPayload {
+        // NOTE(calebmer): We don't need cross-service communication for impersonated
+        // actors right now but may need the capability in the future.
+        throw new InternalError("Can't create token for impersonated account actor");
+    }
+
+    public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: DynamoSessionActorContextModule}>> {
+        throw unauthenticatedSessionError();
+    }
+
+    public authorizeSystem<Modules extends {actor: ActorContextModuleBase}>(
+        this: ContextModuleBase<Modules> & ActorContextModuleBase,
+    ): Context<Replace<Modules, {actor: DynamoSystemActorContextModule}>> {
+        throw new PermissionDeniedError("Impersonated account actor is not a system actor");
+    }
+
+    public getSpaceId() {
+        return this._spaceId;
+    }
+
+    public getAccountId() {
+        return this._accountId;
+    }
+
+    public fork() {
+        return new DynamoImpersonatedAccountActorContextModule(
+            this.serviceName,
+            this._spaceId,
+            this._accountId,
+        );
     }
 }
