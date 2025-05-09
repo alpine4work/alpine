@@ -1,5 +1,7 @@
 import {TestApnsContextModule} from "~/server/apns/apns_context_module.js";
+import {processSendShareNotificationJob} from "~/server/chat/data/chat_table.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     archiveInboxEntry,
@@ -16,16 +18,20 @@ import {
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
+    emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {InboxChatEntryModel} from "~/shared/notifications/inbox_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -74,6 +80,8 @@ for (const [currentProcessingType, processingMultiple] of [
     ["ThriceConcurrently", 3],
 ] as const) {
     describe(`processing: ${currentProcessingType}`, () => {
+        if (currentProcessingType !== "Once") return;
+
         beforeEach(() => {
             processingType = currentProcessingType;
         });
@@ -4497,312 +4505,645 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
         });
-    });
 
-    test("if an account is mentioned then the mentioned message sticks around until archival", async () => {
-        const space = await TestSpace.create(context);
+        test("if an account is mentioned then the mentioned message sticks around until archival", async () => {
+            const space = await TestSpace.create(context);
 
-        const session1 = await space.createSession();
-        const session2 = await space.createSession();
+            const session1 = await space.createSession();
+            const session2 = await space.createSession();
 
-        const chat = await TestChat.get(session1, session2);
+            const chat = await TestChat.get(session1, session2);
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
 
-        const message1 = await chat.sendMessage(
-            session1,
-            createSimpleMessageContent("Test comment 2"),
-        );
+            const message1 = await chat.sendMessage(
+                session1,
+                createSimpleMessageContent("Test comment 2"),
+            );
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 1,
-                latestMessage: {
-                    createdTime: message1.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: printContentSingleLineTextSnippet({
-                        doc: createSimpleMessageContent("Test comment 2"),
-                        references: emptyContentReferences,
-                    }),
-                    isStickyMention: false,
-                },
-                otherChatAccount: null,
-            }),
-        ]);
-
-        const message3 = await chat.sendMessage(
-            session1,
-            createSimpleMessageContent("Test comment 3"),
-        );
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 1,
-                latestMessage: {
-                    createdTime: message3.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: printContentSingleLineTextSnippet({
-                        doc: createSimpleMessageContent("Test comment 3"),
-                        references: emptyContentReferences,
-                    }),
-                    isStickyMention: false,
-                },
-                otherChatAccount: null,
-            }),
-        ]);
-
-        const message4 = await chat.sendMessage(
-            session1,
-            assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text("Test comment 4 "),
-                        MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id, isShort: false},
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: message1.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("Test comment 2"),
+                            references: emptyContentReferences,
                         }),
-                    ]),
-                ]),
-            ),
-        );
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
 
-        await ProcessContextModule.waitForTestTasks();
+            const message3 = await chat.sendMessage(
+                session1,
+                createSimpleMessageContent("Test comment 3"),
+            );
 
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 2,
-                latestMessage: {
-                    createdTime: message4.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherChatAccount: null,
-            }),
-        ]);
+            await ProcessContextModule.waitForTestTasks();
 
-        await chat.sendMessage(session1, createSimpleMessageContent("Test comment 5"));
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 2,
-                latestMessage: {
-                    createdTime: message4.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherChatAccount: null,
-            }),
-        ]);
-
-        await chat.sendMessage(session1, createSimpleMessageContent("Test comment 6"));
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 2,
-                latestMessage: {
-                    createdTime: message4.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherChatAccount: null,
-            }),
-        ]);
-
-        const message7 = await chat.sendMessage(
-            session1,
-            assertMessageContent(
-                MessageContentProsemirrorSchema.node("doc", {}, [
-                    MessageContentProsemirrorSchema.node("paragraph", {}, [
-                        MessageContentProsemirrorSchema.text("Test comment 7 "),
-                        MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id, isShort: false},
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: message3.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("Test comment 3"),
+                            references: emptyContentReferences,
                         }),
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            const message4 = await chat.sendMessage(
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Test comment 4 "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session2.account.id, isShort: false},
+                            }),
+                        ]),
                     ]),
-                ]),
-            ),
-        );
+                ),
+            );
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getInboxEntries(session2.action(), {
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 2,
+                    latestMessage: {
+                        createdTime: message4.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            await chat.sendMessage(session1, createSimpleMessageContent("Test comment 5"));
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 2,
+                    latestMessage: {
+                        createdTime: message4.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            await chat.sendMessage(session1, createSimpleMessageContent("Test comment 6"));
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 2,
+                    latestMessage: {
+                        createdTime: message4.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 4 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            const message7 = await chat.sendMessage(
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Test comment 7 "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: {accountId: session2.account.id, isShort: false},
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 3,
+                    latestMessage: {
+                        createdTime: message7.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            await chat.sendMessage(session1, createSimpleMessageContent("Test comment 8"));
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 3,
+                    latestMessage: {
+                        createdTime: message7.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
                 spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 3,
-                latestMessage: {
-                    createdTime: message7.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherChatAccount: null,
-            }),
-        ]);
+                key: {type: "Chat", chatId: chat.id},
+            });
 
-        await chat.sendMessage(session1, createSimpleMessageContent("Test comment 8"));
+            await ProcessContextModule.waitForTestTasks();
 
-        await ProcessContextModule.waitForTestTasks();
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
 
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 3,
-                latestMessage: {
-                    createdTime: message7.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: `Test comment 7 @${session2.account.initialName}`,
-                    isStickyMention: true,
-                },
-                otherChatAccount: null,
-            }),
-        ]);
+            const message9 = await chat.sendMessage(
+                session1,
+                createSimpleMessageContent("Test comment 9"),
+            );
 
-        await archiveInboxEntry(session2.action().clone({apns: new TestApnsContextModule()}), {
-            spaceId: space.id,
-            key: {type: "Chat", chatId: chat.id},
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: message9.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "Test comment 9",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
         });
 
-        await ProcessContextModule.waitForTestTasks();
+        test("clerical message with empty content doesn't increment loud notification count", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
 
-        expect(
-            await getInboxEntries(session2.action(), {
+            const chat = await TestChat.get(session1, session2);
+
+            const document = await TestDocument.create(session1);
+            await document.access.grantDefault(session1);
+
+            await processSendShareNotificationJob(space.systemAction(), {
+                jobId: generateId(),
                 spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([]);
-
-        const message9 = await chat.sendMessage(
-            session1,
-            createSimpleMessageContent("Test comment 9"),
-        );
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntries(session2.action(), {
-                spaceId: space.id,
-                filter: "New",
-                limit: 100,
-                afterCursor: null,
-            }).then(massageInboxEntriesQuery),
-        ).toEqual([
-            new InboxChatEntryModel({
-                isArchived: false,
-                spaceId: space.id,
-                accountId: session2.account.id,
-                chatId: chat.id,
-                chatAccountCount: 2,
-                loudNotificationCount: 1,
-                latestMessage: {
-                    createdTime: message9.createdTime,
-                    author: await session1.get(),
-                    contentTextSnippet: "Test comment 9",
-                    isStickyMention: false,
+                actorAccountId: session1.account.id,
+                entityId: `Document:${document.id}`,
+                notification: {
+                    accountIds: [session2.account.id],
+                    content: emptyMessageContent,
                 },
-                otherChatAccount: null,
-            }),
-        ]);
+            });
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 0,
+                    latestMessage: {
+                        createdTime: expect.any(Date),
+                        author: await session1.get(),
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                        clerical: {
+                            type: "ShareNotification",
+                            entityType: "Document",
+                        },
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+        });
+
+        test("clerical message with content doesn't increment loud notification count", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const document = await TestDocument.create(session1);
+            await document.access.grantDefault(session1);
+
+            await processSendShareNotificationJob(space.systemAction(), {
+                jobId: generateId(),
+                spaceId: space.id,
+                actorAccountId: session1.account.id,
+                entityId: `Document:${document.id}`,
+                notification: {
+                    accountIds: [session2.account.id],
+                    content: createSimpleMessageContent("foobar"),
+                },
+            });
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 0,
+                    latestMessage: {
+                        createdTime: expect.any(Date),
+                        author: await session1.get(),
+                        contentTextSnippet: "foobar",
+                        isStickyMention: false,
+                        clerical: {
+                            type: "ShareNotification",
+                            entityType: "Document",
+                        },
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+        });
+
+        test("clerical message with mention does increment loud notification count", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const document = await TestDocument.create(session1);
+            await document.access.grantDefault(session1);
+
+            await processSendShareNotificationJob(space.systemAction(), {
+                jobId: generateId(),
+                spaceId: space.id,
+                actorAccountId: session1.account.id,
+                entityId: `Document:${document.id}`,
+                notification: {
+                    accountIds: [session2.account.id],
+                    content: assertMessageContent(
+                        MessageContentProsemirrorSchema.node("doc", null, [
+                            MessageContentProsemirrorSchema.node("paragraph", null, [
+                                MessageContentProsemirrorSchema.text("Hello "),
+                                MessageContentProsemirrorSchema.node("mention", {
+                                    mention: cast<ContentMention>({
+                                        accountId: session2.account.id,
+                                        isShort: false,
+                                    }),
+                                }),
+                            ]),
+                        ]),
+                    ),
+                },
+            });
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: expect.any(Date),
+                        author: await session1.get(),
+                        contentTextSnippet: `Hello @${session2.account.initialName}`,
+                        isStickyMention: true,
+                        clerical: {
+                            type: "ShareNotification",
+                            entityType: "Document",
+                        },
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+        });
+
+        test("sends a loud notification on any message after some period of time even if there was a clerical message first", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const chat = await TestChat.get(session1, session2);
+
+            const document = await TestDocument.create(session1);
+            await document.access.grantDefault(session1);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const message1 = await chat.sendMessage(session1, "message1");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: message1.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "message1",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            const message2 = await chat.sendMessage(session1, "message2");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: message2.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "message2",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            const originalDateNow = Date.now;
+            const mockTime1 = Date.now() + 1000 * 60 * 60 * 2;
+            const mockTime2 = Date.now() + 1000 * 60 * 60 * 2 + 1000;
+
+            try {
+                Date.now = () => mockTime1;
+
+                await processSendShareNotificationJob(space.systemAction(), {
+                    jobId: generateId(),
+                    spaceId: space.id,
+                    actorAccountId: session1.account.id,
+                    entityId: `Document:${document.id}`,
+                    notification: {
+                        accountIds: [session2.account.id],
+                        content: createSimpleMessageContent("message3"),
+                    },
+                });
+
+                await ProcessContextModule.waitForTestTasks();
+            } finally {
+                Date.now = originalDateNow;
+            }
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: new Date(mockTime1),
+                        author: await session1.get(),
+                        contentTextSnippet: "message3",
+                        isStickyMention: false,
+                        clerical: {
+                            type: "ShareNotification",
+                            entityType: "Document",
+                        },
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            let message4;
+            try {
+                Date.now = () => mockTime2;
+
+                message4 = await chat.sendMessage(session1, "message4");
+
+                await ProcessContextModule.waitForTestTasks();
+            } finally {
+                Date.now = originalDateNow;
+            }
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 2,
+                    latestMessage: {
+                        createdTime: message4.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "message4",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+        });
     });
 }

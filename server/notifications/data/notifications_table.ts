@@ -2824,7 +2824,6 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
         };
     },
     authorizeAccess: (context, event) => {
-        // NOCOMMIT: Test!
         return authorizeChatAccessIfPossible(context, event.chatId, {
             consistency: "StrongWithinCache",
         });
@@ -2893,19 +2892,23 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                     // scale of work involved in answering entries in the user's inbox and our bet
                     // is the work involved to resolve your inbox entries is proportional to number
                     // of entries (vs number of messages within an entry).
-                    shouldIncrementLoudNotificationCount =
-                        isMention ||
+                    shouldIncrementLoudNotificationCount = (() => {
+                        if (isMention) return true;
+
                         // Don't increment the loud notification count if this is a clerical message
                         // unless this clerical message also contained a mention.
-                        //
-                        // NOCOMMIT: Test!
-                        (!event.clerical &&
-                            (oldItem?.isArchived ||
-                                !oldItem?.lastLoudNotificationCountTime ||
-                                differenceInMinutes(
-                                    event.createdTime,
-                                    oldItem.lastLoudNotificationCountTime,
-                                ) >= minMessageViewTimestampDividerElapsedMinutes));
+                        if (event.clerical) return false;
+
+                        if (oldItem?.isArchived) return true;
+                        if (!oldItem?.lastLoudNotificationCountTime) return true;
+
+                        return (
+                            differenceInMinutes(
+                                event.createdTime,
+                                oldItem.lastLoudNotificationCountTime,
+                            ) >= minMessageViewTimestampDividerElapsedMinutes
+                        );
+                    })();
 
                     loudNotificationCount =
                         (oldItem?.loudNotificationCount ?? 0) +
@@ -3049,8 +3052,6 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
 
         // If this is a share notification then override the subtitle to
         // describe what happened.
-        //
-        // NOCOMMIT: Test. Does this look good?
         if (event.clerical?.type === "ShareNotification") {
             const entityNoun = getFileEntityNoun(event.clerical.entityType);
             subtitle = `shared a ${entityNoun} with you`;

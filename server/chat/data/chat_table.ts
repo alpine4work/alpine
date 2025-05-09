@@ -1225,6 +1225,7 @@ async function authorizeChatAccessAndReturnItemIfPossible(
                 context,
                 chatId,
                 context.actor.getAccountId(),
+                options,
             );
             if (!chatItemResult.ok) return chatItemResult;
             return {ok: true, value: chatItemResult.value.chatItem};
