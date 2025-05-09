@@ -315,8 +315,18 @@ export class InboxTaskEntryModel
         Schema.object({
             spaceId: Schema.id<SpaceId>(),
             accountId: Schema.id<AccountId>(),
-            taskId: Schema.id<TaskId>(),
-            taskOwner: AccountModel.schema,
+            task: Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({
+                    isPrivate: Schema.value(true),
+                    taskId: Schema.id<TaskId>(),
+                }),
+                Schema.object({
+                    isPrivate: Schema.value(false),
+                    taskId: Schema.id<TaskId>(),
+                    taskOwner: AccountModel.schema,
+                }),
+            ),
             loudNotificationCount: Schema.integer.min(0),
             isArchived: Schema.boolean,
             latestComment: Schema.object({
@@ -333,7 +343,7 @@ export class InboxTaskEntryModel
     public readonly type = "Task" as const;
 
     public getKey(): InboxEntryKey {
-        return {type: "Task", taskId: this.taskId};
+        return {type: "Task", taskId: this.task.taskId};
     }
 }
 

@@ -11,17 +11,24 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {InboxTaskEntryModel} from "~/shared/notifications/inbox_model.js";
 
 let processingType: "Once" | "TwiceSerially" | "ThriceConcurrently" = "Once";
@@ -161,8 +168,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 new InboxTaskEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     isArchived: false,
                     loudNotificationCount: 0,
                     latestComment: {
@@ -196,8 +206,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 new InboxTaskEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     isArchived: false,
                     loudNotificationCount: 0,
                     latestComment: {
@@ -233,8 +246,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 new InboxTaskEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     isArchived: false,
                     loudNotificationCount: 0,
                     latestComment: {
@@ -268,8 +284,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 new InboxTaskEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     isArchived: false,
                     loudNotificationCount: 0,
                     latestComment: {
@@ -296,8 +315,11 @@ for (const [currentProcessingType, processingMultiple] of [
                 new InboxTaskEntryModel({
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     isArchived: false,
                     loudNotificationCount: 0,
                     latestComment: {
@@ -369,8 +391,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -411,8 +436,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: true,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -439,8 +467,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session1.get(),
@@ -467,8 +498,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session1.get(),
@@ -529,8 +563,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -562,8 +599,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 1,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -610,8 +650,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 1,
                     latestComment: {
                         author: await scenario.session1.get(),
@@ -643,8 +686,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session1.get(),
@@ -705,8 +751,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -742,8 +791,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -777,8 +829,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -819,8 +874,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -859,8 +917,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -896,8 +957,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: task.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -991,8 +1055,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
-                    taskId: taskInSession.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: taskInSession.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -1019,8 +1086,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.otherSession.account.id,
-                    taskId: taskInOtherSession.id,
-                    taskOwner: await scenario.otherSession.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: taskInOtherSession.id,
+                        taskOwner: await scenario.otherSession.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.sharedSessionInOtherSpace.get(),
@@ -1056,8 +1126,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
-                    taskId: taskInSession.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: taskInSession.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -1084,8 +1157,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
-                    taskId: taskInOtherSession.id,
-                    taskOwner: await scenario.otherSession.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: taskInOtherSession.id,
+                        taskOwner: await scenario.otherSession.get(),
+                    },
                     loudNotificationCount: 0,
                     latestComment: {
                         author: await scenario.otherSession.get(),
@@ -1161,8 +1237,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: taskInSession.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: taskInSession.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 1,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -1210,8 +1289,11 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
-                    taskId: taskInSession.id,
-                    taskOwner: await scenario.session1.get(),
+                    task: {
+                        isPrivate: false,
+                        taskId: taskInSession.id,
+                        taskOwner: await scenario.session1.get(),
+                    },
                     loudNotificationCount: 1,
                     latestComment: {
                         author: await scenario.session2.get(),
@@ -1239,6 +1321,402 @@ for (const [currentProcessingType, processingMultiple] of [
                     afterCursor: null,
                 }).then(massageInboxEntriesQuery),
             ).rejects.toThrow(PermissionDeniedError);
+        });
+
+        test("hides task when account loses access to task they have inbox entry for", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session1);
+            await task.updateAssignee(session1, session2);
+
+            const comment = await task.createComment(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await session2.get(),
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "foo",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await task.updateAssignee(session1, null);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: true,
+                        taskId: task.id,
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("hides task when account loses access to task they have inbox entry for (and the entry contains a mention)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session1);
+            await task.updateAssignee(session1, session2);
+
+            const comment = await task.createComment(
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", null, [
+                        MessageContentProsemirrorSchema.node("paragraph", null, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await session2.get(),
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        createdTime: comment.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: `Hello @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await task.updateAssignee(session1, null);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: true,
+                        taskId: task.id,
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 1,
+                    latestComment: {
+                        createdTime: comment.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "",
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("won't send new notifications for account that loses access to task", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session1);
+            await task.updateAssignee(session1, session2);
+
+            // Subscribe `session2` to the task's comments.
+            await task.createComment(session2);
+
+            const comment1 = await task.createComment(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await session2.get(),
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment1.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "foo",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await task.updateAssignee(session1, null);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: true,
+                        taskId: task.id,
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment1.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await task.createComment(session1, "bar");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: true,
+                        taskId: task.id,
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment1.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await task.updateAssignee(session1, session2);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await session2.get(),
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment1.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "foo",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            const comment3 = await task.createComment(session1, "qux");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await session2.get(),
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment3.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "qux",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("won't get a notification for a mention if the account doesn't have access to task", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session1);
+
+            await task.createComment(
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", null, [
+                        MessageContentProsemirrorSchema.node("paragraph", null, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await task.updateAssignee(session1, session2);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const comment2 = await task.createComment(session1, "bar");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxTaskEntryModel({
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    task: {
+                        isPrivate: false,
+                        taskId: task.id,
+                        taskOwner: await session2.get(),
+                    },
+                    isArchived: false,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        createdTime: comment2.createdTime,
+                        author: await session1.get(),
+                        contentTextSnippet: "bar",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
         });
     });
 }

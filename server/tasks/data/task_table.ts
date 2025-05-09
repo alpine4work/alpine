@@ -4585,22 +4585,35 @@ async function createTaskCommentModelFromItem(
     });
 }
 
-// This enables us to get the current owner of the Task. Since Tasks can
-// constantly be re-assigned we return the current Assignee or the
-// original Task creator.
-export async function getTaskOwner(
+/**
+ * This enables us to get the current owner of the Task. Since Tasks can
+ * constantly be re-assigned we return the current Assignee or the
+ * original Task creator.
+ */
+export async function getTaskOwnerIfPossible(
     context: ServerActionContext,
     taskId: TaskId,
-): Promise<AccountModel> {
-    await authorizeTaskAccess(context, taskId, "View");
-
+): Promise<Result<AccountModel, ErrorBase>> {
     const taskItem = await getTaskItemForAuthorization(context, taskId, null);
+
+    const result = await authorizeTaskItemAccessIfPossibleForActor(
+        context,
+        context.actor,
+        taskItem,
+        "View",
+        {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, null),
+        },
+    );
+    if (!result.ok) return result;
 
     const owner = taskItem.assigneeId.value
         ? await getAccount(context, taskItem.spaceId, taskItem.assigneeId.value)
         : await getAccount(context, taskItem.spaceId, taskItem.creatorId);
 
-    return owner;
+    return {ok: true, value: owner};
 }
 
 export async function getTaskNotificationSubscribers(

@@ -603,7 +603,10 @@ function getInboxTaskEntryDisplay({
     entry: InboxTaskEntryModel;
     currentAccount: AccountModel | null;
 }): InboxEntryDisplay {
-    const firstAccount = entry.otherCommentAuthor ?? entry.latestComment?.author ?? entry.taskOwner;
+    const firstAccount =
+        entry.otherCommentAuthor ??
+        entry.latestComment?.author ??
+        (!entry.task.isPrivate ? entry.task.taskOwner : null);
 
     const secondAccount =
         entry.latestComment?.author.id !== firstAccount.id
@@ -616,25 +619,35 @@ function getInboxTaskEntryDisplay({
         summary.push(entry.latestComment.author);
         summary.push(" mentioned you in a comment on ");
 
-        if (currentAccount?.id === entry.taskOwner.id) {
-            summary.push("your");
-        } else if (entry.latestComment.author.id === entry.taskOwner.id) {
-            summary.push("their");
+        if (entry.task.isPrivate) {
+            summary.push(" a private task");
         } else {
-            summary.push(entry.taskOwner);
-            summary.push("’s");
-        }
+            if (currentAccount?.id === entry.task.taskOwner.id) {
+                summary.push("your");
+            } else if (entry.latestComment.author.id === entry.task.taskOwner.id) {
+                summary.push("their");
+            } else {
+                summary.push(entry.task.taskOwner);
+                summary.push("’s");
+            }
 
-        summary.push(" task");
+            summary.push(" task");
+        }
     } else {
-        if (currentAccount?.id === entry.taskOwner.id) {
-            summary.push("Your");
+        if (entry.task.isPrivate) {
+            summary.push("A private task");
         } else {
-            summary.push(entry.taskOwner);
-            summary.push("’s");
+            if (currentAccount?.id === entry.task.taskOwner.id) {
+                summary.push("Your");
+            } else {
+                summary.push(entry.task.taskOwner);
+                summary.push("’s");
+            }
+
+            summary.push(" task");
         }
 
-        summary.push(" task has new comments");
+        summary.push(" has new comments");
     }
 
     return {

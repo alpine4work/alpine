@@ -40,7 +40,7 @@ import {
     getTaskNotesContentAndOptionalInitialComments,
     getTaskNotesContentWithoutReferences,
     getTaskNotificationSubscribers,
-    getTaskOwner,
+    getTaskOwnerIfPossible,
     updateTaskCommentContent,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
@@ -20643,27 +20643,43 @@ test("throws error for users without proper access trying to get the Task Owner"
         urlGrant: null,
     });
 
-    await expect(getTaskOwner(creatorSession.action(), task.id)).resolves.not.toBeNull();
-
-    await expect(getTaskOwner(manageSession.action(), task.id)).resolves.not.toBeNull();
-
-    await expect(getTaskOwner(editorSession.action(), task.id)).resolves.not.toBeNull();
-
-    await expect(getTaskOwner(assigneeSession.action(), task.id)).resolves.not.toBeNull();
-
-    await expect(getTaskOwner(commenterSession.action(), task.id)).resolves.not.toBeNull();
-
-    await expect(getTaskOwner(viewerSession.action(), task.id)).resolves.not.toBeNull();
-
-    await expect(getTaskOwner(unauthorizedSession.action(), task.id)).rejects.toThrow(
-        PermissionDeniedError,
+    await expect(getTaskOwnerIfPossible(creatorSession.action(), task.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
     );
 
-    await expect(getTaskOwner(space.systemAction(), task.id)).resolves.not.toBeNull();
-
-    await expect(getTaskOwner(otherSpace.systemAction(), task.id)).rejects.toThrow(
-        PermissionDeniedError,
+    await expect(getTaskOwnerIfPossible(manageSession.action(), task.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
     );
+
+    await expect(getTaskOwnerIfPossible(editorSession.action(), task.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+
+    await expect(getTaskOwnerIfPossible(assigneeSession.action(), task.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+
+    await expect(getTaskOwnerIfPossible(commenterSession.action(), task.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+
+    await expect(getTaskOwnerIfPossible(viewerSession.action(), task.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+
+    await expect(getTaskOwnerIfPossible(unauthorizedSession.action(), task.id)).resolves.toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
+    });
+
+    await expect(getTaskOwnerIfPossible(space.systemAction(), task.id)).resolves.toEqual(
+        expect.objectContaining({ok: true}),
+    );
+
+    await expect(getTaskOwnerIfPossible(otherSpace.systemAction(), task.id)).resolves.toEqual({
+        ok: false,
+        error: expect.any(PermissionDeniedError),
+    });
 });
 
 test("authorizing task access as session actor is cached", async () => {

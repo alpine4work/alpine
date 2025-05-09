@@ -82,7 +82,7 @@ import {
     FileTaskAuthorizer,
     authorizeTaskAccessIfPossible,
     getTaskNotificationSubscribers,
-    getTaskOwner,
+    getTaskOwnerIfPossible,
 } from "~/server/tasks/data/task_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
@@ -111,6 +111,7 @@ import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -1101,37 +1102,57 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             // tasks can be reassigned the "owner" of the task can constantly change over time.
             TaskEntry: {
                 async build(context, item) {
-                    const [taskOwner, latestComment, otherCommentAuthor] = await runAllPromises([
-                        // NOCOMMIT: What if they lost access?
-                        getTaskOwner(context, item.taskId),
-                        runAllObjectPromises({
-                            comment: item.latestComment,
-                            author: getAccount(context, item.spaceId, item.latestComment.authorId),
-                            references: getMessageContentReferencesForNode(
-                                context,
-                                item.spaceId,
-                                item.latestComment.contentSnippet,
-                            ),
-                        }),
-                        item.otherCommentAuthorId
-                            ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
-                            : null,
-                    ]);
+                    const [taskOwnerResult, latestComment, otherCommentAuthor] =
+                        await runAllPromises([
+                            getTaskOwnerIfPossible(context, item.taskId),
+                            runAllObjectPromises({
+                                comment: item.latestComment,
+                                author: getAccount(
+                                    context,
+                                    item.spaceId,
+                                    item.latestComment.authorId,
+                                ),
+                                references: getMessageContentReferencesForNode(
+                                    context,
+                                    item.spaceId,
+                                    item.latestComment.contentSnippet,
+                                ),
+                            }),
+                            item.otherCommentAuthorId
+                                ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
+                                : null,
+                        ]);
 
                     return new InboxTaskEntryModel({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
-                        taskId: item.taskId,
-                        taskOwner,
+                        task: !taskOwnerResult.ok
+                            ? {isPrivate: true, taskId: item.taskId}
+                            : {
+                                  isPrivate: false,
+                                  taskId: item.taskId,
+                                  taskOwner: taskOwnerResult.value,
+                              },
                         loudNotificationCount: item.loudNotificationCount,
                         isArchived: item.isArchived,
                         latestComment: {
                             author: latestComment.author,
                             createdTime: latestComment.comment.createdTime,
-                            contentTextSnippet: printContentSingleLineTextSnippet({
-                                doc: latestComment.comment.contentSnippet,
-                                references: latestComment.references,
-                            }),
+                            contentTextSnippet: taskOwnerResult.ok
+                                ? // If the actor lost access to the task then don't show them the latest
+                                  // comment snippet. They may have already seen this content in a push
+                                  // notification so it's not necessarily a permissions violation to show it
+                                  // again but a user removing another user's access from a task would
+                                  // probably expect the content to be hidden.
+                                  //
+                                  // We continue returning the author, created time, and whether the last comment
+                                  // was a mention because the user has already theoretically seen these things
+                                  // (via push notification) and otherwise the notification loses all structure.
+                                  printContentSingleLineTextSnippet({
+                                      doc: latestComment.comment.contentSnippet,
+                                      references: latestComment.references,
+                                  })
+                                : "",
                             isStickyMention: latestComment.comment.isStickyMention,
                         },
                         otherCommentAuthor,
@@ -3635,7 +3656,6 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
         };
     },
     authorizeAccess: (context, event) => {
-        // NOCOMMIT: Test
         return authorizeTaskAccessIfPossible(context, event.taskId, "View", null, {
             consistency: "StrongWithinCache",
         });
@@ -3751,15 +3771,17 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
         );
     },
     getAlertContent: async (context, event, {accountId}) => {
-        const [author, task, body] = await runAllPromises([
+        const [author, taskOwnerResult, body] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),
-            getTaskOwner(context, event.taskId),
+            getTaskOwnerIfPossible(context, event.taskId),
             printNotificationEventAlertContentBody(
                 context,
                 FileTaskAuthorizer.bind({type: "TaskComments", taskId: event.taskId}),
                 event,
             ),
         ]);
+
+        const taskOwner = unwrapResult(taskOwnerResult);
 
         let subtitle = "";
 
@@ -3769,12 +3791,12 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
             subtitle += "mentioned you on ";
         }
 
-        if (task.id === accountId) {
+        if (taskOwner.id === accountId) {
             subtitle += "your";
-        } else if (task.id === event.authorId) {
+        } else if (taskOwner.id === event.authorId) {
             subtitle += "their";
         } else {
-            subtitle += `${getAccountShortNameWithoutFullNameTooltip(task.initialData)}’s`;
+            subtitle += `${getAccountShortNameWithoutFullNameTooltip(taskOwner.initialData)}’s`;
         }
 
         subtitle += ` task`;
