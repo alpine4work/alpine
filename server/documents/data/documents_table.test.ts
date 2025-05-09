@@ -4894,8 +4894,12 @@ test("authorization succeeds for session actor in the same space", async () => {
 
     const document = await TestDocument.create(session1);
 
-    const authorize = async (
-        session: TestSpaceSession | TestSpace | "Anonymous",
+    const auth = async (
+        session:
+            | TestSpaceSession
+            | TestSpace
+            | "Anonymous"
+            | {impersonate: TestSpaceSession | [TestSpace, TestSpaceSession]},
         expectedAccessLevel: AccessLevel,
     ) => {
         const result = await authorizeDocumentAccessIfPossible(
@@ -4903,6 +4907,16 @@ test("authorization succeeds for session actor in the same space", async () => {
                 ? context.anonymousAction()
                 : session instanceof TestSpace
                 ? session.systemAction()
+                : "impersonate" in session
+                ? Array.isArray(session.impersonate)
+                    ? context.impersonatedAccountAction(
+                          session.impersonate[0].id,
+                          session.impersonate[1].account.id,
+                      )
+                    : context.impersonatedAccountAction(
+                          session.impersonate.space.id,
+                          session.impersonate.account.id,
+                      )
                 : session.action(),
             document.id,
             expectedAccessLevel,
@@ -4914,6 +4928,16 @@ test("authorization succeeds for session actor in the same space", async () => {
                     ? context.anonymousAction()
                     : session instanceof TestSpace
                     ? session.systemAction()
+                    : "impersonate" in session
+                    ? Array.isArray(session.impersonate)
+                        ? context.impersonatedAccountAction(
+                              session.impersonate[0].id,
+                              session.impersonate[1].account.id,
+                          )
+                        : context.impersonatedAccountAction(
+                              session.impersonate.space.id,
+                              session.impersonate.account.id,
+                          )
                     : session.action(),
                 document.id,
                 expectedAccessLevel,
@@ -4926,35 +4950,58 @@ test("authorization succeeds for session actor in the same space", async () => {
         }
     };
 
-    await authorize(session1, "View");
-    await authorize(session1, "Comment");
-    await authorize(session1, "Edit");
-    await authorize(session1, "Manage");
+    await auth(session1, "View");
+    await auth(session1, "Comment");
+    await auth(session1, "Edit");
+    await auth(session1, "Manage");
 
-    await expect(authorize(session2, "View")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(session2, "Comment")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(session2, "Edit")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(session2, "Manage")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(session2, "View")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(session2, "Comment")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(session2, "Edit")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(session2, "Manage")).rejects.toThrow(PermissionDeniedError);
 
-    await authorize(space, "View");
-    await authorize(space, "Comment");
-    await authorize(space, "Edit");
-    await authorize(space, "Manage");
+    await auth(space, "View");
+    await auth(space, "Comment");
+    await auth(space, "Edit");
+    await auth(space, "Manage");
 
-    await expect(authorize(otherSession, "View")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(otherSession, "Comment")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(otherSession, "Edit")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(otherSession, "Manage")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSession, "View")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSession, "Comment")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSession, "Edit")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSession, "Manage")).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorize(otherSpace, "View")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(otherSpace, "Comment")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(otherSpace, "Edit")).rejects.toThrow(PermissionDeniedError);
-    await expect(authorize(otherSpace, "Manage")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSpace, "View")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSpace, "Comment")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSpace, "Edit")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth(otherSpace, "Manage")).rejects.toThrow(PermissionDeniedError);
 
-    await expect(authorize("Anonymous", "View")).rejects.toThrow(UnauthenticatedError);
-    await expect(authorize("Anonymous", "Comment")).rejects.toThrow(UnauthenticatedError);
-    await expect(authorize("Anonymous", "Edit")).rejects.toThrow(UnauthenticatedError);
-    await expect(authorize("Anonymous", "Manage")).rejects.toThrow(UnauthenticatedError);
+    await expect(auth("Anonymous", "View")).rejects.toThrow(UnauthenticatedError);
+    await expect(auth("Anonymous", "Comment")).rejects.toThrow(UnauthenticatedError);
+    await expect(auth("Anonymous", "Edit")).rejects.toThrow(UnauthenticatedError);
+    await expect(auth("Anonymous", "Manage")).rejects.toThrow(UnauthenticatedError);
+
+    await auth({impersonate: session1}, "View");
+    await auth({impersonate: session1}, "Comment");
+    await auth({impersonate: session1}, "Edit");
+    await auth({impersonate: session1}, "Manage");
+
+    await expect(auth({impersonate: session2}, "View")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth({impersonate: session2}, "Comment")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth({impersonate: session2}, "Edit")).rejects.toThrow(PermissionDeniedError);
+    await expect(auth({impersonate: session2}, "Manage")).rejects.toThrow(PermissionDeniedError);
+
+    await expect(auth({impersonate: [otherSpace, session1]}, "View")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(auth({impersonate: [otherSpace, session1]}, "Comment")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(auth({impersonate: [otherSpace, session1]}, "Edit")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(auth({impersonate: [otherSpace, session1]}, "Manage")).rejects.toThrow(
+        PermissionDeniedError,
+    );
 });
 
 test("getting document with comments requires comment access level", async () => {
@@ -7697,6 +7744,40 @@ test("can get a document with references as actors that don't have access to the
         new PermissionDeniedError("Account doesn't have access to space"),
     );
 
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session1.account.id),
+            document.id,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session2.account.id),
+            document.id,
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to document'),
+    );
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session3.account.id),
+            document.id,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+            document.id,
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Impersonated account actor doesn't have access to document's space",
+        ),
+    );
+
     await document.access.grantUrl(session1);
 
     expect(await getDocumentWithOptionalComments(session1.action(), document.id)).toEqual(
@@ -8136,6 +8217,38 @@ test("can get a document with references as actors that don't have access to the
         }),
     );
 
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session1.account.id),
+            document.id,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session2.account.id),
+            document.id,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session3.account.id),
+            document.id,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+            document.id,
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Impersonated account actor doesn't have access to document's space",
+        ),
+    );
+
     await document.access.revokeUrl(session1);
 
     await expect(
@@ -8152,6 +8265,40 @@ test("can get a document with references as actors that don't have access to the
 
     await expect(getDocumentWithOptionalComments(session3.action(), document.id)).rejects.toThrow(
         new PermissionDeniedError("Account doesn't have access to space"),
+    );
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session1.account.id),
+            document.id,
+        ),
+    ).resolves.toBeTruthy();
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session2.account.id),
+            document.id,
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to document'),
+    );
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(space.id, session3.account.id),
+            document.id,
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+
+    await expect(
+        getDocumentWithOptionalComments(
+            context.impersonatedAccountAction(otherSpace.id, session1.account.id),
+            document.id,
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "Impersonated account actor doesn't have access to document's space",
+        ),
     );
 });
 

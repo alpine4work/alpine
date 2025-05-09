@@ -34,6 +34,7 @@ import {
     getDocumentCommentAuthorId,
     getDocumentCommentThreadNotificationSubscribers,
     getDocumentPreview,
+    getDocumentPreviewIfPossible,
 } from "~/server/documents/data/documents_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -105,10 +106,8 @@ import {
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
-import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -977,14 +976,13 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
             DocumentCommentThreadEntry: {
                 async build(context, item) {
                     const [
-                        document,
+                        documentResult,
                         firstCommentAuthor,
                         latestCommentAuthor,
                         latestCommentContentSnippetReferences,
                         otherCommentAuthor,
                     ] = await runAllPromises([
-                        // NOCOMMIT: What if they lost access?
-                        getDocumentPreview(context, item.documentId),
+                        getDocumentPreviewIfPossible(context, item.documentId),
                         getAccount(context, item.spaceId, item.firstCommentAuthorId),
                         getAccount(context, item.spaceId, item.latestComment.authorId),
                         getMessageContentReferencesForNode(
@@ -997,21 +995,38 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             : null,
                     ]);
 
+                    // The document referenced by our inbox entry must exist. Even after deleting
+                    // documents we leave a stub.
+                    assert(documentResult);
+
                     return new InboxDocumentCommentThreadEntryModel({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         loudNotificationCount: item.loudNotificationCount,
                         isArchived: item.isArchived,
-                        document,
+                        document: documentResult.ok
+                            ? {isPrivate: false, document: documentResult.value}
+                            : {isPrivate: true, documentId: item.documentId},
                         commentThreadId: item.commentThreadId,
                         firstCommentAuthor,
                         latestComment: {
                             author: latestCommentAuthor,
                             createdTime: item.latestComment.createdTime,
-                            contentTextSnippet: printContentSingleLineTextSnippet({
-                                doc: item.latestComment.contentSnippet,
-                                references: latestCommentContentSnippetReferences,
-                            }),
+                            contentTextSnippet: documentResult.ok
+                                ? // If the actor lost access to the document then don't show them the latest
+                                  // comment snippet. They may have already seen this content in a push
+                                  // notification so it's not necessarily a permissions violation to show it
+                                  // again but a user removing another user's access from a document would
+                                  // probably expect the content to be hidden.
+                                  //
+                                  // We continue returning the author, created time, and whether the last comment
+                                  // was a mention because the user has already theoretically seen these things
+                                  // (via push notification) and otherwise the notification loses all structure.
+                                  printContentSingleLineTextSnippet({
+                                      doc: item.latestComment.contentSnippet,
+                                      references: latestCommentContentSnippetReferences,
+                                  })
+                                : "",
                             isStickyMention: item.latestComment.isStickyMention,
                         },
                         otherCommentAuthor,
@@ -1026,13 +1041,12 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     );
 
                     const [
-                        document,
+                        documentResult,
                         firstCommentAuthor,
                         firstCommentContentSnippetReferences,
                         otherCommentThreadAuthor,
                     ] = await runAllPromises([
-                        // NOCOMMIT: What if they lost access?
-                        getDocumentPreview(context, item.documentId),
+                        getDocumentPreviewIfPossible(context, item.documentId),
                         getAccount(context, item.spaceId, item.firstComment.authorId),
                         getMessageContentReferencesForNode(
                             context,
@@ -1044,22 +1058,39 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             : null,
                     ]);
 
+                    // The document referenced by our inbox entry must exist. Even after deleting
+                    // documents we leave a stub.
+                    assert(documentResult);
+
                     return new InboxDocumentNewCommentThreadsEntryModel({
                         spaceId: item.spaceId,
                         accountId: item.accountId,
                         loudNotificationCount: item.loudNotificationCount,
                         isArchived: item.isArchived,
-                        document,
+                        document: documentResult.ok
+                            ? {isPrivate: false, document: documentResult.value}
+                            : {isPrivate: true, documentId: item.documentId},
                         bucketGeneration: item.bucketGeneration,
                         commentThreadCount: item.commentThreadIds.size,
                         commentThreadAuthorCount: item.commentThreadAuthorIds.size,
                         firstComment: {
                             author: firstCommentAuthor,
                             createdTime: item.firstComment.createdTime,
-                            contentTextSnippet: printContentSingleLineTextSnippet({
-                                doc: item.firstComment.contentSnippet,
-                                references: firstCommentContentSnippetReferences,
-                            }),
+                            contentTextSnippet: documentResult.ok
+                                ? // If the actor lost access to the document then don't show them the latest
+                                  // comment snippet. They may have already seen this content in a push
+                                  // notification so it's not necessarily a permissions violation to show it
+                                  // again but a user removing another user's access from a document would
+                                  // probably expect the content to be hidden.
+                                  //
+                                  // We continue returning the author, created time, and whether the last comment
+                                  // was a mention because the user has already theoretically seen these things
+                                  // (via push notification) and otherwise the notification loses all structure.
+                                  printContentSingleLineTextSnippet({
+                                      doc: item.firstComment.contentSnippet,
+                                      references: firstCommentContentSnippetReferences,
+                                  })
+                                : "",
                         },
                         otherCommentThreadAuthor,
                     });
@@ -1154,16 +1185,6 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
         );
     },
 });
-
-function createPrivateChannelPreviewModel(channelId: ChannelId, spaceId: SpaceId) {
-    return new ChannelPreviewModel({
-        id: channelId,
-        spaceId,
-        createdTime: new Date(0),
-        name: "Private",
-        accessPolicy: {accountGrantById: emptyMap, defaultGrant: null, urlGrant: null},
-    });
-}
 
 const inboxEntryItemTypes = [
     {partitionType: "Inbox", sortRangeType: "ChatEntry"},
@@ -3349,7 +3370,6 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
         };
     },
     authorizeAccess: (context, event) => {
-        // NOCOMMIT: Test
         return authorizeDocumentAccessIfPossible(context, event.documentId, "View", {
             consistency: "StrongWithinCache",
         });

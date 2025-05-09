@@ -496,7 +496,9 @@ function getInboxDocumentCommentThreadEntryDisplay({
             ? entry.latestComment?.author ?? null
             : null;
 
-    const truncatedDocumentTitle = truncateDocumentTitleForNotification(entry.document.getTitle());
+    const documentTitle = entry.document.isPrivate
+        ? "a private document"
+        : `“${truncateDocumentTitleForNotification(entry.document.document.getTitle())}”`;
 
     const summary: Array<InboxEntryDisplaySummaryItem> = [];
 
@@ -513,7 +515,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
             summary.push("’s");
         }
 
-        summary.push(` comment thread on “${truncatedDocumentTitle}”`);
+        summary.push(` comment thread on ${documentTitle}`);
     } else {
         if (currentAccount?.id === entry.firstCommentAuthor.id) {
             summary.push("Your");
@@ -522,7 +524,7 @@ function getInboxDocumentCommentThreadEntryDisplay({
             summary.push("’s");
         }
 
-        summary.push(` thread on “${truncatedDocumentTitle}” has new comments`);
+        summary.push(` thread on ${documentTitle} has new comments`);
     }
 
     return {
@@ -554,12 +556,14 @@ function getInboxDocumentNewCommentThreadsEntryDisplay({
     const secondAccount: AccountModel | null =
         entry.firstComment.author.id !== firstAccount.id ? entry.firstComment.author : null;
 
-    const truncatedDocumentTitle = truncateDocumentTitleForNotification(entry.document.getTitle());
+    const documentTitle = entry.document.isPrivate
+        ? "a private document"
+        : `“${truncateDocumentTitleForNotification(entry.document.document.getTitle())}”`;
 
     const summary: Array<InboxEntryDisplaySummaryItem> = [];
 
     summary.push(printPrettySmallNumberSummary(entry.commentThreadCount, "new comment thread"));
-    summary.push(` on “${truncatedDocumentTitle}” by `);
+    summary.push(` on ${documentTitle} by `);
 
     if (!secondAccount) {
         summary.push(firstAccount);

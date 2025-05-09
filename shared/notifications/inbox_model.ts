@@ -229,7 +229,17 @@ export class InboxDocumentCommentThreadEntryModel
             accountId: Schema.id<AccountId>(),
             loudNotificationCount: Schema.integer.min(0),
             isArchived: Schema.boolean,
-            document: DocumentPreviewModel.schema(),
+            document: Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({
+                    isPrivate: Schema.value(true),
+                    documentId: Schema.id<DocumentId>(),
+                }),
+                Schema.object({
+                    isPrivate: Schema.value(false),
+                    document: DocumentPreviewModel.schema(),
+                }),
+            ),
             commentThreadId: Schema.id<DocumentCommentThreadId>(),
             firstCommentAuthor: AccountModel.schema,
             latestComment: Schema.object({
@@ -248,7 +258,9 @@ export class InboxDocumentCommentThreadEntryModel
     public getKey(): InboxEntryKey {
         return {
             type: "DocumentCommentThread",
-            documentId: this.document.id,
+            documentId: this.document.isPrivate
+                ? this.document.documentId
+                : this.document.document.id,
             commentThreadId: this.commentThreadId,
         };
     }
@@ -261,7 +273,17 @@ export class InboxDocumentNewCommentThreadsEntryModel
             accountId: Schema.id<AccountId>(),
             loudNotificationCount: Schema.integer.min(0).max(0),
             isArchived: Schema.boolean,
-            document: DocumentPreviewModel.schema(),
+            document: Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({
+                    isPrivate: Schema.value(true),
+                    documentId: Schema.id<DocumentId>(),
+                }),
+                Schema.object({
+                    isPrivate: Schema.value(false),
+                    document: DocumentPreviewModel.schema(),
+                }),
+            ),
             bucketGeneration: Schema.integer,
             commentThreadCount: Schema.integer.min(1),
             commentThreadAuthorCount: Schema.integer.min(1),
@@ -280,7 +302,9 @@ export class InboxDocumentNewCommentThreadsEntryModel
     public getKey(): InboxEntryKey {
         return {
             type: "DocumentNewCommentThreads",
-            documentId: this.document.id,
+            documentId: this.document.isPrivate
+                ? this.document.documentId
+                : this.document.document.id,
             bucketGeneration: this.bucketGeneration,
         };
     }

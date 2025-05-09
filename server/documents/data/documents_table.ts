@@ -1115,12 +1115,25 @@ async function authorizeDocumentItemAccessIfPossible(
             return okResult;
         }
         case "Session":
+        case "ImpersonatedAccount":
         case "Anonymous": {
+            if (
+                context.actor.type === "ImpersonatedAccount" &&
+                context.actor.getSpaceId() !== documentItem.spaceId
+            ) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "Impersonated account actor doesn't have access to document's space",
+                    ),
+                };
+            }
+
             // Evaluate the document access policy.
             const isAccessAuthorized = await evaluateAccessPolicy(
                 context,
                 documentItem.spaceId,
-                context.actor.type === "Session" ? context.actor.getAccountId() : null,
+                context.actor.type !== "Anonymous" ? context.actor.getAccountId() : null,
                 documentItem.accessPolicy,
                 expectedAccessLevel,
             );

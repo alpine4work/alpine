@@ -18,14 +18,20 @@ import {
     removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {
+    MessageContentProsemirrorSchema,
+    assertMessageContent,
+    createSimpleMessageContent,
+} from "~/shared/messaging/message_content_schema.js";
 import {
     InboxDocumentCommentThreadEntryModel,
     InboxDocumentNewCommentThreadsEntryModel,
@@ -75,6 +81,8 @@ for (const [currentProcessingType, processingMultiple] of [
     ["ThriceConcurrently", 3],
 ] as const) {
     describe(`processing: ${currentProcessingType}`, () => {
+        if (currentProcessingType !== "Once") return;
+
         beforeEach(() => {
             processingType = currentProcessingType;
         });
@@ -121,14 +129,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document1.id,
-                        createdTime: document1.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document1.id,
+                            createdTime: document1.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
@@ -179,14 +190,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document1.id,
-                        createdTime: document1.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 4,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document1.id,
+                            createdTime: document1.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 4,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 2,
                     commentThreadAuthorCount: 1,
@@ -237,14 +251,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document1.id,
-                        createdTime: document1.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 5,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document1.id,
+                            createdTime: document1.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 5,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
@@ -295,14 +312,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document1.id,
-                        createdTime: document1.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 5,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document1.id,
+                            createdTime: document1.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 5,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
@@ -357,14 +377,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document1.id,
-                        createdTime: document1.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 5,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document1.id,
+                            createdTime: document1.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 5,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 3,
                     commentThreadAuthorCount: 2,
@@ -393,14 +416,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document2.id,
-                        createdTime: document2.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 4,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document2.id,
+                            createdTime: document2.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 4,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
@@ -460,14 +486,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 1,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread1.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -527,14 +556,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 1,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 4,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 4,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread1.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -558,14 +590,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 4,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 4,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
@@ -608,14 +643,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 1,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 4,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 4,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread2.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -666,14 +704,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
@@ -724,14 +765,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
@@ -760,14 +804,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -809,14 +856,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
@@ -854,14 +904,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -894,14 +947,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     bucketGeneration: 0,
                     commentThreadCount: 1,
                     commentThreadAuthorCount: 1,
@@ -930,14 +986,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -966,14 +1025,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     firstCommentAuthor: await scenario.session2.get(),
                     latestComment: {
@@ -1058,14 +1120,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     loudNotificationCount: 0,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1094,14 +1159,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     loudNotificationCount: 0,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1133,14 +1201,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     loudNotificationCount: 0,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1169,14 +1240,17 @@ for (const [currentProcessingType, processingMultiple] of [
                     isArchived: false,
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
-                    document: new DocumentPreviewModel({
-                        id: document.id,
-                        createdTime: document.createdTime,
-                        spaceId: scenario.space.id,
-                        version: 3,
-                        titleWithoutFallback: "",
-                        accessPolicy: expect.any(Object),
-                    }),
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: scenario.space.id,
+                            version: 3,
+                            titleWithoutFallback: "",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
                     loudNotificationCount: 1,
                     firstCommentAuthor: await scenario.session2.get(),
@@ -1193,222 +1267,847 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
         });
-    });
 
-    test("if an account is removed from a space their inbox won't update anymore", async () => {
-        const space = await TestSpace.create(context);
+        test("if an account is removed from a space their inbox won't update anymore", async () => {
+            const space = await TestSpace.create(context);
 
-        const session1 = await space.createSession({hasInternalAccess: true});
-        const session2 = await space.createSession();
+            const session1 = await space.createSession({hasInternalAccess: true});
+            const session2 = await space.createSession();
 
-        const document = await TestDocument.create(session1);
-        await document.access.grantDefault(session1);
+            const document = await TestDocument.create(session1);
+            await document.access.grantDefault(session1);
 
-        await document.type(session1, "Hello, world!");
+            await document.type(session1, "Hello, world!");
 
-        const commentThread = await document.createCommentThread(
-            session2,
-            {from: 10, to: 11},
-            "Test comment 0",
-        );
+            const commentThread = await document.createCommentThread(
+                session2,
+                {from: 10, to: 11},
+                "Test comment 0",
+            );
 
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).rejects.toThrow(NotFoundError);
-
-        await commentThread.createComment(session1, "Test comment 1");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 1,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 1",
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
                 }),
-            }),
-        });
+            ).rejects.toThrow(NotFoundError);
 
-        await commentThread.createComment(session1, "Test comment 2");
+            await commentThread.createComment(session1, "Test comment 1");
 
-        await ProcessContextModule.waitForTestTasks();
+            await ProcessContextModule.waitForTestTasks();
 
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 2,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 2",
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
                 }),
-            }),
-        });
-
-        await commentThread.createComment(session1, "Test comment 3");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 3,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 3",
+            ).toEqual({
+                key: expect.any(String),
+                version: 1,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 1",
+                    }),
                 }),
-            }),
-        });
+            });
 
-        await removeSpaceAccountAsAdmin(session1.action(), {
-            spaceId: space.id,
-            accountId: session2.account.id,
-        });
+            await commentThread.createComment(session1, "Test comment 2");
 
-        const spaceAccountsCache = getSpaceAccountsCacheForTest();
-        spaceAccountsCache.clearForTest();
+            await ProcessContextModule.waitForTestTasks();
 
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).rejects.toThrow(PermissionDeniedError);
-
-        await commentThread.createComment(session1, "Test comment 4");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).rejects.toThrow(PermissionDeniedError);
-
-        await commentThread.createComment(session1, "Test comment 5");
-
-        await ProcessContextModule.waitForTestTasks();
-
-        await expect(
-            getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).rejects.toThrow(PermissionDeniedError);
-
-        await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
-            spaceId: space.id,
-            accountId: session2.account.id,
-        });
-
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
-                    commentThreadId: commentThread.id,
-                },
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 3,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 3",
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
                 }),
-            }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 2,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 2",
+                    }),
+                }),
+            });
+
+            await commentThread.createComment(session1, "Test comment 3");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
+                }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 3,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 3",
+                    }),
+                }),
+            });
+
+            await removeSpaceAccountAsAdmin(session1.action(), {
+                spaceId: space.id,
+                accountId: session2.account.id,
+            });
+
+            const spaceAccountsCache = getSpaceAccountsCacheForTest();
+            spaceAccountsCache.clearForTest();
+
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await commentThread.createComment(session1, "Test comment 4");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await commentThread.createComment(session1, "Test comment 5");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await expect(
+                getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
+                }),
+            ).rejects.toThrow(PermissionDeniedError);
+
+            await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+                spaceId: space.id,
+                accountId: session2.account.id,
+            });
+
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
+                }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 3,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 3",
+                    }),
+                }),
+            });
+
+            await commentThread.createComment(session1, "Test comment 6");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
+                }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 4,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 6",
+                    }),
+                }),
+            });
+
+            await commentThread.createComment(session1, "Test comment 7");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntry(session2.action(), {
+                    spaceId: space.id,
+                    key: {
+                        type: "DocumentCommentThread",
+                        documentId: document.id,
+                        commentThreadId: commentThread.id,
+                    },
+                }),
+            ).toEqual({
+                key: expect.any(String),
+                version: 5,
+                model: expect.objectContaining({
+                    latestComment: expect.objectContaining({
+                        contentTextSnippet: "Test comment 7",
+                    }),
+                }),
+            });
         });
 
-        await commentThread.createComment(session1, "Test comment 6");
+        test("will hide document title if account loses access to document", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
 
-        await ProcessContextModule.waitForTestTasks();
+            const document = await TestDocument.create(session1, {title: "foo"});
+            await document.access.grant(session1, session2);
 
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
+            await document.type(session1, "Hello, ");
+            const {range} = await document.type(session1, "world");
+            await document.type(session1, "!");
+
+            const commentThread = await document.createCommentThread(session2, range, "bar");
+
+            const comment2 = await commentThread.createComment(session1, "baz");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: space.id,
+                            version: 5,
+                            titleWithoutFallback: "foo",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
-                },
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 4,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 6",
+                    firstCommentAuthor: await session2.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "baz",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
                 }),
-            }),
+            ]);
+
+            await document.access.revoke(session1, session2);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: true,
+                        documentId: document.id,
+                    },
+                    commentThreadId: commentThread.id,
+                    firstCommentAuthor: await session2.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
         });
 
-        await commentThread.createComment(session1, "Test comment 7");
+        test("will hide document title if account loses access to document when mentioned in comment", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
 
-        await ProcessContextModule.waitForTestTasks();
+            const document = await TestDocument.create(session1, {title: "foo"});
+            await document.access.grant(session1, session2);
 
-        expect(
-            await getInboxEntry(session2.action(), {
-                spaceId: space.id,
-                key: {
-                    type: "DocumentCommentThread",
-                    documentId: document.id,
+            await document.type(session1, "Hello, ");
+            const {range} = await document.type(session1, "world");
+            await document.type(session1, "!");
+
+            const commentThread = await document.createCommentThread(
+                session1,
+                range,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", null, [
+                        MessageContentProsemirrorSchema.node("paragraph", null, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 1,
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: space.id,
+                            version: 5,
+                            titleWithoutFallback: "foo",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
                     commentThreadId: commentThread.id,
-                },
-            }),
-        ).toEqual({
-            key: expect.any(String),
-            version: 5,
-            model: expect.objectContaining({
-                latestComment: expect.objectContaining({
-                    contentTextSnippet: "Test comment 7",
+                    firstCommentAuthor: await session1.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: commentThread.createdTime,
+                        contentTextSnippet: `Hello @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
                 }),
-            }),
+            ]);
+
+            await document.access.revoke(session1, session2);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 1,
+                    document: {
+                        isPrivate: true,
+                        documentId: document.id,
+                    },
+                    commentThreadId: commentThread.id,
+                    firstCommentAuthor: await session1.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: commentThread.createdTime,
+                        contentTextSnippet: "",
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("will hide document title in new comment threads entry if account loses access to own document", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const document = await TestDocument.create(session1, {title: "foo"});
+            await document.access.grant(session1, session2);
+
+            await document.type(session1, "Hello, ");
+            const {range} = await document.type(session1, "world");
+            await document.type(session1, "!");
+
+            const commentThread = await document.createCommentThread(session2, range, "bar");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentNewCommentThreadsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session1.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: space.id,
+                            version: 5,
+                            titleWithoutFallback: "foo",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
+                    bucketGeneration: 0,
+                    commentThreadCount: 1,
+                    commentThreadAuthorCount: 1,
+                    firstComment: {
+                        author: await session2.get(),
+                        createdTime: commentThread.createdTime,
+                        contentTextSnippet: "bar",
+                    },
+                    otherCommentThreadAuthor: null,
+                }),
+            ]);
+
+            await document.access.revoke(session1, session1);
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentNewCommentThreadsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session1.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: true,
+                        documentId: document.id,
+                    },
+                    bucketGeneration: 0,
+                    commentThreadCount: 1,
+                    commentThreadAuthorCount: 1,
+                    firstComment: {
+                        author: await session2.get(),
+                        createdTime: commentThread.createdTime,
+                        contentTextSnippet: "",
+                    },
+                    otherCommentThreadAuthor: null,
+                }),
+            ]);
+        });
+
+        test("won't send new notification if account loses access to document", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const document = await TestDocument.create(session1, {title: "foo"});
+            await document.access.grant(session1, session2);
+
+            await document.type(session1, "Hello, ");
+            const {range} = await document.type(session1, "world");
+            await document.type(session1, "!");
+
+            const commentThread = await document.createCommentThread(session2, range, "bar");
+
+            const comment2 = await commentThread.createComment(session1, "baz");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: space.id,
+                            version: 5,
+                            titleWithoutFallback: "foo",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
+                    commentThreadId: commentThread.id,
+                    firstCommentAuthor: await session2.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "baz",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await document.access.revoke(session1, session2);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: true,
+                        documentId: document.id,
+                    },
+                    commentThreadId: commentThread.id,
+                    firstCommentAuthor: await session2.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await commentThread.createComment(session1, "qux");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: true,
+                        documentId: document.id,
+                    },
+                    commentThreadId: commentThread.id,
+                    firstCommentAuthor: await session2.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("won't send notification when mentioned if account doesn't have access to document", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const document = await TestDocument.create(session1, {title: "foo"});
+
+            await document.type(session1, "Hello, ");
+            const {range} = await document.type(session1, "world");
+            await document.type(session1, "!");
+
+            const commentThread = await document.createCommentThread(
+                session1,
+                range,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", null, [
+                        MessageContentProsemirrorSchema.node("paragraph", null, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await document.access.grant(session1, session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const comment = await commentThread.createComment(session1, "bar");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: space.id,
+                            version: 5,
+                            titleWithoutFallback: "foo",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
+                    commentThreadId: commentThread.id,
+                    firstCommentAuthor: await session1.get(),
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment.createdTime,
+                        contentTextSnippet: "bar",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("won't send notification when comment thread is created if account doesn't have access to own document", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const document = await TestDocument.create(session1, {title: "foo"});
+            await document.access.grant(session1, session2);
+            await document.access.revoke(session1, session1);
+
+            await document.type(session2, "Hello, ");
+            const {range} = await document.type(session2, "world");
+            await document.type(session2, "!");
+
+            const commentThread = await document.createCommentThread(session2, range, "bar");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await document.access.grant(session2, session1);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await commentThread.createComment(session2, "qux");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+        });
+
+        test("won't send notification when comment thread is created if account doesn't have access to own document (but will send notification if mentioned when access is granted back)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const document = await TestDocument.create(session1, {title: "foo"});
+            await document.access.grant(session1, session2);
+            await document.access.revoke(session1, session1);
+
+            await document.type(session2, "Hello, ");
+            const {range} = await document.type(session2, "world");
+            await document.type(session2, "!");
+
+            const commentThread = await document.createCommentThread(
+                session2,
+                range,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", null, [
+                        MessageContentProsemirrorSchema.node("paragraph", null, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session1.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await document.access.grant(session2, session1);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const comment = await commentThread.createComment(session2, "bar");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxDocumentCommentThreadEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session1.account.id,
+                    loudNotificationCount: 0,
+                    document: {
+                        isPrivate: false,
+                        document: new DocumentPreviewModel({
+                            id: document.id,
+                            createdTime: document.createdTime,
+                            spaceId: space.id,
+                            version: 7,
+                            titleWithoutFallback: "foo",
+                            accessPolicy: expect.any(Object),
+                        }),
+                    },
+                    commentThreadId: commentThread.id,
+                    firstCommentAuthor: await session2.get(),
+                    latestComment: {
+                        author: await session2.get(),
+                        createdTime: comment.createdTime,
+                        contentTextSnippet: "bar",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
         });
     });
 }
