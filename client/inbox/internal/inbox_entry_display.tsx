@@ -382,7 +382,11 @@ function getInboxPostCommentsEntryDisplay({
 
     if (entry.postContentTextSnippetIfMentioned !== null) {
         summary.push(entry.postAuthor);
-        summary.push(` mentioned you in a post in ${entry.channel.name}`);
+        summary.push(
+            ` mentioned you in a post in ${
+                entry.channel.isPrivate ? "a private channel" : entry.channel.channel.name
+            }`,
+        );
     } else if (entry.latestComment?.isStickyMention) {
         summary.push(entry.latestComment.author);
         summary.push(" mentioned you in a comment on ");
@@ -396,7 +400,11 @@ function getInboxPostCommentsEntryDisplay({
             summary.push("’s");
         }
 
-        summary.push(` post in ${entry.channel.name}`);
+        summary.push(
+            ` post in ${
+                entry.channel.isPrivate ? "a private channel" : entry.channel.channel.name
+            }`,
+        );
     } else {
         if (currentAccount?.id === entry.postAuthor.id) {
             summary.push("Your");
@@ -405,7 +413,11 @@ function getInboxPostCommentsEntryDisplay({
             summary.push("’s");
         }
 
-        summary.push(` post in ${entry.channel.name} has new comments`);
+        summary.push(
+            ` post in ${
+                entry.channel.isPrivate ? "a private channel" : entry.channel.channel.name
+            } has new comments`,
+        );
     }
 
     return {
@@ -439,7 +451,9 @@ function getInboxChannelPostsEntryDisplay({
     const summary: Array<InboxEntryDisplaySummaryItem> = [];
 
     summary.push(printPrettySmallNumberSummary(entry.postCount, "new post"));
-    summary.push(` in ${entry.channel.name} by `);
+    summary.push(
+        ` in ${entry.channel.isPrivate ? "a private channel" : entry.channel.channel.name} by `,
+    );
 
     if (!secondAccount) {
         summary.push(firstAccount);

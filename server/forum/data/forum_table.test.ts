@@ -31,7 +31,7 @@ import {
     getChannelPreview,
     getPost,
     getPostAndInitialComments,
-    getPostAuthorAndChannelPreview,
+    getPostAuthorAndChannelPreviewIfPossible,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
@@ -1330,9 +1330,9 @@ test("can't get a post that does not exist", async () => {
     await expect(getPostContentAndChannelPreview(session.action(), generateId())).rejects.toThrow(
         NotFoundError,
     );
-    await expect(getPostAuthorAndChannelPreview(session.action(), generateId())).rejects.toThrow(
-        NotFoundError,
-    );
+    expect(
+        (await getPostAuthorAndChannelPreviewIfPossible(session.action(), generateId())).error,
+    ).toBeInstanceOf(NotFoundError);
     await expect(
         getPostAndInitialComments(session.action(), {postId: generateId(), commentLimit: 100}),
     ).rejects.toThrow(NotFoundError);
@@ -1352,9 +1352,9 @@ test("can't get a post for a different space", async () => {
     await expect(getPostContentAndChannelPreview(otherSession.action(), post.id)).rejects.toThrow(
         PermissionDeniedError,
     );
-    await expect(getPostAuthorAndChannelPreview(otherSession.action(), post.id)).rejects.toThrow(
-        PermissionDeniedError,
-    );
+    expect(
+        (await getPostAuthorAndChannelPreviewIfPossible(otherSession.action(), post.id)).error,
+    ).toBeInstanceOf(PermissionDeniedError);
     await expect(
         getPostAndInitialComments(otherSession.action(), {postId: post.id, commentLimit: 100}),
     ).rejects.toThrow(PermissionDeniedError);
@@ -1375,9 +1375,9 @@ test("can't get a post from channel actor doesn't have view access to", async ()
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
         'Actor doesn\'t have "View" access level to channel',
     );
-    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
-        'Actor doesn\'t have "View" access level to channel',
-    );
+    expect(
+        (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id)).error?.message,
+    ).toContain('Actor doesn\'t have "View" access level to channel');
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
@@ -1386,7 +1386,9 @@ test("can't get a post from channel actor doesn't have view access to", async ()
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
-    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id)).ok).toBe(
+        true,
+    );
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1395,7 +1397,9 @@ test("can't get a post from channel actor doesn't have view access to", async ()
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
-    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id)).ok).toBe(
+        true,
+    );
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1404,7 +1408,9 @@ test("can't get a post from channel actor doesn't have view access to", async ()
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
-    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id)).ok).toBe(
+        true,
+    );
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1413,7 +1419,9 @@ test("can't get a post from channel actor doesn't have view access to", async ()
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
-    await expect(getPostAuthorAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id)).ok).toBe(
+        true,
+    );
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1433,7 +1441,7 @@ test("can get a post", async () => {
     expect(
         (await getPostContentAndChannelPreview(session.action(), post.id)).content.toJSON(),
     ).toEqual(testContent1.toJSON());
-    expect(await getPostAuthorAndChannelPreview(session.action(), post.id)).toBeTruthy();
+    expect(await getPostAuthorAndChannelPreviewIfPossible(session.action(), post.id)).toBeTruthy();
     expect(
         (
             await getPostAndInitialComments(session.action(), {postId: post.id, commentLimit: 100})

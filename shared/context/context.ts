@@ -374,7 +374,28 @@ const ContextImplementation = class Context {
             // the old context module can safely call methods on the new context as well.
             if (oldModule) {
                 assert(
-                    (newModule instanceof oldModule.constructor) as any,
+                    ((newModule instanceof oldModule.constructor) as any) ||
+                        // HACK(calebmer): Allow context modules to be replaced by a module that's not
+                        // a part of the same class hierarchy. Technically this is unsound. A peer
+                        // context module might still expect the context module at `key` to still have
+                        // the old type. However, this is a practical workaround for cases where it's
+                        // useful to completely change the context module (e.g. swapping actor types).
+                        //
+                        // An example of how this is unsound: We use this function to allow replacing a
+                        // system actor with an impersonated account actor. Let's say we a system
+                        // action context with a hypothetical `context.admin` module. Where the `admin`
+                        // module depends on a specific property of the system actor context module
+                        // (let's pretend the system actor context module has a method called
+                        // `context.actor.sendAnnouncementToEveryone()`). Calling `context.clone()`
+                        // with an impersonated account actor that replaces the system actor will be
+                        // allowed (because of this `_allowReplace()` method) but if `context.admin`
+                        // isn't updated it may still think the actor is a system actor and try to call
+                        // `context.actor.sendAnnouncementToEveryone()` which throws a "can't call
+                        // undefined" error.
+                        //
+                        // This is a very pedantic issue. Practically it's generally fine to allow
+                        // replacing context modules with whatever type we want.
+                        oldModule._allowReplace(newModule),
                     "If replacing a context module, the new context module should be a subclass of the old context module",
                 );
             }

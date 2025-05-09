@@ -29,6 +29,7 @@ import {
     removeSpaceAccountAsAdmin,
 } from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -39,6 +40,7 @@ import {
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     MessageContentProsemirrorSchema,
@@ -147,7 +149,7 @@ test("won't create two inbox entries if inbox is observed between serial event p
             spaceId: scenario.space.id,
             accountId: scenario.session2.account.id,
             loudNotificationCount: 0,
-            channel: await channel.getPreview(),
+            channel: {isPrivate: false, channel: await channel.getPreview()},
             bucketGeneration: 0,
             postCount: 2,
             postAuthorCount: 1,
@@ -173,7 +175,7 @@ test("won't create two inbox entries if inbox is observed between serial event p
             spaceId: scenario.space.id,
             accountId: scenario.session3.account.id,
             loudNotificationCount: 0,
-            channel: await channel.getPreview(),
+            channel: {isPrivate: false, channel: await channel.getPreview()},
             bucketGeneration: 0,
             postCount: 2,
             postAuthorCount: 1,
@@ -246,7 +248,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -272,7 +274,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -306,7 +308,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -336,7 +338,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -362,7 +364,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -396,7 +398,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -427,7 +429,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -447,7 +449,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -473,7 +475,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -516,7 +518,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -536,7 +538,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -563,7 +565,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -583,7 +585,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -593,6 +595,368 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: await getPostContentTextSnippet(post),
                     },
                     otherPostAuthor: null,
+                }),
+            ]);
+
+            // Make sure multiple processing is working.
+            expect(getCount1()).toEqual(2 * processingMultiple);
+            expect(getCount2()).toEqual(1 * processingMultiple);
+            expect(getCount3()).toEqual(1 * processingMultiple);
+        });
+
+        test("commenting creates an inbox entry for all subscribers unless a subscriber has lost access", async () => {
+            const scenario = await createNotificationsScenario(context);
+
+            const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
+                scenario.session1.account.id,
+            );
+            const {getCount: getCount2} = notificationEventProcessingTestCounter.recordForTest(
+                scenario.session2.account.id,
+            );
+            const {getCount: getCount3} = notificationEventProcessingTestCounter.recordForTest(
+                scenario.session3.account.id,
+            );
+
+            const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
+
+            const post = await channel.createPost(scenario.session3);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await channel.access.revokeDefault(scenario.session1);
+            await channel.access.grant(scenario.session1, scenario.session2);
+
+            await post.createComment(scenario.session2, createSimpleMessageContent("comment1"));
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const comment2 = await post.createComment(
+                scenario.session1,
+                createSimpleMessageContent("comment2"),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    postId: post.id,
+                    postAuthor: await scenario.session3.get(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment2.createdTime,
+                        author: await scenario.session1.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("comment2"),
+                            references: emptyContentReferences,
+                        }),
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            await channel.access.grant(scenario.session1, scenario.session3);
+
+            const comment3 = await post.createComment(
+                scenario.session1,
+                createSimpleMessageContent("comment3"),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    postId: post.id,
+                    postAuthor: await scenario.session3.get(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment3.createdTime,
+                        author: await scenario.session1.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("comment3"),
+                            references: emptyContentReferences,
+                        }),
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session3.account.id,
+                    postId: post.id,
+                    postAuthor: await scenario.session3.get(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        createdTime: comment3.createdTime,
+                        author: await scenario.session1.get(),
+                        contentTextSnippet: printContentSingleLineTextSnippet({
+                            doc: createSimpleMessageContent("comment3"),
+                            references: emptyContentReferences,
+                        }),
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
                 }),
             ]);
 
@@ -644,7 +1008,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -670,7 +1034,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -721,7 +1085,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -747,7 +1111,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -781,7 +1145,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -816,7 +1180,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -843,7 +1207,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -868,7 +1232,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -902,7 +1266,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -937,7 +1301,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -964,7 +1328,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -989,7 +1353,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1023,7 +1387,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1059,7 +1423,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1084,7 +1448,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1110,7 +1474,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1161,7 +1525,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1187,7 +1551,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1221,7 +1585,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1256,7 +1620,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1282,7 +1646,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1325,7 +1689,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1345,7 +1709,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1371,7 +1735,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1405,7 +1769,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1440,7 +1804,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1466,7 +1830,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1509,7 +1873,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1535,7 +1899,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await otherChannel.getPreview(),
+                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1569,7 +1933,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1597,7 +1961,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1623,7 +1987,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await otherChannel.getPreview(),
+                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1657,7 +2021,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.sharedSession.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1685,7 +2049,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1712,7 +2076,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.sharedSession.account.id,
                     postId: otherPost.id,
                     postAuthor: await scenario.otherSession.get(),
-                    channel: await otherChannel.getPreview(),
+                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: otherPost.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1740,7 +2104,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.otherSpace.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await otherChannel.getPreview(),
+                    channel: {isPrivate: false, channel: await otherChannel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1758,6 +2122,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post = await channel.createPost(scenario.session1);
 
@@ -1780,7 +2149,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1823,7 +2192,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1848,7 +2217,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1891,7 +2260,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -1916,7 +2285,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -1943,6 +2312,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post = await channel.createPost(scenario.session2);
 
@@ -2000,7 +2374,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2020,7 +2394,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -2047,7 +2421,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2081,7 +2455,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2101,7 +2475,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -2128,7 +2502,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2150,6 +2524,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post = await channel.createPost(scenario.session2);
 
@@ -2207,7 +2586,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2227,7 +2606,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -2266,7 +2645,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session2.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2286,7 +2665,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -2352,7 +2731,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2390,7 +2769,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2416,7 +2795,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2454,7 +2833,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2480,7 +2859,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2501,7 +2880,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2539,7 +2918,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2565,7 +2944,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2586,7 +2965,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2621,7 +3000,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2647,7 +3026,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2668,7 +3047,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2706,7 +3085,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2732,7 +3111,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2758,7 +3137,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2793,7 +3172,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2819,7 +3198,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2845,7 +3224,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2883,7 +3262,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 2,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2909,7 +3288,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -2935,7 +3314,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3006,7 +3385,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3044,7 +3423,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3070,7 +3449,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3108,7 +3487,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3134,7 +3513,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3155,7 +3534,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3188,7 +3567,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3214,7 +3593,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3235,7 +3614,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3273,7 +3652,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3294,7 +3673,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3320,7 +3699,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3341,7 +3720,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3376,7 +3755,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3397,7 +3776,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3423,7 +3802,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3444,7 +3823,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3482,7 +3861,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3503,7 +3882,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3529,7 +3908,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3550,7 +3929,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3588,7 +3967,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3614,7 +3993,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post4.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post4.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3635,7 +4014,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3661,7 +4040,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3683,6 +4062,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post1 = await channel.createPost(scenario.session1);
 
@@ -3735,7 +4119,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3766,7 +4150,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3792,7 +4176,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3812,7 +4196,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -3839,7 +4223,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3859,7 +4243,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -3894,7 +4278,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3925,7 +4309,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3951,7 +4335,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -3971,7 +4355,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -3997,7 +4381,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -4032,7 +4416,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4063,7 +4447,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4083,7 +4467,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -4109,7 +4493,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -4144,7 +4528,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4174,7 +4558,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -4200,7 +4584,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -4218,6 +4602,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post1 = await channel.createPost(scenario.session1);
 
@@ -4291,7 +4680,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4317,7 +4706,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4343,7 +4732,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4363,7 +4752,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4390,7 +4779,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4410,7 +4799,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4470,7 +4859,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4495,7 +4884,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4521,7 +4910,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4565,7 +4954,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4590,7 +4979,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4617,7 +5006,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4637,7 +5026,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4681,7 +5070,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4707,7 +5096,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4732,7 +5121,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4759,7 +5148,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4779,7 +5168,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4823,7 +5212,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4844,7 +5233,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4870,7 +5259,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4895,7 +5284,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4922,7 +5311,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -4942,7 +5331,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -4977,7 +5366,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5008,7 +5397,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5029,7 +5418,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5055,7 +5444,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5080,7 +5469,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -5107,7 +5496,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5127,7 +5516,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -5214,7 +5603,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5269,7 +5658,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5326,7 +5715,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5386,7 +5775,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5443,7 +5832,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5512,7 +5901,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session1.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -5598,6 +5987,11 @@ for (const [currentProcessingType, processingMultiple] of [
             );
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post1 = await channel.createPost(scenario.session1);
 
@@ -6273,7 +6667,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post6.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6299,7 +6693,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post5.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6325,7 +6719,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6351,7 +6745,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6377,7 +6771,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6403,7 +6797,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post1.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6457,7 +6851,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6483,7 +6877,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6509,7 +6903,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6535,7 +6929,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post1.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6590,7 +6984,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6616,7 +7010,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6642,7 +7036,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post1.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6696,7 +7090,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post6.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6722,7 +7116,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post5.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6748,7 +7142,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6774,7 +7168,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6800,7 +7194,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: true,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post2.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6855,7 +7249,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post6.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6881,7 +7275,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post5.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6907,7 +7301,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post4.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6933,7 +7327,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             isArchived: false,
                             spaceId: scenario.space.id,
                             accountId: scenario.session1.account.id,
-                            channel: await channel.getPreview(),
+                            channel: {isPrivate: false, channel: await channel.getPreview()},
                             postId: post3.id,
                             postAuthor: await scenario.session1.get(),
                             loudNotificationCount: 0,
@@ -6959,6 +7353,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post1 = await channel.createPost(scenario.session1);
 
@@ -6990,7 +7389,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7016,7 +7415,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7041,7 +7440,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -7076,7 +7475,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7101,7 +7500,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -7135,7 +7534,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7161,7 +7560,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7181,7 +7580,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -7199,6 +7598,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post1 = await channel.createPost(scenario.session1);
 
@@ -7230,7 +7634,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7256,7 +7660,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7281,7 +7685,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -7312,7 +7716,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7337,7 +7741,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -7371,7 +7775,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7397,7 +7801,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7417,7 +7821,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -7435,6 +7839,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post1 = await channel.createPost(scenario.session1);
 
@@ -7473,7 +7882,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7499,7 +7908,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7525,7 +7934,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7550,7 +7959,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -7594,7 +8003,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7620,7 +8029,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7645,7 +8054,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -7672,7 +8081,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7716,7 +8125,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7741,7 +8150,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -7768,7 +8177,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7794,7 +8203,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7837,7 +8246,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -7864,7 +8273,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7890,7 +8299,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7916,7 +8325,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -7943,6 +8352,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post1 = await channel.createPost(scenario.session1);
 
@@ -7981,7 +8395,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8007,7 +8421,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8033,7 +8447,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8058,7 +8472,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -8098,7 +8512,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8124,7 +8538,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8149,7 +8563,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -8176,7 +8590,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8216,7 +8630,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8241,7 +8655,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -8268,7 +8682,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8294,7 +8708,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8333,7 +8747,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 1,
@@ -8360,7 +8774,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8386,7 +8800,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8412,7 +8826,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8501,7 +8915,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8527,7 +8941,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8553,7 +8967,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8593,7 +9007,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8619,7 +9033,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8645,7 +9059,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8685,7 +9099,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8711,7 +9125,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post1.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post1.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8737,7 +9151,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -8764,6 +9178,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             await channel.createPost(
                 scenario.session1,
@@ -8835,7 +9254,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post2.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post2.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -8868,7 +9287,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -8895,7 +9314,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session3.account.id,
                     postId: post3.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post3.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -8928,7 +9347,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -8946,6 +9365,11 @@ for (const [currentProcessingType, processingMultiple] of [
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
 
             const post = await channel.createPost(
                 scenario.session1,
@@ -8978,7 +9402,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9029,7 +9453,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9073,6 +9497,11 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const channel = await TestChannel.create(scenario.session1);
 
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
+
             const post = await channel.createPost(
                 scenario.session1,
                 assertPostContent(
@@ -9104,7 +9533,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9174,7 +9603,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9225,7 +9654,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9302,7 +9731,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9341,7 +9770,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: printContentSingleLineTextSnippet({
@@ -9435,7 +9864,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9497,7 +9926,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9545,7 +9974,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: scenario.session2.account.id,
                     postId: post.id,
                     postAuthor: await scenario.session1.get(),
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -9568,12 +9997,25 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("creating posts updates an entry for every member in the space", async () => {
+        test("creating posts updates an entry for every subscriber", async () => {
             const scenario = await createNotificationsScenario(context);
+
+            const session4 = await scenario.space.createSession();
+            const session5 = await scenario.space.createSession();
 
             const channel1 = await TestChannel.create(scenario.session2);
 
             const channel2 = await TestChannel.create(scenario.session2);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel1.id),
+                subscribeToChannel(scenario.session3.action(), channel1.id),
+                subscribeToChannel(scenario.sharedSession.action(), channel1.id),
+                subscribeToChannel(scenario.session1.action(), channel2.id),
+                subscribeToChannel(scenario.session3.action(), channel2.id),
+                subscribeToChannel(session5.action(), channel2.id),
+                subscribeToChannel(scenario.sharedSession.action(), channel2.id),
+            ]);
 
             expect(
                 await getInboxEntries(context.action(scenario.session1), {
@@ -9595,6 +10037,24 @@ for (const [currentProcessingType, processingMultiple] of [
 
             expect(
                 await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(session5), {
                     spaceId: scenario.space.id,
                     filter: "New",
                     limit: 100,
@@ -9646,7 +10106,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -9672,7 +10132,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -9684,6 +10144,24 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
             ]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(session5), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
 
             expect(
                 await getInboxEntries(context.action(scenario.sharedSession), {
@@ -9698,7 +10176,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -9746,7 +10224,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -9772,7 +10250,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -9784,6 +10262,24 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: null,
                 }),
             ]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(session5), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
 
             expect(
                 await getInboxEntries(context.action(scenario.sharedSession), {
@@ -9798,7 +10294,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -9837,7 +10333,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -9863,7 +10359,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -9889,7 +10385,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
@@ -9901,6 +10397,24 @@ for (const [currentProcessingType, processingMultiple] of [
                     otherPostAuthor: await scenario.session1.get(),
                 }),
             ]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(session5), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
 
             expect(
                 await getInboxEntries(context.action(scenario.sharedSession), {
@@ -9915,7 +10429,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
@@ -9954,7 +10468,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel2.getPreview(),
+                    channel: {isPrivate: false, channel: await channel2.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -9970,7 +10484,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session1.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -9996,7 +10510,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10022,7 +10536,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel2.getPreview(),
+                    channel: {isPrivate: false, channel: await channel2.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10038,7 +10552,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session3.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
@@ -10048,6 +10562,41 @@ for (const [currentProcessingType, processingMultiple] of [
                         contentTextSnippet: await getPostContentTextSnippet(post3),
                     },
                     otherPostAuthor: await scenario.session1.get(),
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(session5), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: session5.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel2.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session2.get(),
+                        createdTime: post4.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post4),
+                    },
+                    otherPostAuthor: null,
                 }),
             ]);
 
@@ -10064,7 +10613,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel2.getPreview(),
+                    channel: {isPrivate: false, channel: await channel2.getPreview()},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10080,7 +10629,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.sharedSession.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel1.getPreview(),
+                    channel: {isPrivate: false, channel: await channel1.getPreview()},
                     bucketGeneration: 0,
                     postCount: 3,
                     postAuthorCount: 2,
@@ -10101,6 +10650,391 @@ for (const [currentProcessingType, processingMultiple] of [
                     afterCursor: null,
                 }).then(massageInboxEntriesQuery),
             ).toEqual([]);
+        });
+
+        test("creating posts updates an entry for every subscriber unless the subscriber lost channel access", async () => {
+            const scenario = await createNotificationsScenario(context);
+
+            const session4 = await scenario.space.createSession();
+
+            const channel = await TestChannel.create(scenario.session2);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+                subscribeToChannel(scenario.sharedSession.action(), channel.id),
+            ]);
+
+            await channel.access.revokeDefault(scenario.session2);
+            await channel.access.grant(scenario.session2, scenario.session3);
+            await channel.access.grant(scenario.session2, session4);
+            await channel.access.grant(scenario.session2, scenario.sharedSession);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.sharedSession), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const post1 = await channel.createPost(session4);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session4.get(),
+                        createdTime: post1.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post1),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session3.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session4.get(),
+                        createdTime: post1.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post1),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.sharedSession), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.sharedSession.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session4.get(),
+                        createdTime: post1.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post1),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            await channel.access.revoke(scenario.session2, scenario.sharedSession);
+
+            const post2 = await channel.createPost(scenario.session3);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 2,
+                    postAuthorCount: 2,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post2.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
+                    },
+                    otherPostAuthor: await session4.get(),
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session3.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session4.get(),
+                        createdTime: post1.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post1),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.sharedSession), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.sharedSession.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: true, channelId: channel.id},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session4.get(),
+                        createdTime: post1.createdTime,
+                        contentTextSnippet: "",
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            await channel.access.grant(scenario.session2, scenario.session1);
+
+            const post3 = await channel.createPost(scenario.session2);
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session2.get(),
+                        createdTime: post3.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 2,
+                    postAuthorCount: 2,
+                    latestPost: {
+                        author: await scenario.session3.get(),
+                        createdTime: post2.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post2),
+                    },
+                    otherPostAuthor: await session4.get(),
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session3), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session3.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 2,
+                    postAuthorCount: 2,
+                    latestPost: {
+                        author: await scenario.session2.get(),
+                        createdTime: post3.createdTime,
+                        contentTextSnippet: await getPostContentTextSnippet(post3),
+                    },
+                    otherPostAuthor: await session4.get(),
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(session4), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.sharedSession), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.sharedSession.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: true, channelId: channel.id},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session4.get(),
+                        createdTime: post1.createdTime,
+                        contentTextSnippet: "",
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
         });
 
         test("can not get inbox entry posts for a space you don't have access to", async () => {
@@ -10150,7 +11084,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10205,7 +11139,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 2,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10221,7 +11155,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10279,7 +11213,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 4,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10295,7 +11229,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 2,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10311,7 +11245,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10393,7 +11327,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10425,7 +11359,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 2,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10441,7 +11375,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10485,7 +11419,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 2,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10501,7 +11435,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: scenario.space.id,
                     accountId: scenario.session2.account.id,
                     loudNotificationCount: 0,
-                    channel: await channel.getPreview(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
                     bucketGeneration: 0,
                     postCount: 2,
                     postAuthorCount: 1,
@@ -10730,6 +11664,11 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const channel = await TestChannel.create(scenario.session1);
 
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
+
             const post = await channel.createPost(scenario.session1);
 
             const otherChannel = await TestChannel.create(scenario.otherSession);
@@ -10757,7 +11696,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 spaceId: scenario.space.id,
                                 accountId: scenario.session3.account.id,
                                 loudNotificationCount: 0,
-                                channel: await channel.getPreview(),
+                                channel: {isPrivate: false, channel: await channel.getPreview()},
                                 bucketGeneration: 0,
                                 postCount: 1,
                                 postAuthorCount: 1,
@@ -10787,6 +11726,11 @@ for (const [currentProcessingType, processingMultiple] of [
 
             const channel = await TestChannel.create(scenario.session1);
 
+            await runAllPromises([
+                subscribeToChannel(scenario.session2.action(), channel.id),
+                subscribeToChannel(scenario.session3.action(), channel.id),
+            ]);
+
             const post = await channel.createPost(scenario.session1);
 
             await ProcessContextModule.waitForTestTasks();
@@ -10810,7 +11754,7 @@ for (const [currentProcessingType, processingMultiple] of [
                                 spaceId: scenario.space.id,
                                 accountId: scenario.session3.account.id,
                                 loudNotificationCount: 0,
-                                channel: await channel.getPreview(),
+                                channel: {isPrivate: false, channel: await channel.getPreview()},
                                 bucketGeneration: 0,
                                 postCount: 1,
                                 postAuthorCount: 1,
@@ -10869,7 +11813,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: space.id,
                     accountId: session2.account.id,
                     loudNotificationCount: 0,
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10895,7 +11839,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     spaceId: space.id,
                     accountId: session2.account.id,
                     loudNotificationCount: 0,
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     bucketGeneration: 0,
                     postCount: 1,
                     postAuthorCount: 1,
@@ -10936,7 +11880,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -10971,7 +11915,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -11018,7 +11962,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -11050,7 +11994,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -11082,7 +12026,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 1,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -11126,7 +12070,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -11158,7 +12102,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 2,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -11206,7 +12150,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     accountId: session2.account.id,
                     postId: post.id,
                     postAuthor: await session1.get(),
-                    channel: expect.any(ChannelPreviewModel),
+                    channel: {isPrivate: false, channel: expect.any(ChannelPreviewModel)},
                     loudNotificationCount: 0,
                     postCreatedTime: post.createdTime,
                     postContentTextSnippetIfMentioned: null,
@@ -11388,6 +12332,483 @@ for (const [currentProcessingType, processingMultiple] of [
                     }),
                 }),
             });
+        });
+
+        test("will send account mentioned in post a notification even if they're not subscribed", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3, session4] = await space.createSessions(4);
+
+            const channel = await TestChannel.create(session1);
+
+            await subscribeToChannel(session4.action(), channel.id);
+
+            const post = await channel.createPost(
+                session1,
+                assertPostContent(
+                    PostContentProsemirrorSchema.node("doc", null, [
+                        PostContentProsemirrorSchema.node("paragraph", null, [
+                            PostContentProsemirrorSchema.text("Hello "),
+                            PostContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: `Hello @${session2.account.initialName}`,
+                    latestComment: null,
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(session3.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session4.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session4.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session1.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: `Hello @${session2.account.initialName}`,
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+        });
+
+        test("won't send account mentioned in post a notification if they don't have access", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3, session4] = await space.createSessions(4);
+
+            const channel = await TestChannel.create(session1);
+
+            await channel.access.revokeDefault(session1);
+            await channel.access.grant(session1, session3);
+            await channel.access.grant(session1, session4);
+
+            await subscribeToChannel(session4.action(), channel.id);
+
+            const post = await channel.createPost(
+                session1,
+                assertPostContent(
+                    PostContentProsemirrorSchema.node("doc", null, [
+                        PostContentProsemirrorSchema.node("paragraph", null, [
+                            PostContentProsemirrorSchema.text("Hello "),
+                            PostContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session3.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session4.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session4.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await session1.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet: `Hello @${session2.account.initialName}`,
+                    },
+                    otherPostAuthor: null,
+                }),
+            ]);
+        });
+
+        test("will hide channel name in post comments entry where account was mentioned but they lost access to the channel", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+
+            await channel.access.revokeDefault(session1);
+            await channel.access.grant(session1, session2);
+
+            const post = await channel.createPost(
+                session1,
+                assertPostContent(
+                    PostContentProsemirrorSchema.node("doc", null, [
+                        PostContentProsemirrorSchema.node("paragraph", null, [
+                            PostContentProsemirrorSchema.text("Hello "),
+                            PostContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: `Hello @${session2.account.initialName}`,
+                    latestComment: null,
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await channel.access.revoke(session1, session2);
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: {isPrivate: true},
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: null,
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("will hide channel name in post comments entry where account left a comment but they lost access to the channel", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+
+            await channel.access.revokeDefault(session1);
+            await channel.access.grant(session1, session2);
+
+            const post = await channel.createPost(session1);
+
+            await post.createComment(session2, "comment1");
+            const comment2 = await post.createComment(session1, "comment2");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "comment2",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await channel.access.revoke(session1, session2);
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: {isPrivate: true},
+                    loudNotificationCount: 0,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "",
+                        isStickyMention: false,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("will hide channel name in post comments entry where account left a comment and later was mentioned but they lost access to the channel", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const channel = await TestChannel.create(session1);
+
+            await channel.access.revokeDefault(session1);
+            await channel.access.grant(session1, session2);
+
+            const post = await channel.createPost(session1);
+
+            await post.createComment(session2, "comment1");
+
+            const comment2 = await post.createComment(
+                session1,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", null, [
+                        MessageContentProsemirrorSchema.node("paragraph", null, [
+                            MessageContentProsemirrorSchema.text("Hello "),
+                            MessageContentProsemirrorSchema.node("mention", {
+                                mention: cast<ContentMention>({
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
+                            }),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: `Hello @${session2.account.initialName}`,
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+
+            await channel.access.revoke(session1, session2);
+
+            expect(
+                await getInboxEntries(session1.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(session2.action(), {
+                    spaceId: space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxPostCommentsEntryModel({
+                    isArchived: false,
+                    spaceId: space.id,
+                    accountId: session2.account.id,
+                    postId: post.id,
+                    postAuthor: await session1.get(),
+                    channel: {isPrivate: true},
+                    loudNotificationCount: 1,
+                    postCreatedTime: post.createdTime,
+                    postContentTextSnippetIfMentioned: null,
+                    latestComment: {
+                        author: await session1.get(),
+                        createdTime: comment2.createdTime,
+                        contentTextSnippet: "",
+                        isStickyMention: true,
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
         });
     });
 }

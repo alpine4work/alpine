@@ -148,7 +148,16 @@ export class InboxPostCommentsEntryModel
             accountId: Schema.id<AccountId>(),
             postId: Schema.id<PostId>(),
             postAuthor: AccountModel.schema,
-            channel: ChannelPreviewModel.schema(),
+            channel: Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({
+                    isPrivate: Schema.value(true),
+                }),
+                Schema.object({
+                    isPrivate: Schema.value(false),
+                    channel: ChannelPreviewModel.schema(),
+                }),
+            ),
             loudNotificationCount: Schema.integer.min(0),
             isArchived: Schema.boolean,
             postCreatedTime: Schema.date,
@@ -178,7 +187,17 @@ export class InboxChannelPostsEntryModel
             accountId: Schema.id<AccountId>(),
             loudNotificationCount: Schema.integer.min(0).max(0),
             isArchived: Schema.boolean,
-            channel: ChannelPreviewModel.schema(),
+            channel: Schema.booleanUnion(
+                "isPrivate",
+                Schema.object({
+                    isPrivate: Schema.value(true),
+                    channelId: Schema.id<ChannelId>(),
+                }),
+                Schema.object({
+                    isPrivate: Schema.value(false),
+                    channel: ChannelPreviewModel.schema(),
+                }),
+            ),
             bucketGeneration: Schema.integer,
             postCount: Schema.integer.min(1),
             postAuthorCount: Schema.integer.min(1),
@@ -197,7 +216,7 @@ export class InboxChannelPostsEntryModel
     public getKey(): InboxEntryKey {
         return {
             type: "ChannelPosts",
-            channelId: this.channel.id,
+            channelId: this.channel.isPrivate ? this.channel.channelId : this.channel.channel.id,
             bucketGeneration: this.bucketGeneration,
         };
     }

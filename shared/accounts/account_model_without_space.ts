@@ -3,8 +3,9 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
-// Since "u" is not allowed in IDs we use "n" in place of "u" since "n" is an
-// upside down "u".
+// The `AccountId` tries to spell "unknown account" with no spaces followed by
+// zeroes. We substitute 0 for "o" and since "u" is not allowed in IDs we use
+// "n" in place of "u" since "n" is an upside down "u".
 //
 // NOTE(calebmer, 2025-01-14): I've create an account with this ID in the
 // production database as a defense against randomly generating an account with

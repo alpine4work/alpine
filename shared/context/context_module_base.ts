@@ -45,6 +45,11 @@ export class ContextModuleBase<
             "Can't access the context property until this context module is bound to a context object",
         );
     }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    public _allowReplace(otherModule: ContextModuleBase): boolean {
+        return false;
+    }
 }
 
 /**

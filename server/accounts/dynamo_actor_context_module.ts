@@ -342,6 +342,15 @@ export class DynamoSystemActorContextModule
     public fork() {
         return new DynamoSystemActorContextModule(this.serviceName, this._spaceId);
     }
+
+    // Allow replacing system context modules with the impersonated account context
+    // module if the impersonated account context module is for the same `SpaceId`.
+    public override _allowReplace(otherModule: ContextModuleBase) {
+        return (
+            otherModule instanceof DynamoImpersonatedAccountActorContextModule &&
+            otherModule.getSpaceId() === this.getSpaceId()
+        );
+    }
 }
 
 export class DynamoAnonymousActorContextModule
