@@ -9,6 +9,7 @@ import {
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ParsableRemLength} from "~/shared/design/core/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 
@@ -33,6 +34,7 @@ export function ShareNotificationButton({
         <OverlayTriggerButton
             aria-haspopup="dialog"
             placement="bottom-start"
+            fallbackPlacements={emptyArray}
             offset="3"
             offsetAlong={overlayOffsetAlong}
             overlay={({isVisible, onCloseWithoutAnimation}) => (

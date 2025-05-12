@@ -10,6 +10,7 @@ import {
 import {TestPost, TestPostCreateOptions} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
@@ -48,10 +49,12 @@ export class TestChannel {
             id = generateId<ChannelId>(),
             name = `Test Channel ${testChannelCount++}`,
             description,
+            accessPolicy,
         }: {
             id?: ChannelId;
             name?: string;
             description?: string | MessageContent;
+            accessPolicy?: "Public" | "Private" | AccessPolicy;
         } = {},
     ): Promise<TestChannel> {
         const channel = await createChannel(session.action(), {
@@ -62,6 +65,24 @@ export class TestChannel {
                 typeof description === "string"
                     ? createSimpleMessageContent(description)
                     : description,
+            accessPolicy:
+                accessPolicy === "Public"
+                    ? {
+                          accountGrantById: new Map([
+                              [session.account.id, {level: "Manage", generation: 0}],
+                          ]),
+                          defaultGrant: {level: "Manage", generation: 1},
+                          urlGrant: null,
+                      }
+                    : accessPolicy === "Private"
+                    ? {
+                          accountGrantById: new Map([
+                              [session.account.id, {level: "Manage", generation: 0}],
+                          ]),
+                          defaultGrant: null,
+                          urlGrant: null,
+                      }
+                    : accessPolicy,
         });
 
         return new TestChannel(

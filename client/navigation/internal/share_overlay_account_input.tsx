@@ -519,6 +519,7 @@ function ShareOverlayAccountInput(
                 }
             >
                 <Box
+                    data-testid="ShareOverlayAccountInput"
                     position="relative"
                     zIndex="0"
                     minHeight="10"

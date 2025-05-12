@@ -6,6 +6,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useReporter} from "~/client/design/reporter.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {ChannelViewSubscribeButton} from "~/client/forum/internal/channel_view_subscribe_button.js";
@@ -120,7 +121,7 @@ export function ChannelViewHeader({
                     </Box>
                 </Box>
             )}
-            {hasAccessLevel(accessLevel, "Edit") && (
+            {hasAccessLevel(accessLevel, "Edit") ? (
                 <Box
                     paddingTop={postFauxInputCreateButtonMarginTop[routeLayout]}
                     paddingBottom={postContentViewOuterMarginY}
@@ -128,7 +129,9 @@ export function ChannelViewHeader({
                 >
                     <PostFauxInputCreateButton channel={channelHeader.channel} />
                 </Box>
-            )}
+            ) : routeLayout === "narrow" ? (
+                <Spacer space={channelViewHeaderSectionGap} />
+            ) : null}
             {hasNoPosts && (
                 <Box position="relative" zIndex="0" style={{paddingBottom: 1}}>
                     <Box

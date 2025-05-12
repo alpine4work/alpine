@@ -193,6 +193,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
     return (
         <Box
             ref={contentRef}
+            data-testid="NavigationBar"
             // Override `pointerEvents="none"` of parent in `navigation_bar_internal.tsx`.
             pointerEvents="auto"
             position="relative"
@@ -547,7 +548,6 @@ function NavigationBarContentMoreButton({
 
     return (
         <>
-            {shareState.modals}
             <OverlayTriggerButton
                 aria-haspopup="menu"
                 placement="bottom-end"
@@ -655,18 +655,25 @@ function NavigationBarContentMoreButton({
                     />
                 </IconButton>
             </OverlayTriggerButton>
-            {shareButton && showShareMobileModal && (
+            {!(shareButton && showShareMobileModal) ? (
+                shareState.modals
+            ) : (
                 <MobileFullScreenModal onClose={() => setShowShareMobileModal(false)}>
                     {({onCloseWithAnimation}) => (
-                        <ShareMobileModal
-                            entityNoun={shareButton.entityNoun}
-                            withoutUrlGrantIfNull={shareButton.withoutUrlGrantIfNull}
-                            accessLevelText={shareButton.accessLevelText ?? defaultAccessLevelText}
-                            accessPolicy={shareButton.accessPolicy}
-                            onAccessPolicyChange={shareState.changeAccessPolicy}
-                            isReadOnly={shareState.isReadOnly}
-                            onCloseWithAnimation={onCloseWithAnimation}
-                        />
+                        <>
+                            {shareState.modals}
+                            <ShareMobileModal
+                                entityNoun={shareButton.entityNoun}
+                                withoutUrlGrantIfNull={shareButton.withoutUrlGrantIfNull}
+                                accessLevelText={
+                                    shareButton.accessLevelText ?? defaultAccessLevelText
+                                }
+                                accessPolicy={shareButton.accessPolicy}
+                                onAccessPolicyChange={shareState.changeAccessPolicy}
+                                isReadOnly={shareState.isReadOnly}
+                                onCloseWithAnimation={onCloseWithAnimation}
+                            />
+                        </>
                     )}
                 </MobileFullScreenModal>
             )}
