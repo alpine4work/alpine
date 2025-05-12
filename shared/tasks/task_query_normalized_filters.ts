@@ -9,6 +9,9 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
+import {diffSets} from "~/shared/helpers/set/diff_sets.js";
+import {intersectSets} from "~/shared/helpers/set/intersect_sets.js";
+import {unionSets} from "~/shared/helpers/set/union_sets.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {isId} from "~/shared/id/id.js";
@@ -1126,7 +1129,7 @@ function mergeTaskQueryAccountNoneOfNormalizedFilterWithNoneOfNormalizedFilter(
     filter1: TaskQueryAccountNormalizedFilter & {type: "NoneOf"},
     filter2: TaskQueryAccountNormalizedFilter & {type: "NoneOf"},
 ): {type: "Filter"; filter: TaskQueryAccountNormalizedFilter} | {type: "AlwaysFalse"} {
-    const accountIds = unionSets(filter1.accountIds, filter2.accountIds);
+    const accountIds = assertNonEmptyReadonlySet(unionSets(filter1.accountIds, filter2.accountIds));
     return {type: "Filter", filter: {type: "NoneOf", accountIds}};
 }
 
@@ -1251,45 +1254,4 @@ function mergeTaskQueryDateNormalizedFilters(
         // non-null lower/upper bound.
         assert(false);
     }
-}
-
-function intersectSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T> {
-    const newSet = new Set<T>();
-
-    for (const item of set1) {
-        if (set2.has(item)) {
-            newSet.add(item);
-        }
-    }
-
-    return newSet;
-}
-
-function unionSets<T>(
-    set1: NonEmptyReadonlySet<T>,
-    set2: NonEmptyReadonlySet<T>,
-): NonEmptyReadonlySet<T>;
-function unionSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T>;
-function unionSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T> | NonEmptyReadonlySet<T> {
-    const newSet = new Set<T>();
-
-    for (const item of set1) {
-        newSet.add(item);
-    }
-
-    for (const item of set2) {
-        newSet.add(item);
-    }
-
-    return newSet;
-}
-
-function diffSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T> {
-    const newSet = new Set<T>(set1);
-
-    for (const item of set2) {
-        newSet.delete(item);
-    }
-
-    return newSet;
 }

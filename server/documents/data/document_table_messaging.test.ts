@@ -29,10 +29,10 @@ import {
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 

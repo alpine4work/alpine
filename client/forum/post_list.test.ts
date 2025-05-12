@@ -11,11 +11,11 @@ import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {emptyMessageContent} from "~/shared/messaging/message_content_schema.js";

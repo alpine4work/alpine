@@ -21,9 +21,9 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

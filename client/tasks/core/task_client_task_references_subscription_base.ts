@@ -7,6 +7,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {diffSets} from "~/shared/helpers/set/diff_sets.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -441,13 +442,3 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 }
 
 let removingCycleStartingWithTaskId: TaskId | null = null;
-
-function diffSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T> {
-    const newSet = new Set<T>(set1);
-
-    for (const item of set2) {
-        newSet.delete(item);
-    }
-
-    return newSet;
-}

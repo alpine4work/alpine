@@ -20,13 +20,13 @@ import {
 } from "~/shared/error/error.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {decodeIdInto} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";

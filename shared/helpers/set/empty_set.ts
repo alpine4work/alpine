@@ -1,4 +1,4 @@
-import {freezeSet} from "~/shared/helpers/control/freeze_set.js";
+import {freezeSet} from "~/shared/helpers/set/freeze_set.js";
 
 /**
  * Empty read-only set constant.

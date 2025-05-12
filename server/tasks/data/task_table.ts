@@ -90,7 +90,6 @@ import {
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -129,6 +128,7 @@ import {
     decodeVtencBigUint64List,
     encodeVtencBigUint64Set,
 } from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";

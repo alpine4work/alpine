@@ -15,6 +15,7 @@ import {createPromiseImmediateResolver} from "~/shared/helpers/async/promise_imm
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {diffSets} from "~/shared/helpers/set/diff_sets.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
@@ -683,13 +684,3 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 let removingCycleStartingWithTaskId: TaskId | null = null;
 let detectCycleWhenAddingRemovedTaskId: TaskId | null = null;
 let detectCycleWhenRemovingTaskId: TaskId | null = null;
-
-function diffSets<T>(set1: ReadonlySet<T>, set2: ReadonlySet<T>): Set<T> {
-    const newSet = new Set<T>(set1);
-
-    for (const item of set2) {
-        newSet.delete(item);
-    }
-
-    return newSet;
-}

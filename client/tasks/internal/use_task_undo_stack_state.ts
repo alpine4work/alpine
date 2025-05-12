@@ -4,9 +4,9 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {TaskUndoActions} from "~/client/tasks/core/create_task_undo_actions_if_possible.js";
 import {TaskClientQuery} from "~/client/tasks/core/task_client_query.js";
 import {undoMergeTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
-import {emptyObject} from "~/shared/helpers/array/empty_object.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {TaskActionTransactionLeaseId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";

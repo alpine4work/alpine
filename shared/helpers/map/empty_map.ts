@@ -1,7 +1,4 @@
-import {freezeMap} from "~/shared/helpers/control/freeze_map.js";
-
-// NOCOMMIT: Move to `share/helpers/map`. And move other empties. Maybe move
-// `freeze_map.js` too?
+import {freezeMap} from "~/shared/helpers/map/freeze_map.js";
 
 /**
  * Empty read-only map constant.

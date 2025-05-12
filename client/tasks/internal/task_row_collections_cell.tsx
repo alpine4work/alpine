@@ -37,9 +37,9 @@ import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.j
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {emptyArrayStore} from "~/shared/store/const_store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";

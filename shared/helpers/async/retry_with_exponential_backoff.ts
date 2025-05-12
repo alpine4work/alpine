@@ -1,5 +1,5 @@
 import {CancelledError, DeadlineExceededError} from "~/shared/error/error.js";
-import {emptyObject} from "~/shared/helpers/array/empty_object.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 
 /**
  * The default number of times we'll retry in `retryWithExponentialBackoff()`.

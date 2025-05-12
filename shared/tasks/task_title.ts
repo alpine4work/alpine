@@ -6,12 +6,12 @@ import {
     yXmlFragmentToProsemirror,
 } from "y-prosemirror";
 import * as Y from "yjs";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {deepFreeze} from "~/shared/helpers/control/deep_freeze.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {decodeId} from "~/shared/id/id.js";
 import {getRealmId} from "~/shared/id/realm_id.js";

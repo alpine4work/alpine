@@ -32,7 +32,6 @@ import {
     UnimplementedError,
     UnknownError,
 } from "~/shared/error/error.js";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -42,6 +41,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";

@@ -24,8 +24,8 @@ import {
     titleClassName,
 } from "~/shared/content/content_styles.js";
 import {HighlightColor, isHighlightColor} from "~/shared/design/core/highlight_color.js";
-import {emptyMap} from "~/shared/helpers/array/empty_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";

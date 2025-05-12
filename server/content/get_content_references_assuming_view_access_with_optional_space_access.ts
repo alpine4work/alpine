@@ -8,10 +8,10 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {emptySet} from "~/shared/helpers/array/empty_set.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
