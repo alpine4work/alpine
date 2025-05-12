@@ -805,6 +805,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                     ] = await runAllPromises([
                         getPostAuthorAndChannelPreviewIfPossible(context, item.postId).then(
                             async postResult => {
+                                // We expect the post referenced by our `PostCommentsEntry` to exist.
+                                assert(postResult);
+
                                 if (postResult.ok) {
                                     return {
                                         hasPostAccess: true,

@@ -3,7 +3,7 @@ import {ChatRealtimeDurableObject} from "~/server/chat/realtime/chat_realtime_du
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {generateId} from "~/shared/id/id.js";
 
 const context = createTestWorkerContext();
@@ -17,7 +17,7 @@ const otherSession = createTestSession(context, otherSpace);
 
 test("can not connect to a chat that does not exist", async () => {
     await expect(connectForTest(context.action(session1), generateId())).rejects.toThrow(
-        PermissionDeniedError,
+        NotFoundError,
     );
 });
 

@@ -380,7 +380,9 @@ test("will index a document again if update happened after timeout with more upd
         title: null,
         body: null,
     });
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual(null);
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual(null);
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
@@ -391,9 +393,11 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 0,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
@@ -414,9 +418,11 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 0,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
@@ -436,9 +442,11 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 0,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
@@ -459,9 +467,11 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 0,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
@@ -481,9 +491,11 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
-    expect(await getDocumentContentPreviewIfExists(session.action(), document.id)).toEqual({
+    expect(
+        (await getDocumentContentPreviewIfExists(session.action(), document.id))?.preview,
+    ).toEqual({
         version: 2,
-        contentPreview: {
+        content: {
             doc: schema.node("doc", {accessPolicy: expect.any(Object)}, [
                 schema.node("title", null, [schema.text("Hollywoo Stars and Celebrities")]),
                 schema.node("paragraph", null, [
