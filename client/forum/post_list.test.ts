@@ -1021,6 +1021,7 @@ test("can add a channel header at the beginning", () => {
                 isEditingDescription: false,
                 onCancelDescriptionEditing: noop,
                 onSaveDescription: asyncNoop,
+                onAddAccountGrantsToAccessPolicy: asyncNoop,
             },
         },
         {type: "PostContent", post: post1, postCommentsState: "Closed"},
