@@ -4,6 +4,7 @@ import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {FileClientStore} from "~/client/content/file_client_store.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityType} from "~/shared/files/file_entity_id.js";
@@ -55,6 +56,7 @@ export type ContentFileEntityRenderers = {
                 options: {
                     fileEntity: FileEntityModel;
                     spaceId: SpaceId;
+                    getReporter: () => Reporter;
                     isInert: boolean;
                 },
             ) => () => void

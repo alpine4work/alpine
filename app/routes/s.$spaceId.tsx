@@ -192,6 +192,14 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
             throw new PermissionDeniedError("Can't load the application with a system actor");
         }
 
+        case "ImpersonatedAccount": {
+            // Allowing a system actor to load our app would be dangerous! Since a system
+            // actor can pretend to be any arbitrary account in the space.
+            throw new PermissionDeniedError(
+                "Can't load the application with an impersonated account actor",
+            );
+        }
+
         case "Anonymous": {
             const space = new SpaceModel({
                 id: spaceId,

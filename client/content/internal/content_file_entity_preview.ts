@@ -15,6 +15,7 @@ import {ContentFileLayout} from "~/client/content/state/content_file_layout_comp
 import {AppContext} from "~/client/context/app_context.js";
 import {addContextMenuActions} from "~/client/design/context_menu.js";
 import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_message.js";
+import {Reporter} from "~/client/design/reporter.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -200,6 +201,7 @@ export function addContentFileEntityPreviewBehavior(
         fileEntityResult,
         fileEntityRenderers,
         navigate,
+        getReporter,
         isInert = false,
         onShiftMouseDown,
         isLongPressDisabled,
@@ -212,6 +214,7 @@ export function addContentFileEntityPreviewBehavior(
         fileEntityResult: Result<FileEntityModel> | undefined;
         fileEntityRenderers: ContentFileEntityRenderers | null;
         navigate: NavigateFunction;
+        getReporter: () => Reporter;
         isInert?: boolean;
         onShiftMouseDown?: (event: PointerEvent) => void;
         isLongPressDisabled?: () => boolean;
@@ -311,6 +314,7 @@ export function addContentFileEntityPreviewBehavior(
             {
                 fileEntity,
                 spaceId,
+                getReporter,
                 isInert,
             },
         );

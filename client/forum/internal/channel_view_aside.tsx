@@ -33,7 +33,7 @@ import {
     postListViewAsideMaxWidth,
 } from "~/client/styles/forum_shared_styles.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/styles/styles.js";
-import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {AccessLevel} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";

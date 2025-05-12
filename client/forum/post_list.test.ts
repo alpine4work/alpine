@@ -1005,6 +1005,7 @@ test("can add a channel header at the beginning", () => {
             isEditingDescription: false,
             onCancelDescriptionEditing: noop,
             onSaveDescription: asyncNoop,
+            onAddAccountGrantsToAccessPolicy: asyncNoop,
         },
         list,
     );

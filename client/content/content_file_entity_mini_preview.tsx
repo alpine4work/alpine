@@ -152,6 +152,7 @@ export function ContentFileEntityMiniPreview({
                 fileEntityResult,
                 fileEntityRenderers,
                 navigate,
+                getReporter: () => reporter,
             },
         );
 

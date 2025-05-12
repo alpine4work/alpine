@@ -993,6 +993,7 @@ export function ContentView<Content extends ContentWithReferences>({
                             fileEntityResult,
                             fileEntityRenderers,
                             navigate,
+                            getReporter: () => reporter,
                             isInert,
                         },
                     );

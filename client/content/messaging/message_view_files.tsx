@@ -308,6 +308,7 @@ export function MessageViewFiles({
                             fileEntityResult: file.fileEntityResult,
                             fileEntityRenderers,
                             navigate,
+                            getReporter: () => reporter,
                         }),
                     );
                 } else {

@@ -11,7 +11,7 @@ import {
     postContentViewOuterMarginBottom,
     postContentViewOuterMarginY,
 } from "~/client/styles/forum_shared_styles.js";
-import {colorSchemeVars, pulseAnimationClassName} from "~/client/styles/styles.js";
+import {pulseAnimationClassName} from "~/client/styles/styles.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 
 export function PostShimmer({

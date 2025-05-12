@@ -319,6 +319,7 @@ export function createContentEditorFileNodeViewConstructor({
                             fileEntityResult,
                             fileEntityRenderers: getFileEntityRenderers(),
                             navigate,
+                            getReporter,
                             onShiftMouseDown,
                             isLongPressDisabled,
                             onLongPress,
