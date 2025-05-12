@@ -19,26 +19,22 @@ test("can create a channel and edit the name/description", async ({
     await page.getByLabel("Create").click();
     await page.getByText("More").click();
 
-    const newChannelNameLocator = !isMobile
-        ? page.getByPlaceholder("New channel")
-        : page.getByLabel("Name");
-
-    await expect(newChannelNameLocator).toBeHidden();
+    await expect(page.getByLabel("Name")).toBeHidden();
     await expect(page.getByText("FooBar")).toBeHidden();
     await expect(page.getByText("BarFoo")).toBeHidden();
     await expect(page.getByText("The quick brown fox")).toBeHidden();
 
     await page.getByText("Channel", {exact: true}).click();
 
-    await newChannelNameLocator.fill("FooBar");
+    await page.getByLabel("Name").fill("FooBar");
 
     if (!isMobile) {
-        await newChannelNameLocator.press("Enter");
+        await page.getByLabel("Name").press("Enter");
     } else {
-        await page.getByText("Save").click();
+        await page.getByText("Create").click();
     }
 
-    await expect(newChannelNameLocator).toBeHidden();
+    await expect(page.getByLabel("Name")).toBeHidden();
     await expect(page.getByText("FooBar")).toBeVisible();
     await expect(page.getByText("BarFoo")).toBeHidden();
     await expect(page.getByText("The quick brown fox")).toBeHidden();
@@ -94,4 +90,108 @@ test("can create a channel and edit the name/description", async ({
     await expect(page.getByText("The quick brown fox")).toBeVisible();
     await expect(page.getByText("BarFoo")).toBeVisible();
     await expect(page.getByText("FooBar")).toBeHidden();
+});
+
+test("can create a private channel", async ({
+    browser,
+    page: page1,
+    context: browserContext1,
+    isMobile,
+}) => {
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await space.createSessions(2);
+
+    await services.signIn(browserContext1, session1);
+    await page1.goto(`/s/${space.id}`);
+
+    await page1.getByLabel("Create").click();
+    await page1.getByText("More").click();
+
+    await expect(page1.getByLabel("Name")).toBeHidden();
+    await expect(page1.getByText("FooBar")).toBeHidden();
+
+    await page1.getByText("Channel", {exact: true}).click();
+
+    await page1.getByLabel("Name").fill("FooBar");
+
+    await page1.getByText("Private").click();
+
+    if (!isMobile) {
+        await page1.getByLabel("Name").press("Enter");
+    } else {
+        await page1.getByText("Create").click();
+    }
+
+    await expect(page1.getByLabel("Name")).toBeHidden();
+    await expect(page1.getByText("FooBar")).toBeVisible();
+
+    if (!isMobile) {
+        await expect(page1.getByTestId("PeekStackOverlay")).toBeVisible();
+        await page1.getByLabel("Expand").click();
+        await expect(page1.getByTestId("PeekStackOverlay")).toBeHidden();
+    }
+
+    const browserContext2 = await browser.newContext();
+    await services.signIn(browserContext2, session2);
+    const page2 = await browserContext2.newPage();
+    await page2.goto(page1.url());
+
+    await expect(page2.getByText("Couldn’t open channel")).toBeVisible();
+    await expect(page2.getByTestId("NavigationBar").getByText("FooBar")).toBeHidden();
+    await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await browserContext2.close();
+});
+
+test("can create a public channel", async ({
+    browser,
+    page: page1,
+    context: browserContext1,
+    isMobile,
+}) => {
+    const space = await TestSpace.create(context);
+
+    const [session1, session2] = await space.createSessions(2);
+
+    await services.signIn(browserContext1, session1);
+    await page1.goto(`/s/${space.id}`);
+
+    await page1.getByLabel("Create").click();
+    await page1.getByText("More").click();
+
+    await expect(page1.getByLabel("Name")).toBeHidden();
+    await expect(page1.getByText("FooBar")).toBeHidden();
+
+    await page1.getByText("Channel", {exact: true}).click();
+
+    await page1.getByLabel("Name").fill("FooBar");
+
+    await page1.getByText("Public").click();
+
+    if (!isMobile) {
+        await page1.getByLabel("Name").press("Enter");
+    } else {
+        await page1.getByText("Create").click();
+    }
+
+    await expect(page1.getByLabel("Name")).toBeHidden();
+    await expect(page1.getByText("FooBar")).toBeVisible();
+
+    if (!isMobile) {
+        await expect(page1.getByTestId("PeekStackOverlay")).toBeVisible();
+        await page1.getByLabel("Expand").click();
+        await expect(page1.getByTestId("PeekStackOverlay")).toBeHidden();
+    }
+
+    const browserContext2 = await browser.newContext();
+    await services.signIn(browserContext2, session2);
+    const page2 = await browserContext2.newPage();
+    await page2.goto(page1.url());
+
+    await expect(page2.getByTestId("NavigationBar").getByText("FooBar")).toBeVisible();
+    await expect(page2.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await browserContext2.close();
 });

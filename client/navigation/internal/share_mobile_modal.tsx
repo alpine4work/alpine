@@ -169,7 +169,6 @@ export function ShareMobileModal({
                                     type: "AddAccountGrants",
                                     accountGrantById: newAccountGrantById,
                                 },
-                                // NOCOMMIT: Integration test that notification actually gets sent
                                 notification,
                             );
 

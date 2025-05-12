@@ -1218,3 +1218,188 @@ test("will be prevented from lowering your own permission level if you're the la
             .getByRole("button", {name: "can post"}),
     ).toBeVisible();
 });
+
+test("will send a notification when sharing with account", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {
+        name: "Test Channel",
+        accessPolicy: "Private",
+    });
+
+    await services.signIn(browserContext2, session2);
+    await page2.goto(`/s/${space.id}/inbox`);
+
+    const browserContext1 = await browser.newContext();
+    await services.signIn(browserContext1, session1);
+    const page1 = await browserContext1.newPage();
+    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    await expect(page1.getByText("Test Channel")).toBeVisible();
+    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await expect(page2.getByText("No new notifications")).toBeVisible();
+
+    await page1.getByTestId("NavigationBar").getByLabel("More").click();
+    await page1.getByRole("menuitem", {name: "Share"}).click();
+
+    await expect(page1.getByPlaceholder("Add people")).toBeVisible();
+    await expect(page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`)).toBeHidden();
+
+    await page1.getByPlaceholder("Add people").click();
+    await page1.getByText(session2.account.initialName).click();
+    await page1.getByRole("button", {name: "Share", exact: true}).click();
+
+    await expect(
+        page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`),
+    ).toBeVisible();
+
+    await expect(page2.getByText("Test shared a channel with you")).toBeVisible();
+
+    await browserContext1.close();
+});
+
+test("can share a public channel with any other account in the space", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {
+        name: "Test Channel",
+        accessPolicy: "Public",
+    });
+
+    await services.signIn(browserContext2, session2);
+    await page2.goto(`/s/${space.id}/inbox`);
+
+    const browserContext1 = await browser.newContext();
+    await services.signIn(browserContext1, session1);
+    const page1 = await browserContext1.newPage();
+    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    await expect(page1.getByText("Test Channel")).toBeVisible();
+    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await expect(page2.getByText("No new notifications")).toBeVisible();
+
+    await page1.getByLabel("Invite").click();
+    await page1.getByRole("option", {name: session2.account.initialName}).click();
+    await page1.getByRole("button", {name: "Share"}).click();
+
+    await expect(page2.getByText("Test shared a channel with you")).toBeVisible();
+
+    await page1.getByTestId("NavigationBar").getByLabel("More").click();
+    await page1.getByRole("menuitem", {name: "Share"}).click();
+
+    await expect(
+        page1.getByTestId(`ShareOverlayAccountGrant:${session1.account.id}`),
+    ).toBeVisible();
+    await expect(page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`)).toBeHidden();
+
+    await browserContext1.close();
+});
+
+test("can share a public channel with any other account in the space and upgrade their access level", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {
+        name: "Test Channel",
+        accessPolicy: "Private",
+    });
+    await channel.access.grantDefault(session1, "View");
+
+    await services.signIn(browserContext2, session2);
+    await page2.goto(`/s/${space.id}/inbox`);
+
+    const browserContext1 = await browser.newContext();
+    await services.signIn(browserContext1, session1);
+    const page1 = await browserContext1.newPage();
+    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    await expect(page1.getByText("Test Channel")).toBeVisible();
+    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await expect(page2.getByText("No new notifications")).toBeVisible();
+
+    await page1.getByLabel("Invite").click();
+    await page1.getByRole("option", {name: session2.account.initialName}).click();
+    await page1.getByRole("button", {name: "can view"}).click();
+    await page1.getByRole("menuitem", {name: "can post"}).click();
+    await page1.getByRole("button", {name: "Share"}).click();
+
+    await expect(page2.getByText("Test shared a channel with you")).toBeVisible();
+
+    await page1.getByTestId("NavigationBar").getByLabel("More").click();
+    await page1.getByRole("menuitem", {name: "Share"}).click();
+
+    await expect(
+        page1.getByTestId(`ShareOverlayAccountGrant:${session1.account.id}`),
+    ).toBeVisible();
+    await expect(
+        page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`),
+    ).toBeVisible();
+
+    await browserContext1.close();
+});
+
+test("can share a private channel with any other account in the space", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const channel = await TestChannel.create(session1, {
+        name: "Test Channel",
+        accessPolicy: "Private",
+    });
+
+    await services.signIn(browserContext2, session2);
+    await page2.goto(`/s/${space.id}/inbox`);
+
+    const browserContext1 = await browser.newContext();
+    await services.signIn(browserContext1, session1);
+    const page1 = await browserContext1.newPage();
+    await page1.goto(`/s/${space.id}/channels/${channel.id}`);
+
+    await expect(page1.getByText("Test Channel")).toBeVisible();
+    await expect(page1.getByText("Couldn’t open channel")).toBeHidden();
+    await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await expect(page2.getByText("No new notifications")).toBeVisible();
+
+    await page1.getByLabel("Invite").click();
+    await page1.getByRole("option", {name: session2.account.initialName}).click();
+    await page1.getByRole("button", {name: "Share"}).click();
+
+    await expect(page2.getByText("Test shared a channel with you")).toBeVisible();
+
+    await page1.getByTestId("NavigationBar").getByLabel("More").click();
+    await page1.getByRole("menuitem", {name: "Share"}).click();
+
+    await expect(
+        page1.getByTestId(`ShareOverlayAccountGrant:${session1.account.id}`),
+    ).toBeVisible();
+    await expect(
+        page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`),
+    ).toBeVisible();
+
+    await browserContext1.close();
+});

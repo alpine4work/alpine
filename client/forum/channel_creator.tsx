@@ -174,7 +174,6 @@ export function ChannelCreator({
                                 spaceId: space.id,
                                 name,
                                 description: descriptionState.getDoc(),
-                                // NOCOMMIT: Integration test
                                 accessPolicy: !isPublic
                                     ? {
                                           accountGrantById: new Map([

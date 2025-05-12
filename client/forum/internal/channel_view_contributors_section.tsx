@@ -107,7 +107,6 @@ export function ChannelViewContributorsSection({
         [previewAccountIds],
     );
 
-    // NOCOMMIT: Integration test?
     const handleShare = async ({
         accessLevel,
         ...notification

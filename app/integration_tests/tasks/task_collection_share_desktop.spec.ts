@@ -389,7 +389,7 @@ test("can toggle task collection sharing on/off with share dialog account grant"
 
     await page1.getByPlaceholder("Add people").click();
     await page1.getByText(session2.account.initialName).click();
-    await page1.getByRole("button", {name: "Add", exact: true}).click();
+    await page1.getByRole("button", {name: "Share", exact: true}).click();
 
     await expect(
         page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`),
@@ -2333,4 +2333,56 @@ test("task view with mixed readonly and editable tasks", async ({
             .getByTestId("TaskRowPriorityCell")
             .getByPlaceholder("None"),
     ).not.toBeFocused();
+});
+
+test("will send a notification when sharing with account", async ({
+    browser,
+    context: browserContext2,
+    page: page2,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const [session1, session2] = await space.createSessions(2);
+
+    const collection = await TestTaskCollection.create(session1, {
+        name: "Test Collection",
+    });
+
+    const task1 = await TestTask.create(session1, {title: "Test Task 1"});
+    const task2 = await TestTask.create(session1, {title: "Test Task 2"});
+    const task3 = await TestTask.create(session1, {title: "Test Task 3"});
+
+    await task1.addCollection(session1, collection);
+    await task2.addCollection(session1, collection);
+    await task3.addCollection(session1, collection);
+
+    await services.signIn(browserContext2, session2);
+    await page2.goto(`/s/${space.id}/inbox`);
+
+    const browserContext1 = await browser.newContext();
+    await services.signIn(browserContext1, session1);
+    const page1 = await browserContext1.newPage();
+    await page1.goto(`/s/${space.id}/tasks/collections/${collection.id}`);
+
+    await expect(page1.getByRole("heading", {name: "Test Collection"})).toBeVisible();
+    await expect(page1.getByText("Couldn’t open tasks")).toBeHidden();
+    await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
+
+    await expect(page2.getByText("No new notifications")).toBeVisible();
+
+    await page1.getByRole("button", {name: "Share"}).click();
+
+    await expect(page1.getByPlaceholder("Add people")).toBeVisible();
+    await expect(page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`)).toBeHidden();
+
+    await page1.getByPlaceholder("Add people").click();
+    await page1.getByText(session2.account.initialName).click();
+    await page1.getByRole("button", {name: "Share", exact: true}).click();
+
+    await expect(
+        page1.getByTestId(`ShareOverlayAccountGrant:${session2.account.id}`),
+    ).toBeVisible();
+
+    await expect(page2.getByText("Test shared a task collection with you")).toBeVisible();
+
+    await browserContext1.close();
 });
