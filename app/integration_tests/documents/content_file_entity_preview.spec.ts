@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test";
+import {Page, expect, test} from "@playwright/test";
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
@@ -13,6 +13,18 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 
 const {context, services} = createTestServices();
+
+async function tapNewMessage(page: Page) {
+    await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
+
+    // Make sure the keyboard toolbar isn't animating when we tap.
+    await (await page
+        .getByRole("button", {name: "Send message"})
+        .elementHandle())!.waitForElementState("stable");
+
+    await page.getByRole("button", {name: "Send message"}).tap();
+    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
+}
 
 test("document file entity that doesn't exist", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
@@ -416,8 +428,13 @@ test("can paste URL to add file entity to document", async ({
     context: browserContext,
     page,
     viewport,
+    isMobile,
 }) => {
     assert(viewport);
+
+    if (!isMobile) {
+        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    }
 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -470,8 +487,13 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
     context: browserContext,
     page,
     viewport,
+    isMobile,
 }) => {
     assert(viewport);
+
+    if (!isMobile) {
+        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    }
 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -530,7 +552,15 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
     await expect(page.getByText("quxbuz")).toBeVisible();
 });
 
-test("can paste URL to add file entity to chat", async ({context: browserContext, page}) => {
+test("can paste URL to add file entity to chat", async ({
+    context: browserContext,
+    page,
+    isMobile,
+}) => {
+    if (!isMobile) {
+        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    }
+
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -565,7 +595,11 @@ test("can paste URL to add file entity to chat", async ({context: browserContext
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeHidden();
 
-    await page.getByLabel("New message").press("Enter");
+    if (!isMobile) {
+        await page.getByLabel("New message").press("Enter");
+    } else {
+        await tapNewMessage(page);
+    }
 
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
     await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeVisible();
@@ -576,7 +610,12 @@ test("can paste URL to add file entity to chat", async ({context: browserContext
 test("can paste `<iframe>` HTML to add file entity to chat", async ({
     context: browserContext,
     page,
+    isMobile,
 }) => {
+    if (!isMobile) {
+        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+    }
+
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -625,7 +664,11 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeVisible();
 
-    await page.getByLabel("New message").press("Enter");
+    if (!isMobile) {
+        await page.getByLabel("New message").press("Enter");
+    } else {
+        await tapNewMessage(page);
+    }
 
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
     await expect(page.getByTestId("MessageInput").getByText("quxbuz")).toBeHidden();
