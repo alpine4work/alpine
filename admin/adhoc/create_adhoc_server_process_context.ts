@@ -18,7 +18,6 @@ import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {OpensearchServerlessCollectionType} from "~/server/opensearch/opensearch_index.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -64,34 +63,6 @@ export async function createAdhocServerProcessContext({
 > {
     const baseContext = await createAdhocDynamoContext({awsProfile});
 
-    const opensearchUrlByServerlessCollectionType: Record<
-        OpensearchServerlessCollectionType,
-        string
-    > =
-        awsProfile !== "local"
-            ? // Hardcode our production OpenSearch domain URL. This URL is not a secret.
-              //
-              // TODO(calebmer): This is our old OpenSearch domain URL. The new ones we
-              // should probably keep secret since the new collections are open to the
-              // public internet so it's worse if they leak. Could we send AWS commands
-              // with the AWS OpenSearch serverless client to load the URLs dynamically?
-              {
-                  Search: "https://vpc-opensearchdomai-gw0hdmljxxtp-seltlzvgr54vwz2hynm5c4djiy.us-east-1.es.amazonaws.com",
-                  VectorSearch:
-                      "https://vpc-opensearchdomai-gw0hdmljxxtp-seltlzvgr54vwz2hynm5c4djiy.us-east-1.es.amazonaws.com",
-              }
-            : (() => {
-                  const url = `http://localhost:${parseInt(
-                      assertExists(
-                          env.OPENSEARCH_LOCAL_PORT,
-                          "OpenSearch local port must be provided when running OpenSearch locally",
-                      ),
-                      10,
-                  )}`;
-
-                  return {Search: url, VectorSearch: url};
-              })();
-
     const context = baseContext.clone<
         Omit<AdhocServerProcessContextModules, keyof DynamoContextModules>
     >({
@@ -107,7 +78,24 @@ export async function createAdhocServerProcessContext({
         }),
         opensearch: OpensearchContextModule.new(
             new OpensearchClient({
-                urlByServerlessCollectionType: opensearchUrlByServerlessCollectionType,
+                url:
+                    awsProfile !== "local"
+                        ? // Hardcode our production OpenSearch domain URL. This URL is not a secret.
+                          //
+                          // TODO(calebmer): This is our old OpenSearch domain. Use our new one? Should
+                          // we keep the domain secret now that it's not in a VPC?
+                          "https://vpc-opensearchdomai-gw0hdmljxxtp-seltlzvgr54vwz2hynm5c4djiy.us-east-1.es.amazonaws.com"
+                        : (() => {
+                              const url = `http://localhost:${parseInt(
+                                  assertExists(
+                                      env.OPENSEARCH_LOCAL_PORT,
+                                      "OpenSearch local port must be provided when running OpenSearch locally",
+                                  ),
+                                  10,
+                              )}`;
+
+                              return url;
+                          })(),
                 signer: baseContext.getAwsSigner(),
                 ensureLocalCachePath:
                     awsProfile === "local"

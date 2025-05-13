@@ -1,7 +1,6 @@
 import {CdkCustomResourceEvent, CdkCustomResourceResponse} from "aws-lambda";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
-import {OpensearchServerlessCollectionType} from "~/server/opensearch/opensearch_index.js";
 import {deploySearchEntityIndexes} from "~/server/search/data/index/search_entity_index.js";
 import {deployTaskIndexes} from "~/server/tasks/data/task_index.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -9,10 +8,7 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-const urlByServerlessCollectionType: Record<OpensearchServerlessCollectionType, string> = {
-    Search: assertExists(process.env.OPENSEARCH_SEARCH_SERVERLESS_COLLECTION_ENDPOINT),
-    VectorSearch: assertExists(process.env.OPENSEARCH_VECTOR_SEARCH_SERVERLESS_COLLECTION_ENDPOINT),
-};
+const opensearchDomainEndpoint = assertExists(process.env.OPENSEARCH_DOMAIN_ENDPOINT);
 
 /**
  * Our OpenSearch deploy script is called by the AWS CDK as a [CloudFormation
@@ -58,7 +54,7 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
 
     const signer = new AwsRequestSigner();
     const client = new OpensearchClient({
-        urlByServerlessCollectionType,
+        url: `https://${opensearchDomainEndpoint}`,
         signer,
         ensureLocalCachePath: null,
     });

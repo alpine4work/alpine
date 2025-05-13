@@ -556,14 +556,9 @@ export function createTestContext({
         if (!opensearchLocal) {
             opensearchContextModule.initialize(new TestDisabledOpensearchClient());
         } else {
-            const url = `http://localhost:${opensearchLocal.port}`;
-
             opensearchContextModule.initialize(
                 new OpensearchClient({
-                    urlByServerlessCollectionType: {
-                        Search: url,
-                        VectorSearch: url,
-                    },
+                    url: `http://localhost:${opensearchLocal.port}`,
                     signer: awsSigner,
                     ensureLocalCachePath: joinPath(ensureLocalCachePath, "opensearch"),
                 }),

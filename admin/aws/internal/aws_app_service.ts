@@ -227,8 +227,7 @@ export class AwsAppService extends Construct {
                 `/var/www/app/app_production ${[
                     `--port=${port}`,
                     "--edgeServiceUrl=https://alpine.inc",
-                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
-                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
+                    `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
@@ -264,7 +263,7 @@ export class AwsAppService extends Construct {
         });
 
         dynamo.grantReadWriteData(taskDefinition.taskRole);
-        opensearch.addReadWriteAccessPolicy("AppServiceAccessPolicy", taskDefinition.taskRole);
+        opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
 
         // `AppService` sends transactional emails. Like a one-time-password sign

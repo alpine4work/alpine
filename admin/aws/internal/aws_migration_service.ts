@@ -77,8 +77,7 @@ export class AwsMigrationService extends Construct {
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
-                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
-                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
+                    `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                     // When you execute the ECS `RunTask` action to start migration service, you
                     // must provide these environment variables in `containerOverrides`. Each run of
                     // the migration service may be for a different task.
@@ -94,10 +93,7 @@ export class AwsMigrationService extends Construct {
             allowExpensiveScan: true,
         });
 
-        opensearch.addReadWriteAccessPolicy(
-            "MigrationServiceAccessPolicy",
-            taskDefinition.taskRole,
-        );
+        opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(taskDefinition.taskRole);
 
         // Create a security group for migration service. This security group's ID must

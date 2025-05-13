@@ -253,8 +253,7 @@ export class AwsTaskRealtimeService extends Construct {
                 "-c",
                 `/var/www/server/tasks/realtime/realtime ${[
                     `--portBase=${portBase}`,
-                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
-                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
+                    `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
@@ -329,10 +328,7 @@ export class AwsTaskRealtimeService extends Construct {
         });
 
         dynamo.grantReadWriteData(this.taskDefinition.taskRole);
-        opensearch.addReadWriteAccessPolicy(
-            "TaskRealtimeServiceAccessPolicy",
-            this.taskDefinition.taskRole,
-        );
+        opensearch.grantReadWriteData(this.taskDefinition.taskRole);
         sqs.grantSendJobQueueMessages(this.taskDefinition.taskRole);
 
         for (let partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {

@@ -406,110 +406,117 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
             fields: mapObjectValues(
                 searchEntitySemanticIndexEmbeddingChunkLanguageModels,
                 languageModelClass => {
-                    return new OpensearchIndexKnnVectorType({
-                        dimensions: languageModelClass.dimensionCount,
-                        dataType: languageModelClass.dimensionDataType,
+                    return (
+                        new OpensearchIndexKnnVectorType({
+                            dimensions: languageModelClass.dimensionCount,
+                            dataType: languageModelClass.dimensionDataType,
 
-                        method: {
-                            // NOTE(calebmer, 2023-11-21): I'm pretty unhappy that OpenSearch does not
-                            // provide a way to partition HNSW graphs per-space. Given we never return
-                            // results cross spaces. Pinecone has this capability, they call it
-                            // [namespaces][1]. Maybe this is better for memory usage? Unclear. I hope that
-                            // when we set a `routing` value only the HNSW for the routing shard is
-                            // consulted. That's partitioning from an efficiency standpoint.
-                            //
-                            // I'm worried there are security vulnerabilities (specifically timing attacks)
-                            // that are possible when searching all vectors across all spaces. If you're
-                            // searching with some text that's confidential information in another space
-                            // and your search takes a while does that reveal the information exists? (e.g.
-                            // Searching for "company X acquisition".) Unclear whether this is a real
-                            // vulnerability.
-                            //
-                            // Maybe it's more memory efficient or something to have one big HNSW structure
-                            // per data shard. This [ElasticSearch forum thread][2] says it might actually
-                            // be more performant to do an exact k-NN search for <10M vectors. Given
-                            // `SpaceId` isn't the only thing we need to filter by (we need to test whether
-                            // the `AccountId` is in the access policy) we'll probably generally be
-                            // searching <10M vectors. Efficient lucene filtering will [fallback to exact
-                            // search][3] if the conditions are right for it.
-                            //
-                            // Going to proceed for now since it might be fine for everything to be in one
-                            // big HNSW index. The HNSW index might even be completely unnecessary! Gotta
-                            // see how this performs in production.
-                            //
-                            // [1]: https://docs.pinecone.io/docs/namespaces
-                            // [2]: https://discuss.elastic.co/t/partition-hnsw-graph-per-user-elastic-knn/346394
-                            // [3]: https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn/#lucene-k-nn-filter-implementation
-                            name: "hnsw",
+                            method: {
+                                // NOTE(calebmer, 2023-11-21): I'm pretty unhappy that OpenSearch does not
+                                // provide a way to partition HNSW graphs per-space. Given we never return
+                                // results cross spaces. Pinecone has this capability, they call it
+                                // [namespaces][1]. Maybe this is better for memory usage? Unclear. I hope that
+                                // when we set a `routing` value only the HNSW for the routing shard is
+                                // consulted. That's partitioning from an efficiency standpoint.
+                                //
+                                // I'm worried there are security vulnerabilities (specifically timing attacks)
+                                // that are possible when searching all vectors across all spaces. If you're
+                                // searching with some text that's confidential information in another space
+                                // and your search takes a while does that reveal the information exists? (e.g.
+                                // Searching for "company X acquisition".) Unclear whether this is a real
+                                // vulnerability.
+                                //
+                                // Maybe it's more memory efficient or something to have one big HNSW structure
+                                // per data shard. This [ElasticSearch forum thread][2] says it might actually
+                                // be more performant to do an exact k-NN search for <10M vectors. Given
+                                // `SpaceId` isn't the only thing we need to filter by (we need to test whether
+                                // the `AccountId` is in the access policy) we'll probably generally be
+                                // searching <10M vectors. Efficient lucene filtering will [fallback to exact
+                                // search][3] if the conditions are right for it.
+                                //
+                                // Going to proceed for now since it might be fine for everything to be in one
+                                // big HNSW index. The HNSW index might even be completely unnecessary! Gotta
+                                // see how this performs in production.
+                                //
+                                // [1]: https://docs.pinecone.io/docs/namespaces
+                                // [2]: https://discuss.elastic.co/t/partition-hnsw-graph-per-user-elastic-knn/346394
+                                // [3]: https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn/#lucene-k-nn-filter-implementation
+                                name: "hnsw",
 
-                            spaceType: languageModelClass.opensearchSpaceType,
+                                spaceType: languageModelClass.opensearchSpaceType,
 
-                            // If we're in a development environment on MacOS we must use the Lucene engine
-                            // for `knn` fields since the Lucene engine is written in cross-platform Java
-                            // code. Faiss is a native library which is only available for Linux in the
-                            // OpenSearch distribution we run in development environments.
-                            //
-                            // We must use Faiss in production since it's the only engine that's supported
-                            // by [OpenSearch serverless][1].
-                            //
-                            // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-vector-search.html
-                            ...(process.env.NODE_ENV !== "production" &&
-                            process.platform === "darwin"
-                                ? {
-                                      engine: "lucene",
-                                      parameters: {ef_construction: 100, m: 16},
-                                  }
-                                : {
-                                      engine: "faiss",
+                                // If we're in a development environment on MacOS we must use the Lucene engine
+                                // for `knn` fields since the Lucene engine is written in cross-platform Java
+                                // code. Faiss is a native library which is only available for Linux in the
+                                // OpenSearch distribution we run in development environments.
+                                //
+                                // We must use Faiss in production since it's the only engine that's supported
+                                // by [OpenSearch serverless][1].
+                                //
+                                // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-vector-search.html
+                                ...(process.env.NODE_ENV !== "production" &&
+                                process.platform === "darwin"
+                                    ? {
+                                          engine: "lucene",
+                                          parameters: {ef_construction: 100, m: 16},
+                                      }
+                                    : {
+                                          engine: "faiss",
 
-                                      // We use the OpenSearch [default values][1] for these parameters. To learn the
-                                      // performance tradeoff of various configurations, this is a [great blog
-                                      // post][2]. To summarize:
-                                      //
-                                      // - `m` is the number of connections between nodes in the graph at each layer
-                                      //   and large values have a big impact on memory usage. Larger values can also
-                                      //   slow down search time. The tradeoff is higher `m` values are better for
-                                      //   recall.
-                                      //
-                                      // - `ef_construction` determines the number of layers in the HNSW structure.
-                                      //   It has little to no impact on search performance and memory usage but
-                                      //   higher values do increase indexing time. Higher `ef_construction` values
-                                      //   improve recall for lower `m` values.
-                                      //
-                                      // A combination of high `ef_construction`, low `m`, gives us good search
-                                      // performance and recall while hurting indexing time. Given we care about
-                                      // search performance upmost we're happy with this tradeoff and will use the
-                                      // default OpenSearch values.
-                                      //
-                                      // If anything, we should experiment with lowering the `m` value to 8.
-                                      //
-                                      // [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-methods-engines/#hnsw-parameters-1
-                                      // [2]: https://www.pinecone.io/learn/series/faiss/hnsw/
-                                      parameters: {
-                                          ef_search: 100,
-                                          ef_construction: 100,
-                                          m: 16,
-                                          // Halve the size of our index by compressing dimensions to 16-bit floats.
-                                          // This technique has been shown to provide significant storage savings without
-                                          // sacrificing query accuracy.
+                                          // We use the OpenSearch [default values][1] for these parameters. To learn the
+                                          // performance tradeoff of various configurations, this is a [great blog
+                                          // post][2]. To summarize:
                                           //
-                                          // See a comparison of quantization techniques here:
-                                          // https://aws.amazon.com/blogs/big-data/cost-optimized-vector-database-introduction-to-amazon-opensearch-service-quantization-techniques/
+                                          // - `m` is the number of connections between nodes in the graph at each layer
+                                          //   and large values have a big impact on memory usage. Larger values can also
+                                          //   slow down search time. The tradeoff is higher `m` values are better for
+                                          //   recall.
                                           //
-                                          // See the documentation for fp16 scalar quantization here:
-                                          // https://docs.opensearch.org/docs/latest/vector-search/optimizing-storage/faiss-16-bit-quantization/
-                                          // https://opensearch.org/blog/optimizing-opensearch-with-fp16-quantization/
-                                          encoder: {
-                                              name: "sq",
-                                              parameters: {
-                                                  type: "fp16",
-                                                  clip: true,
+                                          // - `ef_construction` determines the number of layers in the HNSW structure.
+                                          //   It has little to no impact on search performance and memory usage but
+                                          //   higher values do increase indexing time. Higher `ef_construction` values
+                                          //   improve recall for lower `m` values.
+                                          //
+                                          // A combination of high `ef_construction`, low `m`, gives us good search
+                                          // performance and recall while hurting indexing time. Given we care about
+                                          // search performance upmost we're happy with this tradeoff and will use the
+                                          // default OpenSearch values.
+                                          //
+                                          // If anything, we should experiment with lowering the `m` value to 8.
+                                          //
+                                          // [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-methods-engines/#hnsw-parameters-1
+                                          // [2]: https://www.pinecone.io/learn/series/faiss/hnsw/
+                                          parameters: {
+                                              ef_search: 100,
+                                              ef_construction: 100,
+                                              m: 16,
+                                              // Halve the size of our index by compressing dimensions to 16-bit floats.
+                                              // This technique has been shown to provide significant storage savings without
+                                              // sacrificing query accuracy.
+                                              //
+                                              // See a comparison of quantization techniques here:
+                                              // https://aws.amazon.com/blogs/big-data/cost-optimized-vector-database-introduction-to-amazon-opensearch-service-quantization-techniques/
+                                              //
+                                              // See the documentation for fp16 scalar quantization here:
+                                              // https://docs.opensearch.org/docs/latest/vector-search/optimizing-storage/faiss-16-bit-quantization/
+                                              // https://opensearch.org/blog/optimizing-opensearch-with-fp16-quantization/
+                                              encoder: {
+                                                  name: "sq",
+                                                  parameters: {
+                                                      type: "fp16",
+                                                      clip: true,
+                                                  },
                                               },
                                           },
-                                      },
-                                  }),
-                        },
-                    }).nullable();
+                                      }),
+                            },
+                        })
+                            .nullable()
+                            // Make sure we can access the vectors we generate from our language
+                            // model. In case we need to reindex without asking language models
+                            // for embeddings again.
+                            .store()
+                    );
                 },
             ),
         }),
@@ -548,4 +555,36 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
     // [3]: https://www.elastic.co/search-labs/blog/articles/chunking-via-ingest-pipelines
     // [4]: https://github.com/apache/lucene/pull/12434
     // [5]: https://www.elastic.co/search-labs/blog/articles/adding-passage-vector-search-to-lucene
+    //
+    // NOTE(calebmer, 2025-05-13): So, OpenSearch Serverless was a bad choice.
+    // Crucially, [`GET /<index>/_doc/<id>`][6] with `realtime=true` (the default!)
+    // in AWS OpenSearch Serverless does not return the latest indexed document.
+    // Instead it returns the document from the last refresh. We depend on
+    // `realtime=true` returning the latest document (with the latest version
+    // number) for updating OpenSearch documents with optimistic concurrency
+    // control in the `tasks`/`task_collections` index
+    // (`indexTaskActionTransactionAssumingItsCommitted()`) and the
+    // `search_entity_keywords` index (`processIndexSearchEntityJob()`). This is so
+    // critical to the design of our system that it's a blocker for using AWS
+    // OpenSearch Serverless. So we're migrating back to regular AWS OpenSearch
+    // Service.
+    //
+    // However, we're keeping the new `search_entity_embedding_chunks` index
+    // structure. Where instead of one `nested` document per entity we have a
+    // separate document per chunk. Initially we made this migration because vector
+    // search indexes don't allow custom document IDs. We're sticking with this
+    // approach since it has some advantages over our previous approach. For one,
+    // the `nested` field has some performance downsides ([source][2]). But mainly,
+    // we index embedding chunk changes at a slower rate than we index keyword
+    // changes. Indexing embedding chunks is an inherently more expensive operation:
+    //
+    // 1. The HNSW index is expensive to rebuild. This is manifested in a slow
+    //    refresh interval.
+    //
+    // 2. It costs money to ask our language model for new embeddings. So we
+    //    shouldn't ask for new embeddings every time we reindex an entity's
+    //    keywords. It's good to wait a bit for all entity updates to occur before
+    //    we re-embed.
+    //
+    // [6]: https://docs.opensearch.org/docs/latest/api-reference/document-apis/get-documents/
 });

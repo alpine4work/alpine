@@ -1005,12 +1005,6 @@ export type TracerEventData = {
 
     /** Data related to requests to OpenSearch. */
     readonly opensearch?: {
-        /**
-         * The AWS OpenSearch serverless collection type associated with the request.
-         * An identifier like `Search` or `VectorSearch`.
-         */
-        readonly serverlessCollectionType?: string;
-
         /** Routing key for the document. */
         readonly routing?: string;
 

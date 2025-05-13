@@ -238,8 +238,7 @@ export class AwsJobQueueService extends Construct {
                 "sh",
                 "-c",
                 `/var/www/server/jobs/queue/queue ${[
-                    `--opensearchSearchServerlessCollectionEndpoint=${opensearch.searchServerlessCollectionEndpoint}`,
-                    `--opensearchVectorSearchServerlessCollectionEndpoint=${opensearch.vectorSearchServerlessCollectionEndpoint}`,
+                    `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--jobQueueArn=${sqs.getJobQueueArn()}`,
@@ -283,7 +282,7 @@ export class AwsJobQueueService extends Construct {
         });
 
         dynamo.grantReadWriteData(taskDefinition.taskRole);
-        opensearch.addReadWriteAccessPolicy("JobQueueServiceAccessPolicy", taskDefinition.taskRole);
+        opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendAndReceiveJobQueueMessages(taskDefinition.taskRole);
 
         // `JobQueueService` needs to check what tasks ECS is running to appropriately

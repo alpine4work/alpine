@@ -1,4 +1,3 @@
-import {createHash} from "crypto";
 import fs from "fs/promises";
 import createJsonBigInt from "json-bigint";
 import jsonStableStringify from "json-stable-stringify";
@@ -15,7 +14,6 @@ import {
     OpensearchIndexFlattenedKeysType,
     OpensearchIndexRoutingType,
     OpensearchIndexStoredFieldsType,
-    OpensearchServerlessCollectionType,
     omitOpensearchStaticIndexConfig,
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
@@ -574,7 +572,6 @@ export abstract class OpensearchBulkCommandBase<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > {
     public abstract readonly index: Index;
-    public abstract readonly isNonSearchServerlessCollectionTypeSafe: boolean;
     public abstract readonly routing: OpensearchIndexRoutingType<Index>;
     public abstract readonly id: OpensearchIndexDocIdType<Index> | null;
 
@@ -590,7 +587,6 @@ export class OpensearchIndexDocIfVersionCommand<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > extends OpensearchBulkCommandBase<Index> {
     public readonly index: Index;
-    public readonly isNonSearchServerlessCollectionTypeSafe: boolean = false;
     public readonly routing: OpensearchIndexRoutingType<Index>;
     public readonly id: OpensearchIndexDocIdType<Index>;
     public readonly doc: OpensearchClientDocWithIdAndVersion<
@@ -627,7 +623,6 @@ export class OpensearchIndexDocWithoutIdCommand<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > extends OpensearchBulkCommandBase<Index> {
     public readonly index: Index;
-    public readonly isNonSearchServerlessCollectionTypeSafe: boolean = true;
     public readonly routing: OpensearchIndexRoutingType<Index>;
     public readonly id: null;
     public readonly doc: OpensearchIndexDocType<Index>;
@@ -656,7 +651,6 @@ export class OpensearchDeleteDocCommand<
     Index extends OpensearchIndex<any, any, any, any, any>,
 > extends OpensearchBulkCommandBase<Index> {
     public readonly index: Index;
-    public readonly isNonSearchServerlessCollectionTypeSafe: boolean = true;
     public readonly routing: OpensearchIndexRoutingType<Index>;
     public readonly id: OpensearchIndexDocIdType<Index>;
 
@@ -722,26 +716,20 @@ type OpensearchSearchHit = {
  * - In development, makes sure indexes are created
  */
 export class OpensearchClient implements OpensearchClientInterface {
-    private readonly _urlByServerlessCollectionType: Record<
-        OpensearchServerlessCollectionType,
-        URL
-    >;
+    private readonly _url: URL;
     private readonly _signer: AwsRequestSigner;
     private readonly _ensureLocalCachePath: string | null;
 
     constructor({
-        urlByServerlessCollectionType,
+        url,
         signer,
         ensureLocalCachePath,
     }: {
-        urlByServerlessCollectionType: Record<OpensearchServerlessCollectionType, string>;
+        url: string;
         signer: AwsRequestSigner;
         ensureLocalCachePath: string | null;
     }) {
-        this._urlByServerlessCollectionType = mapObjectValues(
-            urlByServerlessCollectionType,
-            url => new URL(url),
-        );
+        this._url = new URL(url);
         this._signer = signer;
         this._ensureLocalCachePath = ensureLocalCachePath;
     }
@@ -772,13 +760,12 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         await getOrSetDefaultMapValue(this._ensureLocalIndexPromiseByIndex, index, async () => {
             await tracer.withSpan("Waiting for OpenSearch to start", async () => {
-                const url = this._urlByServerlessCollectionType[index.serverlessCollectionType];
-                assert(url.hostname === "localhost");
+                assert(this._url.hostname === "localhost");
 
                 // We don't wait for OpenSearch to start before executing code in our dev
                 // server and tests. That's because OpenSearch takes ~7s to start. That means
                 // we need to wait for it here before we can use it.
-                const port = parseInt(url.port, 10);
+                const port = parseInt(this._url.port, 10);
                 assert(Number.isInteger(port));
                 await waitForHttpServer(port);
 
@@ -792,7 +779,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-genref.html#serverless-operations
                 await fetchWithTracer(
                     tracer,
-                    new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", url),
+                    new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", this._url),
                     {
                         sign: this._signer.sign,
                         serviceName: "OpenSearch",
@@ -897,12 +884,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys, StoredFields>,
     ) {
         return tracer.withSpan("Deploy OpenSearch index", async tracer => {
-            const url = this._urlByServerlessCollectionType[index.serverlessCollectionType];
-
             await retryWithExponentialBackoff(async retry => {
                 const getBody = await fetchWithTracer(
                     tracer,
-                    new URL(`/${index.name}/_settings`, url),
+                    new URL(`/${index.name}/_settings`, this._url),
                     {
                         sign: this._signer.sign,
                         serviceName: "OpenSearch",
@@ -944,19 +929,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                             "content-type": "application/json",
                         };
 
-                        // `x-amz-content-sha256` header is required when signing a request for
-                        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-                        // a request to a non-serverless AWS OpenSearch domain because the content
-                        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-                        //
-                        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-                            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-                        }
-
                         await fetchWithTracer(
                             tracer,
-                            new URL(`/${index.name}`, url),
+                            new URL(`/${index.name}`, this._url),
                             {
                                 sign: this._signer.sign,
                                 serviceName: "OpenSearch",
@@ -1075,7 +1050,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                             tracer,
                             new URL(
                                 `/_cluster/state?filter_path=metadata.indices.${index.name}.routing_num_shards`,
-                                url,
+                                this._url,
                             ),
                             {
                                 sign: this._signer.sign,
@@ -1144,19 +1119,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 "content-type": "application/json",
                             };
 
-                            // `x-amz-content-sha256` header is required when signing a request for
-                            // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-                            // a request to a non-serverless AWS OpenSearch domain because the content
-                            // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-                            //
-                            // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                            if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-                                requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-                            }
-
                             await fetchWithTracer(
                                 tracer,
-                                new URL(`/${index.name}/_settings`, url),
+                                new URL(`/${index.name}/_settings`, this._url),
                                 {
                                     sign: this._signer.sign,
                                     serviceName: "OpenSearch",
@@ -1193,19 +1158,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 "content-type": "application/json",
                             };
 
-                            // `x-amz-content-sha256` header is required when signing a request for
-                            // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-                            // a request to a non-serverless AWS OpenSearch domain because the content
-                            // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-                            //
-                            // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-                            if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-                                requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-                            }
-
                             await fetchWithTracer(
                                 tracer,
-                                new URL(`/${index.name}/_mappings`, url),
+                                new URL(`/${index.name}/_mappings`, this._url),
                                 {
                                     sign: this._signer.sign,
                                     serviceName: "OpenSearch",
@@ -1260,10 +1215,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(
-            `/${index.name}/_doc/${encodeURIComponent(id)}`,
-            this._urlByServerlessCollectionType[index.serverlessCollectionType],
-        );
+        const url = new URL(`/${index.name}/_doc/${encodeURIComponent(id)}`, this._url);
         url.searchParams.set("routing", routing);
         url.searchParams.set("realtime", String(realtime));
 
@@ -1278,7 +1230,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             async (response, span) => {
                 span.addData({
                     opensearch: {
-                        serverlessCollectionType: index.serverlessCollectionType,
                         routing,
                         get: {id},
                     },
@@ -1368,10 +1319,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(
-            `/${index.name}/_doc/${encodeURIComponent(id)}`,
-            this._urlByServerlessCollectionType[index.serverlessCollectionType],
-        );
+        const url = new URL(`/${index.name}/_doc/${encodeURIComponent(id)}`, this._url);
         url.searchParams.set("routing", routing);
         url.searchParams.set("realtime", String(realtime));
         url.searchParams.set("_source", "false");
@@ -1391,7 +1339,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             async (response, span) => {
                 span.addData({
                     opensearch: {
-                        serverlessCollectionType: index.serverlessCollectionType,
                         routing,
                         get: {id},
                     },
@@ -1490,20 +1437,8 @@ export class OpensearchClient implements OpensearchClientInterface {
         tracer: TracerBase,
         commands: ReadonlyArray<OpensearchMultiGetDocCommandBase<Index, Output>>,
     ): Promise<Map<Index, Map<OpensearchIndexDocIdType<Index>, Output>>> {
-        // Make sure all command indexes have the same collection type.
-        let serverlessCollectionType: OpensearchServerlessCollectionType | null = null;
-        for (const command of commands) {
-            if (serverlessCollectionType === null) {
-                serverlessCollectionType = command.index.serverlessCollectionType;
-            } else if (serverlessCollectionType !== command.index.serverlessCollectionType) {
-                throw new InternalError(
-                    quote`Can't make multi-get documents request across indexes with different OpenSearch serverless collection types, expected all command indexes to be in the ${serverlessCollectionType} OpenSearch collection type but one command index was ${command.index.serverlessCollectionType}`,
-                );
-            }
-        }
-
         // No commands, noop.
-        if (serverlessCollectionType === null) return emptyMap as any;
+        if (commands.length === 0) return emptyMap as any;
 
         const indexByName = new Map<string, OpensearchIndex<any, any, any, any, any>>();
         const commandByIdByIndex = new Map<
@@ -1538,10 +1473,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         const singularRouting =
             singularIndex && routings.size === 1 ? iterableFirst(routings)! : null;
 
-        const url = new URL(
-            singularIndex ? `/${singularIndex.name}/_mget` : "/_mget",
-            this._urlByServerlessCollectionType[serverlessCollectionType],
-        );
+        const url = new URL(singularIndex ? `/${singularIndex.name}/_mget` : "/_mget", this._url);
 
         if (singularRouting) {
             url.searchParams.set("routing", singularRouting);
@@ -1562,16 +1494,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
-        // `x-amz-content-sha256` header is required when signing a request for
-        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-        // a request to a non-serverless AWS OpenSearch domain because the content
-        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-        //
-        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-        }
-
         const responseBody = await fetchWithTracer(
             tracer,
             url,
@@ -1586,7 +1508,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             async (response, span) => {
                 span.addData({
                     opensearch: {
-                        serverlessCollectionType: serverlessCollectionType!,
                         routing: singularRouting ?? undefined,
                         mget: {
                             count: commands.length,
@@ -1714,31 +1635,13 @@ export class OpensearchClient implements OpensearchClientInterface {
         >,
         {retryVersionConflictError}: OpensearchClientIndexDocIfVersionOptions = {},
     ): Promise<void> {
-        // OpenSearch serverless time series and vector search collections don't
-        // support indexing by custom document ID. Ban it in our client so developers
-        // don't accidentally add a call that works in development and in tests.
-        //
-        // TODO(calebmer): We need a `indexDocWithoutId()` variant of this method. We
-        // have a bulk command like this.
-        if (index.serverlessCollectionType !== "Search") {
-            throw new InternalError(
-                quote`Can't use custom document IDs in OpenSearch index ${index.name} because its serverless collection type is ${index.serverlessCollectionType}`,
-            );
-        }
-
         if (process.env.NODE_ENV !== "production") {
             await this.ensureLocalIndex(tracer, index);
         }
 
         const url = !doc.version
-            ? new URL(
-                  `/${index.name}/_create/${encodeURIComponent(doc.id)}`,
-                  this._urlByServerlessCollectionType[index.serverlessCollectionType],
-              )
-            : new URL(
-                  `/${index.name}/_doc/${encodeURIComponent(doc.id)}`,
-                  this._urlByServerlessCollectionType[index.serverlessCollectionType],
-              );
+            ? new URL(`/${index.name}/_create/${encodeURIComponent(doc.id)}`, this._url)
+            : new URL(`/${index.name}/_doc/${encodeURIComponent(doc.id)}`, this._url);
 
         url.searchParams.set("routing", routing);
 
@@ -1757,16 +1660,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
-        // `x-amz-content-sha256` header is required when signing a request for
-        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-        // a request to a non-serverless AWS OpenSearch domain because the content
-        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-        //
-        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-        }
-
         await fetchWithTracer(
             tracer,
             url,
@@ -1783,7 +1676,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             async (response, span) => {
                 span.addData({
                     opensearch: {
-                        serverlessCollectionType: index.serverlessCollectionType,
                         routing,
                         index: {
                             id: doc.id,
@@ -1842,36 +1734,12 @@ export class OpensearchClient implements OpensearchClientInterface {
         commands: Commands,
         {retryPartialVersionConflictError}: OpensearchClientBulkOptions = {},
     ): Promise<void> {
-        // Make sure all command indexes have the same collection type.
-        let serverlessCollectionType: OpensearchServerlessCollectionType | null = null;
-        for (const command of commands) {
-            if (serverlessCollectionType === null) {
-                serverlessCollectionType = command.index.serverlessCollectionType;
-            } else if (serverlessCollectionType !== command.index.serverlessCollectionType) {
-                throw new InternalError(
-                    quote`Can't make multi-get documents request across indexes with different OpenSearch serverless collection types, expected all command indexes to be in the ${serverlessCollectionType} OpenSearch collection type but one command index was ${command.index.serverlessCollectionType}`,
-                );
-            }
-        }
-
         // No commands, noop.
-        if (serverlessCollectionType === null) return;
+        if (commands.length === 0) return;
 
         const indexes = new Set<OpensearchIndex<any, any, any, any, any>>();
         const routings = new Set<string>();
         for (const command of commands) {
-            // OpenSearch serverless time series and vector search collections don't
-            // support indexing by custom document ID. Ban it in our client so developers
-            // don't accidentally add a call that works in development and in tests.
-            if (
-                !command.isNonSearchServerlessCollectionTypeSafe &&
-                command.index.serverlessCollectionType !== "Search"
-            ) {
-                throw new InternalError(
-                    quote`Can't use custom document IDs in OpenSearch index ${command.index.name} because its serverless collection type is ${command.index.serverlessCollectionType}`,
-                );
-            }
-
             indexes.add(command.index);
             routings.add(command.routing);
         }
@@ -1886,10 +1754,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         const singularRouting =
             singularIndex && routings.size === 1 ? Array.from(routings)[0]! : null;
 
-        const url = new URL(
-            singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk",
-            this._urlByServerlessCollectionType[serverlessCollectionType],
-        );
+        const url = new URL(singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk", this._url);
 
         if (singularRouting) {
             url.searchParams.set("routing", singularRouting);
@@ -1932,16 +1797,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/x-ndjson",
         };
 
-        // `x-amz-content-sha256` header is required when signing a request for
-        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-        // a request to a non-serverless AWS OpenSearch domain because the content
-        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-        //
-        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-        }
-
         const versionConflictError: FailedPreconditionError | null = await fetchWithTracer(
             tracer,
             url,
@@ -1956,7 +1811,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             async (response, span) => {
                 span.addData({
                     opensearch: {
-                        serverlessCollectionType: serverlessCollectionType!,
                         routing: singularRouting ?? undefined,
                         bulk: {
                             count: bulkBody.length,
@@ -2108,10 +1962,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(
-            `/${index.name}/_search`,
-            this._urlByServerlessCollectionType[index.serverlessCollectionType],
-        );
+        const url = new URL(`/${index.name}/_search`, this._url);
         url.searchParams.set("routing", routing);
         url.searchParams.set("size", String(size));
 
@@ -2162,16 +2013,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
-        // `x-amz-content-sha256` header is required when signing a request for
-        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-        // a request to a non-serverless AWS OpenSearch domain because the content
-        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-        //
-        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-        }
-
         const body = await fetchWithTracer(
             tracer,
             url,
@@ -2186,7 +2027,6 @@ export class OpensearchClient implements OpensearchClientInterface {
             async (response, span) => {
                 span.addData({
                     opensearch: {
-                        serverlessCollectionType: index.serverlessCollectionType,
                         routing,
                         query: getOpensearchQueryClauseDescription(query),
                         sort: JSON.stringify(sort),
@@ -2500,24 +2340,11 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(
-            `/${index.name}/_refresh`,
-            this._urlByServerlessCollectionType[index.serverlessCollectionType],
-        );
+        const url = new URL(`/${index.name}/_refresh`, this._url);
 
         const requestBody = "";
 
         const requestHeaders: {[key: string]: string} = {};
-
-        // `x-amz-content-sha256` header is required when signing a request for
-        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-        // a request to a non-serverless AWS OpenSearch domain because the content
-        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-        //
-        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-        }
 
         await fetchWithTracer(
             tracer,
@@ -2530,11 +2357,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 headers: requestHeaders,
                 body: requestBody,
             },
-            async (response, span) => {
-                span.addData({
-                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
-                });
-
+            async response => {
                 await response.json();
 
                 if (!response.ok) {
@@ -2567,10 +2390,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this.ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(
-            `/${index.name}/_analyze`,
-            this._urlByServerlessCollectionType[index.serverlessCollectionType],
-        );
+        const url = new URL(`/${index.name}/_analyze`, this._url);
 
         // NOTE(#opensearch-important-json-disclaimer): No numbers in this body.
         const requestBody = JSON.stringify({
@@ -2581,16 +2401,6 @@ export class OpensearchClient implements OpensearchClientInterface {
         const requestHeaders: {[key: string]: string} = {
             "content-type": "application/json",
         };
-
-        // `x-amz-content-sha256` header is required when signing a request for
-        // OpenSearch Serverless. However, it causes a forbidden 403 error when sending
-        // a request to a non-serverless AWS OpenSearch domain because the content
-        // non-serverless AWS OpenSearch checks doesn't include the sha256 body hash.
-        //
-        // https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-clients.html#serverless-signing
-        if (url.hostname.endsWith(".aoss.amazonaws.com")) {
-            requestHeaders["x-amz-content-sha256"] = sha256(requestBody);
-        }
 
         return fetchWithTracer(
             tracer,
@@ -2603,11 +2413,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 headers: requestHeaders,
                 body: requestBody,
             },
-            async (response, span) => {
-                span.addData({
-                    opensearch: {serverlessCollectionType: index.serverlessCollectionType},
-                });
-
+            async response => {
                 // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
                 // should safely fit into JavaScript float-64 numbers so we don't need to use
                 // bigint parsing.
@@ -2713,8 +2519,4 @@ function formatOpensearchError(error: OpensearchError): string {
         string += `. Root cause ${formatOpensearchError(error.root_cause[0])}`;
 
     return string;
-}
-
-function sha256(string: string) {
-    return createHash("sha256").update(string).digest("hex");
 }
