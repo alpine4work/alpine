@@ -1,5 +1,11 @@
 import {CustomResource, Duration} from "aws-cdk-lib";
-import {IConnectable, Port, SecurityGroup, SubnetType} from "aws-cdk-lib/aws-ec2";
+import {
+    EbsDeviceVolumeType,
+    IConnectable,
+    Port,
+    SecurityGroup,
+    SubnetType,
+} from "aws-cdk-lib/aws-ec2";
 import {Effect, IRole, Policy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
@@ -96,6 +102,7 @@ export class AwsOpensearch {
                 dataNodeInstanceType: "m7g.large.search",
             },
             ebs: {
+                volumeType: EbsDeviceVolumeType.GP3,
                 volumeSize: 60,
             },
             zoneAwareness: {

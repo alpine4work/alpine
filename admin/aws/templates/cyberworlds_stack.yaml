@@ -1086,7 +1086,7 @@ Resources:
             EBSOptions:
                 EBSEnabled: true
                 VolumeSize: 60
-                VolumeType: gp2
+                VolumeType: gp3
             EncryptionAtRestOptions:
                 Enabled: true
             EngineVersion: OpenSearch_2.19
