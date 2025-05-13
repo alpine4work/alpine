@@ -1073,9 +1073,9 @@ Resources:
             ClusterConfig:
                 DedicatedMasterCount: 3
                 DedicatedMasterEnabled: true
-                DedicatedMasterType: t3.medium.search
+                DedicatedMasterType: m7g.medium.search
                 InstanceCount: 2
-                InstanceType: m6g.large.search
+                InstanceType: m7g.large.search
                 ZoneAwarenessConfig:
                     AvailabilityZoneCount: 2
                 ZoneAwarenessEnabled: true

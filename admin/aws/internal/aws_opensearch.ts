@@ -91,9 +91,9 @@ export class AwsOpensearch {
             nodeToNodeEncryption: true,
             capacity: {
                 masterNodes: 3,
-                masterNodeInstanceType: "t3.medium.search",
+                masterNodeInstanceType: "m7g.medium.search",
                 dataNodes: 2,
-                dataNodeInstanceType: "m6g.large.search",
+                dataNodeInstanceType: "m7g.large.search",
             },
             ebs: {
                 volumeSize: 60,
