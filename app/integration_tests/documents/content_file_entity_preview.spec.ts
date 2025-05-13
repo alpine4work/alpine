@@ -477,7 +477,9 @@ test("can paste URL to add file entity to document", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    await page.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+    await page
+        .getByRole("textbox", {name: "Document"})
+        .press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
 
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeHidden();
@@ -546,7 +548,9 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    await page.getByRole("textbox", {name: "Document"}).press("ControlOrMeta+v");
+    await page
+        .getByRole("textbox", {name: "Document"})
+        .press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
 
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeVisible();
@@ -588,7 +592,7 @@ test("can paste URL to add file entity to chat", async ({
     await expect(page.getByText("quxbuz")).toBeHidden();
 
     await page.getByLabel("New message").focus();
-    await page.getByLabel("New message").press("ControlOrMeta+v");
+    await page.getByLabel("New message").press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
 
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeVisible();
     await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
@@ -655,7 +659,7 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
     await expect(page.getByText("quxbuz")).toBeHidden();
 
     await page.getByLabel("New message").focus();
-    await page.getByLabel("New message").press("ControlOrMeta+v");
+    await page.getByLabel("New message").press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
 
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeVisible();
     await expect(page.getByTestId("MessageInput").getByText("quxbuz")).toBeVisible();
