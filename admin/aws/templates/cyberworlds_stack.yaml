@@ -980,6 +980,18 @@ Resources:
         DeletionPolicy: Delete
         Metadata:
             aws:cdk:path: CyberworldsStack/Opensearch/DeployScriptResource/Default
+    DomainSecurityGroup48AA5FD6:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: Security group for domain Domain
+            SecurityGroupEgress:
+                - CidrIp: 0.0.0.0/0
+                  Description: Allow all outbound traffic by default
+                  IpProtocol: "-1"
+            VpcId:
+                Ref: Vpc8378EB38
+        Metadata:
+            aws:cdk:path: CyberworldsStack/Domain/SecurityGroup/Resource
     DomainSlowSearchLogs5B35A97A:
         Type: AWS::Logs::LogGroup
         Properties:
@@ -1111,6 +1123,14 @@ Resources:
                     Enabled: true
             NodeToNodeEncryptionOptions:
                 Enabled: true
+            VPCOptions:
+                SecurityGroupIds:
+                    - Fn::GetAtt:
+                          - DomainSecurityGroup48AA5FD6
+                          - GroupId
+                SubnetIds:
+                    - Ref: VpcIsolatedSubnet1SubnetE48C5737
+                    - Ref: VpcIsolatedSubnet2Subnet16364B91
         DependsOn:
             - DomainESLogGroupPolicyc89ca954b0efea28816c8a6ccdf79f9ce8cf56dbd5CustomResourcePolicy4696F203
             - DomainESLogGroupPolicyc89ca954b0efea28816c8a6ccdf79f9ce8cf56dbd500DF717D

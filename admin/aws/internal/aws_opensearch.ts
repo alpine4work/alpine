@@ -78,17 +78,10 @@ export class AwsOpensearch {
         const indexes = await crawlOpensearchIndexes();
         const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
 
-        // NOTE(calebmer): Intentionally not placing OpenSearch in a VPC. It's
-        // accessible to the open internet like DynamoDB. This allows us to open
-        // OpenSearch Dashboards from a web browser. We secure OpenSearch with IAM
-        // policies.
-        //
-        // I'm not a security expert so don't really see the benefit of a VPC.
-        // Especially considering most cloud databases provide you a URL on the public
-        // internet that's secured using some token authentication scheme (like IAM)
-        // anyway. The value of accessing OpenSearch Dashboards in a web browser when
-        // we need to debug issues is huge.
         new Domain(parentConstruct, "Domain", {
+            vpc,
+            // Only allow traffic to/from OpenSearch within our subnet.
+            vpcSubnets: [{subnetType: SubnetType.PRIVATE_ISOLATED}],
             domainName: "cyberworlds-search",
             version: EngineVersion.openSearch("2.19"),
             enforceHttps: true,
