@@ -81,10 +81,7 @@ export async function createAdhocServerProcessContext({
                 url:
                     awsProfile !== "local"
                         ? // Hardcode our production OpenSearch domain URL. This URL is not a secret.
-                          //
-                          // TODO(calebmer): This is our old OpenSearch domain. Use our new one? Should
-                          // we keep the domain secret now that it's not in a VPC?
-                          "https://vpc-opensearchdomai-gw0hdmljxxtp-seltlzvgr54vwz2hynm5c4djiy.us-east-1.es.amazonaws.com"
+                          "https://vpc-cyberworlds-search-xxztfs5jrcb7zbymxuhi5lblsi.us-east-1.es.amazonaws.com"
                         : (() => {
                               const url = `http://localhost:${parseInt(
                                   assertExists(
