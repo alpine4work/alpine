@@ -78,7 +78,7 @@ export class AwsOpensearch {
         const indexes = await crawlOpensearchIndexes();
         const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
 
-        new Domain(parentConstruct, "Domain", {
+        new Domain(construct, "Domain", {
             vpc,
             // Only allow traffic to/from OpenSearch within our subnet.
             vpcSubnets: [{subnetType: SubnetType.PRIVATE_ISOLATED}],
