@@ -29,15 +29,19 @@ import {
 } from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
-import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
-    backgroundColorVar,
-    colorSchemeVars,
-    contentStyles,
-    sprinkles,
-} from "~/client/styles/styles.js";
+    channelCreatorDescriptionFieldMinHeightPx,
+    channelCreatorDescriptionFieldPaddingX,
+    channelCreatorDescriptionFieldPaddingY,
+    channelCreatorFieldHelpMarginTop,
+    channelCreatorGap,
+    channelCreatorMarginTop,
+    channelCreatorNavigationBarDesktopTitleFontSize,
+} from "~/client/styles/forum_shared_styles.js";
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {convertRemLengthToPx, screenPaddingX} from "~/shared/design/core/spacing.js";
+import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -80,13 +84,6 @@ export function ChannelCreator({
         hasDescriptionChanged: false,
     }));
 
-    const descriptionPaddingX = "2.5";
-    const descriptionPaddingY = "1.5";
-
-    const descriptionMinHeightPx =
-        contentStyles.paragraphLineHeightPx[spacingScale] * 3 +
-        convertRemLengthToPx(descriptionPaddingY, spacingScale) * 2;
-
     const [isPublic, setIsPublic] = useState(true);
 
     const descriptionLabelId = useId();
@@ -123,7 +120,7 @@ export function ChannelCreator({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         title,
         withoutDisappearingTitle: true,
-        desktopTitleFontSize: "300",
+        desktopTitleFontSize: channelCreatorNavigationBarDesktopTitleFontSize,
         desktopTitleFontWeight: "bold",
         replaceActions: (
             <Box
@@ -244,8 +241,8 @@ export function ChannelCreator({
                     <Box
                         display="flex"
                         flexDirection="column"
-                        gap="8"
-                        paddingTop="4"
+                        gap={channelCreatorGap}
+                        paddingTop={channelCreatorMarginTop}
                         paddingBottom="24"
                         paddingX={screenPaddingX}
                     >
@@ -259,7 +256,12 @@ export function ChannelCreator({
                                 onChange={name => setNameState({name, hasNameChanged: true})}
                                 onEnter={() => assertExists(saveButtonRef.current).press()}
                             />
-                            <Box paddingTop="2" fontSize="50" color="grey-50" userSelect="text">
+                            <Box
+                                paddingTop={channelCreatorFieldHelpMarginTop}
+                                fontSize="50"
+                                color="grey-50"
+                                userSelect="text"
+                            >
                                 {/* NOTE(calebmer, 2025-05-06): This text is shamelessly copied from Slack's
                                 create channel experience. Slack's help text here is perfect, I have no
                                 notes. */}
@@ -280,7 +282,14 @@ export function ChannelCreator({
                                 Description
                             </label>
                             <FocusRing offset="border" isVisibleWhenFocusWithin>
-                                <Box border="grey-20" borderRadius="1">
+                                <Box
+                                    borderRadius="1"
+                                    style={{
+                                        // Use `box-shadow` instead of `border` so the border doesn't
+                                        // contribute to CSS layout.
+                                        boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-20"]}`,
+                                    }}
+                                >
                                     <ContentEditor
                                         ref={descriptionEditorRef}
                                         aria-labelledby={descriptionLabelId}
@@ -293,10 +302,15 @@ export function ChannelCreator({
                                             }));
                                         }}
                                         className={sprinkles({
-                                            paddingX: descriptionPaddingX,
-                                            paddingY: descriptionPaddingY,
+                                            paddingX: channelCreatorDescriptionFieldPaddingX,
+                                            paddingY: channelCreatorDescriptionFieldPaddingY,
                                         })}
-                                        style={{minHeight: descriptionMinHeightPx}}
+                                        style={{
+                                            minHeight:
+                                                channelCreatorDescriptionFieldMinHeightPx[
+                                                    spacingScale
+                                                ],
+                                        }}
                                         // If the description is empty then we render a dummy placeholder to incentivize
                                         // adding a description to the channel.
                                         placeholder={`Created ${formatPrettyAbsoluteDateWithoutFullTimeTooltip(
@@ -315,7 +329,12 @@ export function ChannelCreator({
                                     />
                                 </Box>
                             </FocusRing>
-                            <Box paddingTop="2" fontSize="50" color="grey-50" userSelect="text">
+                            <Box
+                                paddingTop={channelCreatorFieldHelpMarginTop}
+                                fontSize="50"
+                                color="grey-50"
+                                userSelect="text"
+                            >
                                 Use the description to provide more information about this channel.
                                 Like what conversations someone should expect or some important
                                 links.

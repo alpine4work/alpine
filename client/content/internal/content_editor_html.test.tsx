@@ -10,6 +10,10 @@ import {TextSelection} from "prosemirror-state";
 import {ReactNode, useState} from "react";
 import {act} from "react-dom/test-utils";
 import {ContentEditor, getEditorViewForTest} from "~/client/content/content_editor.js";
+import {
+    ContentFileEntityRenderers,
+    ContentFileEntityRenderersContext,
+} from "~/client/content/content_file_entity_renderers_context.js";
 import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
 import {
     ContentEditorState,
@@ -29,7 +33,7 @@ import {
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, getFileEntityTypes} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
@@ -38,7 +42,10 @@ import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
@@ -47,7 +54,7 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {getAccountsIfExist} from "~/shared/rpc/accounts_rpc_definitions.js";
+import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -406,11 +413,18 @@ const context: AppContext = Context.new({
     react: ReactContextModule.newForClient(),
 });
 
+const testContentFileEntityRenderers: ContentFileEntityRenderers = {
+    renderPreviewByType: createObjectFromKeys(getFileEntityTypes(), () => noop),
+    addPreviewBehaviorByType: {},
+};
+
 function TestContextProvider({children}: {children: ReactNode}) {
     return (
         <AppContextProvider value={context}>
             <TestSpaceContextProvider space={space} currentAccount={currentAccount}>
-                {children}
+                <ContentFileEntityRenderersContext.Provider value={testContentFileEntityRenderers}>
+                    {children}
+                </ContentFileEntityRenderersContext.Provider>
             </TestSpaceContextProvider>
         </AppContextProvider>
     );
@@ -657,7 +671,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
     await waitMacrotask();
 
     const isAsync =
-        TestRpcContextModule.getExecutions(getAccountsIfExist).length > 0 ||
+        TestRpcContextModule.getExecutions(getContentReferencesWithoutFiles).length > 0 ||
         TestRpcContextModule.getExecutions(attachFileFromAttachment).length > 0;
 
     if (isAsync) {
@@ -683,19 +697,37 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
         expect(pasteEditor.state.selection.head).toEqual(3);
 
         await act(async () => {
-            for (const execution of TestRpcContextModule.getExecutions(getAccountsIfExist)) {
+            for (const execution of TestRpcContextModule.getExecutions(
+                getContentReferencesWithoutFiles,
+            )) {
                 if (execution.outputPromiseResolver.isSettled()) continue;
 
-                Array.from(
-                    execution.input.accountIds,
-                    accountId => sourceContentReferences.accountById.get(accountId) ?? null,
-                );
-
                 execution.outputPromiseResolver.resolve({
-                    accounts: Array.from(
-                        execution.input.accountIds,
-                        accountId => sourceContentReferences.accountById.get(accountId) ?? null,
-                    ),
+                    references: {
+                        ...emptyContentReferences,
+                        accountById: new Map(
+                            filterMapIterable(
+                                execution.input.referencedIds.accountIds,
+                                accountId => {
+                                    const account =
+                                        sourceContentReferences.accountById.get(accountId);
+                                    if (!account) return;
+                                    return [accountId, account];
+                                },
+                            ),
+                        ),
+                        fileEntityById: new Map(
+                            filterMapIterable(
+                                execution.input.referencedIds.fileEntityIds,
+                                fileEntityId => {
+                                    const fileEntity =
+                                        sourceContentReferences.fileEntityById?.get(fileEntityId);
+                                    if (!fileEntity) return;
+                                    return [fileEntityId, fileEntity];
+                                },
+                            ),
+                        ),
+                    },
                 });
             }
 

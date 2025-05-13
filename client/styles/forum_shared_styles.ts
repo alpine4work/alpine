@@ -136,3 +136,18 @@ export const channelFilesViewMaxWidth = mapObjectValues(
             contentStyles.fileRowGapWidthRem * (channelFilesViewFileRowFileCount - 1)
         }rem`,
 );
+
+export const channelCreatorNavigationBarDesktopTitleFontSize = "300";
+export const channelCreatorMarginTop = "4";
+export const channelCreatorGap = "8";
+export const channelCreatorFieldHelpMarginTop = "2";
+
+export const channelCreatorDescriptionFieldPaddingX = "2.5";
+export const channelCreatorDescriptionFieldPaddingY = "1.5";
+
+export const channelCreatorDescriptionFieldMinHeightPx = createObjectFromKeys(
+    allSpacingScales,
+    spacingScale =>
+        contentStyles.paragraphLineHeightPx[spacingScale] * 3 +
+        convertRemLengthToPx(channelCreatorDescriptionFieldPaddingY, spacingScale) * 2,
+);

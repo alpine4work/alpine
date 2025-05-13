@@ -17,6 +17,9 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.channels.$channelId.files": {
         errorTitle: "Couldn’t open files",
     },
+    "routes/s.$spaceId.channels.new": {
+        errorTitle: "Couldn’t create channel",
+    },
     "routes/s.$spaceId.chat.$chatId": {
         errorTitle: "Couldn’t open chat",
     },

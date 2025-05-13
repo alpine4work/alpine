@@ -8,6 +8,7 @@ import {
     navigationBarMobileGap,
 } from "~/client/design/navigation_bar_helpers.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {textInputClassName} from "~/client/design/text_input.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
@@ -34,6 +35,11 @@ import {
     documentCommentThreadPreviewHeight,
 } from "~/client/styles/document_shared_styles.js";
 import {
+    channelCreatorDescriptionFieldMinHeightPx,
+    channelCreatorFieldHelpMarginTop,
+    channelCreatorGap,
+    channelCreatorMarginTop,
+    channelCreatorNavigationBarDesktopTitleFontSize,
     channelFilesViewFileMaxSize,
     channelFilesViewFileMinSize,
     channelFilesViewFileRowFileCount,
@@ -154,6 +160,7 @@ const shimmerOptionsByRouteId: Record<
 > = {
     "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
     "routes/s.$spaceId.channels.$channelId.files": {component: ChannelFilesRouteShimmer},
+    "routes/s.$spaceId.channels.new": {component: ChannelCreatorRouteShimmer},
     "routes/s.$spaceId.chat.$chatId": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: ChatRouteShimmer,
@@ -570,6 +577,86 @@ function ChannelFilesRouteShimmer() {
                         style={{width: fileSizePx, height: fileSizePx}}
                     />
                 ))}
+            </Box>
+        </Box>
+    );
+}
+
+function ChannelCreatorRouteShimmer() {
+    const spacingScale = useSpacingScale();
+    const platform = usePlatform();
+
+    return (
+        <Box display="flex" flexDirection="column" alignItems="center">
+            <Box
+                flexShrink="0"
+                paddingTop="safe-area-inset"
+                width="full"
+                maxWidth={peekNarrowLayoutWidth}
+            >
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    position="relative"
+                    height={navigationBarHeight}
+                    paddingX={platform === "mobile" ? navigationBarMobileGap : screenPaddingX}
+                >
+                    {platform === "mobile" && <MobileBackButton />}
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        justifyContent="center"
+                        alignItems={platform !== "mobile" ? "flex-start" : "center"}
+                        width="full"
+                        height="full"
+                    >
+                        <TextShimmer
+                            fontSize={
+                                platform !== "mobile"
+                                    ? channelCreatorNavigationBarDesktopTitleFontSize
+                                    : "100"
+                            }
+                            width={platform !== "mobile" ? "32" : "20"}
+                            ragRight={platform !== "mobile" ? "4" : undefined}
+                        />
+                    </Box>
+                    <Box display="flex" justifyContent="flex-end" width="7">
+                        <Box
+                            className={pulseAnimationClassName}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            backgroundColor="grey-10"
+                            paddingX="3"
+                            height="7"
+                            borderRadius="1"
+                        >
+                            <Box opacity="0" fontSize="100">
+                                Create
+                            </Box>
+                        </Box>
+                    </Box>
+                </Box>
+                <Box paddingTop={channelCreatorMarginTop} paddingX={screenPaddingX}>
+                    <TextShimmer fontSize="75" width="10" ragRight="2" />
+                    <Spacer space="1" />
+                    <Box height="9" className={textInputClassName}></Box>
+                    <Spacer space={channelCreatorFieldHelpMarginTop} />
+                    <TextShimmer fontSize="50" width="full" ragRight="6" />
+                    <TextShimmer fontSize="50" width="24" />
+                    <Spacer space={channelCreatorGap} />
+                    <TextShimmer fontSize="75" width="16" />
+                    <Spacer space="1" />
+                    <Box
+                        className={textInputClassName}
+                        style={{
+                            height: channelCreatorDescriptionFieldMinHeightPx[spacingScale],
+                        }}
+                    ></Box>
+                    <Spacer space={channelCreatorFieldHelpMarginTop} />
+                    <TextShimmer fontSize="50" width="full" ragRight="3" />
+                    <TextShimmer fontSize="50" width="64" />
+                </Box>
             </Box>
         </Box>
     );
