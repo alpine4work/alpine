@@ -443,6 +443,9 @@ test("can paste URL to add file entity to document", async ({
     await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
     const url = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
 
     const canPrimaryInputHover = await page.evaluate(
@@ -506,6 +509,9 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
     await services.signIn(browserContext, session);
     await page.goto(`/s/${space.id}/documents/${document1.id}`);
 
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
     const url1 = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
     const url2 = new URL(`/s/${space.id}/documents/${document3.id}`, services.getBaseUrl());
 
@@ -567,6 +573,9 @@ test("can paste URL to add file entity to chat", async ({
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/${chat.id}`);
 
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
     const url = new URL(`/s/${space.id}/documents/${document.id}`, services.getBaseUrl());
 
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
@@ -627,6 +636,9 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
 
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/${chat.id}`);
+
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
 
     const url1 = new URL(`/s/${space.id}/documents/${document1.id}`, services.getBaseUrl());
     const url2 = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
