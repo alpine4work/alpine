@@ -31,7 +31,7 @@ export function createServiceOpensearchContextModule(
                     : `https://${assertExists(
                           options.opensearchDomainEndpoint,
                           "`opensearchDomainEndpoint` option is required in production",
-                      )}}`,
+                      )}`,
             signer,
             ensureLocalCachePath:
                 process.env.NODE_ENV !== "production"
