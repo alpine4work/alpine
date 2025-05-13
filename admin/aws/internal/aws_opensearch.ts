@@ -4,6 +4,7 @@ import {Effect, IRole, Policy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
 import * as opensearchserverless from "aws-cdk-lib/aws-opensearchserverless";
+import {Domain, EngineVersion} from "aws-cdk-lib/aws-opensearchservice";
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
@@ -70,6 +71,43 @@ export class AwsOpensearch {
 
         const indexes = await crawlOpensearchIndexes();
         const indexesHash = getSha256Hash(JSON.stringify(indexes.map(index => index.config)));
+
+        // NOTE(calebmer): Intentionally not placing OpenSearch in a VPC. It's
+        // accessible to the open internet like DynamoDB. This allows us to open
+        // OpenSearch Dashboards from a web browser. We secure OpenSearch with IAM
+        // policies.
+        //
+        // I'm not a security expert so don't really see the benefit of a VPC.
+        // Especially considering most cloud databases provide you a URL on the public
+        // internet that's secured using some token authentication scheme (like IAM)
+        // anyway. The value of accessing OpenSearch Dashboards in a web browser when
+        // we need to debug issues is huge.
+        new Domain(parentConstruct, "Domain", {
+            domainName: "cyberworlds-search",
+            version: EngineVersion.openSearch("2.19"),
+            enforceHttps: true,
+            enableVersionUpgrade: true,
+            encryptionAtRest: {enabled: true},
+            nodeToNodeEncryption: true,
+            capacity: {
+                masterNodes: 3,
+                masterNodeInstanceType: "t3.medium.search",
+                dataNodes: 2,
+                dataNodeInstanceType: "m6g.large.search",
+            },
+            ebs: {
+                volumeSize: 60,
+            },
+            zoneAwareness: {
+                enabled: true,
+                availabilityZoneCount: 2,
+            },
+            logging: {
+                slowSearchLogEnabled: true,
+                slowIndexLogEnabled: true,
+                appLogEnabled: true,
+            },
+        });
 
         const collectionByServerlessCollectionType: Record<
             OpensearchServerlessCollectionType,
