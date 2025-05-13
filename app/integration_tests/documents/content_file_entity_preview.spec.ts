@@ -428,13 +428,8 @@ test("can paste URL to add file entity to document", async ({
     context: browserContext,
     page,
     viewport,
-    isMobile,
 }) => {
     assert(viewport);
-
-    if (!isMobile) {
-        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
-    }
 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -454,17 +449,6 @@ test("can paste URL to add file entity to document", async ({
         () => !window.matchMedia("(hover: none)").matches,
     );
 
-    await page.evaluate(async url => {
-        await navigator.clipboard.write([
-            new ClipboardItem({
-                "text/plain": new Blob([url], {type: "text/plain"}),
-            }),
-        ]);
-    }, url.toString());
-
-    await expect(page.getByText("foobar")).toBeHidden();
-    await expect(page.getByText("quxbuz")).toBeHidden();
-
     await page.getByRole("textbox", {name: "Document"}).focus();
 
     if (canPrimaryInputHover) {
@@ -477,9 +461,24 @@ test("can paste URL to add file entity to document", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    await page
-        .getByRole("textbox", {name: "Document"})
-        .press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
+    await expect(page.getByText("foobar")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+
+    await page.getByRole("textbox", {name: "Document"}).evaluate((documentElement, url) => {
+        const pasteEvent = new Event("paste", {bubbles: true, cancelable: true});
+
+        Object.assign(pasteEvent, {
+            clipboardData: {
+                types: ["text/plain"],
+                getData: (type: string) => {
+                    if (type !== "text/plain") return null;
+                    return url;
+                },
+            },
+        });
+
+        documentElement.dispatchEvent(pasteEvent);
+    }, url.toString());
 
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeHidden();
@@ -489,13 +488,8 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
     context: browserContext,
     page,
     viewport,
-    isMobile,
 }) => {
     assert(viewport);
-
-    if (!isMobile) {
-        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
-    }
 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -519,23 +513,6 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
         () => !window.matchMedia("(hover: none)").matches,
     );
 
-    await page.evaluate(
-        async ([url1, url2]) => {
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    "text/html": new Blob(
-                        [`<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`],
-                        {type: "text/html"},
-                    ),
-                }),
-            ]);
-        },
-        [url1.toString(), url2.toString()],
-    );
-
-    await expect(page.getByText("foobar")).toBeHidden();
-    await expect(page.getByText("quxbuz")).toBeHidden();
-
     await page.getByRole("textbox", {name: "Document"}).focus();
 
     if (canPrimaryInputHover) {
@@ -548,9 +525,27 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
             .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
     }
 
-    await page
-        .getByRole("textbox", {name: "Document"})
-        .press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
+    await expect(page.getByText("foobar")).toBeHidden();
+    await expect(page.getByText("quxbuz")).toBeHidden();
+
+    await page.getByRole("textbox", {name: "Document"}).evaluate(
+        (documentElement, [url1, url2]) => {
+            const pasteEvent = new Event("paste", {bubbles: true, cancelable: true});
+
+            Object.assign(pasteEvent, {
+                clipboardData: {
+                    types: ["text/html"],
+                    getData: (type: string) => {
+                        if (type !== "text/html") return null;
+                        return `<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`;
+                    },
+                },
+            });
+
+            documentElement.dispatchEvent(pasteEvent);
+        },
+        [url1.toString(), url2.toString()],
+    );
 
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeVisible();
@@ -561,10 +556,6 @@ test("can paste URL to add file entity to chat", async ({
     page,
     isMobile,
 }) => {
-    if (!isMobile) {
-        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
-    }
-
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -578,21 +569,28 @@ test("can paste URL to add file entity to chat", async ({
 
     const url = new URL(`/s/${space.id}/documents/${document.id}`, services.getBaseUrl());
 
-    await page.evaluate(async url => {
-        await navigator.clipboard.write([
-            new ClipboardItem({
-                "text/plain": new Blob([url], {type: "text/plain"}),
-            }),
-        ]);
-    }, url.toString());
-
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
     await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
     await expect(page.getByText("foobar")).toBeHidden();
     await expect(page.getByText("quxbuz")).toBeHidden();
 
     await page.getByLabel("New message").focus();
-    await page.getByLabel("New message").press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
+
+    await page.getByLabel("New message").evaluate((messageInputElement, url) => {
+        const pasteEvent = new Event("paste", {bubbles: true, cancelable: true});
+
+        Object.assign(pasteEvent, {
+            clipboardData: {
+                types: ["text/plain"],
+                getData: (type: string) => {
+                    if (type !== "text/plain") return null;
+                    return url;
+                },
+            },
+        });
+
+        messageInputElement.dispatchEvent(pasteEvent);
+    }, url.toString());
 
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeVisible();
     await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
@@ -616,10 +614,6 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
     page,
     isMobile,
 }) => {
-    if (!isMobile) {
-        await browserContext.grantPermissions(["clipboard-read", "clipboard-write"]);
-    }
-
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -637,20 +631,6 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
     const url1 = new URL(`/s/${space.id}/documents/${document1.id}`, services.getBaseUrl());
     const url2 = new URL(`/s/${space.id}/documents/${document2.id}`, services.getBaseUrl());
 
-    await page.evaluate(
-        async ([url1, url2]) => {
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    "text/html": new Blob(
-                        [`<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`],
-                        {type: "text/html"},
-                    ),
-                }),
-            ]);
-        },
-        [url1.toString(), url2.toString()],
-    );
-
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeHidden();
     await expect(page.getByTestId("MessageInput").getByText("quxbuz")).toBeHidden();
     await expect(page.getByTestId(/^MessageView:/).getByText("foobar")).toBeHidden();
@@ -659,7 +639,25 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
     await expect(page.getByText("quxbuz")).toBeHidden();
 
     await page.getByLabel("New message").focus();
-    await page.getByLabel("New message").press(`${isMobile ? "Meta" : "ControlOrMeta"}+v`);
+
+    await page.getByLabel("New message").evaluate(
+        (messageInputElement, [url1, url2]) => {
+            const pasteEvent = new Event("paste", {bubbles: true, cancelable: true});
+
+            Object.assign(pasteEvent, {
+                clipboardData: {
+                    types: ["text/html"],
+                    getData: (type: string) => {
+                        if (type !== "text/html") return null;
+                        return `<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`;
+                    },
+                },
+            });
+
+            messageInputElement.dispatchEvent(pasteEvent);
+        },
+        [url1.toString(), url2.toString()],
+    );
 
     await expect(page.getByTestId("MessageInput").getByText("foobar")).toBeVisible();
     await expect(page.getByTestId("MessageInput").getByText("quxbuz")).toBeVisible();
