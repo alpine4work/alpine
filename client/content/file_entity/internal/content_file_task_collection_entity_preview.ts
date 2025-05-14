@@ -169,7 +169,7 @@ export function renderContentFileTaskCollectionEntityPreview(
                 maxWidth: "full",
                 height: taskRowViewMinHeight,
                 fontSize: "100",
-                fontStyle: "truncate",
+                fontStyle: "truncate-serif",
             }),
         );
 

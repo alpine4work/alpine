@@ -91,7 +91,7 @@ export default async function handleRequest(
         // https://developers.cloudflare.com/workers/examples/103-early-hints
         responseHeaders.set(
             "link",
-            `<${stylesUrl}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
+            `<${stylesUrl}>; rel=preload; as=style, </fonts/inter.v1.woff2>; rel=preload; as=font; crossorigin=anonymous, </fonts/source-serif.v1.woff2>; rel=preload; as=font; crossorigin=anonymous`,
         );
 
         const response = new Response("<!DOCTYPE html>" + markup, {

@@ -12,4 +12,12 @@ export const commitMonoFontUnitsPerEm: number = 1000;
 export const commitMonoFontXHeight: number = 540;
 export const commitMonoFontCapHeight: number = 700;
 
-export const commitMonoFontSizeAdjust: number = 1.0109230324074074;
+export const sourceSerifFontAscender: number = 843;
+export const sourceSerifFontDescender: number = 210;
+export const sourceSerifFontUnitsPerEm: number = 1000;
+export const sourceSerifFontXHeight: number = 475;
+export const sourceSerifFontCapHeight: number = 670;
+
+export const commitMonoSizeAdjustToInter: number = 1.0109230324074074;
+export const commitMonoSizeAdjustToSourceSerif: number = 0.8796296296296295;
+export const sourceSerifSizeAdjustToInter: number = 1.1492598684210527;

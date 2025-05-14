@@ -1,8 +1,10 @@
 import {
-    commitMonoFontSizeAdjust,
+    commitMonoSizeAdjustToInter,
+    commitMonoSizeAdjustToSourceSerif,
     interFontAscender,
     interFontDescender,
     interFontUnitsPerEm,
+    sourceSerifSizeAdjustToInter,
 } from "~/shared/design/core/font_metrics.js";
 
 const formatPercentage = (percentage: number) =>
@@ -74,17 +76,18 @@ export const fontsCriticalCss =
     "font-weight: 100 900; " +
     "font-style: normal; " +
     "font-display: swap; " +
-    // Make sure the x-height of our monospace font matches the x-height of Inter.
-    `size-adjust: ${formatPercentage(commitMonoFontSizeAdjust)}; ` +
+    // Make sure the x-height of our monospace font matches the x-height of Source
+    // Serif since it lives next to Source Serif text in content.
+    `size-adjust: ${formatPercentage(commitMonoSizeAdjustToSourceSerif)}; ` +
     // Shouldn't be necessary since we modify the font to have matching
     // ascender/descender stats with Inter (since Safari doesn't support
     // `ascent-override` and `descent-override`) but we include to ensure layout is
     // stable when swapping fonts.
     `ascent-override: ${formatPercentage(
-        interFontAscender / (interFontUnitsPerEm * commitMonoFontSizeAdjust),
+        interFontAscender / (interFontUnitsPerEm * commitMonoSizeAdjustToInter),
     )}; ` +
     `descent-override: ${formatPercentage(
-        interFontDescender / (interFontUnitsPerEm * commitMonoFontSizeAdjust),
+        interFontDescender / (interFontUnitsPerEm * commitMonoSizeAdjustToInter),
     )}; ` +
     "} " +
     /* ===================================================================== */
@@ -106,6 +109,66 @@ export const fontsCriticalCss =
     )}; ` +
     `descent-override: ${formatPercentage(
         interFontDescender / (interFontUnitsPerEm * fallbackFontSizeAdjust),
-    )}; ` +
+    )}` +
     `size-adjust: ${fallbackFontSizeAdjust * 100}%; ` +
-    "}";
+    "}" +
+    /* ===================================================================== */
+    "@font-face { " +
+    'font-family: "CySourceSerifWithoutItalic"; ' +
+    // See how to use variable fonts:
+    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
+    "src: url(/fonts/source-serif.v1.woff2) format('woff2 supports variations'), url(/fonts/source-serif.v1.woff2) format('woff2-variations'), url(/fonts/source-serif.v1.woff2) format('woff2'); " +
+    "font-weight: 100 900; " +
+    "font-style: normal; " +
+    "font-display: swap; " +
+    // Shouldn't be necessary since we modify the font to have matching
+    // ascender/descender stats with Inter (since Safari doesn't support
+    // `ascent-override` and `descent-override`) but we include to ensure layout is
+    // stable when swapping fonts.
+    `ascent-override: ${formatPercentage(
+        interFontAscender / (interFontUnitsPerEm * sourceSerifSizeAdjustToInter),
+    )}; ` +
+    `descent-override: ${formatPercentage(
+        interFontDescender / (interFontUnitsPerEm * sourceSerifSizeAdjustToInter),
+    )}; ` +
+    "} " +
+    /* ===================================================================== */
+    "@font-face { " +
+    'font-family: "CySourceSerif"; ' +
+    // See how to use variable fonts:
+    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
+    "src: url(/fonts/source-serif.v1.woff2) format('woff2 supports variations'), url(/fonts/source-serif.v1.woff2) format('woff2-variations'), url(/fonts/source-serif.v1.woff2) format('woff2'); " +
+    "font-weight: 100 900; " +
+    "font-style: normal; " +
+    "font-display: swap; " +
+    // Shouldn't be necessary since we modify the font to have matching
+    // ascender/descender stats with Inter (since Safari doesn't support
+    // `ascent-override` and `descent-override`) but we include to ensure layout is
+    // stable when swapping fonts.
+    `ascent-override: ${formatPercentage(
+        interFontAscender / (interFontUnitsPerEm * sourceSerifSizeAdjustToInter),
+    )}; ` +
+    `descent-override: ${formatPercentage(
+        interFontDescender / (interFontUnitsPerEm * sourceSerifSizeAdjustToInter),
+    )}; ` +
+    "} " +
+    /* ===================================================================== */
+    "@font-face { " +
+    'font-family: "CySourceSerif"; ' +
+    // See how to use variable fonts:
+    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
+    "src: url(/fonts/source-serif-italic.v1.woff2) format('woff2 supports variations'), url(/fonts/source-serif-italic.v1.woff2) format('woff2-variations'), url(/fonts/source-serif-italic.v1.woff2) format('woff2'); " +
+    "font-weight: 100 900; " +
+    "font-style: italic; " +
+    "font-display: swap; " +
+    // Shouldn't be necessary since we modify the font to have matching
+    // ascender/descender stats with Inter (since Safari doesn't support
+    // `ascent-override` and `descent-override`) but we include to ensure layout is
+    // stable when swapping fonts.
+    `ascent-override: ${formatPercentage(
+        interFontAscender / (interFontUnitsPerEm * sourceSerifSizeAdjustToInter),
+    )}; ` +
+    `descent-override: ${formatPercentage(
+        interFontDescender / (interFontUnitsPerEm * sourceSerifSizeAdjustToInter),
+    )}; ` +
+    "} ";

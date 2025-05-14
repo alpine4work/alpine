@@ -247,7 +247,7 @@ export const paragraphFontSize = {
 
 globalStyle(paragraphClassName, {
     ...omitObject(blockStyles, ["clear"]),
-    ...fontStyles.normal,
+    ...fontStyles.serif,
     ...paragraphFontSize,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
@@ -517,6 +517,7 @@ globalStyle(`${orderedListItemClassName}::before`, {
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
     textAlign: "right",
     transform: "translateX(-100%)",
+    ...fontStyles.serif,
     ...paragraphFontSize,
     fontVariantNumeric: "tabular-nums",
 });
@@ -1536,13 +1537,15 @@ export const fileChannelEntityPreviewSubscribeButtonPressedClassName = style({
 // you'd get text that looks like markdown styles and correct selection. Seems
 // like a reasonable tradeoff.
 globalStyle(codeClassName, {
-    ...fontStyles.code,
+    // We use semi bold weight for inline code to create a bit more contrast with
+    // the surrounding text.
+    ...fontStyles["code-semi-bold"],
     wordWrap: "break-word",
     boxDecorationBreak: "clone",
 });
 
 globalStyle(boldClassName, {
-    ...fontStyles["extra-bold"],
+    ...fontStyles["serif-extra-bold"],
     // Inherit font feature settings from parent instead of turning them off. In a
     // link they should be off (which `fontStyles` does). Outside of a link they
     // should be on.
@@ -2020,7 +2023,9 @@ globalStyle(linkClassName, {
     // Don't change the caret color when your selector is in a link.
     caretColor: colorSchemeVars["grey-100"],
     textDecorationLine: "underline",
-    textDecorationThickness: 1,
+    // Round up to 1.5 on high pixel density screens. Round down to 1 on low pixel
+    // density screens.
+    textDecorationThickness: 1.49,
     // Remove gaps in links underline in iOS 8+ and Safari 8+.
     // Adobe Spectrum does this and I trust them:
     // https://github.com/adobe/spectrum-css/blob/0623bc93472afe3df13702531e119b62ad5291f2/components/link/index.css#L51-L52
@@ -2141,7 +2146,7 @@ export const mentionAtClassName = style({
 });
 
 export const mentionTextClassName = style({
-    fontWeight: fontStyles["semi-bold"].fontWeight,
+    fontWeight: fontStyles["serif-semi-bold"].fontWeight,
     selectors: {
         // Inherit font weight if we are in a container that is bolder than us.
         [`${boldClassName} &`]: {fontWeight: "inherit"},

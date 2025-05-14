@@ -51,6 +51,7 @@ import {
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     contentStyles,
+    fontStyles,
     inputPlaceholderStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
@@ -143,6 +144,7 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     overflowX: "scroll",
     backgroundColor: "transparent",
     userSelect: "text",
+    fontStyle: "serif",
 })}`;
 
 const taskRowTitleInputSingleLineMinWidth = `calc(1ch + ${addRemLengths(
@@ -178,6 +180,7 @@ const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
     minHeight: taskRowViewMinHeight,
     backgroundColor: "transparent",
     userSelect: "text",
+    fontStyle: "serif",
 })}`;
 
 const taskRowTitleInputMultilineStyle = createObjectFromKeys(
@@ -225,6 +228,7 @@ const placeholderClassName = sprinkles({
     pointerEvents: "none",
     // Make sure placeholder is rendered underneath cursor.
     zIndex: "-10",
+    fontStyle: "serif",
 });
 
 const marginRightContainerClassName = sprinkles({

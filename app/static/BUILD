@@ -1,6 +1,6 @@
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 filegroup(
@@ -9,6 +9,8 @@ filegroup(
         "files/fonts/commit-mono.v1.woff2",
         "files/fonts/inter.v1.woff2",
         "files/fonts/inter-italic.v1.woff2",
+        "files/fonts/source-serif.v1.woff2",
+        "files/fonts/source-serif-italic.v1.woff2",
         ":files",
     ],
     visibility = ["//app:__subpackages__"],
@@ -128,6 +130,58 @@ genrule(
     tools = ["//:ttx"],
 )
 
+genrule(
+    name = "fonts_source_serif_ttx",
+    srcs = ["fonts/source-serif.woff2"],
+    outs = ["fonts/source-serif.ttx"],
+    cmd = "./$(location //:ttx) -o \"$@\" -q $(location fonts/source-serif.woff2)",
+    tools = ["//:ttx"],
+)
+
+genrule(
+    name = "fonts_source_serif_patched_ttx",
+    srcs = [
+        "fonts/source-serif.ttx",
+        "fonts/source-serif.ttx.patch",
+    ],
+    outs = ["fonts/source-serif-patched.ttx"],
+    cmd = "cp $(location fonts/source-serif.ttx) \"$@\" && chmod +w \"$@\" && patch -p1 -s \"$@\" $(location fonts/source-serif.ttx.patch)",
+)
+
+genrule(
+    name = "fonts_source_serif",
+    srcs = ["fonts/source-serif-patched.ttx"],
+    outs = ["files/fonts/source-serif.v1.woff2"],
+    cmd = "./$(location //:ttx) -o \"$@\" -q --flavor woff2 $(location fonts/source-serif-patched.ttx)",
+    tools = ["//:ttx"],
+)
+
+genrule(
+    name = "fonts_source_serif_italic_ttx",
+    srcs = ["fonts/source-serif-italic.woff2"],
+    outs = ["fonts/source-serif-italic.ttx"],
+    cmd = "./$(location //:ttx) -o \"$@\" -q $(location fonts/source-serif-italic.woff2)",
+    tools = ["//:ttx"],
+)
+
+genrule(
+    name = "fonts_source_serif_italic_patched_ttx",
+    srcs = [
+        "fonts/source-serif-italic.ttx",
+        "fonts/source-serif-italic.ttx.patch",
+    ],
+    outs = ["fonts/source-serif-italic-patched.ttx"],
+    cmd = "cp $(location fonts/source-serif-italic.ttx) \"$@\" && chmod +w \"$@\" && patch -p1 -s \"$@\" $(location fonts/source-serif-italic.ttx.patch)",
+)
+
+genrule(
+    name = "fonts_source_serif_italic",
+    srcs = ["fonts/source-serif-italic-patched.ttx"],
+    outs = ["files/fonts/source-serif-italic.v1.woff2"],
+    cmd = "./$(location //:ttx) -o \"$@\" -q --flavor woff2 $(location fonts/source-serif-italic-patched.ttx)",
+    tools = ["//:ttx"],
+)
+
 ts_project(
     name = "static_lib",
     deps = [
@@ -162,6 +216,9 @@ js_binary(
         "fonts/commit-mono.ttx.patch.template",
         "fonts/commit-mono.woff2",
         "fonts/inter.woff2",
+        "fonts/source-serif.ttx.patch.template",
+        "fonts/source-serif.woff2",
+        "fonts/source-serif-italic.ttx.patch.template",
         ":static_lib",
     ],
     entry_point = "fonts/generate_font_metrics_main.js",
@@ -173,6 +230,8 @@ js_run_binary(
     outs = [
         "fonts/commit-mono.ttx.patch",
         "fonts/font_metrics.ts",
+        "fonts/source-serif.ttx.patch",
+        "fonts/source-serif-italic.ttx.patch",
     ],
     chdir = package_name(),
     tool = ":generate_font_metrics",

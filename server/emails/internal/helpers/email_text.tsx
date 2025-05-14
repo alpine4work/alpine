@@ -8,6 +8,7 @@ import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 export const emailFontStyles = createFontStyles({
     interFontFamily: "Inter, Arial, sans-serif",
     commitMonoFontFamily: "monospace",
+    sourceSerifFontFamily: "Inter, Arial, sans-serif",
 });
 
 export function EmailText({
