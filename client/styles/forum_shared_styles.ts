@@ -28,7 +28,7 @@ export const postFauxInputCreateButtonMarginTop = {
 export const postFauxInputCreateButtonHeight = "12";
 export const postFauxInputCreateButtonInnerButtonHeight = "7";
 
-export const postContentViewOuterMarginY = "4";
+export const postContentViewOuterMarginY = "6";
 
 // We also use this value as the padding X and Y padding for our post content
 // editor's `<FocusRing>`. Hence why you'll see this used as X axis spacing
