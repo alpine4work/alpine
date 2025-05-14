@@ -3013,7 +3013,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
     ) => {
         assert(entryItem.sortRangeType === "ChatEntry");
 
-        const [authorAccount, otherAccount, body] = await runAllPromises([
+        const [authorAccount, otherAccount, bodyFromEventContent] = await runAllPromises([
             getAccount(context, event.spaceId, event.authorId),
             entryItem.otherAccountId && entryItem.otherAccountId !== event.authorId
                 ? getAccount(context, event.spaceId, entryItem.otherAccountId)
@@ -3026,6 +3026,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
         ]);
 
         const title = authorAccount.initialData.name;
+        let body = bodyFromEventContent;
 
         // We don't include "Mentioned you" in the subtitle even if there was a
         // mention since:
@@ -3057,7 +3058,15 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
         // describe what happened.
         if (event.clerical?.type === "ShareNotification") {
             const entityNoun = getFileEntityNoun(event.clerical.entityType);
-            subtitle = `shared a ${entityNoun} with you`;
+
+            // If there's no body then put the "shared with you" message in the body
+            // instead of the subtitle. This looks better since the notification isn't all
+            // bold text.
+            if (body.length === 0) {
+                body = `shared a ${entityNoun} with you`;
+            } else {
+                subtitle = `shared a ${entityNoun} with you`;
+            }
         }
 
         return {title, subtitle, body};
