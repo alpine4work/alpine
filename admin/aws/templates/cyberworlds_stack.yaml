@@ -4169,7 +4169,7 @@ Resources:
                 Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: m7g.large
+            InstanceType: c7g.xlarge
             SecurityGroups:
                 - Fn::GetAtt:
                       - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433

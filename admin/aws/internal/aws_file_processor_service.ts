@@ -89,7 +89,7 @@ export class AwsFileProcessorService extends Construct {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
         // memory when resizing large images.
-        const instanceType = InstanceType.of(InstanceClass.M7G, InstanceSize.LARGE);
+        const instanceType = InstanceType.of(InstanceClass.C7G, InstanceSize.XLARGE);
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
@@ -375,6 +375,14 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
         case "m7g.xlarge":
             return 4;
         case "m7g.2xlarge":
+            return 8;
+        case "c7g.medium":
+            return 1;
+        case "c7g.large":
+            return 2;
+        case "c7g.xlarge":
+            return 4;
+        case "c7g.2xlarge":
             return 8;
         default: {
             throw new InternalError(
