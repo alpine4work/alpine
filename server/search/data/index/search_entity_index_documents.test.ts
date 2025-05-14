@@ -26,7 +26,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 
 // Needs to be before `afterEach()` hook where we err if there are remaining
@@ -93,7 +93,7 @@ function getIndexedSearchEntity(entity: TestDocument) {
 async function actuallyGetIndexedSearchEntity(
     context: TestContext,
     spaceId: SpaceId,
-    entityId: SearchDynamicEntityId,
+    entityId: Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>,
 ): Promise<{
     title: string | null;
     body: string | null;
