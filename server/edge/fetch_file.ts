@@ -17,6 +17,9 @@ import {
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
+// You can change the version number to bust the Cloudflare file resize cache.
+const fileCacheName = "files_v2";
+
 export async function fetchFile(
     executionContext: ExecutionContext,
     env: EdgeServiceEnv,
@@ -109,7 +112,7 @@ export async function fetchFile(
         // Use a cache specifically for files since we'll be saving private files to
         // this cache. We don't want to accidentally serve these files from another
         // request that hasn't verified the URL signature.
-        const filesCache = await caches.open("files");
+        const filesCache = await caches.open(fileCacheName);
 
         try {
             const cachedResponse = await filesCache.match(subrequest);

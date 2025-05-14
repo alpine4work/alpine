@@ -1,9 +1,9 @@
 import {spawn} from "child_process";
-import {addMinutes} from "date-fns/addMinutes";
 import fsSync from "fs";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
+import {finished} from "stream/promises";
 import {getFileIfExistsAsUploader} from "~/server/files/data/files_table.js";
 import {FileProcessorServiceActionContext} from "~/server/files/processor/file_processor_service_context.js";
 import {sharpTimeoutSeconds} from "~/server/files/processor/processors/file_image_processor_base.js";
@@ -27,13 +27,17 @@ import {
     PermissionDeniedError,
     UnknownError,
 } from "~/shared/error/error.js";
-import {FileContentType, isFileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    getFileContentTypePreferredExtension,
+    isFileWebSafeImageContentType,
+} from "~/shared/files/file_content_type.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {
     maxFilePreviewAspectRatio,
     minFilePreviewAspectRatio,
 } from "~/shared/files/min_and_max_file_preview_aspect_ratio.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -172,13 +176,7 @@ export async function resizeFile(
 
         const outputPath = joinPath(temporaryDirectoryPath, "output.avif");
 
-        const [file, inputUrl] = await runAllPromises([
-            getFileIfExistsAsUploader(context, spaceId, fileId),
-            context.r2.getGetObjectSignedUrl(addMinutes(new Date(), 10), {
-                Bucket: filesBucketName,
-                Key: `${spaceId}/${fileId}${variant !== null ? `-${variant}` : ""}`,
-            }),
-        ]);
+        const file = await getFileIfExistsAsUploader(context, spaceId, fileId);
 
         if (!file) {
             return new Response("404 Not Found", {
@@ -264,6 +262,22 @@ export async function resizeFile(
             isDefinitelyMissingAlphaChannel = !fileData.preview.size.hasAlpha;
         }
 
+        const object = await context.r2.GetObject({
+            Bucket: filesBucketName,
+            Key: `${spaceId}/${fileId}${variant !== null ? `-${variant}` : ""}`,
+        });
+
+        assert(object.Body instanceof ReadableStream);
+
+        const inputPath = joinPath(
+            temporaryDirectoryPath,
+            `input.${getFileContentTypePreferredExtension(file.contentType)}`,
+        );
+
+        const inputWriteStream = fsSync.createWriteStream(inputPath);
+
+        await finished(object.Body.pipe(inputWriteStream));
+
         await parentSpan.withSpan(
             `FFmpeg resize ${getFileContentTypeName(contentType)} as ${getFileContentTypeName(
                 "image/avif",
@@ -296,10 +310,14 @@ export async function resizeFile(
                 const subprocess = spawn(
                     ffmpegExecutablePath,
                     [
-                        // Input is coming directly from Cloudflare R2. It'll be streamed into FFmpeg
-                        // and if FFmpeg needs to seek it can issue a subsequent range HTTP request.
+                        // We download the file from Cloudflare R2 to our temporary directory since
+                        // we've seen some bugs when FFmpeg is provided a URL (which puts it in
+                        // streaming mode).
+                        //
+                        // See:
+                        // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/cxpqqg6pcz846nda3fxthwn0pw
                         "-i",
-                        inputUrl,
+                        inputPath,
                         // Limit the number of threads for FFmpeg to reduce resource contention
                         // in `FileProcessorService`.
                         "-threads",
