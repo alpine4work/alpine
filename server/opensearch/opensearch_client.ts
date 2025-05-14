@@ -1211,7 +1211,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         OpensearchIndexDocIdType<Index>,
         OpensearchIndexDocType<Index>
     > | null> {
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await this.ensureLocalIndex(tracer, index);
         }
 
@@ -1315,7 +1315,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             >;
         };
     } | null> {
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await this.ensureLocalIndex(tracer, index);
         }
 
@@ -1460,7 +1460,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             routings.add(command.routing);
         }
 
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await runAllPromises(
                 mapIterable(commandByIdByIndex.keys(), index =>
                     this.ensureLocalIndex(tracer, index),
@@ -1635,7 +1635,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         >,
         {retryVersionConflictError}: OpensearchClientIndexDocIfVersionOptions = {},
     ): Promise<void> {
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await this.ensureLocalIndex(tracer, index);
         }
 
@@ -1744,7 +1744,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             routings.add(command.routing);
         }
 
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await runAllPromises(
                 mapIterable(indexes, index => this.ensureLocalIndex(tracer, index)),
             );
@@ -1958,7 +1958,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             withoutSource?: boolean;
         },
     ): Promise<{hits: Array<OpensearchSearchHit>}> {
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await this.ensureLocalIndex(tracer, index);
         }
 
@@ -2336,7 +2336,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         tracer: TracerBase,
         index: Index,
     ): Promise<void> {
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await this.ensureLocalIndex(tracer, index);
         }
 
@@ -2386,7 +2386,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             position: number;
         }>
     > {
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && this._url.hostname === "localhost") {
             await this.ensureLocalIndex(tracer, index);
         }
 

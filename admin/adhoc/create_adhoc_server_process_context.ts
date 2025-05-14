@@ -21,7 +21,7 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError, UnimplementedError} from "~/shared/error/error.js";
+import {NotFoundError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -80,7 +80,9 @@ export async function createAdhocServerProcessContext({
             new OpensearchClient({
                 url:
                     awsProfile !== "local"
-                        ? // Hardcode our production OpenSearch domain URL. This URL is not a secret.
+                        ? // Hardcode our production OpenSearch domain URL. This URL is not a secret. The
+                          // OpenSearch domain lives in a VPC so you must have VPC access to read/write
+                          // to the domain.
                           "https://vpc-cyberworlds-search-xxztfs5jrcb7zbymxuhi5lblsi.us-east-1.es.amazonaws.com"
                         : (() => {
                               const url = `http://localhost:${parseInt(
@@ -105,9 +107,10 @@ export async function createAdhocServerProcessContext({
                 region: "us-east-1",
                 queueUrl:
                     awsProfile !== "local"
-                        ? ((): never => {
-                              throw new UnimplementedError("Production job queue URL");
-                          })()
+                        ? // Hard code our production SQS queue URL. This URL is not a secret. The SQS
+                          // queue is protected by AWS IAM. You must have appropriate credentials to
+                          // send/receive messages.
+                          "https://sqs.us-east-1.amazonaws.com/989696362649/CyberworldsStack-SqsJobQueue62388F96-wPfW5zN0HinU"
                         : `http://localhost:${parseInt(
                               assertExists(
                                   env.SQS_LOCAL_PORT,
@@ -117,9 +120,10 @@ export async function createAdhocServerProcessContext({
                           )}/local/JobQueue`,
                 fileProcessorQueueUrl:
                     awsProfile !== "local"
-                        ? ((): never => {
-                              throw new UnimplementedError("Production job queue URL");
-                          })()
+                        ? // Hard code our production SQS queue URL. This URL is not a secret. The SQS
+                          // queue is protected by AWS IAM. You must have appropriate credentials to
+                          // send/receive messages.
+                          "https://sqs.us-east-1.amazonaws.com/989696362649/CyberworldsStack-SqsFileProcessorJobQueue551DBCF8-SOLGZvxawVmH"
                         : `http://localhost:${parseInt(
                               assertExists(
                                   env.SQS_LOCAL_PORT,
