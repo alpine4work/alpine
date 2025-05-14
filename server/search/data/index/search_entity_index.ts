@@ -99,6 +99,7 @@ import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -113,7 +114,13 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    ContentMentionAccountId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
     SearchAffinityEntityResult,
@@ -133,6 +140,48 @@ import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_accoun
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+/**
+ * Special `SearchEntityId` used by the OpenSearch keyword index.
+ *
+ * The only change we make is `Account:` entity IDs need to append the
+ * `SpaceId`. Since IDs in OpenSearch need to be globally unique (two spaces
+ * may live on the same shard). An `AccountId` may be a member of multiple
+ * spaces and we need to index a separate `AccountId` search entity for each
+ * space we're in. That means we need an OpenSearch ID for accounts that
+ * includes the `SpaceId` so its unique for each account/space pair. We add the
+ * `SpaceId` to the end with a `~`. The convention in `SearchEntityId` normally
+ * is to separate parts with a dash so we use a `~` to show the `SpaceId` isn't
+ * a part of the base `SearchEntityId`.
+ */
+type SearchEntityIdForKeywordIndex =
+    | Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>
+    | `Account:${ContentMentionAccountId}~${SpaceId}`;
+
+// Double check that `Account:${AccountId}` isn't allowed. We must add the
+// `SpaceId`.
+assertNotAssignableTypes<`Account:${AccountId}`, SearchEntityIdForKeywordIndex>();
+
+function intoSearchEntityIdForKeywordIndex(
+    spaceId: SpaceId,
+    entityId: SearchDynamicEntityId,
+): SearchEntityIdForKeywordIndex {
+    if (entityId.startsWith("Account:")) {
+        return `${entityId as `Account:${ContentMentionAccountId}`}~${spaceId}`;
+    } else {
+        return entityId as Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>;
+    }
+}
+
+function fromSearchEntityIdForKeywordIndex(
+    entityId: SearchEntityIdForKeywordIndex,
+): SearchDynamicEntityId {
+    if (entityId.startsWith("Account:")) {
+        return entityId.split("~")[0]! as `Account:${ContentMentionAccountId}`;
+    } else {
+        return entityId as Exclude<SearchDynamicEntityId, `Account:${ContentMentionAccountId}`>;
+    }
+}
 
 /**
  * Our "search entity index" is actually two OpenSearch indexes.
@@ -178,7 +227,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 // sprawling out around the codebase.
 const SearchEntityKeywordIndex = new OpensearchIndex<
     SpaceId,
-    SearchDynamicEntityId,
+    SearchEntityIdForKeywordIndex,
     OpensearchIndexTypeType<typeof SearchEntityKeywordIndexDocType>,
     OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityKeywordIndexDocType>,
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>
@@ -425,7 +474,7 @@ export async function processIndexSearchEntityJob(
         const actualOldDocForKeywordIndex = await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             job.spaceId,
-            entityId,
+            intoSearchEntityIdForKeywordIndex(job.spaceId, entityId),
             {storedFields: ["lastUpdatedTime", "lastReadStartTime", "hasEmbeddingChunks"]},
         );
 
@@ -539,10 +588,10 @@ export async function processIndexSearchEntityJob(
         }
 
         const newDocForKeywordIndex: OpensearchClientDocWithIdAndVersion<
-            SearchDynamicEntityId,
+            SearchEntityIdForKeywordIndex,
             SearchEntityKeywordIndexDoc
         > = {
-            id: entityId,
+            id: intoSearchEntityIdForKeywordIndex(job.spaceId, entityId),
             version: oldDocForKeywordIndex?.version ?? null,
             spaceId: job.spaceId,
             type: job.update.type,
@@ -715,7 +764,7 @@ export async function processIndexSearchEntityDependentsJob(
                     type: "IndexSearchEntity",
                     spaceId: job.spaceId,
                     update: {
-                        ...parseSearchDynamicEntityId(hit.id),
+                        ...parseSearchDynamicEntityId(fromSearchEntityIdForKeywordIndex(hit.id)),
                         // Dependencies didn't update so we can skip reindexing transitive
                         // dependencies.
                         //
@@ -1383,6 +1432,8 @@ export async function searchByKeywords(
 
     const results = await runAllPromises(
         hits.map(async (hit): Promise<SearchEntityResult> => {
+            const entityId = fromSearchEntityIdForKeywordIndex(hit.id);
+
             // The highlighted body text we get from OpenSearch is markdown formatted with
             // `<em>` tags inserted where we need to highlight. To get this in a format we
             // can render:
@@ -1417,7 +1468,7 @@ export async function searchByKeywords(
                 docMedia?.type === "TaskCollectionColor"
                     ? docMedia
                     : docMedia
-                    ? await prepareSearchEntityMediaForResult(context, spaceId, hit.id, docMedia)
+                    ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, docMedia)
                     : null;
 
             // If this hit is for a task collection then we'll include, as the search
@@ -1427,11 +1478,11 @@ export async function searchByKeywords(
             //
             // We don't have this logic in `searchBySemantics()` since task collections
             // shouldn't appear in affinity search.
-            if (hit.id.startsWith("TaskCollection:") && bodyTextSnippet.length === 0) {
+            if (entityId.startsWith("TaskCollection:") && bodyTextSnippet.length === 0) {
                 const taskCollectionBodyTextSnippet =
                     await getTaskCollectionSearchResultBodyTextSnippetIfPossible(
                         context,
-                        assertId<TaskCollectionId>(hit.id.slice(15)),
+                        assertId<TaskCollectionId>(entityId.slice(15)),
                         timeZone,
                         currentTime,
                     );
@@ -1442,7 +1493,7 @@ export async function searchByKeywords(
             }
 
             return {
-                id: hit.id,
+                id: entityId,
                 score: hit.score,
                 title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
@@ -1821,14 +1872,19 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
     const commands = Array.from(
         entityIds,
         entityId =>
-            new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
-                storedFields: [
-                    "title",
-                    "media",
-                    "accessPolicy.accountGrantAccountIds",
-                    "accessPolicy.defaultGrantType",
-                ],
-            }),
+            new OpensearchGetDocWithoutSourceCommand(
+                SearchEntityKeywordIndex,
+                spaceId,
+                intoSearchEntityIdForKeywordIndex(spaceId, entityId),
+                {
+                    storedFields: [
+                        "title",
+                        "media",
+                        "accessPolicy.accountGrantAccountIds",
+                        "accessPolicy.defaultGrantType",
+                    ],
+                },
+            ),
     );
 
     const docsByIdByIndex = await context.opensearch.multiGetDocByIdByIndexIfExist(commands);
@@ -1839,7 +1895,7 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
             const doc = docsById.get(command.id);
 
             if (!doc || doc.routing !== spaceId) {
-                const entityId = commands[index]!.id;
+                const entityId = fromSearchEntityIdForKeywordIndex(commands[index]!.id);
                 const entityIdObject = parseSearchDynamicEntityId(entityId);
 
                 // If we couldn't find a document search entity that might be because the
@@ -1875,6 +1931,8 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
                 return null;
             }
 
+            const entityId = fromSearchEntityIdForKeywordIndex(doc.id);
+
             const isAccessAuthorized =
                 doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
                 doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(
@@ -1887,10 +1945,10 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
             const media = doc.fields.media?.[0] ?? null;
 
             const mediaForResult = media
-                ? await prepareSearchEntityMediaForResult(context, spaceId, doc.id, media)
+                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, media)
                 : null;
 
-            return {id: doc.id, title, media: mediaForResult};
+            return {id: entityId, title, media: mediaForResult};
         }),
     );
 }
