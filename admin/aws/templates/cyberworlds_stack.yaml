@@ -4330,7 +4330,7 @@ Resources:
                               Ref: FileProcessorServiceTaskDefinitionContainerLogGroupB6A75F9D
                           awslogs-stream-prefix: CyberworldsStack
                           awslogs-region: us-east-1
-                  Memory: 7874
+                  Memory: 15810
                   Name: Container
                   PortMappings:
                       - ContainerPort: 4000
