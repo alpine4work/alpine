@@ -173,7 +173,7 @@ export class AwsFileProcessorService extends Construct {
                         : "cyberworlds/server/files/processor/processor_image_tarball_load/tarball.tar",
                 ),
             ),
-            cpu: 2048,
+            cpu: 4096,
             // Memory available to our container. We can't use the full available memory
             // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
             // to function.
