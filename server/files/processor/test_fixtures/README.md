@@ -19,8 +19,6 @@ Some links to sources we used (not all sources are listed):
     [HEIF sample](https://filesampleshub.com/format/image/heif).
 -   `haskell_for_all_*`: Haskell sample files from the
     [Haskell for all](https://www.haskellforall.com/2015/10/basic-haskell-examples.html) blog.
--   `iphone_${photographer}_*`: Photos taken from an iPhone. Includes the name of the photographer
-    (e.g. `calebmer` for Caleb Meredith)
 -   `iup_*`: From Indiana University of Pennsylvania. We use their IT department's
     [test PDF document](https://www.cte.iup.edu/cte/Resources/PDF_TestPage.pdf).
 -   `pdfsharp_sample_*`: Samples from the PDFsharp PDF toolkit for C#. e.g. This
@@ -32,3 +30,6 @@ Some links to sources we used (not all sources are listed):
     file name so you can find it on Unsplash's website.
 -   `wikimedia_*`: Files from the Wikimedia (a.k.a. Wikipedia) family of websites. e.g. This
     [PNG transparency demonstration file](https://en.m.wikipedia.org/wiki/File:PNG_transparency_demonstration_1.png).
+
+We also have files created by our engineers prefixed by their GitHub username. For example,
+`calebmer_*` or `imjoshin_*`.

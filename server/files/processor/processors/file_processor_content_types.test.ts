@@ -301,7 +301,7 @@ const testCases: {
             },
         },
         {
-            path: "iphone_calebmer_colorado_twin_lakes.heic",
+            path: "calebmer_iphone_colorado_twin_lakes.heic",
             imagePreviewSize: {width: 480, height: 640},
             imagePreviewPlaceholder: FileImagePreviewPlaceholder.schema.deserialize([
                 false,
@@ -311,7 +311,7 @@ const testCases: {
             isImagePreviewContentAlternative: true,
             imagePreviewContent: {
                 contentType: "image/avif",
-                similarPath: "iphone_calebmer_colorado_twin_lakes.avif",
+                similarPath: "calebmer_iphone_colorado_twin_lakes.avif",
             },
         },
         {

@@ -629,6 +629,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                     const resizeBody = await resizeResponse.arrayBuffer();
+
                     // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                     // animated AVIF file which `sharp()` doesn't like.
                     expect(
@@ -706,6 +707,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                     const resizeBody = await resizeResponse.arrayBuffer();
+
                     // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                     // animated AVIF file which `sharp()` doesn't like.
                     expect(
@@ -783,6 +785,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                     expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                     const resizeBody = await resizeResponse.arrayBuffer();
+
                     // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                     // animated AVIF file which `sharp()` doesn't like.
                     expect(
@@ -893,6 +896,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                 const resizeBody = await resizeResponse.arrayBuffer();
+
                 // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                 // animated AVIF file which `sharp()` doesn't like.
                 expect(
@@ -964,6 +968,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                 const resizeBody = await resizeResponse.arrayBuffer();
+
                 // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                 // animated AVIF file which `sharp()` doesn't like.
                 expect(
@@ -1068,6 +1073,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                 const resizeBody = await resizeResponse.arrayBuffer();
+
                 // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                 // animated AVIF file which `sharp()` doesn't like.
                 expect(
@@ -1142,6 +1148,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                 const resizeBody = await resizeResponse.arrayBuffer();
+
                 // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                 // animated AVIF file which `sharp()` doesn't like.
                 expect(
@@ -1216,6 +1223,7 @@ const testsByFileWebSafeImageContentType: {[Key in FileWebSafeImageContentType]:
                 expect(resizeResponse.headers.get("content-type")).toEqual("image/avif");
 
                 const resizeBody = await resizeResponse.arrayBuffer();
+
                 // We need to use `ffprobe` instead of `sharp` since the GIF will become an
                 // animated AVIF file which `sharp()` doesn't like.
                 expect(
@@ -1808,7 +1816,7 @@ test("can resize a HEIC image's preview", async () => {
         body: await fs.readFile(
             joinPath(
                 runfilesPath,
-                "cyberworlds/server/files/processor/test_fixtures/iphone_calebmer_colorado_twin_lakes.heic",
+                "cyberworlds/server/files/processor/test_fixtures/calebmer_iphone_colorado_twin_lakes.heic",
             ),
         ),
     });
