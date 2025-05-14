@@ -89,7 +89,7 @@ export class AwsFileProcessorService extends Construct {
         // File processing needs a lot of memory so we need larger instance sizes than
         // other services. We've found image resizing particularly quickly runs out of
         // memory when resizing large images.
-        const instanceType = InstanceType.of(InstanceClass.C7G, InstanceSize.XLARGE);
+        const instanceType = InstanceType.of(InstanceClass.R7G, InstanceSize.LARGE);
         const vCpuCount = getInstanceTypeVCpuCount(instanceType);
 
         // Make sure we have enough storage to process one maximum size file per vCPU.
@@ -173,7 +173,7 @@ export class AwsFileProcessorService extends Construct {
                         : "cyberworlds/server/files/processor/processor_image_tarball_load/tarball.tar",
                 ),
             ),
-            cpu: 4096,
+            cpu: 2048,
             // Memory available to our container. We can't use the full available memory
             // (1024 MiB for `t4g.micro` instances) because the ECS agent needs some memory
             // to function.
@@ -383,6 +383,14 @@ function getInstanceTypeVCpuCount(instanceType: InstanceType): number {
         case "c7g.xlarge":
             return 4;
         case "c7g.2xlarge":
+            return 8;
+        case "r7g.medium":
+            return 1;
+        case "r7g.large":
+            return 2;
+        case "r7g.xlarge":
+            return 4;
+        case "r7g.2xlarge":
             return 8;
         default: {
             throw new InternalError(

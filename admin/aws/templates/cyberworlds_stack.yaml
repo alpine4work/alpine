@@ -4169,7 +4169,7 @@ Resources:
                 Ref: FileProcessorServiceAutoScalingGroupInstanceProfileE1605C8E
             ImageId:
                 Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2arm64recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
-            InstanceType: c7g.xlarge
+            InstanceType: r7g.large
             SecurityGroups:
                 - Fn::GetAtt:
                       - FileProcessorServiceAutoScalingGroupInstanceSecurityGroup7CE67433
@@ -4306,7 +4306,7 @@ Resources:
                                 --fileProcessorServicePublicKey=\\$FILE_PROCESSOR_SERVICE_PUBLIC_KEY
                                 --servicePrivateKey=\\$FILE_PROCESSOR_SERVICE_PRIVATE_KEY
                                 --tokenAgentSecret=\\$TOKEN_AGENT_SECRET"
-                  Cpu: 4096
+                  Cpu: 2048
                   Environment:
                       - Name: NODE_ENV
                         Value: production
