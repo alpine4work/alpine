@@ -51,7 +51,6 @@ import {
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     contentStyles,
-    fontStyles,
     inputPlaceholderStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
