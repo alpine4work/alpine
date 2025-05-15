@@ -644,7 +644,7 @@ export default function SpaceLayoutRoute() {
                         break;
                     }
 
-                    case "p": {
+                    case "k": {
                         if (
                             platform !== "mobile" &&
                             (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)

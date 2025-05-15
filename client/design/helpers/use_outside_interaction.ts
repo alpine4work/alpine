@@ -52,7 +52,7 @@ export function useOutsideInteraction(
             //
             // Here's how ignoring events from a blocking `<Modal>` component is useful.
             // Say you're editing a `<MessageView>` and you want to include a link. So you
-            // hit cmd-p to search, find what you're looking for, and copy the link. When
+            // hit cmd-k to search, find what you're looking for, and copy the link. When
             // you hit escape focus is returned to the message you were in the middle of
             // editing. By ignoring events in `<SearchModal>` we don't cancel editing in
             // the `<MessageView>`.

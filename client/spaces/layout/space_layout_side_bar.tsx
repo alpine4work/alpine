@@ -93,7 +93,7 @@ export function SpaceLayoutSideBar({
                             size="lg"
                             description="Search"
                             tooltipPlacement="right"
-                            keyboardShortcutHint={isAppleDevice ? "⌘+P" : "Ctrl+P"}
+                            keyboardShortcutHint={isAppleDevice ? "⌘+K" : "Ctrl+K"}
                             onPress={onSearchPress}
                         >
                             <MagnifyingGlass />
