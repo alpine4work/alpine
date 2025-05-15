@@ -120,7 +120,6 @@ PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     --disable-debug \\
     --enable-gpl \\
     --enable-version3 \\
-    --enable-gmp \\
     --enable-libaom \\
     --enable-libopus \\
     --enable-libvpx \\
