@@ -247,7 +247,7 @@ export const paragraphFontSize = {
 
 globalStyle(paragraphClassName, {
     ...omitObject(blockStyles, ["clear"]),
-    ...fontStyles.serif,
+    ...fontStyles.normal,
     ...paragraphFontSize,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
@@ -517,7 +517,6 @@ globalStyle(`${orderedListItemClassName}::before`, {
     left: `calc((${listItemIndentationVar} * ${listItemIndentation}) + ${spacing["6"]})`,
     textAlign: "right",
     transform: "translateX(-100%)",
-    ...fontStyles.serif,
     ...paragraphFontSize,
     fontVariantNumeric: "tabular-nums",
 });
@@ -1537,15 +1536,13 @@ export const fileChannelEntityPreviewSubscribeButtonPressedClassName = style({
 // you'd get text that looks like markdown styles and correct selection. Seems
 // like a reasonable tradeoff.
 globalStyle(codeClassName, {
-    // We use semi bold weight for inline code to create a bit more contrast with
-    // the surrounding text.
-    ...fontStyles["code-semi-bold"],
+    ...fontStyles.code,
     wordWrap: "break-word",
     boxDecorationBreak: "clone",
 });
 
 globalStyle(boldClassName, {
-    ...fontStyles["serif-extra-bold"],
+    ...fontStyles["extra-bold"],
     // Inherit font feature settings from parent instead of turning them off. In a
     // link they should be off (which `fontStyles` does). Outside of a link they
     // should be on.
@@ -2146,7 +2143,7 @@ export const mentionAtClassName = style({
 });
 
 export const mentionTextClassName = style({
-    fontWeight: fontStyles["serif-semi-bold"].fontWeight,
+    fontWeight: fontStyles["semi-bold"].fontWeight,
     selectors: {
         // Inherit font weight if we are in a container that is bolder than us.
         [`${boldClassName} &`]: {fontWeight: "inherit"},

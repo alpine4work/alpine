@@ -973,7 +973,6 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         display: "inline",
                         color: "grey-60",
                         fontSize: "100",
-                        fontStyle: "serif",
                     })}
                     style={{
                         lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
@@ -1505,7 +1504,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         overflow: "hidden",
                         color: "grey-80",
                         fontSize: messageViewParentFontSize,
-                        fontStyle: "serif",
+                        fontStyle: "normal",
                         opacity: isPressed ? "60" : "100",
                     })}
                     style={{

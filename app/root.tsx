@@ -79,20 +79,13 @@ export function meta() {
 
 export function links(): Array<LinkDescriptor> {
     return [
-        // Preload our primary fonts Inter and Source Serif from our shared styles in
-        // parallel with CSS to try and avoid flashes of unstyled text.
+        // Preload our primary font Inter from our shared styles in parallel with CSS
+        // to try and avoid flashes of unstyled text.
         //
         // https://web.dev/articles/codelab-preload-web-fonts
         {
             rel: "preload",
             href: "/fonts/inter.v1.woff2",
-            as: "font",
-            type: "font/woff2",
-            crossOrigin: "anonymous",
-        },
-        {
-            rel: "preload",
-            href: "/fonts/source-serif.v1.woff2",
             as: "font",
             type: "font/woff2",
             crossOrigin: "anonymous",

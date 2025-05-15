@@ -3,7 +3,6 @@ import opentype from "opentype.js";
 import {join as joinPath} from "path";
 import wawoff2 from "wawoff2";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 async function main() {
@@ -19,36 +18,20 @@ async function main() {
         .then(contents => wawoff2.decompress(contents))
         .then(array => array.buffer.slice(array.byteOffset, array.byteOffset + array.byteLength));
 
-    const sourceSerifFontContents = await fs
-        .readFile(joinPath(runfilesPath, "cyberworlds/app/static/fonts/source-serif.woff2"))
-        .then(contents => wawoff2.decompress(contents))
-        .then(array => array.buffer.slice(array.byteOffset, array.byteOffset + array.byteLength));
-
     const commitMonoFont = opentype.parse(commitMonoFontContents);
     const interFont = opentype.parse(interFontContents);
-    const sourceSerifFont = opentype.parse(sourceSerifFontContents);
 
     assert("os2" in interFont.tables);
     assert("os2" in commitMonoFont.tables);
-    assert("os2" in sourceSerifFont.tables);
 
     const interFontAscenderPercentage = interFont.ascender / interFont.unitsPerEm;
     const interFontDescenderPercentage = interFont.descender / interFont.unitsPerEm;
 
-    const commitMonoSizeAdjustToInter =
+    // Make sure the x-height of our monospace font matches the x-height of Inter.
+    const commitMonoFontSizeAdjust =
         interFont.tables.os2.sxHeight /
         interFont.unitsPerEm /
         (commitMonoFont.tables.os2.sxHeight / commitMonoFont.unitsPerEm);
-
-    const commitMonoSizeAdjustToSourceSerif =
-        sourceSerifFont.tables.os2.sxHeight /
-        sourceSerifFont.unitsPerEm /
-        (commitMonoFont.tables.os2.sxHeight / commitMonoFont.unitsPerEm);
-
-    const sourceSerifSizeAdjustToInter =
-        interFont.tables.os2.sxHeight /
-        interFont.unitsPerEm /
-        (sourceSerifFont.tables.os2.sxHeight / sourceSerifFont.unitsPerEm);
 
     // We want Commit Mono to have the same ascender/descender proportions as
     // Inter. This means in the browser `background-color`s, font sizes, line
@@ -58,24 +41,10 @@ async function main() {
     // but unfortunately Safari doesn't support those CSS properties so to better
     // support Safari we update our font with the correct metrics.
     const newCommitMonoFontAscender = Math.round(
-        interFontAscenderPercentage * (commitMonoFont.unitsPerEm / commitMonoSizeAdjustToInter),
+        interFontAscenderPercentage * (commitMonoFont.unitsPerEm / commitMonoFontSizeAdjust),
     );
     const newCommitMonoFontDescender = Math.round(
-        interFontDescenderPercentage * (commitMonoFont.unitsPerEm / commitMonoSizeAdjustToInter),
-    );
-
-    // We want Source Serif to have the same ascender/descender proportions as
-    // Inter. This means in the browser `background-color`s, font sizes, line
-    // heights, everything set on this font will line up with our main font Inter.
-    //
-    // Ideally this is handled by the CSS `ascent-override` and `descent-override`
-    // but unfortunately Safari doesn't support those CSS properties so to better
-    // support Safari we update our font with the correct metrics.
-    const newSourceSerifFontAscender = Math.round(
-        interFontAscenderPercentage * (sourceSerifFont.unitsPerEm / sourceSerifSizeAdjustToInter),
-    );
-    const newSourceSerifFontDescender = Math.round(
-        interFontDescenderPercentage * (sourceSerifFont.unitsPerEm / sourceSerifSizeAdjustToInter),
+        interFontDescenderPercentage * (commitMonoFont.unitsPerEm / commitMonoFontSizeAdjust),
     );
 
     await fs.writeFile(
@@ -94,65 +63,20 @@ export const commitMonoFontUnitsPerEm: number = ${commitMonoFont.unitsPerEm};
 export const commitMonoFontXHeight: number = ${commitMonoFont.tables.os2.sxHeight};
 export const commitMonoFontCapHeight: number = ${commitMonoFont.tables.os2.sCapHeight};
 
-export const sourceSerifFontAscender: number = ${newSourceSerifFontAscender};
-export const sourceSerifFontDescender: number = ${-newSourceSerifFontDescender};
-export const sourceSerifFontUnitsPerEm: number = ${sourceSerifFont.unitsPerEm};
-export const sourceSerifFontXHeight: number = ${sourceSerifFont.tables.os2.sxHeight};
-export const sourceSerifFontCapHeight: number = ${sourceSerifFont.tables.os2.sCapHeight};
-
-export const commitMonoSizeAdjustToInter: number = ${commitMonoSizeAdjustToInter};
-export const commitMonoSizeAdjustToSourceSerif: number = ${commitMonoSizeAdjustToSourceSerif};
-export const sourceSerifSizeAdjustToInter: number = ${sourceSerifSizeAdjustToInter};
+export const commitMonoFontSizeAdjust: number = ${commitMonoFontSizeAdjust};
 `,
     );
 
-    await runAllPromiseThunks(
-        async () => {
-            const commitMonoTtxPatchTemplate = await fs.readFile(
-                joinPath(
-                    runfilesPath,
-                    "cyberworlds/app/static/fonts/commit-mono.ttx.patch.template",
-                ),
-                "utf8",
-            );
-
-            const commitMonoTtxPatch = commitMonoTtxPatchTemplate
-                .replaceAll("{{newCommitMonoFontAscender}}", `${newCommitMonoFontAscender}`)
-                .replaceAll("{{newCommitMonoFontDescender}}", `${-newCommitMonoFontDescender}`);
-
-            await fs.writeFile("fonts/commit-mono.ttx.patch", commitMonoTtxPatch);
-        },
-        async () => {
-            const sourceSerifTtxPatchTemplate = await fs.readFile(
-                joinPath(
-                    runfilesPath,
-                    "cyberworlds/app/static/fonts/source-serif.ttx.patch.template",
-                ),
-                "utf8",
-            );
-
-            const sourceSerifTtxPatch = sourceSerifTtxPatchTemplate
-                .replaceAll("{{newSourceSerifFontAscender}}", `${newSourceSerifFontAscender}`)
-                .replaceAll("{{newSourceSerifFontDescender}}", `${-newSourceSerifFontDescender}`);
-
-            await fs.writeFile("fonts/source-serif.ttx.patch", sourceSerifTtxPatch);
-        },
-        async () => {
-            const sourceSerifItalicTtxPatchTemplate = await fs.readFile(
-                joinPath(
-                    runfilesPath,
-                    "cyberworlds/app/static/fonts/source-serif-italic.ttx.patch.template",
-                ),
-                "utf8",
-            );
-
-            const sourceSerifItalicTtxPatch = sourceSerifItalicTtxPatchTemplate
-                .replaceAll("{{newSourceSerifFontAscender}}", `${newSourceSerifFontAscender}`)
-                .replaceAll("{{newSourceSerifFontDescender}}", `${-newSourceSerifFontDescender}`);
-
-            await fs.writeFile("fonts/source-serif-italic.ttx.patch", sourceSerifItalicTtxPatch);
-        },
+    const commitMonoTtxPatchTemplate = await fs.readFile(
+        joinPath(runfilesPath, "cyberworlds/app/static/fonts/commit-mono.ttx.patch.template"),
+        "utf8",
     );
+
+    const commitMonoTtxPatch = commitMonoTtxPatchTemplate
+        .replaceAll("{{newCommitMonoFontAscender}}", `${newCommitMonoFontAscender}`)
+        .replaceAll("{{newCommitMonoFontDescender}}", `${-newCommitMonoFontDescender}`);
+
+    await fs.writeFile("fonts/commit-mono.ttx.patch", commitMonoTtxPatch);
 }
 
 main().catch(error => {

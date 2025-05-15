@@ -10,11 +10,9 @@
 export function createFontStyles({
     interFontFamily,
     commitMonoFontFamily,
-    sourceSerifFontFamily,
 }: {
     interFontFamily: string;
     commitMonoFontFamily: string;
-    sourceSerifFontFamily: string;
 }) {
     return {
         light: {
@@ -104,7 +102,7 @@ export function createFontStyles({
         },
         code: {
             fontFamily: commitMonoFontFamily,
-            fontWeight: 400,
+            fontWeight: 375,
             fontStyle: "normal",
             fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
             fontSynthesis: "none",
@@ -140,34 +138,6 @@ export function createFontStyles({
             fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
             fontSynthesis: "none",
             letterSpacing: "-0.02em",
-        },
-        serif: {
-            fontFamily: sourceSerifFontFamily,
-            fontWeight: 385,
-            fontStyle: "normal",
-            fontFeatureSettings: '"calt" off',
-            fontSynthesis: "none",
-        },
-        "serif-semi-bold": {
-            fontFamily: sourceSerifFontFamily,
-            fontWeight: 520,
-            fontStyle: "normal",
-            fontFeatureSettings: '"calt" off',
-            fontSynthesis: "none",
-        },
-        "serif-bold": {
-            fontFamily: sourceSerifFontFamily,
-            fontWeight: 570,
-            fontStyle: "normal",
-            fontFeatureSettings: '"calt" off',
-            fontSynthesis: "none",
-        },
-        "serif-extra-bold": {
-            fontFamily: sourceSerifFontFamily,
-            fontWeight: 650,
-            fontStyle: "normal",
-            fontFeatureSettings: '"calt" off',
-            fontSynthesis: "none",
         },
         // Styles that truncates text to a single line and shows ellipsis for
         // truncated characters.
@@ -208,16 +178,6 @@ export function createFontStyles({
             fontFeatureSettings: '"cv02" on, "ss03" on, "ss04" on, "ss05" on',
             fontSynthesis: "none",
             letterSpacing: "-0.02em",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-        },
-        "truncate-serif": {
-            fontFamily: sourceSerifFontFamily,
-            fontWeight: 385,
-            fontStyle: "normal",
-            fontFeatureSettings: '"calt" off',
-            fontSynthesis: "none",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",

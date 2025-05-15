@@ -1,11 +1,9 @@
 /**
  * Our body font family is [Inter][1] and our code font family is
- * [Commit Mono][2] (with ligatures disabled). For content body text written by
- * users we use [Source Serif][3].
+ * [Commit Mono][2] (with ligatures disabled).
  *
  * [1]: https://rsms.me/inter
  * [2]: https://commitmono.com
- * [3]: https://adobe-fonts.github.io/source-serif
  */
 
 import {assignVars, createGlobalTheme, globalStyle} from "@vanilla-extract/css";
@@ -37,8 +35,6 @@ export const backgroundFontSizePercentage =
 // slants it.
 const interFontFamily = "CyInter, CyInterWithoutItalic, CyInterFallback";
 
-const sourceSerifFontFamily = "CySourceSerif, CySourceSerifWithoutItalic, CyInterFallback";
-
 const commitMonoFontFamily = "CyCommitMono, CyInterFallback";
 
 export const emojiFontFamily = "CyEmoji";
@@ -55,7 +51,6 @@ export const emojiFontFamily = "CyEmoji";
 export const fontStyles = createFontStyles({
     interFontFamily,
     commitMonoFontFamily,
-    sourceSerifFontFamily,
 });
 
 const fontSizeVars = createGlobalTheme(":root", {
