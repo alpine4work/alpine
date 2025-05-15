@@ -1,6 +1,6 @@
 genrule(
     name = "libaom",
-    srcs = glob(
+    srcs = ["@nasm"] + glob(
         include = ["**"],
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = [".*"],
@@ -31,6 +31,12 @@ genrule(
     #   [`sharp-libvips`][1] does it. Seems like this options will make the build more
     #   hermetic.
     #
+    # - `nasm` is required on x86_64 Linux machines. We've built our own copy of
+    #   `nasm` and add it to the path for `libvpx` to find. It's probably ok if we
+    #   use Bazel `select()` to only build `nasm` on x86_64 machines. However, we
+    #   unconditionally build `nasm` to test in CI that we haven't accidentally
+    #   introduced a regression into the `nasm` build.
+    #
     # [1]: https://github.com/cyberworlds/sharp-libvips/blob/13d4e523ed4690a77854827e905bc620992444de/platforms/linux-x64/Toolchain.cmake#L1-L3
     cmd = """
 arch_name="$$(uname -m)"
@@ -56,6 +62,8 @@ fi
 bazel_sandbox=$$(pwd)
 
 cd $(RULEDIR)
+
+export PATH="$$(pwd)/../nasm/install/bin:$$PATH"
 
 echo "# ========================================================================== #" >> cmd.log
 echo "#                                   cmake                                    #" >> cmd.log

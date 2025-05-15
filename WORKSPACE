@@ -561,6 +561,16 @@ http_archive(
 )
 
 http_archive(
+    name = "nasm",
+    build_file = "@//admin/bazel:third_party/BUILD.nasm.bazel",
+    integrity = "sha256-W8lA3YpCRWhpdqj36WupNAoJFfLVuINWh0iQ4ge9tYE=",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/nasm.patch"],
+    strip_prefix = "nasm-2.16.03",
+    url = "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.gz",
+)
+
+http_archive(
     name = "zig_macos_x86_64",
     build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
     integrity = "sha256-aFgWFm8h8LjW/Hqmo26ROW3NgsplVt++PjKd7/wB/sM=",

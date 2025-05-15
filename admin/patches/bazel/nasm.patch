@@ -1,0 +1,12 @@
+diff --color -ur a/nasmlib/ver.c b/nasmlib/ver.c
+--- a/nasmlib/ver.c	2024-04-17 13:04:08
++++ b/nasmlib/ver.c	2025-05-15 12:32:51
+@@ -36,7 +36,7 @@
+ 
+ /* This is printed when entering nasm -v */
+ const char nasm_version[] = NASM_VER;
+-const char nasm_date[] = __DATE__;
++const char nasm_date[] = "May 15 2025";
+ const char nasm_compile_options[] = ""
+ #ifdef DEBUG
+     " with -DDEBUG"

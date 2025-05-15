@@ -1,32 +1,16 @@
 genrule(
-    name = "libvpx",
-    srcs = ["@nasm"] + glob(
+    name = "nasm",
+    srcs = glob(
         include = ["**"],
         # Exclude dot-files like `.DS_Store` on MacOS.
         exclude = [".*"],
     ),
     outs = [
-        "install/include/vpx/vpx_image.h",
-        "install/include/vpx/vpx_encoder.h",
-        "install/include/vpx/vpx_tpl.h",
-        "install/include/vpx/vp8cx.h",
-        "install/include/vpx/vpx_integer.h",
-        "install/include/vpx/vpx_codec.h",
-        "install/include/vpx/vp8.h",
-        "install/include/vpx/vp8dx.h",
-        "install/include/vpx/vpx_ext_ratectrl.h",
-        "install/include/vpx/vpx_decoder.h",
-        "install/include/vpx/vpx_frame_buffer.h",
-        "install/lib/pkgconfig/vpx.pc",
-        "install/lib/libvpx.a",
+        "install/bin/ndisasm",
+        "install/bin/nasm",
+        "install/share/man/man1/nasm.1",
+        "install/share/man/man1/ndisasm.1",
     ],
-    # Notes:
-    #
-    # - `nasm` is required on x86_64 Linux machines. We've built our own copy of
-    #   `nasm` and add it to the path for `libvpx` to find. It's probably ok if we
-    #   use Bazel `select()` to only build `nasm` on x86_64 machines. However, we
-    #   unconditionally build `nasm` to test in CI that we haven't accidentally
-    #   introduced a regression into the `nasm` build.
     cmd = """
 export ZIG_LOCAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-local-cache"
 export ZIG_GLOBAL_CACHE_DIR="$$(pwd)/$(RULEDIR)/zig-global-cache"
@@ -40,8 +24,6 @@ bazel_sandbox=$$(pwd)
 
 cd $(RULEDIR)
 
-export PATH="$$(pwd)/../nasm/install/bin:$$PATH"
-
 echo "# ========================================================================== #" >> cmd.log
 echo "#                                 configure                                  #" >> cmd.log
 echo "# ========================================================================== #" >> cmd.log
@@ -49,10 +31,6 @@ echo >> cmd.log
 
 "$$bazel_sandbox/$(location configure)" \\
     "--prefix=$$(pwd)/install" \\
-    --disable-examples \\
-    --disable-tools \\
-    --disable-docs \\
-    --enable-vp9 \\
     >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
 
 echo "# ========================================================================== #" >> cmd.log
@@ -69,9 +47,6 @@ echo "# ========================================================================
 echo >> cmd.log
 
 make --jobs=6 install >> cmd.log 2>> cmd.log || (cat cmd.log && exit 1)
-
-escaped_bazel_sandbox=$$(echo -n "$$bazel_sandbox" | sed -e 's/[\\/&]/\\\\&/g')
-sed -i.bak "s/$$escaped_bazel_sandbox/\\$${bazel_sandbox}/g" install/lib/pkgconfig/vpx.pc
 """,
     tags = ["cpu:6"],
     tools = ["@//:zig"],

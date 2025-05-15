@@ -4,9 +4,6 @@
 # - `make` must be installed globally for building packages with `make` (this
 #   means `apt-get install build-essential` on Linux machines).
 #
-# - `apt-get install yasm` is required on Linux x86_64 machines to build
-#   `@libvpx` and `@libaom`.
-#
 # - On MacOS machines we use the system `gcc` compiler when compiling `@ffmpeg`
 #   for linking because it supports the `-dynamic` flag.
 genrule(
