@@ -118,6 +118,10 @@ PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     --disable-podpages \\
     --disable-txtpages \\
     --disable-debug \\
+    --enable-gpl \\
+    --enable-version3 \\
+    --enable-gnutls \\
+    --enable-gmp \\
     --enable-libaom \\
     --enable-libopus \\
     --enable-libvpx \\
