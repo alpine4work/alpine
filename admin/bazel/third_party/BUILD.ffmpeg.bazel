@@ -41,10 +41,6 @@ genrule(
     # - `--disable-autodetect` is passed so we don't build with packages on the
     #   system which won't create a hermetic build.
     #
-    # - `--pkg-config=false` is passed so we don't build with packages on the
-    #   system discovered by `pkg-config`. The `false` executable always exits with
-    #   code 1.
-    #
     # - We set `--prefix` relative to the current directory which is in a sandbox.
     #   We replace references to the sandbox path with the string
     #   `${bazel_sandbox}`. Commands that use config files must replace
@@ -111,6 +107,7 @@ PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     --pkg-config-flags=--static \\
     --enable-static \\
     --disable-shared \\
+    --disable-autodetect \\
     --disable-ffplay \\
     --disable-doc \\
     --disable-htmlpages \\
@@ -118,8 +115,6 @@ PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     --disable-podpages \\
     --disable-txtpages \\
     --disable-debug \\
-    --enable-gpl \\
-    --enable-version3 \\
     --enable-libaom \\
     --enable-libopus \\
     --enable-libvpx \\
