@@ -380,7 +380,7 @@ const testCases: {
     "audio/mpeg": [
         {
             path: "pokemon_regirock_un_un_un_meme.mp3",
-            audioPreviewDuration: 5538,
+            audioPreviewDuration: 5512,
             audioPreviewMetadata: {title: "Regirock Un Un Un", artist: "Pokémon"},
         },
     ],

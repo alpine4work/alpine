@@ -481,19 +481,19 @@ xcodeproj_rules_dependencies()
 http_archive(
     name = "ffmpeg",
     build_file = "@//admin/bazel:third_party/BUILD.ffmpeg.bazel",
-    integrity = "sha256-S2/UvhYJ/LSqiKSafSZaqoGb1CtZCWcwVQcQ8NMeJtg=",
+    integrity = "sha256-NmXGZYdV0Dlowp+DMuu6i6us/rMD4jC2RjS8Q5oHjis=",
     patch_args = ["-p1"],
     patches = ["//admin/patches:bazel/ffmpeg.patch"],
-    strip_prefix = "FFmpeg-a49188297f1763c4f6188ca8ca7c1a8da6771896",
-    url = "https://github.com/FFmpeg/FFmpeg/archive/a49188297f1763c4f6188ca8ca7c1a8da6771896.tar.gz",
+    strip_prefix = "FFmpeg-1f2b8d7238eff4ab8a4d8d6177e250b8180d51f4",
+    url = "https://github.com/FFmpeg/FFmpeg/archive/1f2b8d7238eff4ab8a4d8d6177e250b8180d51f4.tar.gz",
 )
 
 http_archive(
     name = "libvpx",
     build_file = "@//admin/bazel:third_party/BUILD.libvpx.bazel",
-    integrity = "sha256-kBdHJU2Ap5N8kz0DvXxdQejmyIPgZl+tyxclQhZ8eXc=",
-    strip_prefix = "libvpx-1.14.1",
-    url = "https://github.com/webmproject/libvpx/archive/refs/tags/v1.14.1.tar.gz",
+    integrity = "sha256-bLpmGyKlUrrXKb0rUt9fDVfRS5eJIZ1G049zyCHTqZA=",
+    strip_prefix = "libvpx-1.15.1",
+    url = "https://github.com/webmproject/libvpx/archive/refs/tags/v1.15.1.tar.gz",
 )
 
 http_archive(
@@ -531,17 +531,17 @@ http_archive(
 http_archive(
     name = "libaom",
     build_file = "@//admin/bazel:third_party/BUILD.libaom.bazel",
-    integrity = "sha256-26mfwcKKqt4o3aWYIRZrL6kcBhYtG8mf3g3arXzsxQ4=",
-    strip_prefix = "libaom-3.9.1",
-    url = "https://storage.googleapis.com/aom-releases/libaom-3.9.1.tar.gz",
+    integrity = "sha256-npd1GA3sff1hp54AvaOAnUOJGu5rLjMf9/JphiB+oi4=",
+    strip_prefix = "libaom-3.12.1",
+    url = "https://storage.googleapis.com/aom-releases/libaom-3.12.1.tar.gz",
 )
 
 http_archive(
     name = "libopus",
     build_file = "@//admin/bazel:third_party/BUILD.libopus.bazel",
-    integrity = "sha256-ybMrQlO+WuY9H/Fu6ga5S18PKVG3oCrO71jjo85JxR8=",
-    strip_prefix = "opus-1.4",
-    url = "https://github.com/xiph/opus/releases/download/v1.4/opus-1.4.tar.gz",
+    integrity = "sha256-ZcHS94ufL7IAgsOMvkfJUa1YOTRYduRpQWEu6H+afOE=",
+    strip_prefix = "opus-1.5.2",
+    url = "https://github.com/xiph/opus/releases/download/v1.5.2/opus-1.5.2.tar.gz",
 )
 
 http_archive(
