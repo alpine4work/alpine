@@ -194,9 +194,9 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
 
         const regExp = new RegExp(
             [
-                // We must either be at the beginning of the line or we must be after
-                // a space.
-                "(^|\\s)",
+                // We must either be at the beginning of the line, be after a space,
+                // or be after an opening bracket.
+                "(^|\\s|\\p{Ps})",
                 // The opening bracket.
                 escapedChar,
                 // Open group...
@@ -216,9 +216,11 @@ export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSch
                 ")",
                 // The closing bracket.
                 escapedChar,
-                // This must end at our cursor.
-                "$",
+                // This must end at our cursor or at an ending bracket.
+                "\\p{Pe}?$",
             ].join(""),
+            // Allow unicode characters (like opening/closing bracket properties)
+            "u",
         );
 
         return new InputRule(regExp, (state, match, start, end) => {
