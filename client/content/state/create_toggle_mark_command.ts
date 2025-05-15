@@ -10,9 +10,20 @@ import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_f
  * already have the mark we toggle on instead of off. We believe this is a more
  * intuitive UX for a user when they execute this command through a button
  * press or keyboard shortcut.
+ *
+ * Options:
+ * - `requireNonEmptySelection`: If true, the command will only execute if the current selection
+ *    is not empty.
  */
-export function createToggleMarkCommand(mark: Mark): Command {
+export function createToggleMarkCommand(
+    mark: Mark,
+    options?: {requireNonEmptySelection?: boolean},
+): Command {
     return (state, dispatch) => {
+        if (options?.requireNonEmptySelection && state.selection.empty) {
+            return false;
+        }
+
         let doesAnyNodeAllowMarkType = false;
         let doesEveryNodeAlreadyHaveMarkType: boolean | undefined;
 

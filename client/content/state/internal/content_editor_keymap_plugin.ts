@@ -1979,11 +1979,17 @@ export function buildContentEditorKeymapPlugin(
 
     // Toggle inline formats
     keys.set("Mod-b", createToggleMarkCommand(schema.mark("bold")));
+    keys.set("*", createToggleMarkCommand(schema.mark("bold"), {requireNonEmptySelection: true}));
+
     keys.set("Mod-i", createToggleMarkCommand(schema.mark("italic")));
+    keys.set("_", createToggleMarkCommand(schema.mark("italic"), {requireNonEmptySelection: true}));
+
     keys.set("Mod-shift-x", createToggleMarkCommand(schema.mark("strike")));
+    keys.set("~", createToggleMarkCommand(schema.mark("strike"), {requireNonEmptySelection: true}));
     // Since code styling is uncommon we require the shift modifier so we can save
     // Cmd+E for a more common command.
     keys.set("Mod-shift-e", createToggleMarkCommand(schema.mark("code")));
+    keys.set("`", createToggleMarkCommand(schema.mark("code"), {requireNonEmptySelection: true}));
 
     // Highlight overlay
     if (schema.marks.highlight) {

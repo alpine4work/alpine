@@ -124,6 +124,13 @@ function dispatch(buildTransaction: (state: EditorState) => Transaction) {
     });
 }
 
+// Creates a string representing the keyboard event for test output
+function charKeyboardEventToString(event: Parameters<typeof charKeyboardEvent>[0]) {
+    return [event.metaKey ? "Cmd" : null, event.shiftKey ? "Shift" : null, event.key.toUpperCase()]
+        .filter(Boolean)
+        .join("+");
+}
+
 // Creates a mock character `KeyboardEvent`.
 // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent
 function charKeyboardEvent({
@@ -176,6 +183,22 @@ function charKeyboardEvent({
         code = "Quote";
         keyCode = 222;
         shiftKey = true;
+    } else if (key === "*") {
+        code = "Digit8";
+        keyCode = 56;
+        shiftKey = true;
+    } else if (key === "_") {
+        code = "Minus";
+        keyCode = 189;
+        shiftKey = true;
+    } else if (key === "~") {
+        code = "Backquote";
+        keyCode = 192;
+        shiftKey = true;
+    } else if (key === "`") {
+        code = "Backquote";
+        keyCode = 192;
+        shiftKey = false;
     } else {
         throw new InternalError(quote`Unsupported key ${key}`);
     }
@@ -553,139 +576,113 @@ test("will redo individual changes on Cmd+Y", () => {
     expect(textbox.textContent).toEqual("Hello world!");
 });
 
-test("will toggle bold for selection on Cmd+B", () => {
-    render(<TestContentEditor />);
+const formattingShortcutsTestCases = [
+    {name: "bold", tag: "strong", event: {key: "b", metaKey: true}},
+    {name: "italic", tag: "em", event: {key: "i", metaKey: true}},
+    {name: "strike", tag: "del", event: {key: "x", metaKey: true, shiftKey: true}},
+    {name: "code", tag: "code", event: {key: "e", metaKey: true, shiftKey: true}},
+];
+for (const {name, tag, event} of formattingShortcutsTestCases) {
+    test(`will toggle ${name} for selection on ${charKeyboardEventToString(event)}`, () => {
+        render(<TestContentEditor />);
 
-    const textbox = getTextbox();
+        const textbox = getTextbox();
 
-    dispatch(state => state.tr.insertText("foo bar qux"));
+        dispatch(state => state.tr.insertText("foo bar qux"));
 
-    dispatch(state =>
-        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
-    );
+        dispatch(state =>
+            state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
+        );
 
-    expect(textbox.querySelector("strong")).not.toBeInTheDocument();
+        expect(textbox.querySelector(tag)).not.toBeInTheDocument();
 
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "b", metaKey: true}));
+        fireEvent.keyDown(textbox, charKeyboardEvent(event));
 
-    expect(textbox.querySelector("strong")).toBeInTheDocument();
+        expect(textbox.querySelector(tag)).toBeInTheDocument();
 
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "b", metaKey: true}));
+        fireEvent.keyDown(textbox, charKeyboardEvent(event));
 
-    expect(textbox.querySelector("strong")).not.toBeInTheDocument();
-});
+        expect(textbox.querySelector(tag)).not.toBeInTheDocument();
+    });
 
-test("will toggle bold for selection that contains bold on Cmd+B", async () => {
-    render(<TestContentEditor />);
+    test(`will toggle ${name} for selection that contains ${name} on ${charKeyboardEventToString(
+        event,
+    )}`, async () => {
+        render(<TestContentEditor />);
 
-    await simulateTyping("foo bar qux");
+        await simulateTyping("foo bar qux");
 
-    dispatch(state =>
-        state.tr.setSelection(new TextSelection(state.doc.resolve(5), state.doc.resolve(8))),
-    );
+        dispatch(state =>
+            state.tr.setSelection(new TextSelection(state.doc.resolve(5), state.doc.resolve(8))),
+        );
 
-    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "b", metaKey: true}));
+        fireEvent.keyDown(getTextbox(), charKeyboardEvent(event));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo ", bold("bar"), " qux"))');
+        expect(getDoc().toString()).toEqual(`doc(paragraph("foo ", ${name}("bar"), " qux"))`);
 
-    dispatch(state =>
-        state.tr.setSelection(new TextSelection(state.doc.resolve(3), state.doc.resolve(11))),
-    );
+        dispatch(state =>
+            state.tr.setSelection(new TextSelection(state.doc.resolve(3), state.doc.resolve(11))),
+        );
 
-    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "b", metaKey: true}));
+        fireEvent.keyDown(getTextbox(), charKeyboardEvent(event));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("fo", bold("o bar qu"), "x"))');
+        expect(getDoc().toString()).toEqual(`doc(paragraph("fo", ${name}("o bar qu"), "x"))`);
 
-    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "b", metaKey: true}));
+        fireEvent.keyDown(getTextbox(), charKeyboardEvent(event));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo bar qux"))');
-});
+        expect(getDoc().toString()).toEqual('doc(paragraph("foo bar qux"))');
+    });
 
-test("will toggle bold for cursor on Cmd+B", async () => {
-    render(<TestContentEditor />);
+    test(`will toggle ${name} for cursor on ${charKeyboardEventToString(event)}`, async () => {
+        render(<TestContentEditor />);
 
-    await simulateTyping("foo ");
+        await simulateTyping("foo ");
 
-    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "b", metaKey: true}));
+        fireEvent.keyDown(getTextbox(), charKeyboardEvent(event));
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo "))');
+        expect(getDoc().toString()).toEqual('doc(paragraph("foo "))');
 
-    await simulateTyping("ba");
+        await simulateTyping("ba");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo ", bold("ba")))');
+        expect(getDoc().toString()).toEqual(`doc(paragraph("foo ", ${name}("ba")))`);
 
-    fireEvent.keyDown(getTextbox(), charKeyboardEvent({key: "b", metaKey: true}));
+        fireEvent.keyDown(getTextbox(), charKeyboardEvent(event));
 
-    await simulateTyping("rr");
+        await simulateTyping("rr");
 
-    expect(getDoc().toString()).toEqual('doc(paragraph("foo ", bold("ba"), "rr"))');
-});
+        expect(getDoc().toString()).toEqual(`doc(paragraph("foo ", ${name}("ba"), "rr"))`);
+    });
+}
 
-test("will toggle italics for selection on Cmd+I", () => {
-    render(<TestContentEditor />);
+const selectedFormattingShortcutsTestCases = [
+    {name: "bold", tag: "strong", event: {key: "*"}},
+    {name: "italic", tag: "em", event: {key: "_"}},
+    {name: "strike", tag: "del", event: {key: "~"}},
+    {name: "code", tag: "code", event: {key: "`"}},
+];
+for (const {name, tag, event} of selectedFormattingShortcutsTestCases) {
+    test(`will toggle ${name} for selection on ${charKeyboardEventToString(event)}`, () => {
+        render(<TestContentEditor />);
 
-    const textbox = getTextbox();
+        const textbox = getTextbox();
 
-    dispatch(state => state.tr.insertText("Hello world!"));
+        dispatch(state => state.tr.insertText("foo bar qux"));
 
-    dispatch(state =>
-        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
-    );
+        dispatch(state =>
+            state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
+        );
 
-    expect(textbox.querySelector("em")).not.toBeInTheDocument();
+        expect(textbox.querySelector(tag)).not.toBeInTheDocument();
 
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "i", metaKey: true}));
+        fireEvent.keyDown(textbox, charKeyboardEvent(event));
 
-    expect(textbox.querySelector("em")).toBeInTheDocument();
+        expect(textbox.querySelector(tag)).toBeInTheDocument();
 
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "i", metaKey: true}));
+        fireEvent.keyDown(textbox, charKeyboardEvent(event));
 
-    expect(textbox.querySelector("em")).not.toBeInTheDocument();
-});
-
-test("will toggle strike for selection on Cmd+Shift+X", () => {
-    render(<TestContentEditor />);
-
-    const textbox = getTextbox();
-
-    dispatch(state => state.tr.insertText("Hello world!"));
-
-    dispatch(state =>
-        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
-    );
-
-    expect(textbox.querySelector("del")).not.toBeInTheDocument();
-
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "x", metaKey: true, shiftKey: true}));
-
-    expect(textbox.querySelector("del")).toBeInTheDocument();
-
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "x", metaKey: true, shiftKey: true}));
-
-    expect(textbox.querySelector("del")).not.toBeInTheDocument();
-});
-
-test("will toggle inline code for selection on Cmd+Shift+E", () => {
-    render(<TestContentEditor />);
-
-    const textbox = getTextbox();
-
-    dispatch(state => state.tr.insertText("Hello world!"));
-
-    dispatch(state =>
-        state.tr.setSelection(new TextSelection(state.doc.resolve(7), state.doc.resolve(12))),
-    );
-
-    expect(textbox.querySelector("code")).not.toBeInTheDocument();
-
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "e", metaKey: true, shiftKey: true}));
-
-    expect(textbox.querySelector("code")).toBeInTheDocument();
-
-    fireEvent.keyDown(textbox, charKeyboardEvent({key: "e", metaKey: true, shiftKey: true}));
-
-    expect(textbox.querySelector("code")).not.toBeInTheDocument();
-});
+        expect(textbox.querySelector(tag)).not.toBeInTheDocument();
+    });
+}
 
 test("will create a heading with `#`", async () => {
     render(<TestContentEditor />);
