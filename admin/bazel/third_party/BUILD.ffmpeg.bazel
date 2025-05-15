@@ -111,13 +111,15 @@ PKG_CONFIG_PATH="$$(pwd)/pkgconfig" \\
     --pkg-config-flags=--static \\
     --enable-static \\
     --disable-shared \\
-    --disable-autodetect \\
     --disable-ffplay \\
     --disable-doc \\
     --disable-htmlpages \\
     --disable-manpages \\
     --disable-podpages \\
     --disable-txtpages \\
+    --disable-debug \\
+    --enable-gnutls \\
+    --enable-gmp \\
     --enable-libaom \\
     --enable-libopus \\
     --enable-libvpx \\
