@@ -264,7 +264,7 @@ export class AwsGithubRunners extends Construct {
             labels: ["aws-test"],
 
             instanceType: testInstanceType,
-            storageSize: Size.gibibytes(30),
+            storageSize: Size.gibibytes(40),
 
             // The historical average discount for `m7g.2xlarge` instances is 66% according
             // to the [AWS Pricing Calculator][1]. It's fine for us to wait for spot
