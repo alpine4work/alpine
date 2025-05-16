@@ -79,16 +79,35 @@ export function addSharedContentEditorInputRules(rules: Array<InputRule>) {
     rules.push(createStandardInputRule(/(?:^|[\s{[(<'"\u2018\u201C])(')$/, "‘"));
     rules.push(createStandardInputRule(/'$/, "’"));
 
+    const emojiMap: Array<[string, string]> = [
+        [":\\)", "\u{1F642}"], // 🙂 (https://graphemica.com/1F642)
+        [":\\(", "\u{1F615}"], // 😕 (https://graphemica.com/1F615)
+        [";\\)", "\u{1F609}"], // 😉 (https://graphemica.com/1F609)
+        [":D", "\u{1F600}"], // 😀 (https://graphemica.com/1F600)
+        [":P", "\u{1F61B}"], // 😛 (https://graphemica.com/1F61B)
+        [":O", "\u{1F62E}"], // 😮 (https://graphemica.com/1F62E)
+        ["<3", "\u{2764}\u{FE0F}"], // ❤️ (https://graphemica.com/2764 and https://graphemica.com/FE0F)
+        ["\\+\\+", "\u{1F44D}"], // 👍 (https://graphemica.com/1F44D)
+        [":joy:", "\u{1F602}"], // 😂 (https://graphemica.com/1F602)
+        [":thinking:", "\u{1F914}"], // 🤔 (https://graphemica.com/1F914)
+        [":tada:", "\u{1F389}"], // 🎉 (https://graphemica.com/1F389)
+        [":brain:", "\u{1F9E0}"], // 🧠 (https://graphemica.com/1F9E0)
+        [":eyes:", "\u{1F440}"], // 👀 (https://graphemica.com/1F440)
+        [":exploding_head:", "\u{1F92F}"], // 🤯 (https://graphemica.com/1F92F)
+        [":fire:", "\u{1F525}"], // 🔥 (https://graphemica.com/1F525)
+        [":muscle:", "\u{1F4AA}"], // 💪 (https://graphemica.com/1F4AA)
+        [":white_check_mark:", "\u{2705}"], // ✅ (https://graphemica.com/2705)
+        [":check:", "\u{2705}"], // ✅ (https://graphemica.com/2705)
+        [":sparkles:", "\u{2728}"], // ✨ (https://graphemica.com/2728)
+        [":pray:", "\u{1F64F}"], // 🙏 (https://graphemica.com/1F64F)
+        [":100:", "\u{1F4AF}"], // 💯 (https://graphemica.com/1F4AF)
+    ];
+
     // Emojis should be either at the beginning of the block or should come after
     // a space.
-    rules.push(createStandardInputRule(/(?:^|\s)(:\))$/, "\u{1F642}")); // 🙂 (https://graphemica.com/1F642)
-    rules.push(createStandardInputRule(/(?:^|\s)(:\()$/, "\u{1F615}")); // 😕 (https://graphemica.com/1F615)
-    rules.push(createStandardInputRule(/(?:^|\s)(;\))$/, "\u{1F609}")); // 😉 (https://graphemica.com/1F609)
-    rules.push(createStandardInputRule(/(?:^|\s)(:D)$/, "\u{1F600}")); // 😀 (https://graphemica.com/1F600)
-    rules.push(createStandardInputRule(/(?:^|\s)(:P)$/, "\u{1F61B}")); // 😛 (https://graphemica.com/1F61B)
-    rules.push(createStandardInputRule(/(?:^|\s)(:O)$/, "\u{1F62E}")); // 😮 (https://graphemica.com/1F62E)
-    rules.push(createStandardInputRule(/(?:^|\s)(<3)$/, "\u{2764}\u{FE0F}")); // ❤️ (https://graphemica.com/2764 and https://graphemica.com/FE0F)
-    rules.push(createStandardInputRule(/(?:^|\s)(\+\+)$/, "\u{1F44D}")); // 👍 (https://graphemica.com/1F44D)
+    for (const [match, emoji] of emojiMap) {
+        rules.push(createStandardInputRule(new RegExp(`(?:^|\\s)(${match})$`), emoji));
+    }
 
     // Misc glyphs
     rules.push(createStandardInputRule(/--$/, "\u{2014}")); // em dash (https://graphemica.com/2014)

@@ -2999,6 +2999,30 @@ test("`++` becomes 👍 but not after text", async () => {
     expect(getDoc().toString()).toEqual('doc(paragraph("test++"))');
 });
 
+test("`:joy:` becomes 😂 at the beginning of a line", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping(":joy:");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("😂"))');
+});
+
+test("`:joy:` becomes 😂 after a space", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test :joy:");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test 😂"))');
+});
+
+test("`:joy:` becomes 😂 but not after text", async () => {
+    render(<TestContentEditor />);
+
+    await simulateTyping("test:joy:");
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("test:joy:"))');
+});
+
 test("input rule will not apply a second time if deleted then retyped", async () => {
     render(<TestContentEditor />);
 
