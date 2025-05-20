@@ -16,6 +16,8 @@
  */
 export const appStaticManifestPaths: ReadonlySet<string> = new Set<string>([
     "/.well-known/apple-app-site-association",
+    "/favicon-loud.svg",
+    "/favicon-subtle.svg",
     "/favicon.ico",
     "/favicon.svg",
     "/fonts/commit-mono.v1.woff2",

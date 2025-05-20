@@ -151,6 +151,42 @@ export function SpaceLayoutSideBarInboxButton({
         };
     }, [overlayState.isAnimatingOut, overlayState.isVisible]);
 
+    let notificationType: "loud" | "subtle" | null = null;
+    if (inbox) {
+        if (inbox.model.loudNotificationCount > 0) {
+            notificationType = "loud";
+        } else if (
+            inbox.model.entryCount > 0 &&
+            (!inbox.model.lastZeroEntryCountTime ||
+                differenceInMinutes(
+                    currentTimeRoundedToNearestTenMinutes,
+                    inbox.model.lastZeroEntryCountTime,
+                ) > inboxSubtleNotificationBadgePeaceMinutes)
+        ) {
+            notificationType = "subtle";
+        }
+    }
+
+    // Update the favicon when the notification type changes.
+    useEffect(() => {
+        const icon = assertExists(document.querySelector("link[rel~='icon']"));
+
+        const currentHref = icon.getAttribute("href");
+        const newHref = {
+            loud: "/favicon-loud.svg",
+            subtle: "/favicon-subtle.svg",
+            default: "/favicon.svg",
+        }[notificationType ?? "default"];
+
+        if (currentHref !== newHref) {
+            icon.setAttribute("href", newHref);
+        }
+
+        return () => {
+            icon.setAttribute("href", "/favicon.svg");
+        };
+    }, [notificationType]);
+
     return (
         <OverlayTriggerButton
             ref={overlayTriggerButtonRef}
@@ -274,18 +310,13 @@ export function SpaceLayoutSideBarInboxButton({
                 withoutFocusOnPress={true}
             >
                 <Bell />
-                {inbox.model.loudNotificationCount > 0 ? (
+                {notificationType === "loud" ? (
                     <LoudNotificationBadge
                         top="0.1875rem"
                         right="0.6875rem"
                         loudNotificationCount={inbox.model.loudNotificationCount}
                     />
-                ) : inbox.model.entryCount > 0 &&
-                  (!inbox.model.lastZeroEntryCountTime ||
-                      differenceInMinutes(
-                          currentTimeRoundedToNearestTenMinutes,
-                          inbox.model.lastZeroEntryCountTime,
-                      ) > inboxSubtleNotificationBadgePeaceMinutes) ? (
+                ) : notificationType === "subtle" ? (
                     <Box
                         zIndex="30"
                         position="absolute"
