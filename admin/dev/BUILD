@@ -89,3 +89,10 @@ js_binary(
     entry_point = "dev_deployed_main.js",
     env = {"NODE_ENV": "development"},
 )
+
+js_binary(
+    name = "path",
+    data = [":dev_lib"],
+    entry_point = "dev_path_main.js",
+    env = {"NODE_ENV": "development"},
+)

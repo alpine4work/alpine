@@ -32,6 +32,8 @@ Usage:
     dev testlogs             Inspect failed tests
     dev testlogs [path]      Inspect failed tests from a \"bazel_testlogs.zip\" file
     dev branch [name]        Creates a new branch following our naming convention
+    dev path                 Print important paths in your development environment
+    dev path [name]          Print a single path in your development environment
     dev deployed             Check if the head commit has been deployed
     dev deployed [commit]    Check if the provided commit has been deployed
     dev --help               Print this message"
@@ -193,6 +195,10 @@ EOF
         # 3. In some git UIs (like [Tower](https://www.git-tower.com/mac)) branches
         #    that start with a slash are put into a collapsible folder.
         git checkout -b "$username/$(date +%Y-%m-%d)-$2"
+        ;;
+
+    path)
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:path -- ${@:2}
         ;;
 
     deployed)
