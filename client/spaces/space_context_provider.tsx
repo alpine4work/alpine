@@ -1,4 +1,4 @@
-import {ReactNode, useMemo} from "react";
+import {ReactNode, useCallback, useMemo, useState} from "react";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
     MyAccountWebSocketContext,
@@ -12,16 +12,25 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function SpaceContextProvider({
-    space,
+    initialSpace,
     currentAccount,
     currentAccountWithoutSpace,
     children,
 }: {
-    space: SpaceModel;
+    initialSpace: SpaceModel;
     currentAccount: AccountModel | null;
     currentAccountWithoutSpace: AccountModelWithoutSpace | null;
     children?: ReactNode;
 }) {
+    const [space, setSpace] = useState(initialSpace);
+
+    // If the new space has a lower version than the current space then we don't
+    // update the space. This is to prevent us from racing condition when a space
+    // is being updated by multiple clients.
+    const updateSpace = useCallback((newSpace: SpaceModel) => {
+        setSpace(oldSpace => (oldSpace.version >= newSpace.version ? oldSpace : newSpace));
+    }, []);
+
     // If `currentAccount` exists then `currentAccountWithoutSpace` must also exist
     // for the same account.
     if (currentAccount !== null) {
@@ -42,8 +51,8 @@ export function SpaceContextProvider({
     return (
         <SpaceContextDefinition.Provider
             value={useMemo(
-                () => ({space, currentAccount, currentAccountWithoutSpace}),
-                [currentAccount, currentAccountWithoutSpace, space],
+                () => ({space, currentAccount, currentAccountWithoutSpace, updateSpace}),
+                [currentAccount, currentAccountWithoutSpace, space, updateSpace],
             )}
         >
             <MyAccountWebSocketContext.Provider
@@ -63,21 +72,31 @@ export function SpaceContextProvider({
  * not connect to my account WebSocket or manage any other space state.
  */
 export function TestSpaceContextProvider({
-    space,
+    initialSpace,
     currentAccount,
     children,
 }: {
-    space: SpaceModel;
+    initialSpace: SpaceModel;
     currentAccount: AccountModel;
     children?: ReactNode;
 }) {
+    const [space, setSpace] = useState(initialSpace);
     assert(import.meta.jest);
+
+    const updateSpace = useCallback((newSpace: SpaceModel) => {
+        setSpace(oldSpace => (oldSpace.version >= newSpace.version ? oldSpace : newSpace));
+    }, []);
 
     return (
         <SpaceContextDefinition.Provider
             value={useMemo(
-                () => ({space, currentAccount, currentAccountWithoutSpace: currentAccount}),
-                [currentAccount, space],
+                () => ({
+                    space,
+                    currentAccount,
+                    currentAccountWithoutSpace: currentAccount,
+                    updateSpace,
+                }),
+                [currentAccount, space, updateSpace],
             )}
         >
             {children}

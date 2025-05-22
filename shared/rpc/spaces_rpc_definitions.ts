@@ -69,3 +69,14 @@ export const updateSpaceAccountSettings = defineRpc({
     },
     output: {},
 });
+
+export const updateSpaceName = defineRpc({
+    name: "updateSpaceName",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        name: Schema.string,
+    },
+    output: {
+        space: SpaceModel.schema(),
+    },
+});

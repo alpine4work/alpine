@@ -2310,7 +2310,7 @@ export class StringSchema extends Schema<string> {
                         "Expected string to not have whitespace at the start or end",
                         {
                             displayMessage: errorDisplayMessagePrefix
-                                ? errorDisplayMessage`${errorDisplayMessagePrefix} should not start or end with spaces.`
+                                ? errorDisplayMessage`${errorDisplayMessagePrefix} should not start or end with whitespaces.`
                                 : undefined,
                         },
                     );

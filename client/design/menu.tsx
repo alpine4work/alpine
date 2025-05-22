@@ -1098,7 +1098,11 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     : {})}
                 minWidth={!action.extraActions ? width : undefined}
                 flexGrow={action.extraActions ? "1" : undefined}
-                paddingLeft={action.icon && action.iconPlacement === "start" ? "1.5" : "2"}
+                paddingLeft={
+                    action.icon && (!action.iconPlacement || action.iconPlacement === "start")
+                        ? "1.5"
+                        : "2"
+                }
                 paddingRight="1.5"
                 paddingY="1.5"
                 borderRadius="1"
@@ -1329,7 +1333,7 @@ function MenuCustomItem({
     );
 }
 
-const MenuChildrenItem = forwardRef(function MenuStandardItem(
+const MenuChildrenItem = forwardRef(function MenuChildrenItem(
     {
         size,
         menuItemId,

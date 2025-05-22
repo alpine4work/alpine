@@ -9,8 +9,6 @@ import {
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
 import {
     authorizeSpaceAccess,
@@ -20,10 +18,12 @@ import {
     getAccountIfExists,
     getOurAccountSpaceIds,
     getRegisteredAccountDevices,
+    getSpace,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountsCacheForTest,
     isAccountMemberOfSpaceWithoutAuthorization,
     removeSpaceAccountAsAdmin,
+    updateSpaceName,
 } from "~/server/spaces/spaces_table.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -47,16 +47,13 @@ import {ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const context = createTestContext();
-const spaceA = createTestSpace(context);
-const sessionA1 = createTestSession(context, spaceA);
-const sessionA2 = createTestSession(context, spaceA);
-const sessionA3 = createTestSession(context, spaceA);
-const spaceB = createTestSpace(context);
-const sessionB1 = createTestSession(context, spaceB);
-const sessionB2 = createTestSession(context, spaceB);
-const sessionB3 = createTestSession(context, spaceB);
 
 test("can not get all accounts for a space we are not in", async () => {
+    const spaceA = await TestSpace.create(context);
+    const spaceB = await TestSpace.create(context);
+    const sessionA1 = await spaceA.createSession();
+    const sessionB1 = await spaceB.createSession();
+
     await expect(
         expensivelyGetAllSpaceAccounts(context.action(sessionA1), spaceB.id),
     ).rejects.toThrow(PermissionDeniedError);
@@ -67,6 +64,12 @@ test("can not get all accounts for a space we are not in", async () => {
 });
 
 test("can get all accounts for our space", async () => {
+    const spaceA = await TestSpace.create(context);
+    const spaceB = await TestSpace.create(context);
+
+    const [sessionA1, sessionA2, sessionA3] = await spaceA.createSessions(3);
+    const [sessionB1, sessionB2, sessionB3] = await spaceB.createSessions(3);
+
     await expect(
         expensivelyGetAllSpaceAccounts(context.action(sessionA1), spaceA.id),
     ).resolves.toEqual(
@@ -2630,4 +2633,75 @@ test("can't authorize space access for impersonated actor", async () => {
         ok: false,
         error: expect.any(PermissionDeniedError),
     });
+});
+
+test("allows space member to update space name", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const initialSpace = await getSpace(session.action(), space.id);
+
+    const newName = "New Space Name";
+    const updatedSpace = await updateSpaceName(session.action(), space.id, newName);
+
+    expect(updatedSpace.name).toBe(newName);
+    expect(updatedSpace.version).toBeGreaterThan(initialSpace.version);
+
+    const spaceAfterUpdate = await getSpace(session.action(), space.id);
+    expect(spaceAfterUpdate.name).toBe(newName);
+    expect(updatedSpace.name).not.toBe(initialSpace.name);
+    expect(spaceAfterUpdate.version).toBe(updatedSpace.version);
+});
+
+test("prevents non-member from updating space name", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession();
+
+    const initialSpace = await getSpace(session.action(), space.id);
+    const initialName = initialSpace.name;
+
+    // Attempt to update space name from non-member session
+    await expect(updateSpaceName(otherSession.action(), space.id, "New Name")).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    const spaceAfterAttempt = await getSpace(session.action(), space.id);
+
+    //make sure the initial name wasn't "New Name".
+    expect(spaceAfterAttempt.name).not.toBe("New Name");
+
+    expect(spaceAfterAttempt.name).toBe(initialName);
+    expect(spaceAfterAttempt.version).toBe(initialSpace.version);
+});
+
+test("throws PermissionDeniedError for non-existent space", async () => {
+    const space = await TestSpace.create(context);
+    const nonExistentSpaceId = generateId<SpaceId>();
+
+    await expect(authorizeSpaceAccess(space.systemAction(), nonExistentSpaceId)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("validates space name against empty name and very long name", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    // Get initial state
+    const initialSpace = await getSpace(session.action(), space.id);
+
+    // Test empty name
+    await expect(updateSpaceName(session.action(), space.id, "")).rejects.toThrow();
+
+    // Test very long name
+    await expect(updateSpaceName(session.action(), space.id, "a".repeat(1000))).rejects.toThrow();
+
+    // Verify name wasn't changed
+    const spaceAfterAttempt = await getSpace(session.action(), space.id);
+
+    expect(spaceAfterAttempt.name).toBe(initialSpace.name);
+    expect(spaceAfterAttempt.version).toBe(initialSpace.version);
 });

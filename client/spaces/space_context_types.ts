@@ -35,4 +35,11 @@ export type SpaceContext = {
      * data which will be made available on this property.
      */
     readonly currentAccountWithoutSpace: AccountModelWithoutSpace | null;
+
+    /**
+     * If the new space has a lower version than the current space then we don't
+     * update the space. This is to prevent us from racing condition when a space
+     * is being updated by multiple clients.
+     */
+    readonly updateSpace: (space: SpaceModel) => void;
 };

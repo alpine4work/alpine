@@ -9,6 +9,7 @@ import {
     getSpaceIfPossible,
     removeSpaceAccountAsAdmin,
     updateSpaceAccountSettings,
+    updateSpaceName,
 } from "~/server/spaces/spaces_table.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -119,6 +120,20 @@ export default implementRpcs(definitions, {
                 input.update,
             );
             return {};
+        },
+    },
+
+    updateSpaceName: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const space = await updateSpaceName(
+                context.actor.authorizeSession(),
+                input.spaceId,
+                input.name,
+            );
+            return {
+                space,
+            };
         },
     },
 });

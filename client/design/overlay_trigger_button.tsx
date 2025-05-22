@@ -50,6 +50,10 @@ export type OverlayTriggerButtonRef = {
         initiallyFocus?: "FirstFocusableElement" | "LastFocusableElement";
         stopPropagation?: boolean;
     }): void;
+    close(options?: {
+        returnFocusTo?: "TriggerElement" | "NextElement" | "PreviousElement";
+        withoutAnimation?: boolean;
+    }): void;
 };
 
 export type OverlayTriggerButtonState =
@@ -297,7 +301,7 @@ function OverlayTriggerButton(
         onStateChange(state);
     }, [onStateChange, state]);
 
-    useImperativeHandle(ref, () => ({open}), [open]);
+    useImperativeHandle(ref, () => ({open, close}), [open, close]);
 
     const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(state.isExpanded);
 

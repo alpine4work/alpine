@@ -223,6 +223,17 @@ const SpacesTable = DynamoTableSchema.new({
     ],
 });
 
+function createSpaceModelFromItem(
+    spaceItem: DynamoTableItemType<typeof SpacesTable, "Space", "Attributes">,
+): SpaceModel {
+    return new SpaceModel({
+        id: spaceItem.spaceId,
+        version: spaceItem.updateLockVersion ?? 0,
+        name: spaceItem.name,
+        alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
+    });
+}
+
 type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 
 /**
@@ -1773,6 +1784,40 @@ export async function updateSpaceAccountSettings(
     );
 }
 
+export async function updateSpaceName(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    name: string,
+): Promise<SpaceModel> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    LabelStringSchema.validate?.(name, {
+        errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
+    });
+
+    const updatedSpaceItem = await SpacesTable.updateItem(
+        context,
+        {
+            partitionType: "Space",
+            sortRangeType: "Attributes",
+            spaceId,
+        },
+        item => {
+            if (!item) {
+                throw new NotFoundError("Space not found");
+            }
+
+            return {
+                ...item,
+                name,
+            };
+        },
+    );
+    assert(updatedSpaceItem);
+
+    return createSpaceModelFromItem(updatedSpaceItem);
+}
+
 /**
  * Get the space with the specified `SpaceId`. Returns a null if the space
  * doesn't exist and returns a `Result` if the actor doesn't have access to
@@ -1802,11 +1847,7 @@ export async function getSpaceIfPossible(
 
     return {
         ok: true,
-        value: new SpaceModel({
-            id: spaceItem.spaceId,
-            name: spaceItem.name,
-            alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
-        }),
+        value: createSpaceModelFromItem(spaceItem),
     };
 }
 
@@ -1827,11 +1868,7 @@ export async function getSpace(
         }),
     ]);
 
-    return new SpaceModel({
-        id: spaceItem.spaceId,
-        name: spaceItem.name,
-        alphaAccessDefaultChannelId: spaceItem.alphaAccessDefaultChannelId,
-    });
+    return createSpaceModelFromItem(spaceItem);
 }
 
 /**

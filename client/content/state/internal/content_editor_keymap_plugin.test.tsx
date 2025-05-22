@@ -49,6 +49,7 @@ const createdTime = new Date();
 
 const space = new SpaceModel({
     id: generateId(),
+    version: 0,
     name: "Test Space",
 });
 
@@ -77,7 +78,7 @@ function TestContentEditor({
     );
 
     return (
-        <TestSpaceContextProvider space={space} currentAccount={currentAccount}>
+        <TestSpaceContextProvider initialSpace={space} currentAccount={currentAccount}>
             <ContentEditor
                 aria-label="Test"
                 state={state}

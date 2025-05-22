@@ -36,7 +36,14 @@ export function DocumentBlobsPlayground() {
                 zIndex="10"
             >
                 <Box display="flex" flexDirection="row" style={{flexBasis: 400}} gap="4">
-                    <TextInput label="Seed" value={seed} onChange={setSeed} layout="inline" />
+                    <TextInput
+                        label="Seed"
+                        value={seed}
+                        onChange={setSeed}
+                        // TODO(calebmer): We removed the inline layout mode. We should refactor this
+                        // to use `<TextInputWithoutLabel>`.
+                        // layout="inline"
+                    />
                     <IconButton description="Randomize seed" onPress={() => setSeed(generateId())}>
                         <ArrowClockwise />
                     </IconButton>

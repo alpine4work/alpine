@@ -51,6 +51,9 @@ const metadataByRouteId: Record<
     "routes/s.$spaceId.more._index": {
         errorTitle: "Couldn’t open menu",
     },
+    "routes/s.$spaceId.more.settings": {
+        errorTitle: "Couldn’t open settings",
+    },
     "routes/s.$spaceId.more.switch-space": {
         errorTitle: "Couldn’t open menu",
     },
@@ -68,6 +71,18 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.search": {
         errorTitle: "Couldn’t open search",
+    },
+    "routes/s.$spaceId.settings": {
+        errorTitle: "Couldn’t open settings",
+    },
+    "routes/s.$spaceId.settings._index": {
+        errorTitle: "Couldn’t open settings",
+    },
+    "routes/s.$spaceId.settings.general": {
+        errorTitle: "Couldn’t open general settings",
+    },
+    "routes/s.$spaceId.settings.people": {
+        errorTitle: "Couldn’t open people settings",
     },
     "routes/s.$spaceId.tasks.$taskId._index": {
         errorTitle: "Couldn’t open task",

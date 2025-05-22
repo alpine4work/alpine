@@ -1,4 +1,4 @@
-import {ArrowsLeftRight, PencilSimple, Recycle, SignOut} from "phosphor-react";
+import {ArrowsLeftRight, Gear, PencilSimple, Recycle, SignOut} from "phosphor-react";
 import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
@@ -22,6 +22,7 @@ export default function MoreRoute() {
     const platform = usePlatform();
     const rootNavigate = useRootNavigate();
     const {space, currentAccount} = useSpaceContextAndRequireSpaceAccess();
+    const withSpaceSettings = process.env.NODE_ENV !== "production";
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
@@ -103,8 +104,19 @@ export default function MoreRoute() {
                     </Box>
                 </Box>
                 <Spacer space="20" />
+                {withSpaceSettings && (
+                    <MobileSettingsRow
+                        withBorderTop
+                        icon={<Gear />}
+                        label="Space settings"
+                        pressErrorTitle="Couldn’t open space settings"
+                        onPress={async () => {
+                            await rootNavigate(`/s/${space.id}/more/settings`);
+                        }}
+                    />
+                )}
                 <MobileSettingsRow
-                    withBorderTop
+                    withBorderTop={!withSpaceSettings}
                     icon={<SignOut />}
                     label="Sign out"
                     pressErrorTitle="Couldn’t sign out"

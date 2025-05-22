@@ -1,4 +1,4 @@
-import {ArrowsLeftRight} from "phosphor-react";
+import {ArrowsLeftRight, Gear, Users} from "phosphor-react";
 import {useRef} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -6,9 +6,11 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {MenuButton} from "~/client/design/menu_button.js";
+import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {SpaceAvatar, spaceAvatarBorderRadius} from "~/client/spaces/space_avatar.js";
+import {SpaceAvatar} from "~/client/spaces/space_avatar.js";
+import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {buttonStyles, sprinkles} from "~/client/styles/styles.js";
 import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
@@ -16,12 +18,36 @@ import {SpaceModel} from "~/shared/spaces/space_model.js";
 export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
     const context = useAppContext();
     const rootNavigate = useRootNavigate();
+    const menuButtonRef = useRef<OverlayTriggerButtonRef>(null);
 
     const buttonRef = useRef<HTMLButtonElement>(null);
     const {buttonProps, isPressed} = useButton({}, buttonRef);
 
+    const settingsAction = {
+        icon: <Gear />,
+        size: "lg",
+        label: "Settings",
+        pressErrorTitle: "Couldn't open settings",
+        onPress: async () => {
+            await rootNavigate(`/s/${space.id}/settings/general`);
+        },
+    };
+
+    const membersSettingsAction = {
+        icon: <Users />,
+        size: "lg",
+        label: "People",
+        pressErrorTitle: "Couldn't open people settings",
+        onPress: async () => {
+            await rootNavigate(`/s/${space.id}/settings/people`);
+        },
+    };
+
+    const showSettings = process.env.NODE_ENV !== "production";
+
     return (
         <MenuButton
+            ref={menuButtonRef}
             placement="right-start"
             // Vertically center space name in `extraOverlayTop` with space avatar.
             offsetAlong="-1"
@@ -36,56 +62,57 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                 </>
             }
             actions={[
-                {
-                    hasChildren: true,
-                    key: "switch-space",
-                    icon: <ArrowsLeftRight />,
-                    label: "Switch space",
-                    size: "lg",
-                    actions: async () => {
-                        const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
-
-                        return otherSpaces.map(
-                            ({space: otherSpace, inbox}): MenuAction => ({
-                                isSelected: otherSpace.id === space.id,
-                                label: otherSpace.name,
-                                labelFontSize: "100",
-                                labelFontStyle: "semi-bold",
-                                icon: (
-                                    <Box
-                                        position="relative"
-                                        // Picked so we get the same margin horizontally and vertically between the
-                                        // `<SpaceAvatar>` and hover/press background edge.
-                                        paddingY="0.5"
-                                    >
-                                        <SpaceAvatar space={otherSpace} size="8" />
-                                        {inbox && inbox.model.loudNotificationCount > 0 && (
-                                            <LoudNotificationBadge
-                                                top="-0.0625rem"
-                                                right="0.125rem"
-                                                loudNotificationCount={
-                                                    inbox.model.loudNotificationCount
-                                                }
-                                            />
-                                        )}
-                                    </Box>
-                                ),
-                                pressErrorTitle: "Couldn’t switch to space",
-                                onPress: async () => {
-                                    if (otherSpace.id === space.id) return;
-
-                                    if (otherSpace.alphaAccessDefaultChannelId) {
-                                        await rootNavigate(
-                                            `/s/${otherSpace.id}/channels/${otherSpace.alphaAccessDefaultChannelId}`,
-                                        );
-                                    } else {
-                                        await rootNavigate(`/s/${otherSpace.id}`);
-                                    }
-                                },
-                            }),
-                        );
+                ...(showSettings ? [settingsAction, membersSettingsAction] : []),
+                [
+                    {
+                        hasChildren: true,
+                        key: "switch-space",
+                        icon: <ArrowsLeftRight />,
+                        label: "Switch space",
+                        size: "lg",
+                        actions: async () => {
+                            const {spaces: otherSpaces} = await getOurAccountSpaces(context, {});
+                            return otherSpaces.map(
+                                ({space: otherSpace, inbox}): MenuAction => ({
+                                    isSelected: otherSpace.id === space.id,
+                                    label: otherSpace.name,
+                                    labelFontSize: "100",
+                                    labelFontStyle: "semi-bold",
+                                    icon: (
+                                        <Box
+                                            position="relative"
+                                            // Picked so we get the same margin horizontally and vertically between the
+                                            // `<SpaceAvatar>` and hover/press background edge.
+                                            paddingY="0.5"
+                                        >
+                                            <SpaceAvatar space={otherSpace} size="8" />
+                                            {inbox && inbox.model.loudNotificationCount > 0 && (
+                                                <LoudNotificationBadge
+                                                    top="-0.0625rem"
+                                                    right="0.125rem"
+                                                    loudNotificationCount={
+                                                        inbox.model.loudNotificationCount
+                                                    }
+                                                />
+                                            )}
+                                        </Box>
+                                    ),
+                                    pressErrorTitle: "Couldn't switch to space",
+                                    onPress: async () => {
+                                        if (otherSpace.id === space.id) return;
+                                        if (otherSpace.alphaAccessDefaultChannelId) {
+                                            await rootNavigate(
+                                                `/s/${otherSpace.id}/channels/${otherSpace.alphaAccessDefaultChannelId}`,
+                                            );
+                                        } else {
+                                            await rootNavigate(`/s/${otherSpace.id}`);
+                                        }
+                                    },
+                                }),
+                            );
+                        },
                     },
-                },
+                ],
             ]}
         >
             <FocusRing>

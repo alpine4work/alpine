@@ -1,8 +1,8 @@
-import classNames from "classnames";
-import {Ref, forwardRef, useId, useRef, useState} from "react";
+import {Ref, forwardRef, useId, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -15,11 +15,6 @@ export type TextInputProps = {
      * A label used to describe the text input.
      */
     label: string;
-
-    /**
-     * Don't show the label, only use it for assistive technology.
-     */
-    hideLabel?: boolean;
 
     /**
      * The current value of the text input.
@@ -42,6 +37,12 @@ export type TextInputProps = {
      * event fires.
      */
     onEnter?: () => void;
+
+    /**
+     * If the escape key is pressed while focused on this text input this
+     * event fires.
+     */
+    onEscape?: () => void;
 
     /**
      * Placeholder text for when the value is empty.
@@ -89,11 +90,6 @@ export type TextInputProps = {
     formName?: string;
 
     /**
-     * Should the label be stacked or inline? Defaults to `stacked`.
-     */
-    layout?: "stacked" | "inline";
-
-    /**
      * What font size should we use for the text in this input? Defaults to `75`.
      */
     fontSize?: "75" | "100" | "200";
@@ -102,10 +98,13 @@ export type TextInputProps = {
      * What font should we use for this text input? Defaults to `normal`.
      */
     fontStyle?: "normal" | "code";
-};
 
-const TextInputForwardRef = forwardRef(TextInput);
-export {TextInputForwardRef as TextInput};
+    /**
+     * Are we forcing the focus ring to be visible? See the `isVisible` prop on
+     * `<FocusRing>` for more information.
+     */
+    isFocusRingVisible?: boolean;
+};
 
 /**
  * Core styles for `<TextInput>` you can use to create other elements that look
@@ -126,28 +125,61 @@ export const textInputClassName = sprinkles({
 // TODO(calebmer): This is a very standard web design text input. Consider the
 // design more closely. Should the label be on the side? Should we have some
 // kind of dimensionality in the input?
-function TextInput(
+export const TextInput = forwardRef(function TextInput(
+    props: TextInputProps,
+    ref: Ref<HTMLInputElement>,
+) {
+    const {label} = props;
+
+    const id = useId();
+
+    return (
+        <Box>
+            <label
+                className={sprinkles({
+                    display: "inline-block",
+                    fontSize: "75",
+                    fontStyle: "semi-bold",
+                    paddingBottom: "1",
+                })}
+                htmlFor={id}
+            >
+                {label}
+            </label>
+            <TextInputWithoutLabel {...props} ref={ref} id={id} />
+        </Box>
+    );
+});
+
+export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
     {
-        label,
-        hideLabel,
+        id,
+        "aria-label": ariaLabel,
+        "aria-labelledby": ariaLabelledby,
         value,
         onChange,
         onEnter,
+        onEscape,
         placeholder,
         isReadOnly,
         inputMode,
         autoComplete,
         autoCapitalize,
         formName,
-        layout = "stacked",
         fontSize = "75",
         fontStyle = "normal",
-    }: TextInputProps,
+        isFocusRingVisible = false,
+    }: Omit<TextInputProps, "label"> &
+        // You must provide one of these props for accessibility! Or use `<TextInput>`
+        // that comes with an accessible label.
+        (| {id: string; "aria-label"?: undefined; "aria-labelledby"?: undefined}
+            | {"aria-label": string; id?: undefined; "aria-labelledby"?: undefined}
+            | {"aria-labelledby": string; id?: undefined; "aria-label"?: undefined}
+        ),
     ref: Ref<HTMLInputElement>,
 ) {
     const {isAppleDevice} = useClientInfo();
 
-    const id = useId();
     const inputRef = useRef<HTMLInputElement>(null);
 
     const inputType =
@@ -169,95 +201,62 @@ function TextInput(
     }, []);
 
     return (
-        <Box
-            className={classNames(
-                layout === "inline" &&
-                    sprinkles({
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: "4",
-                        flex: "auto",
-                    }),
-            )}
-        >
-            {!hideLabel && (
-                <label
-                    className={sprinkles({
-                        display: "inline-block",
-                        fontSize: "75",
-                        fontStyle: "semi-bold",
-                        paddingBottom: layout === "stacked" ? "1" : undefined,
-                    })}
-                    htmlFor={id}
-                >
-                    {label}
-                </label>
-            )}
-            <FocusRing offset="border">
-                <input
-                    ref={useMergedRefs(ref, inputRef)}
-                    className={sprinkles({
-                        border: "grey-20",
-                        borderRadius: "1",
-                        display: "block",
-                        width: "full",
-                        height: ({"75": "7", "100": "9", "200": "10"} as const)[fontSize],
-                        paddingX: ({"75": "2", "100": "2.5", "200": "3"} as const)[fontSize],
-                        fontSize,
-                        fontStyle,
-                        flex: layout === "inline" ? "auto" : undefined,
-                        backgroundColor: isReadOnly ? "grey-5" : "grey-0",
-                        color: isReadOnly ? "grey-70" : "grey-100",
-                    })}
-                    style={{
-                        // Allow contextual alternate glyphs in regular text content.
-                        fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
-                    }}
-                    id={id}
-                    type={inputType}
-                    value={value}
-                    onChange={event => onChange(event.currentTarget.value)}
-                    placeholder={placeholder}
-                    readOnly={isReadOnly}
-                    autoComplete={autoComplete}
-                    autoCapitalize={autoCapitalize}
-                    name={formName}
-                    aria-label={hideLabel ? label : undefined}
-                    enterKeyHint={onEnter ? "done" : undefined}
-                    onKeyDown={event => {
-                        if (
-                            onEnter &&
-                            event.key === "Enter" &&
-                            !event.altKey &&
-                            !event.shiftKey &&
-                            // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                            (!isAppleDevice || !event.ctrlKey) &&
-                            // Cmd+Enter on MacOS platforms should trigger the callback
-                            (isAppleDevice || !event.metaKey)
-                        ) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onEnter();
-                            return;
-                        }
-                    }}
-                />
-            </FocusRing>
-        </Box>
+        <FocusRing offset="border" isVisible={isFocusRingVisible}>
+            <input
+                ref={useMergedRefs(ref, inputRef)}
+                className={sprinkles({
+                    border: "grey-20",
+                    borderRadius: "1",
+                    display: "block",
+                    width: "full",
+                    height: ({"75": "7", "100": "9", "200": "10"} as const)[fontSize],
+                    paddingX: ({"75": "2", "100": "2.5", "200": "3"} as const)[fontSize],
+                    fontSize,
+                    fontStyle,
+                    backgroundColor: isReadOnly ? "grey-5" : "grey-0",
+                    color: isReadOnly ? "grey-70" : "grey-100",
+                })}
+                style={{
+                    // Allow contextual alternate glyphs in regular text content.
+                    fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
+                }}
+                id={id}
+                aria-label={ariaLabel}
+                aria-labelledby={ariaLabelledby}
+                type={inputType}
+                value={value}
+                onChange={event => onChange(event.currentTarget.value)}
+                placeholder={placeholder}
+                readOnly={isReadOnly}
+                autoComplete={autoComplete}
+                autoCapitalize={autoCapitalize}
+                name={formName}
+                enterKeyHint={onEnter ? "done" : undefined}
+                onKeyDown={event => {
+                    if (
+                        onEnter &&
+                        event.key === "Enter" &&
+                        !event.altKey &&
+                        !event.shiftKey &&
+                        // Ctrl+Enter on non-MacOS platforms should trigger the callback
+                        (!isAppleDevice || !event.ctrlKey) &&
+                        // Cmd+Enter on MacOS platforms should trigger the callback
+                        (isAppleDevice || !event.metaKey)
+                    ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onEnter();
+                        return;
+                    }
+
+                    if (onEscape && event.key === "Escape" && !isModifiedKeyboardEvent(event)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onEscape();
+                        return;
+                    }
+                }}
+            />
+        </FocusRing>
     );
-}
-
-/**
- * `<TextInput>` but manages its own state instead of requiring you to do data
- * down and actions up.
- */
-export function ControlledTextInput(
-    props: Omit<TextInputProps, "value" | "onChange"> & {
-        initialValue?: string;
-    },
-) {
-    const [value, setValue] = useState(props.initialValue ?? "");
-
-    return <TextInput {...props} value={value} onChange={setValue} />;
-}
+});

@@ -22,6 +22,7 @@ disableStartMaintainingFileForTest();
 
 const space = new SpaceModel({
     id: generateId(),
+    version: 0,
     name: "Test Space",
 });
 
@@ -195,7 +196,7 @@ test("can copy when selection contains hidden content", () => {
 
 test("can copy when selection is partially within content view and partially outside content view", () => {
     const {container} = render(
-        <TestSpaceContextProvider space={space} currentAccount={account}>
+        <TestSpaceContextProvider initialSpace={space} currentAccount={account}>
             <p className="test-p">
                 Lorem ipsum dolor sit amet, <em className="test-em">consectetur</em> adipiscing
                 elit.

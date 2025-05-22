@@ -1,8 +1,7 @@
-import {ArrowLeft, Check, SpinnerGap} from "phosphor-react";
+import {Check, SpinnerGap} from "phosphor-react";
 import {ComponentType, ReactNode, memo, useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
-import {IconButton} from "~/client/design/icon_button.js";
 import {
     navigationBarHeight,
     navigationBarMobileGap,
@@ -14,13 +13,18 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     ContentParagraphShimmer1,
     ContentParagraphShimmer2,
     ContentParagraphShimmer3,
 } from "~/client/shimmer/content_shimmer.js";
 import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
+import {GeneralSpaceSettingsRouteShimmer} from "~/client/shimmer/internal/general_space_settings_route_shimmer.js";
+import {
+    MobileBackButton,
+    MobileBackButtonSpacer,
+} from "~/client/shimmer/internal/mobile_back_button.js";
+import {MobileSettingsRowsShimmer} from "~/client/shimmer/internal/mobile_settings_rows_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
 import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
@@ -168,7 +172,9 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.chat.new": {component: NewChatRouteShimmer},
     "routes/s.$spaceId.chat.with.$accountId": {component: ChatRouteShimmer},
     "routes/s.$spaceId.create._index": {component: CreateRouteShimmer},
-    "routes/s.$spaceId.create.more": {component: CreateMoreRouteShimmer},
+    "routes/s.$spaceId.create.more": {
+        component: () => <MobileSettingsRowsShimmer titleWidth="12" />,
+    },
     "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
         inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,
@@ -177,6 +183,9 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.favorites": {component: SearchFavoritesRouteShimmer},
     "routes/s.$spaceId.inbox": {component: InboxRouteShimmer},
     "routes/s.$spaceId.more._index": {component: MoreRouteShimmer},
+    "routes/s.$spaceId.more.settings": {
+        component: () => <MobileSettingsRowsShimmer titleWidth="28" />,
+    },
     "routes/s.$spaceId.more.switch-space": {component: MoreSwitchSpaceRouteShimmer},
     "routes/s.$spaceId.notifications.channel-posts.$channelIdAndBucketGeneration": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
@@ -192,6 +201,7 @@ const shimmerOptionsByRouteId: Record<
     },
     "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
+    "routes/s.$spaceId.settings.general": {component: GeneralSpaceSettingsRouteShimmer},
     "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
@@ -205,6 +215,16 @@ const shimmerOptionsByRouteId: Record<
     // TODO(calebmer): We don't currently have a design for these routes. Once we
     // implement these routes we should add appropriate shimmers.
     "routes/s.$spaceId._index": false,
+
+    // NOTE(rohit): For this route, we only have a `loader` for the space layout
+    // without any UI, hence no shimmer.
+    "routes/s.$spaceId.settings._index": false,
+
+    // NOTE(rohit): We don't have a design for layout routes.
+    "routes/s.$spaceId.settings": false,
+
+    // TODO(rohit): Add a shimmer for this route when we implement it.
+    "routes/s.$spaceId.settings.people": false,
 };
 
 const RouteShimmerMemo = memo(RouteShimmer);
@@ -323,26 +343,6 @@ function RouteShimmer({
             </Box>
         );
     }
-}
-
-function MobileBackButton() {
-    const navigate = useNavigate();
-
-    return (
-        <IconButton
-            size="base"
-            description="Go back"
-            withoutTooltip={true}
-            pressErrorTitle="Couldn’t go back"
-            onPress={() => navigate(-1)}
-        >
-            <ArrowLeft />
-        </IconButton>
-    );
-}
-
-function MobileBackButtonSpacer() {
-    return <Spacer space="7" />;
 }
 
 function ChannelRouteShimmer() {
@@ -946,10 +946,6 @@ function CreateRouteShimmer({withBackButton}: {withBackButton?: boolean}) {
     );
 }
 
-function CreateMoreRouteShimmer() {
-    return <CreateRouteShimmer withBackButton />;
-}
-
 function DocumentRouteShimmer() {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
@@ -1330,7 +1326,7 @@ function MoreSwitchSpaceRouteShimmer() {
                     alignItems="center"
                 >
                     <MobileBackButton />
-                    <TextShimmer fontSize="100" width="24" />
+                    <TextShimmer fontSize="300" width="24" />
                     <MobileBackButtonSpacer />
                 </Box>
                 <Box paddingX={screenPaddingX}>
@@ -1356,7 +1352,7 @@ function MoreSwitchSpaceSettingsRowShimmer({
             paddingY="1.5"
             display="flex"
             alignItems="center"
-            gap="2.5"
+            gap="2"
             style={{
                 boxShadow: [
                     `inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
@@ -1374,7 +1370,7 @@ function MoreSwitchSpaceSettingsRowShimmer({
                     borderRadius="1"
                 />
             </Box>
-            <TextShimmer fontSize="100" width="32" ragRight={ragRight} />
+            <TextShimmer fontSize="300" width="32" ragRight={ragRight} />
         </Box>
     );
 }

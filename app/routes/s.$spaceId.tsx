@@ -58,6 +58,7 @@ import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_t
 import {SpaceLayoutNativeMobileInboxController} from "~/client/spaces/layout/space_layout_native_mobile_inbox_controller.js";
 import {SpaceLayoutSideBar} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {SpaceLayoutWebMobileTabBar} from "~/client/spaces/layout/space_layout_web_mobile_tab_bar.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {spaceLayoutWebMobileTabBarHeight} from "~/client/styles/space_layout_shared_styles.js";
 import {sprinkles} from "~/client/styles/styles.js";
@@ -203,6 +204,7 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
         case "Anonymous": {
             const space = new SpaceModel({
                 id: spaceId,
+                version: -1,
                 // If you don't have space access, you're not allowed to see the space's name.
                 // Use an empty string as a placeholder.
                 name: "",
@@ -270,6 +272,7 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
 
                 const space = new SpaceModel({
                     id: spaceId,
+                    version: -1,
                     // If you don't have space access, you're not allowed to see the space's name.
                     // Use an empty string as a placeholder.
                     name: "",
@@ -683,7 +686,7 @@ export default function SpaceLayoutRoute() {
                     {globalLoadingIndicator => (
                         <ContextMenuContextProvider>
                             <SpaceContextProvider
-                                space={loaderData.space}
+                                initialSpace={loaderData.space}
                                 currentAccount={
                                     loaderData.type === "WithAccess"
                                         ? loaderData.currentAccount
@@ -755,6 +758,7 @@ function SpaceLayoutRouteOutlet({
     const updateMetaTitle = useUpdateMetaTitle();
     const clientInfo = useClientInfo();
     const platform = usePlatform();
+    const {space} = useSpaceContext();
 
     const {resizedWindowHeightForMobileWebKit} = useMobileWebKitKeyboardSupport();
 
@@ -882,7 +886,7 @@ function SpaceLayoutRouteOutlet({
                         >
                             {loaderData.type === "WithAccess" && platform !== "mobile" && (
                                 <SpaceLayoutSideBar
-                                    space={loaderData.space}
+                                    space={space}
                                     currentAccount={loaderData.currentAccount}
                                     initialInbox={loaderData.inbox}
                                     initialAffinitySearch={initialAffinitySearch}
@@ -1020,6 +1024,7 @@ function SpaceLayoutRouteOutlet({
         initialAffinitySearch,
         isInert,
         loaderData,
+        space,
         nativeMobileRouterState,
         outletContainerHeight,
         params.spaceId,

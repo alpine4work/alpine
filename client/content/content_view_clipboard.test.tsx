@@ -42,6 +42,7 @@ disableStartMaintainingFileForTest();
 
 const space = new SpaceModel({
     id: generateId(),
+    version: 0,
     name: "Test Space",
 });
 
@@ -239,7 +240,7 @@ beforeAll(async () => {
 
 test("can copy when selection is entirely in content view", () => {
     const {container} = render(
-        <TestSpaceContextProvider space={space} currentAccount={account}>
+        <TestSpaceContextProvider initialSpace={space} currentAccount={account}>
             <ContentView
                 content={testDocument}
                 fileAttachmentTarget={testDocumentFileAttachmentTarget}

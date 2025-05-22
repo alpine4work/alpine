@@ -31,6 +31,7 @@ const createdTime = new Date();
 
 const space = new SpaceModel({
     id: generateId(),
+    version: 0,
     name: "Test Space",
 });
 
@@ -55,7 +56,7 @@ const context: AppContext = Context.new({
 function TestContextProvider({children}: {children: ReactNode}) {
     return (
         <AppContextProvider value={context}>
-            <TestSpaceContextProvider space={space} currentAccount={currentAccount}>
+            <TestSpaceContextProvider initialSpace={space} currentAccount={currentAccount}>
                 {children}
             </TestSpaceContextProvider>
         </AppContextProvider>

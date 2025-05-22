@@ -378,6 +378,7 @@ const createdTime = new Date("2024-10-02T14:15:13.833Z");
 const space = new SpaceModel({
     id: assertId("pv9hmw9x4nkzpnn404ntddmbp0"),
     name: "Test Space",
+    version: 0,
 });
 
 // For any code that needs to parse the `SpaceId` from the URL.
@@ -421,7 +422,7 @@ const testContentFileEntityRenderers: ContentFileEntityRenderers = {
 function TestContextProvider({children}: {children: ReactNode}) {
     return (
         <AppContextProvider value={context}>
-            <TestSpaceContextProvider space={space} currentAccount={currentAccount}>
+            <TestSpaceContextProvider initialSpace={space} currentAccount={currentAccount}>
                 <ContentFileEntityRenderersContext.Provider value={testContentFileEntityRenderers}>
                     {children}
                 </ContentFileEntityRenderersContext.Provider>

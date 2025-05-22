@@ -1,10 +1,9 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {Box} from "~/client/design/box.js";
+import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-
-export const spaceAvatarBorderRadius = "1";
 
 export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
     return (

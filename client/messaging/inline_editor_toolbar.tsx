@@ -1,24 +1,50 @@
+import {Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
-export function InlineEditorToolbar({
-    placement = "bottom",
-    isSaving,
-    withModEnterSaveKeyboardShortcut,
-    saveErrorTitle,
-    onSave,
-    onCancel,
-}: {
-    placement?: "top" | "bottom";
-    isSaving: boolean;
-    withModEnterSaveKeyboardShortcut?: boolean;
-    saveErrorTitle?: string;
-    onSave: () => MaybePromise<void>;
-    onCancel: () => void;
-}) {
+export type InlineEditorToolbarRef = {
+    save(): void;
+};
+
+const InlineEditorToolbarForwardRef = forwardRef(InlineEditorToolbar);
+export {InlineEditorToolbarForwardRef as InlineEditorToolbar};
+
+function InlineEditorToolbar(
+    {
+        placement = "bottom",
+        isSaving: isSavingFromProps = false,
+        withModEnterSaveKeyboardShortcut,
+        saveErrorTitle,
+        onSave,
+        onCancel,
+    }: {
+        placement?: "top" | "bottom";
+        isSaving?: boolean;
+        withModEnterSaveKeyboardShortcut?: boolean;
+        saveErrorTitle?: string;
+        onSave: () => MaybePromise<void>;
+        onCancel: () => void;
+    },
+    ref: Ref<InlineEditorToolbarRef>,
+) {
     const {isAppleDevice} = useClientInfo();
+
+    const saveButtonRef = useRef<HTMLButtonElement & {press(): void}>(null);
+
+    const [isSavingFromState, setIsSaving] = useState(false);
+
+    const isSaving = isSavingFromProps || isSavingFromState;
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            save: () => assertExists(saveButtonRef.current).press(),
+        }),
+        [],
+    );
 
     return (
         <Box
@@ -51,6 +77,7 @@ export function InlineEditorToolbar({
                 Cancel
             </Button>
             <Button
+                ref={saveButtonRef}
                 variant="neutral"
                 isFocusable={false}
                 withoutMinWidth={true}
@@ -67,7 +94,14 @@ export function InlineEditorToolbar({
                 keyboardShortcutHintTooltipOffset="2.5"
                 isPending={isSaving}
                 pressErrorTitle={saveErrorTitle}
-                onPress={onSave}
+                onPress={() => {
+                    const result = onSave();
+
+                    if (result instanceof Promise) {
+                        setIsSaving(true);
+                        return result.finally(() => setIsSaving(false));
+                    }
+                }}
             >
                 Save
             </Button>
