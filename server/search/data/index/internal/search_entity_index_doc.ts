@@ -445,17 +445,24 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
 
                                 spaceType: languageModelClass.opensearchSpaceType,
 
-                                // If we're in a development environment on MacOS we must use the Lucene engine
-                                // for `knn` fields since the Lucene engine is written in cross-platform Java
-                                // code. Faiss is a native library which is only available for Linux in the
-                                // OpenSearch distribution we run in development environments.
+                                // If we're in a development environment on MacOS (or x86_64 Linux) we must use
+                                // the Lucene engine for `knn` fields since the Lucene engine is written in
+                                // cross-platform Java code. Faiss is a native library which is only available
+                                // for arm64 Linux in the OpenSearch distribution we run in development
+                                // environments.
                                 //
                                 // We must use Faiss in production since it's the only engine that's supported
                                 // by [OpenSearch serverless][1].
                                 //
+                                // NOTE(calebmer, 2025-05-13): After migrating off of OpenSearch serverless
+                                // we're not forced to use Faiss in production anymore. But if OpenSearch
+                                // serverless requires Faiss then that probably means it has the best
+                                // performance? So we'll stick with it.
+                                //
                                 // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-vector-search.html
                                 ...(process.env.NODE_ENV !== "production" &&
-                                process.platform === "darwin"
+                                process.platform !== "linux" &&
+                                process.arch !== "arm64"
                                     ? {
                                           engine: "lucene",
                                           parameters: {ef_construction: 100, m: 16},
