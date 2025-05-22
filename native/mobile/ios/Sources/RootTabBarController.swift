@@ -163,7 +163,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         ]
 
         selectedViewController =
-            viewControllers?.first(where: { ($0 as! RootTabController).tab == initialTab })
+            viewControllers?.first(where: { ($0 as! RootTabController).webTab == initialTab })
             ?? homeTabController
         selectedViewController!.addChild(webNavigationController)
         selectedViewController!.view.addSubview(webNavigationController.view)
@@ -232,7 +232,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         tabViewController.addChild(webNavigationController)
         tabViewController.view.addSubview(webNavigationController.view)
 
-        webNavigationController.switchTab(tabViewController.tab)
+        webNavigationController.switchTab(tabViewController.webTab)
     }
 
     func webNavigationController(signOut webNavigationController: WebNavigationController) {
@@ -838,7 +838,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         isInboxSubtleNotificationBadgeView = false
 
         let inboxTabIndex =
-            (viewControllers?.firstIndex(where: { ($0 as? RootTabController)?.tab == .inbox }))!
+            (viewControllers?.firstIndex(where: { ($0 as? RootTabController)?.webTab == .inbox }))!
 
         let tabBarItemWidth = tabBar.frame.width / CGFloat(tabBar.items!.count)
 
@@ -891,7 +891,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         isInboxSubtleNotificationBadgeView = false
 
         let inboxTabIndex =
-            (viewControllers?.firstIndex(where: { ($0 as? RootTabController)?.tab == .inbox }))!
+            (viewControllers?.firstIndex(where: { ($0 as? RootTabController)?.webTab == .inbox }))!
 
         let tabBarItemWidth = tabBar.frame.width / CGFloat(tabBar.items!.count)
 
@@ -910,7 +910,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         badgeView.layer.fillColor =
             UIColor(
-                named: (selectedViewController as! RootTabController).tab == .inbox
+                named: (selectedViewController as! RootTabController).webTab == .inbox
                     ? "grey-100" : "grey-30"
             )!
             .cgColor
@@ -934,11 +934,11 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 }
 
 class RootTabController: UIViewController {
-    let tab: WebNavigationController.Tab
+    let webTab: WebNavigationController.Tab
     let image: UIImage
 
     init(tab: WebNavigationController.Tab, title: String, image: UIImage) {
-        self.tab = tab
+        self.webTab = tab
         self.image = image
 
         super.init(nibName: nil, bundle: nil)
