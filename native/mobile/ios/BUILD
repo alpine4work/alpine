@@ -189,7 +189,7 @@ config_setting(
 
 apple_bundle_version(
     name = "app_version",
-    build_version = "1.0.5",
+    build_version = "1.0.6",
     short_version_string = "1.0",
 )
 
