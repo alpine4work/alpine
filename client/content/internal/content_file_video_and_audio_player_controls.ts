@@ -1,5 +1,6 @@
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {Reporter} from "~/client/design/reporter.js";
+import {tooltipDelayMs} from "~/client/design/tooltip.js";
 import {
     addResizeListenerForElement,
     addSuppressResizeLoopErrorNotificationForElement,
@@ -9,18 +10,28 @@ import {
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {pauseIconSvg} from "~/client/icons/pause_icon_svg.js";
 import {playIconSvg} from "~/client/icons/play_icon_svg.js";
+import {speakerSimpleHighIconSvg} from "~/client/icons/speaker_simple_high_icon_svg.js";
+import {speakerSimpleLowIconSvg} from "~/client/icons/speaker_simple_low_icon_svg.js";
+import {speakerSimpleNoneIconSvg} from "~/client/icons/speaker_simple_none_icon_svg.js";
+import {speakerSimpleSlashIconSvg} from "~/client/icons/speaker_simple_slash_icon_svg.js";
 import {contentFileVideoAndAudioPlayerControlsStyles, sprinkles} from "~/client/styles/styles.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 
+type PlayerControlsStylesString = keyof typeof contentFileVideoAndAudioPlayerControlsStyles;
+
 export function renderContentFileVideoAndAudioPlayerControls({
     durationMs,
     isInitialAppRender,
+    platform,
 }: {
     durationMs: number;
     isInitialAppRender: boolean;
+    platform: Platform;
 }) {
     const durationString = formatContentFileVideoAndAudioPlayerDurationString(
         durationMs,
@@ -97,7 +108,7 @@ export function renderContentFileVideoAndAudioPlayerControls({
             scrubberContainerHtml.appendChild(scrubberHtml);
             scrubberHtml.setAttribute(
                 "class",
-                contentFileVideoAndAudioPlayerControlsStyles.scrubberClassName,
+                contentFileVideoAndAudioPlayerControlsStyles.durationScrubberClassName,
             );
 
             {
@@ -105,7 +116,7 @@ export function renderContentFileVideoAndAudioPlayerControls({
                 scrubberHtml.appendChild(scrubberThumbIndicatorHtml);
                 scrubberThumbIndicatorHtml.setAttribute(
                     "class",
-                    contentFileVideoAndAudioPlayerControlsStyles.scrubberThumbIndicatorClassName,
+                    contentFileVideoAndAudioPlayerControlsStyles.durationScrubberThumbIndicatorClassName,
                 );
             }
 
@@ -114,7 +125,7 @@ export function renderContentFileVideoAndAudioPlayerControls({
                 scrubberHtml.appendChild(scrubberThumbTargetHtml);
                 scrubberThumbTargetHtml.setAttribute(
                     "class",
-                    contentFileVideoAndAudioPlayerControlsStyles.scrubberThumbTargetClassName,
+                    contentFileVideoAndAudioPlayerControlsStyles.durationScrubberThumbTargetClassName,
                 );
             }
 
@@ -134,7 +145,7 @@ export function renderContentFileVideoAndAudioPlayerControls({
                         scrubberTrackHtml.appendChild(scrubberTrackProgressHtml);
                         scrubberTrackProgressHtml.setAttribute(
                             "class",
-                            contentFileVideoAndAudioPlayerControlsStyles.scrubberTrackProgressClassName,
+                            contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackProgressClassName,
                         );
                     }
 
@@ -143,8 +154,93 @@ export function renderContentFileVideoAndAudioPlayerControls({
                         scrubberTrackHtml.appendChild(scrubberTrackBufferedHtml);
                         scrubberTrackBufferedHtml.setAttribute(
                             "class",
-                            contentFileVideoAndAudioPlayerControlsStyles.scrubberTrackBufferedClassName,
+                            contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackBufferedClassName,
                         );
+                    }
+                }
+            }
+        }
+    }
+
+    // Only render the volume controls on desktop.
+    // In mobile environments, we'll trust the device's native controls.
+    if (platform === "desktop") {
+        const volumeButtonContainerHtml = new HtmlElementGenerator("div");
+        controlsHtml.appendChild(volumeButtonContainerHtml);
+
+        {
+            const volumeButtonHtml = new HtmlElementGenerator("div");
+            volumeButtonContainerHtml.appendChild(volumeButtonHtml);
+            volumeButtonHtml.setAttribute(
+                "class",
+                contentFileVideoAndAudioPlayerControlsStyles.volumeButtonClassName,
+            );
+
+            const icons = [
+                speakerSimpleSlashIconSvg,
+                speakerSimpleNoneIconSvg,
+                speakerSimpleLowIconSvg,
+                speakerSimpleHighIconSvg,
+            ];
+
+            icons.forEach(icon => {
+                volumeButtonHtml.appendChild(createSvgHtmlGenerator(icon({})));
+            });
+        }
+
+        {
+            const volumeSelectorHtml = new HtmlElementGenerator("div");
+            volumeButtonContainerHtml.appendChild(volumeSelectorHtml);
+            volumeSelectorHtml.setAttribute(
+                "class",
+                contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorClassName,
+            );
+
+            {
+                const volumeScrubberHtml = new HtmlElementGenerator("div");
+                volumeSelectorHtml.appendChild(volumeScrubberHtml);
+                volumeScrubberHtml.setAttribute(
+                    "class",
+                    contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberClassName,
+                );
+
+                {
+                    const volumeScrubberThumbIndicatorHtml = new HtmlElementGenerator("div");
+                    volumeScrubberHtml.appendChild(volumeScrubberThumbIndicatorHtml);
+                    volumeScrubberThumbIndicatorHtml.setAttribute(
+                        "class",
+                        contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberThumbIndicatorClassName,
+                    );
+                }
+
+                {
+                    const volumeScrubberThumbTargetHtml = new HtmlElementGenerator("div");
+                    volumeScrubberHtml.appendChild(volumeScrubberThumbTargetHtml);
+                    volumeScrubberThumbTargetHtml.setAttribute(
+                        "class",
+                        contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberThumbTargetClassName,
+                    );
+                }
+
+                {
+                    const volumeScrubberTrackHtml = new HtmlElementGenerator("div");
+                    volumeScrubberHtml.appendChild(volumeScrubberTrackHtml);
+                    volumeScrubberTrackHtml.setAttribute(
+                        "class",
+                        contentFileVideoAndAudioPlayerControlsStyles.volumeTrackClassName,
+                    );
+
+                    // Don't render our tracks on the initial render since we won't be able to
+                    // scale them until React mounts.
+                    if (!isInitialAppRender) {
+                        {
+                            const volumeScrubberTrackProgressHtml = new HtmlElementGenerator("div");
+                            volumeScrubberTrackHtml.appendChild(volumeScrubberTrackProgressHtml);
+                            volumeScrubberTrackProgressHtml.setAttribute(
+                                "class",
+                                contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberTrackProgressClassName,
+                            );
+                        }
                     }
                 }
             }
@@ -236,36 +332,36 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         )[0],
     ) as HTMLDivElement;
 
-    const scrubberElement = assertExists(
+    const durationScrubberElement = assertExists(
         containerElement.getElementsByClassName(
-            contentFileVideoAndAudioPlayerControlsStyles.scrubberClassName,
+            contentFileVideoAndAudioPlayerControlsStyles.durationScrubberClassName,
         )[0],
     ) as HTMLDivElement;
 
-    const scrubberThumbIndicatorElement = assertExists(
-        containerElement.getElementsByClassName(
-            contentFileVideoAndAudioPlayerControlsStyles.scrubberThumbIndicatorClassName,
+    const durationScrubberThumbIndicatorElement = assertExists(
+        durationScrubberElement.getElementsByClassName(
+            contentFileVideoAndAudioPlayerControlsStyles.durationScrubberThumbIndicatorClassName,
         )[0],
     ) as HTMLDivElement;
 
-    const scrubberThumbTargetElement = assertExists(
-        containerElement.getElementsByClassName(
-            contentFileVideoAndAudioPlayerControlsStyles.scrubberThumbTargetClassName,
+    const durationScrubberThumbTargetElement = assertExists(
+        durationScrubberElement.getElementsByClassName(
+            contentFileVideoAndAudioPlayerControlsStyles.durationScrubberThumbTargetClassName,
         )[0],
     ) as HTMLDivElement;
 
-    const scrubberTrackProgressElement = !isInitialAppRender
+    const durationScrubberTrackProgressElement = !isInitialAppRender
         ? (assertExists(
-              containerElement.getElementsByClassName(
-                  contentFileVideoAndAudioPlayerControlsStyles.scrubberTrackProgressClassName,
+              durationScrubberElement.getElementsByClassName(
+                  contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackProgressClassName,
               )[0],
           ) as HTMLDivElement)
         : null;
 
-    const scrubberTrackBufferedElement = !isInitialAppRender
+    const durationScrubberTrackBufferedElement = !isInitialAppRender
         ? (assertExists(
-              containerElement.getElementsByClassName(
-                  contentFileVideoAndAudioPlayerControlsStyles.scrubberTrackBufferedClassName,
+              durationScrubberElement.getElementsByClassName(
+                  contentFileVideoAndAudioPlayerControlsStyles.durationScrubberTrackBufferedClassName,
               )[0],
           ) as HTMLDivElement)
         : null;
@@ -275,6 +371,31 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             contentFileVideoAndAudioPlayerControlsStyles.playbackRateButtonClassName,
         )[0],
     ) as HTMLDivElement;
+
+    // Volume render is conditional - see the creation of these elements above
+    const volumeButtonElement = containerElement.getElementsByClassName(
+        contentFileVideoAndAudioPlayerControlsStyles.volumeButtonClassName,
+    )[0] as HTMLDivElement | null;
+    const volumeSelectorElement = containerElement.getElementsByClassName(
+        contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorClassName,
+    )[0] as HTMLDivElement | null;
+    const volumeScrubberElement = containerElement.getElementsByClassName(
+        contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberClassName,
+    )[0] as HTMLDivElement | null;
+
+    const volumeScrubberThumbIndicatorElement = volumeScrubberElement?.getElementsByClassName(
+        contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberThumbIndicatorClassName,
+    )[0] as HTMLDivElement | null;
+
+    const volumeScrubberThumbTargetElement = volumeScrubberElement?.getElementsByClassName(
+        contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberThumbTargetClassName,
+    )[0] as HTMLDivElement | null;
+
+    const volumeScrubberTrackProgressElement = !isInitialAppRender
+        ? (volumeScrubberElement?.getElementsByClassName(
+              contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberTrackProgressClassName,
+          )[0] as HTMLDivElement | null)
+        : null;
 
     const cleanupFunctions: Array<() => void> = [];
 
@@ -349,12 +470,12 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         if (progress < 0) progress = 0;
         if (progress > 1) progress = 1;
 
-        const transform = `translateX(${progress * scrubberElement.clientWidth}px)`;
-        scrubberThumbIndicatorElement.style.transform = transform;
-        scrubberThumbTargetElement.style.transform = transform;
+        const transform = `translateX(${progress * durationScrubberElement.clientWidth}px)`;
+        durationScrubberThumbIndicatorElement.style.transform = transform;
+        durationScrubberThumbTargetElement.style.transform = transform;
 
-        if (scrubberTrackProgressElement !== null)
-            scrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
+        if (durationScrubberTrackProgressElement !== null)
+            durationScrubberTrackProgressElement.style.transform = `scaleX(${progress})`;
 
         {
             const progressTime = (durationMs * progress) / 1000;
@@ -386,8 +507,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                     ) {
                         hasBufferedTimeRange = true;
                         const bufferedProgress = (bufferedTimeRangeEndTime * 1000) / durationMs;
-                        if (scrubberTrackBufferedElement !== null)
-                            scrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
+                        if (durationScrubberTrackBufferedElement !== null)
+                            durationScrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
                         break;
                     }
                 }
@@ -395,8 +516,8 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
 
             if (!hasBufferedTimeRange) {
                 const bufferedProgress = 0;
-                if (scrubberTrackBufferedElement !== null)
-                    scrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
+                if (durationScrubberTrackBufferedElement !== null)
+                    durationScrubberTrackBufferedElement.style.transform = `scaleX(${bufferedProgress})`;
             }
         }
     };
@@ -458,7 +579,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
                 //
                 // If we're dragging then we position the scrubber based on the user's current
                 // drag position. Not based on the video's actual time.
-                if (scrubberThumbDragState === null && scrubberElement.clientWidth > 0) {
+                if (scrubberThumbDragState === null && durationScrubberElement.clientWidth > 0) {
                     const currentSessionTime = performance.now();
 
                     const actualVideoTime = (mediaElement?.currentTime ?? 0) * 1000;
@@ -591,13 +712,16 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
     if (mediaElement !== null) {
         const handleScrubberPointerDown = (event: PointerEvent) => {
             // Ignore presses on our scrubber thumb. That'll initiate a drag.
-            if (event.target instanceof Node && scrubberThumbTargetElement.contains(event.target)) {
+            if (
+                event.target instanceof Node &&
+                durationScrubberThumbTargetElement.contains(event.target)
+            ) {
                 return;
             }
 
             event.preventDefault();
 
-            const scrubberRect = scrubberElement.getBoundingClientRect();
+            const scrubberRect = durationScrubberElement.getBoundingClientRect();
 
             const progress = clamp(0, (event.clientX - scrubberRect.left) / scrubberRect.width, 1);
 
@@ -616,10 +740,10 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             onSeek?.();
         };
 
-        scrubberElement.addEventListener("pointerdown", handleScrubberPointerDown);
+        durationScrubberElement.addEventListener("pointerdown", handleScrubberPointerDown);
 
         cleanupFunctions.push(() => {
-            scrubberElement.removeEventListener("pointerdown", handleScrubberPointerDown);
+            durationScrubberElement.removeEventListener("pointerdown", handleScrubberPointerDown);
         });
     }
 
@@ -672,7 +796,7 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         const handleDocumentPointerMove = (event: PointerEvent) => {
             if (!scrubberThumbDragState) return;
 
-            const scrubberRect = scrubberElement.getBoundingClientRect();
+            const scrubberRect = durationScrubberElement.getBoundingClientRect();
 
             const progress = clamp(0, (event.clientX - scrubberRect.left) / scrubberRect.width, 1);
 
@@ -686,14 +810,17 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
             onSeek?.();
         };
 
-        scrubberThumbTargetElement.addEventListener("pointerdown", startScrubberThumbDrag);
+        durationScrubberThumbTargetElement.addEventListener("pointerdown", startScrubberThumbDrag);
 
         cleanupFunctions.push(() => {
             // We don't preserve our drag state in the DOM. It's ok to cancel our drag when
             // the behavior function re-runs.
             cancelScrubberThumbDrag();
 
-            scrubberThumbTargetElement.removeEventListener("pointerdown", startScrubberThumbDrag);
+            durationScrubberThumbTargetElement.removeEventListener(
+                "pointerdown",
+                startScrubberThumbDrag,
+            );
         });
     }
 
@@ -744,16 +871,388 @@ export function addContentFileVideoAndAudioPlayerControlsBehavior({
         if (mediaElement !== null) {
             mediaElement.addEventListener("timeupdate", handleTimeUpdate);
             mediaElement.addEventListener("progress", handleProgress);
-            addSuppressResizeLoopErrorNotificationForElement(scrubberElement);
-            addResizeListenerForElement(scrubberElement, handleScrubberResize);
+            addSuppressResizeLoopErrorNotificationForElement(durationScrubberElement);
+            addResizeListenerForElement(durationScrubberElement, handleScrubberResize);
 
             cleanupFunctions.push(() => {
                 mediaElement.removeEventListener("timeupdate", handleTimeUpdate);
                 mediaElement.removeEventListener("progress", handleProgress);
-                removeResizeListenerForElement(scrubberElement, handleScrubberResize);
-                removeSuppressResizeLoopErrorNotificationForElement(scrubberElement);
+                removeResizeListenerForElement(durationScrubberElement, handleScrubberResize);
+                removeSuppressResizeLoopErrorNotificationForElement(durationScrubberElement);
             });
         }
+    }
+
+    if (
+        volumeButtonElement !== null &&
+        volumeScrubberElement !== null &&
+        volumeScrubberThumbIndicatorElement !== null &&
+        volumeScrubberThumbTargetElement !== null &&
+        volumeScrubberTrackProgressElement !== null
+    ) {
+        /* ========================================================================== *\
+        *                                 Volume                                    *
+        \* ========================================================================== */
+
+        const updateVolumeScrubberProgress = (progress: number) => {
+            if (progress < 0) progress = 0;
+            if (progress > 1) progress = 1;
+
+            // Invert the progress since we're using bottom-up.
+            progress = 1 - progress;
+
+            const transform = `translateY(${progress * volumeScrubberElement.clientHeight}px)`;
+            volumeScrubberThumbIndicatorElement.style.transform = transform;
+            volumeScrubberThumbTargetElement.style.transform = transform;
+
+            if (volumeScrubberTrackProgressElement !== null) {
+                volumeScrubberTrackProgressElement.style.transform = `scaleY(${1 - progress})`;
+            }
+        };
+
+        const volumeLocalStorageKey = "cyberworlds/media/volume";
+        const previousVolumeLocalStorageKey = "cyberworlds/media/volume-previous";
+        const getLocalStorageVolume = (type: "current" | "previous" = "current") => {
+            const volume = localStorage.getItem(
+                type === "current" ? volumeLocalStorageKey : previousVolumeLocalStorageKey,
+            );
+            if (volume === null) {
+                return 1;
+            }
+
+            const parsedVolume = parseFloat(volume);
+            if (isNaN(parsedVolume)) {
+                return 1;
+            }
+
+            return clamp(0, parsedVolume, 1);
+        };
+
+        const setLocalStorageVolume = (volume: number) => {
+            const previousVolume = getLocalStorageVolume();
+            localStorage.setItem(volumeLocalStorageKey, String(volume));
+
+            // If the volume is 0 then we don't want to store it as the previous volume.
+            if (previousVolume > 0) {
+                localStorage.setItem(previousVolumeLocalStorageKey, String(previousVolume));
+            }
+        };
+
+        {
+            const volumeClassNameOrder: [
+                PlayerControlsStylesString,
+                PlayerControlsStylesString,
+                PlayerControlsStylesString,
+                PlayerControlsStylesString,
+            ] = [
+                "volumeMutedClassName",
+                "volumeLowClassName",
+                "volumeMediumClassName",
+                "volumeHighClassName",
+            ];
+
+            const getIconClassName = (volume: number): PlayerControlsStylesString => {
+                if (volume === 0) {
+                    return volumeClassNameOrder[0];
+                } else if (volume < 0.33) {
+                    return volumeClassNameOrder[1];
+                } else if (volume < 0.66) {
+                    return volumeClassNameOrder[2];
+                } else {
+                    return volumeClassNameOrder[3];
+                }
+            };
+
+            const switchVolumeIcon = (className: PlayerControlsStylesString) => {
+                // if we already have the class name then don't do anything
+                if (
+                    containerElement.classList.contains(
+                        contentFileVideoAndAudioPlayerControlsStyles[className],
+                    )
+                ) {
+                    return;
+                }
+
+                // Add the new class name
+                containerElement.classList.add(
+                    contentFileVideoAndAudioPlayerControlsStyles[className],
+                );
+
+                // Remove all other volume class names
+                for (const otherClassName of volumeClassNameOrder.filter(
+                    otherClassName => otherClassName !== className,
+                )) {
+                    containerElement.classList.remove(
+                        contentFileVideoAndAudioPlayerControlsStyles[otherClassName],
+                    );
+                }
+            };
+
+            const handleVolumeChange = () => {
+                if (mediaElement === null) return;
+                switchVolumeIcon(getIconClassName(mediaElement.volume));
+                updateVolumeScrubberProgress(mediaElement.volume);
+                setLocalStorageVolume(mediaElement.volume);
+            };
+
+            if (mediaElement !== null) {
+                const previousVolume = getLocalStorageVolume();
+                mediaElement.addEventListener("volumechange", handleVolumeChange);
+                mediaElement.volume = previousVolume;
+
+                // Call the first time to make sure the icon is set correctly.
+                handleVolumeChange();
+
+                cleanupFunctions.push(() => {
+                    mediaElement.removeEventListener("volumechange", handleVolumeChange);
+                });
+            }
+        }
+
+        /* ========================================================================== *\
+         *                       Volume scrubber drag events                          *
+        \* ========================================================================== */
+
+        // Note: this is largely duplicated from the timing scrubber drag events above. We
+        // should probably refactor this into a shared function the next time we need to use it.
+
+        if (mediaElement !== null) {
+            const handleVolumeScrubberPointerDown = (event: PointerEvent) => {
+                // Ignore presses on our volumeScrubber thumb. That'll initiate a drag.
+                if (
+                    event.target instanceof Node &&
+                    volumeScrubberThumbTargetElement.contains(event.target)
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const volumeScrubberRect = volumeScrubberElement.getBoundingClientRect();
+
+                const progress = clamp(
+                    0,
+                    1 - (event.clientY - volumeScrubberRect.top) / volumeScrubberRect.height,
+                    1,
+                );
+
+                mediaElement.volume = progress;
+            };
+
+            volumeScrubberElement.addEventListener("pointerdown", handleVolumeScrubberPointerDown);
+
+            cleanupFunctions.push(() => {
+                volumeScrubberElement.removeEventListener(
+                    "pointerdown",
+                    handleVolumeScrubberPointerDown,
+                );
+            });
+        }
+
+        let volumeScrubberThumbDragState: {
+            coverElement: HTMLDivElement;
+        } | null = null;
+
+        if (mediaElement !== null) {
+            const startVolumeScrubberThumbDrag = (event: PointerEvent) => {
+                event.preventDefault();
+
+                const dragCoverElement = document.createElement("div");
+
+                dragCoverElement.className = sprinkles({
+                    position: "absolute",
+                    inset: "0",
+                    zIndex: "70",
+                    cursor: "grabbing",
+                });
+
+                volumeScrubberThumbDragState = {
+                    coverElement: dragCoverElement,
+                };
+                maybeUpdateVolumeSelector();
+
+                containerElement.classList.add(
+                    contentFileVideoAndAudioPlayerControlsStyles.draggingVolumeScrubberThumbClassName,
+                );
+                document.body.appendChild(dragCoverElement);
+                document.addEventListener("pointerup", handleVolumeDocumentPointerUp);
+                document.addEventListener("pointermove", handleVolumeDocumentPointerMove);
+            };
+
+            const cancelVolumeScrubberThumbDrag = () => {
+                if (!volumeScrubberThumbDragState) return;
+
+                containerElement.classList.remove(
+                    contentFileVideoAndAudioPlayerControlsStyles.draggingVolumeScrubberThumbClassName,
+                );
+                document.body.removeChild(volumeScrubberThumbDragState.coverElement);
+                document.removeEventListener("pointerup", handleVolumeDocumentPointerUp);
+                document.removeEventListener("pointermove", handleVolumeDocumentPointerMove);
+
+                volumeScrubberThumbDragState = null;
+                maybeUpdateVolumeSelector();
+            };
+
+            const handleVolumeDocumentPointerUp = () => {
+                cancelVolumeScrubberThumbDrag();
+            };
+
+            const handleVolumeSelectorHover = () => {
+                // Since the element has no width on render, we can't calculate the width,
+                // and therefore the progress, of the scrubber. So we need to set the volume
+                // to the current volume on when we hover.
+                updateVolumeScrubberProgress(mediaElement.volume);
+            };
+
+            const handleVolumeDocumentPointerMove = (event: PointerEvent) => {
+                if (!volumeScrubberThumbDragState) return;
+
+                const volumeScrubberRect = volumeScrubberElement.getBoundingClientRect();
+
+                const progress = clamp(
+                    0,
+                    1 - (event.clientY - volumeScrubberRect.top) / volumeScrubberRect.height,
+                    1,
+                );
+
+                mediaElement.volume = progress;
+            };
+
+            volumeButtonElement.addEventListener("mouseenter", handleVolumeSelectorHover);
+            volumeScrubberThumbTargetElement.addEventListener(
+                "pointerdown",
+                startVolumeScrubberThumbDrag,
+            );
+
+            cleanupFunctions.push(() => {
+                volumeButtonElement.removeEventListener("mouseenter", handleVolumeSelectorHover);
+                volumeScrubberThumbTargetElement.removeEventListener(
+                    "pointerdown",
+                    startVolumeScrubberThumbDrag,
+                );
+            });
+        }
+
+        let isVolumeButtonHovered = false;
+        let isVolumeSelectorHovered = false;
+        let volumeSelectorShowTimeout: Timeout | null = null;
+        let volumeSelectorHideTimeout: Timeout | null = null;
+
+        cleanupFunctions.push(
+            addUnfocusableButtonBehaviorToElement(volumeButtonElement, {
+                defaultClassName: sprinkles({
+                    color: "grey-90",
+                }),
+                hoverClassName: sprinkles({
+                    color: "grey-90",
+                    backgroundColor: "grey-5",
+                }),
+                pressClassName: sprinkles({
+                    color: "grey-100",
+                    backgroundColor: "grey-10",
+                }),
+                onPress: () => {
+                    if (mediaElement === null) return;
+
+                    if (mediaElement.volume === 0) {
+                        mediaElement.volume = getLocalStorageVolume("previous");
+                    } else {
+                        mediaElement.volume = 0;
+                    }
+                },
+                onHoverStart: () => {
+                    isVolumeButtonHovered = true;
+                    maybeUpdateVolumeSelector();
+                },
+                onHoverEnd: () => {
+                    isVolumeButtonHovered = false;
+                    maybeUpdateVolumeSelector();
+                },
+            }),
+        );
+
+        const handleVolumeSelectorPointerEnter = () => {
+            isVolumeSelectorHovered = true;
+            maybeUpdateVolumeSelector();
+        };
+
+        const handleVolumeSelectorPointerLeave = () => {
+            isVolumeSelectorHovered = false;
+            maybeUpdateVolumeSelector();
+        };
+
+        const maybeUpdateVolumeSelector = () => {
+            if (!volumeSelectorElement) return;
+
+            const isVisible = volumeSelectorElement.classList.contains(
+                contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorVisibleClassName,
+            );
+
+            const shouldBeVisible: boolean =
+                isVolumeButtonHovered || isVolumeSelectorHovered || !!volumeScrubberThumbDragState;
+
+            if (shouldBeVisible) {
+                volumeSelectorHideTimeout?.clear();
+                volumeSelectorHideTimeout = null;
+
+                if (!isVisible && !volumeSelectorShowTimeout) {
+                    volumeSelectorShowTimeout = createTimeout(() => {
+                        volumeSelectorShowTimeout = null;
+                        volumeSelectorElement.classList.add(
+                            contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorVisibleClassName,
+                        );
+                    }, tooltipDelayMs);
+                }
+            } else {
+                volumeSelectorShowTimeout?.clear();
+                volumeSelectorShowTimeout = null;
+
+                if (isVisible && !volumeSelectorHideTimeout) {
+                    volumeSelectorHideTimeout = createTimeout(() => {
+                        volumeSelectorHideTimeout = null;
+                        volumeSelectorElement.classList.remove(
+                            contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorVisibleClassName,
+                        );
+                        volumeSelectorElement.classList.add(
+                            contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorWasVisibleClassName,
+                        );
+                    }, tooltipDelayMs);
+                }
+            }
+        };
+
+        volumeSelectorElement?.addEventListener("pointerenter", handleVolumeSelectorPointerEnter);
+        volumeSelectorElement?.addEventListener("pointerleave", handleVolumeSelectorPointerLeave);
+
+        cleanupFunctions.push(() => {
+            volumeSelectorElement?.removeEventListener(
+                "pointerenter",
+                handleVolumeSelectorPointerEnter,
+            );
+            volumeSelectorElement?.removeEventListener(
+                "pointerleave",
+                handleVolumeSelectorPointerLeave,
+            );
+
+            if (volumeSelectorShowTimeout) {
+                volumeSelectorShowTimeout.clear();
+                volumeSelectorShowTimeout = null;
+                volumeSelectorElement?.classList.add(
+                    contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorVisibleClassName,
+                );
+            }
+
+            if (volumeSelectorHideTimeout) {
+                volumeSelectorHideTimeout.clear();
+                volumeSelectorHideTimeout = null;
+                volumeSelectorElement?.classList.remove(
+                    contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorVisibleClassName,
+                );
+                volumeSelectorElement?.classList.add(
+                    contentFileVideoAndAudioPlayerControlsStyles.volumeSelectorWasVisibleClassName,
+                );
+            }
+        });
     }
 
     /* ========================================================================== *\

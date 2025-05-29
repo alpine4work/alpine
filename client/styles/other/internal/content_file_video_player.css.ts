@@ -9,6 +9,7 @@ import {
 import {
     controlsClassName,
     draggingScrubberThumbClassName,
+    draggingVolumeScrubberThumbClassName,
     hasPlayedClassName,
     playingClassName,
     waitingClassName,
@@ -255,11 +256,11 @@ export const controlsContainerClassName = style({
         [`${containerClassName}:not(${hasPlayedClassName}) &`]: {
             display: "none",
         },
-        [`${containerClassName}${playingClassName}:not(${hoveredClassName}):not(${draggingScrubberThumbClassName}) &`]:
+        [`${containerClassName}${playingClassName}:not(${hoveredClassName}):not(${draggingScrubberThumbClassName}):not(${draggingVolumeScrubberThumbClassName}) &`]:
             {
                 animation: `${controlsContainerHideKeyframes} 250ms 1000ms ease-out forwards`,
             },
-        [`${containerClassName}${playingClassName}${stillPointerClassName}:not(${draggingScrubberThumbClassName}) &`]:
+        [`${containerClassName}${playingClassName}${stillPointerClassName}:not(${draggingScrubberThumbClassName}):not(${draggingVolumeScrubberThumbClassName}) &`]:
             {
                 animation: `${controlsContainerHideKeyframes} 250ms ease-out forwards`,
             },

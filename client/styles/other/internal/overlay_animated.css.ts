@@ -8,44 +8,46 @@ import {spacing} from "~/shared/design/core/spacing.js";
 // This is opposed to the fade-out animation moving away from the component
 // making it feel like the overlay is coming out of the target.
 
-const overlayFadeInTopKeyframes = keyframes({
-    from: {opacity: 0, transform: `translateY(-${spacing["1"]})`},
+export const overlayFadeInOutTranslate = "1";
+
+export const overlayFadeInTopKeyframes = keyframes({
+    from: {opacity: 0, transform: `translateY(-${spacing[overlayFadeInOutTranslate]})`},
     to: {opacity: 1, transform: "translateY(0)"},
 });
 
-const overlayFadeOutTopKeyframes = keyframes({
+export const overlayFadeOutTopKeyframes = keyframes({
     from: {opacity: 1, transform: "translateY(0)"},
-    to: {opacity: 0, transform: `translateY(-${spacing["1"]})`},
+    to: {opacity: 0, transform: `translateY(-${spacing[overlayFadeInOutTranslate]})`},
 });
 
-const overlayFadeInBottomKeyframes = keyframes({
-    from: {opacity: 0, transform: `translateY(${spacing["1"]})`},
+export const overlayFadeInBottomKeyframes = keyframes({
+    from: {opacity: 0, transform: `translateY(${spacing[overlayFadeInOutTranslate]})`},
     to: {opacity: 1, transform: "translateY(0)"},
 });
 
-const overlayFadeOutBottomKeyframes = keyframes({
+export const overlayFadeOutBottomKeyframes = keyframes({
     from: {opacity: 1, transform: "translateY(0)"},
-    to: {opacity: 0, transform: `translateY(${spacing["1"]})`},
+    to: {opacity: 0, transform: `translateY(${spacing[overlayFadeInOutTranslate]})`},
 });
 
-const overlayFadeInLeftKeyframes = keyframes({
-    from: {opacity: 0, transform: `translateX(-${spacing["1"]})`},
+export const overlayFadeInLeftKeyframes = keyframes({
+    from: {opacity: 0, transform: `translateX(-${spacing[overlayFadeInOutTranslate]})`},
     to: {opacity: 1, transform: "translateX(0)"},
 });
 
-const overlayFadeOutLeftKeyframes = keyframes({
+export const overlayFadeOutLeftKeyframes = keyframes({
     from: {opacity: 1, transform: "translateX(0)"},
-    to: {opacity: 0, transform: `translateX(-${spacing["1"]})`},
+    to: {opacity: 0, transform: `translateX(-${spacing[overlayFadeInOutTranslate]})`},
 });
 
-const overlayFadeInRightKeyframes = keyframes({
-    from: {opacity: 0, transform: `translateX(${spacing["1"]})`},
+export const overlayFadeInRightKeyframes = keyframes({
+    from: {opacity: 0, transform: `translateX(${spacing[overlayFadeInOutTranslate]})`},
     to: {opacity: 1, transform: "translateX(0)"},
 });
 
-const overlayFadeOutRightKeyframes = keyframes({
+export const overlayFadeOutRightKeyframes = keyframes({
     from: {opacity: 1, transform: "translateX(0)"},
-    to: {opacity: 0, transform: `translateX(${spacing["1"]})`},
+    to: {opacity: 0, transform: `translateX(${spacing[overlayFadeInOutTranslate]})`},
 });
 
 export const overlayFadeInAnimationDurationMs = 100;
@@ -58,6 +60,7 @@ export const overlayFadeInOutTimingFunction = easeInOutQuad.cubicBezier;
 // a better abstraction.
 export const overlayAnimateContainerClassName = style({});
 
+export const overlayAnimateFadeInFromTopAnimation = `${overlayFadeInTopKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
 export const overlayAnimateFadeInFromBottomAnimation = `${overlayFadeInBottomKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
 export const overlayAnimateFadeInFromBottomSlowedAnimation = `${overlayFadeInBottomKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
 
@@ -65,7 +68,7 @@ export const overlayAnimateFadeInClassName = style({
     pointerEvents: "none",
     selectors: {
         [`${overlayAnimateContainerClassName}[data-popper-placement^=top] > &`]: {
-            animation: `${overlayFadeInTopKeyframes} ${overlayFadeInAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: overlayAnimateFadeInFromTopAnimation,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] > &`]: {
             animation: overlayAnimateFadeInFromBottomAnimation,
@@ -79,13 +82,14 @@ export const overlayAnimateFadeInClassName = style({
     },
 });
 
+export const overlayAnimateFadeOutFromTopAnimation = `${overlayFadeOutTopKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
 export const overlayAnimateFadeOutFromBottomAnimation = `${overlayFadeOutBottomKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
 
 export const overlayAnimateFadeOutClassName = style({
     pointerEvents: "none",
     selectors: {
         [`${overlayAnimateContainerClassName}[data-popper-placement^=top] > &`]: {
-            animation: `${overlayFadeOutTopKeyframes} ${overlayFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`,
+            animation: overlayAnimateFadeOutFromTopAnimation,
         },
         [`${overlayAnimateContainerClassName}[data-popper-placement^=bottom] > &`]: {
             animation: overlayAnimateFadeOutFromBottomAnimation,

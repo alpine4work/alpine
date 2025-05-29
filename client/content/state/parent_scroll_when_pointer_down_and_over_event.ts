@@ -24,6 +24,9 @@ export const parentScrollWhenPointerDownAndOverClassNames = [
     contentViewStyles.seeButtonClassName,
     contentFileVideoAndAudioPlayerControlsStyles.playButtonClassName,
     contentFileVideoAndAudioPlayerControlsStyles.playbackRateButtonClassName,
+    contentFileVideoAndAudioPlayerControlsStyles.volumeButtonClassName,
+    contentFileVideoAndAudioPlayerControlsStyles.durationScrubberClassName,
+    contentFileVideoAndAudioPlayerControlsStyles.volumeScrubberClassName,
     contentFileVideoPlayerStyles.fullscreenButtonClassName,
 ];
 

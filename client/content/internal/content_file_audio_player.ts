@@ -326,6 +326,7 @@ export function renderContentFileAudioPlayer(
         const controlsHtml = renderContentFileVideoAndAudioPlayerControls({
             durationMs: filePreview.duration,
             isInitialAppRender,
+            platform,
         });
         controlsContainerHtml.appendChild(controlsHtml);
     }
