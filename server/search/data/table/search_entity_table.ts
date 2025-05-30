@@ -1614,13 +1614,20 @@ export async function removeSearchAffinityEntityActiveTaskAssigneePoints(
                           },
                           item.updateLockVersion,
                       )
-                    : SearchEntityTable.transactionDoesNotExistConditionCheck({
-                          partitionType: "Account",
-                          sortRangeType: "SearchEntityAffinity",
-                          spaceId,
-                          accountId: assigneeId,
-                          entityId: `Task:${taskId}`,
-                      }),
+                    : SearchEntityTable.transactionDoesNotExistConditionCheck(
+                          {
+                              partitionType: "Account",
+                              sortRangeType: "SearchEntityAffinity",
+                              spaceId,
+                              accountId: assigneeId,
+                              entityId: `Task:${taskId}`,
+                          },
+                          // If the item doesn't exist, either there's some eventual consistency lag or the item
+                          // was created in parallel _after_ our `getItemIfExists()` network call but _before_ our
+                          // `executeTransaction()` network call. Retry our `context.dynamo.retryTransaction()`
+                          // loop so we can load the newly created item.
+                          {isConditionCheckErrorRetriable: true},
+                      ),
             ]);
         } else {
             const points =
