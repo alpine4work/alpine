@@ -14,6 +14,7 @@ import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
 import {MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
@@ -55,6 +56,20 @@ export const deleteTaskAndAllChildren = defineRpc({
     output: {
         actions: Schema.array(TaskActionSchema),
         referencedAccounts: Schema.array(AccountModel.schema),
+    },
+});
+
+export const duplicateTaskAndAllChildren = defineRpc({
+    name: "duplicateTaskAndAllChildren",
+    input: {
+        taskId: Schema.id<TaskId>(),
+        actionTime: HybridLogicalTimeSchema,
+        timeZone: TimeZoneSchema,
+    },
+    output: {
+        actions: Schema.array(TaskActionSchema),
+        referencedAccounts: Schema.array(AccountModel.schema),
+        taskId: Schema.id<TaskId>(),
     },
 });
 

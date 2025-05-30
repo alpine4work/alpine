@@ -489,6 +489,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     onLayoutEffectCallbacksRef,
     getAreChildTasksExpandedStore,
     toggleAreChildTasksExpanded,
+    duplicateTaskAndAllChildren,
     setTaskDeleteConfirmationState,
     onTaskDeleteConfirmationModalDialogClosedCallbacksRef,
     withoutPaddingLeft,
@@ -528,6 +529,10 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
     toggleAreChildTasksExpanded: Memo<
         (taskPath: ReadonlyArray<TaskId>, options?: {onFinish?: () => void}) => void
     >;
+    duplicateTaskAndAllChildren: (
+        taskId: TaskId,
+        {undoManager}: {undoManager: TaskClientStoreUndoManager},
+    ) => Promise<{taskId: TaskId}>;
     setTaskDeleteConfirmationState: Dispatch<
         SetStateAction<{
             undoManager: TaskClientStoreUndoManager;
@@ -1094,6 +1099,30 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
         });
     };
 
+    const duplicateTaskAndAllChildrenAndFocusNewTask = async () => {
+        if (!cursor) return;
+
+        const taskId = getTaskQuerySortCursorTaskId(cursor);
+
+        const {taskId: newTaskId} = await duplicateTaskAndAllChildren(taskId, {undoManager});
+
+        onLayoutEffectCallbacksRef.current.push(() => {
+            // This may call `flushSync()` which can't be called during React lifecycle
+            // methods. So we wrap in a microtask.
+            scheduleMicrotask(() => {
+                events.focusTaskTitleStart(newTaskId);
+
+                // Make sure the new task is visible...
+                if (
+                    document.activeElement instanceof HTMLElement &&
+                    isTextInputElement(document.activeElement)
+                ) {
+                    maintainTextInputVisibility(document.activeElement);
+                }
+            });
+        });
+    };
+
     const deleteTaskAndAllChildren = () => {
         if (!cursor) return;
 
@@ -1238,6 +1267,7 @@ export const TaskRowViewMemo = memo(function TaskRowViewMemo({
             createTaskBelowAndFocus={createTaskBelowAndFocus}
             nestWithPreviousTaskRowIfExistsAndExpand={nestWithPreviousTaskRowIfExistsAndExpand}
             unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+            duplicateTaskAndAllChildrenAndFocusNewTask={duplicateTaskAndAllChildrenAndFocusNewTask}
             deleteTaskAndAllChildren={deleteTaskAndAllChildren}
             deleteTaskAndAllChildrenAndFocusPreviousRow={
                 deleteTaskAndAllChildrenAndFocusPreviousRow

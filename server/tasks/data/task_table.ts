@@ -104,6 +104,7 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -1276,6 +1277,7 @@ export function commitTaskActionTransaction(
             actions: ReadonlyArray<TaskUpdateTaskAction>;
         };
         updateAccessPolicyShareNotification?: ShareNotification;
+        extraTransactionEntries?: Array<DynamoTransactionEntry>;
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
@@ -1541,6 +1543,7 @@ class TaskActionTransactionCommitState {
             clientId = null,
             leaseId = null,
             createLeaseIfLostAccess,
+            extraTransactionEntries,
         }: {
             clientId?: TaskRealtimeClientId | null;
             leaseId?: TaskActionTransactionLeaseId | null;
@@ -1548,6 +1551,7 @@ class TaskActionTransactionCommitState {
                 id: TaskActionTransactionLeaseId;
                 actions: ReadonlyArray<TaskUpdateTaskAction>;
             };
+            extraTransactionEntries?: Array<DynamoTransactionEntry>;
         },
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
@@ -1662,7 +1666,10 @@ class TaskActionTransactionCommitState {
                 }
             }
 
-            return state._applyCommit(actions, {clientId});
+            return state._applyCommit(actions, {
+                clientId,
+                extraTransactionEntries,
+            });
         });
     }
 
@@ -1672,7 +1679,13 @@ class TaskActionTransactionCommitState {
 
     private async _applyCommit(
         actions: ReadonlyArray<TaskAction>,
-        {clientId}: {clientId: TaskRealtimeClientId | null},
+        {
+            clientId,
+            extraTransactionEntries,
+        }: {
+            clientId: TaskRealtimeClientId | null;
+            extraTransactionEntries?: Array<DynamoTransactionEntry>;
+        },
     ) {
         let maxActionTime = actions[0]!.time;
         for (let i = 1; i < actions.length; i++) {
@@ -1787,6 +1800,10 @@ class TaskActionTransactionCommitState {
                 default:
                     throw exhaustive(transactionEntry);
             }
+        }
+
+        for (const transactionEntry of extraTransactionEntries ?? []) {
+            transactionEntries.push(transactionEntry);
         }
 
         for (const transactionEntry of this._actionTransactionLeaseTransactionEntries) {
@@ -3488,6 +3505,233 @@ export function deleteTaskAndAllChildren(
         return {
             spaceId: actionTransactionItem.spaceId,
             actions: actionTransactionItem.actions,
+        };
+    });
+}
+
+/**
+ * Duplicate the provided `TaskId` and all children of that task in a single
+ * transaction. Returns the actions we committed from this function call.
+ *
+ * On the client we may not know all the transitive children of a task. So this
+ * functionality needs to be implemented on the server.
+ */
+export function duplicateTaskAndAllChildren(
+    context: Context<TaskSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    taskId: TaskId,
+    actionTime: HybridLogicalTime,
+    timeZone: TimeZone,
+): Promise<{
+    spaceId: SpaceId;
+    actions: ReadonlyArray<TaskAction>;
+    taskId: TaskId;
+}> {
+    return context.dynamo.retryTransaction(async context => {
+        const taskItem = await TaskTable.getItem(context, {
+            partitionType: "Task",
+            sortRangeType: "EssentialAttributes",
+            taskId,
+        });
+
+        await authorizeTaskItemAccess(context, taskItem, "Edit", {
+            getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+            getCollectionItem: collectionId =>
+                getTaskCollectionItemForAuthorization(context, collectionId, null),
+        });
+
+        const taskDisplayStatusFilter = {
+            ifOpenActive: true,
+            ifOpenInactive: true,
+            ifClosed: true,
+        } as const;
+
+        let newRootTaskId: TaskId | null = null;
+
+        const createNotesClone = (
+            existingNotesItem: TaskNotesItem,
+            newTaskId: TaskId,
+        ): TaskNotesItem => ({
+            partitionType: "Task",
+            sortRangeType: "Notes",
+            taskId: newTaskId,
+            spaceId: existingNotesItem.spaceId,
+            content: existingNotesItem.content,
+            // Reset version tracking
+            stepCountByAccountId: new TaskStepCountByAccountId(new Map()),
+            version: 0,
+        });
+
+        // Our dynamo transaction limit is 100 actions. If we exceed that, we'll throw an error.
+        // We don't want to keep resolving children if we already know we're going to fail.
+        // For now, we just track the total child task count and throw if we exceed it.
+        const maxClonedObjectCount = 100;
+        let totalClonedObjectCount = 1;
+
+        /**
+         * Aggregates all actions for a task and its children.
+         *
+         * @param currentTaskId The ID of the current task.
+         * @param parentTaskId The ID of the parent task.
+         * @returns
+         */
+        const aggregateRecursiveActions = async (currentTaskId: TaskId, parentTaskId?: TaskId) => {
+            const loadQueriesPromise = context.tasks.loadQueries(taskItem.spaceId, {
+                taskIds: [currentTaskId],
+                collectionIds: [],
+                queries: [
+                    {
+                        // Only request as many as we can support (+1 to allow hitting our limit)
+                        limit: maxClonedObjectCount - totalClonedObjectCount + 1,
+                        filters: {
+                            displayStatusFilter: taskDisplayStatusFilter,
+                            parentFilter: {
+                                parentTaskId: currentTaskId,
+                            },
+                        },
+                        sorts: [],
+                    },
+                ],
+            });
+
+            const loadNotesPromise = TaskTable.getItemIfExists(context, {
+                partitionType: "Task",
+                sortRangeType: "Notes",
+                taskId: currentTaskId,
+            });
+
+            const [queryResult, notesItem] = await runAllPromises([
+                loadQueriesPromise,
+                loadNotesPromise,
+            ]);
+
+            const currentTask = assertExists(
+                findMapIterable(queryResult.updateEvent.backfillTasks, backfillTask =>
+                    backfillTask.type === "Authorized" && backfillTask.task.id === currentTaskId
+                        ? backfillTask.task
+                        : undefined,
+                ),
+            );
+
+            const {taskId: newCurrentTaskId, actions: newActions} = currentTask.getDuplicateActions(
+                {
+                    creatorId: context.actor.getAccountId(),
+                    actionTime,
+                    creatorTimeZone: timeZone,
+                    titleSuffix: !parentTaskId ? "copy" : undefined,
+                    parentTaskId,
+                },
+            );
+
+            if (!parentTaskId) {
+                newRootTaskId = newCurrentTaskId;
+            }
+
+            const actions = [...newActions];
+            const extraTransactionEntries: Array<DynamoTransactionEntry> = [];
+            const clonedTaskIds = new Map<TaskId, TaskId>([[currentTaskId, newCurrentTaskId]]);
+
+            if (notesItem) {
+                totalClonedObjectCount++;
+                const newNotesItem = createNotesClone(notesItem, newCurrentTaskId);
+                extraTransactionEntries.push(
+                    TaskTable.transactionCreateOrReplaceItem(newNotesItem),
+                );
+            }
+
+            await runAllPromises(
+                queryResult.updateEvent.backfillTasks.map(async childTask => {
+                    if (childTask.type !== "Authorized") return;
+                    if (childTask.task.getParent()?.taskId !== currentTaskId) return;
+
+                    // There's an edge case / race condition where we could produce a cycle. If so,
+                    // just ignore the child task and break the cycle.
+                    // There is an incredibly small chance where  we would try to fetch the same
+                    // task multiple times AFTER this check. We don't handle that here.
+                    if (clonedTaskIds.has(childTask.task.id)) {
+                        return;
+                    }
+
+                    if (childTask.task.getChildTaskCount() > 0) {
+                        // Recurse for the child tasks
+                        const childTaskActions = await aggregateRecursiveActions(
+                            childTask.task.id,
+                            newCurrentTaskId,
+                        );
+
+                        actions.push(...childTaskActions.actions);
+                        extraTransactionEntries.push(...childTaskActions.extraTransactionEntries);
+
+                        for (const [
+                            oldChildTaskId,
+                            newChildTaskId,
+                        ] of childTaskActions.clonedTaskIds) {
+                            clonedTaskIds.set(oldChildTaskId, newChildTaskId);
+                        }
+
+                        totalClonedObjectCount += childTaskActions.clonedTaskIds.size;
+                    } else {
+                        // No child tasks, just clone the task
+                        const {taskId: newChildTaskId, actions: newActions} =
+                            childTask.task.getDuplicateActions({
+                                creatorId: context.actor.getAccountId(),
+                                actionTime,
+                                creatorTimeZone: timeZone,
+                                parentTaskId: newCurrentTaskId,
+                            });
+
+                        actions.push(...newActions);
+                        clonedTaskIds.set(childTask.task.id, newChildTaskId);
+                        totalClonedObjectCount++;
+
+                        // since we aren't recursing here, just grab the notes for this task
+                        const childTaskNotesItem = await TaskTable.getItemIfExists(context, {
+                            partitionType: "Task",
+                            sortRangeType: "Notes",
+                            taskId: childTask.task.id,
+                        });
+
+                        if (childTaskNotesItem) {
+                            totalClonedObjectCount++;
+                            const newChildTaskNotesItem = createNotesClone(
+                                childTaskNotesItem,
+                                newChildTaskId,
+                            );
+
+                            extraTransactionEntries.push(
+                                TaskTable.transactionCreateOrReplaceItem(newChildTaskNotesItem),
+                            );
+                        }
+                    }
+
+                    if (totalClonedObjectCount > 100) {
+                        throw new FailedPreconditionError("Child task limit exceeded", {
+                            displayMessage: errorDisplayMessage`The task has too many child tasks.`,
+                            // dedupe against the original root task ID
+                            aggregateDedupeKey: taskId,
+                        });
+                    }
+                }),
+            );
+
+            return {
+                actions,
+                clonedTaskIds,
+                extraTransactionEntries,
+            };
+        };
+
+        const {actions, extraTransactionEntries} = await aggregateRecursiveActions(taskId);
+        assertExists(newRootTaskId);
+        const returnedTaskId = newRootTaskId!;
+
+        await commitTaskActionTransaction(context, taskItem.spaceId, actions, {
+            extraTransactionEntries,
+        });
+
+        return {
+            taskId: returnedTaskId,
+            actions,
+            spaceId: taskItem.spaceId,
         };
     });
 }

@@ -32,6 +32,8 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -49,8 +51,9 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
+    duplicateTaskAndAllChildren,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
-import {AccountModelData} from "~/shared/spaces/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {Store} from "~/shared/store/store.js";
 import {StoreMap} from "~/shared/store/store_map.js";
@@ -437,6 +440,15 @@ export class TaskClientStore {
         options: {undoManager: TaskClientStoreUndoManager | null; time?: HybridLogicalTime},
     ): Promise<void> {
         return this._internal.deleteTaskAndAllChildren(context, taskId, options);
+    }
+
+    public duplicateTaskAndAllChildren(
+        context: Context<{rpc: RpcContextModuleBase}>,
+        taskId: TaskId,
+        timeZone: TimeZone,
+        options: {undoManager: TaskClientStoreUndoManager | null; time?: HybridLogicalTime},
+    ): Promise<{taskId: TaskId}> {
+        return this._internal.duplicateTaskAndAllChildren(context, taskId, timeZone, options);
     }
 
     public waitForCommitTaskActionTransactions() {
@@ -2240,37 +2252,49 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Deletes a task and all of its children. Does not optimistically update since
-     * we may not know all of a task's children on the client. The UI should show a
-     * loading spinner for this action. You also need to handle pending state and
-     * errors from this action yourself. Unlike `commitTaskActionTransaction()`
-     * which displays errors on its own.
+     * Handles race conditions when committing a task action transaction. This
+     * will apply the actions to the store and create undo actions if possible.
+     *
+     * @param undoManager - The undo manager to pass the undo actions to. If null
+     * then no undo actions will be saved.
+     *
+     * @param run - A function that returns a promise that resolves with an object
+     * containing at least the `actions` and `referencedAccounts` properties.
+     *
+     * @param mapUndoActions  - A function that takes an iterable of
+     * `TaskAction` objects and returns an iterable of `TaskActionModel`
+     * objects that will be passed to the undo manager. This function may remove any
+     * actions that we don't want to undo.
      */
-    public deleteTaskAndAllChildren(
-        context: Context<{rpc: RpcContextModuleBase}>,
-        taskId: TaskId,
+
+    private _withSpecializedCommitTaskActionTransaction<T>(
         {
             undoManager,
-            time: actionTime = this.clock.now(),
+            mapUndoActions,
         }: {
             undoManager: TaskClientStoreUndoManager | null;
-            time?: HybridLogicalTime;
+            mapUndoActions: (actions: Iterable<TaskAction>) => Iterable<TaskActionModel>;
         },
-    ): Promise<void> {
-        const run = () =>
-            deleteTaskAndAllChildren(context, {
-                taskId,
-                actionTime,
-                clientId: this._clientId,
-            });
-
+        run: () => Promise<
+            T & {
+                readonly actions: ReadonlyArray<TaskAction>;
+                readonly referencedAccounts: ReadonlyArray<AccountModel>;
+            }
+        >,
+    ): Promise<
+        T & {
+            readonly actions: ReadonlyArray<TaskAction>;
+            readonly referencedAccounts: ReadonlyArray<AccountModel>;
+        }
+    > {
         // We don't use `addGlobalLoadingIndicator()` with this promise
         // because it's expected that the caller handle pending states and errors.
-        const deletePromise = shouldDisableCommitTaskActionTransactionMutexForTest
+        const promise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);
 
-        return deletePromise.then(({actions, referencedAccounts}) => {
+        return promise.then(result => {
+            const {actions, referencedAccounts} = result;
             let hasUndoStackEntry = false;
 
             assert(this.onQueryLoadedTaskRemove === null);
@@ -2296,20 +2320,7 @@ export class TaskClientStoreInternal {
                 // We need to create undo actions before applying our actions to the store so
                 // we can read old task data from the store.
                 const undoActions = undoManager
-                    ? createTaskUndoActionsIfPossible(
-                          this,
-                          mapIterable(actions, action => {
-                              if (
-                                  action.type === "UpdateTask" &&
-                                  action.taskAction.type === "UpdateTitle"
-                              ) {
-                                  throw new InternalError(
-                                      "Unexpected task title update when deleting task and all children",
-                                  );
-                              }
-                              return action as TaskActionModel;
-                          }),
-                      )
+                    ? createTaskUndoActionsIfPossible(this, mapUndoActions(actions))
                     : null;
 
                 this.applyUpdateEvent({
@@ -2396,7 +2407,94 @@ export class TaskClientStoreInternal {
                 this._delayReleaseCollectionEntryStoreIds =
                     previousDelayReleaseCollectionEntryStoreIds;
             }
+
+            return result;
         });
+    }
+
+    /**
+     * Deletes a task and all of its children. Does not optimistically update since
+     * we may not know all of a task's children on the client. The UI should show a
+     * loading spinner for this action. You also need to handle pending state and
+     * errors from this action yourself. Unlike `commitTaskActionTransaction()`
+     * which displays errors on its own.
+     */
+    public async deleteTaskAndAllChildren(
+        context: Context<{rpc: RpcContextModuleBase}>,
+        taskId: TaskId,
+        {
+            undoManager,
+            time: actionTime = this.clock.now(),
+        }: {
+            undoManager: TaskClientStoreUndoManager | null;
+            time?: HybridLogicalTime;
+        },
+    ): Promise<void> {
+        const mapUndoActions = (actions: Iterable<TaskAction>) =>
+            // We need to create undo actions before applying our actions to the store so
+            // we can read old task data from the store.
+            mapIterable(actions, action => {
+                if (action.type === "UpdateTask" && action.taskAction.type === "UpdateTitle") {
+                    throw new InternalError(
+                        "Unexpected task title update when deleting task and all children",
+                    );
+                }
+
+                return action as TaskActionModel;
+            });
+
+        await this._withSpecializedCommitTaskActionTransaction(
+            {undoManager, mapUndoActions},
+            () => {
+                return deleteTaskAndAllChildren(context, {
+                    taskId,
+                    actionTime,
+                    clientId: this._clientId,
+                });
+            },
+        );
+    }
+
+    /**
+     * Duplicates a task and all of its children. Does not optimistically update since
+     * we may not know all of a task's children on the client. The UI should show a
+     * loading spinner for this action. You also need to handle pending state and
+     * errors from this action yourself. Unlike `commitTaskActionTransaction()`
+     * which displays errors on its own.
+     */
+    public async duplicateTaskAndAllChildren(
+        context: Context<{rpc: RpcContextModuleBase}>,
+        taskId: TaskId,
+        timeZone: TimeZone,
+        {
+            undoManager,
+            time: actionTime = this.clock.now(),
+        }: {
+            undoManager: TaskClientStoreUndoManager | null;
+            time?: HybridLogicalTime;
+        },
+    ): Promise<{taskId: TaskId}> {
+        const mapUndoActions = (actions: Iterable<TaskAction>) =>
+            // The only undo actions we should care about is the create actions.
+            // This will save time as we don't need to undo the other actions.
+            filterMapIterable(actions, action => {
+                return action.type === "UpdateTask" && action.taskAction.type === "Create"
+                    ? (action as TaskActionModel)
+                    : undefined;
+            });
+
+        const result = await this._withSpecializedCommitTaskActionTransaction(
+            {undoManager, mapUndoActions},
+            () => {
+                return duplicateTaskAndAllChildren(context, {
+                    taskId,
+                    actionTime,
+                    timeZone,
+                });
+            },
+        );
+
+        return {taskId: result.taskId};
     }
 
     /**

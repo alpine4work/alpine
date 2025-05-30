@@ -770,6 +770,20 @@ export function TaskDetailView({
 
             contextMenuActions.push([
                 {
+                    label: "Duplicate",
+                    pressErrorTitle: "Couldn’t duplicate task",
+                    onPress: async () => {
+                        const {taskId: newTaskId} = await store.duplicateTaskAndAllChildren(
+                            context,
+                            taskId,
+                            timeZone,
+                            {undoManager},
+                        );
+
+                        await navigate(`/s/${spaceId}/tasks/${newTaskId}`);
+                    },
+                },
+                {
                     label: "Delete",
                     onPress: () => {
                         if (!taskSubscription) {
@@ -842,6 +856,7 @@ export function TaskDetailView({
         affinityManager,
         commitActionTransaction,
         commitActionTransactionAndCreateIfNeeded,
+        context,
         currentAccount,
         displayStatus,
         dueDateInputState.isVisible,

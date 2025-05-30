@@ -328,6 +328,7 @@ function TaskRowView(
         createTaskBelowAndFocus,
         nestWithPreviousTaskRowIfExistsAndExpand,
         unnestTaskIfNestedRow,
+        duplicateTaskAndAllChildrenAndFocusNewTask,
         deleteTaskAndAllChildren,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
         focusNextTaskTitleCoord,
@@ -390,6 +391,7 @@ function TaskRowView(
         createTaskBelowAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
         unnestTaskIfNestedRow: (titleSelection: Selection) => void;
+        duplicateTaskAndAllChildrenAndFocusNewTask: () => Promise<void>;
         deleteTaskAndAllChildren: () => void;
         deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusNextTaskTitleCoord: (coord: number | null) => void;
@@ -1331,6 +1333,11 @@ function TaskRowView(
 
             if (taskId !== null) {
                 contextMenuActions.push([
+                    {
+                        label: "Duplicate",
+                        pressErrorTitle: "Couldn’t duplicate task",
+                        onPress: () => duplicateTaskAndAllChildrenAndFocusNewTask(),
+                    },
                     {
                         label: "Delete",
                         onPress: () => deleteTaskAndAllChildren(),

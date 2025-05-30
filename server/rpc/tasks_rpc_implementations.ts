@@ -13,6 +13,7 @@ import {
     createTaskComment,
     deleteTaskAndAllChildren,
     deleteTaskComment,
+    duplicateTaskAndAllChildren,
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
     getTaskNotesContentWithoutReferences,
@@ -78,6 +79,30 @@ export default implementRpcs(definitions, {
             );
 
             return {actions, referencedAccounts};
+        },
+    },
+
+    duplicateTaskAndAllChildren: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {spaceId, actions, taskId} = await duplicateTaskAndAllChildren(
+                context.actor.authorizeSession(),
+                input.taskId,
+                input.actionTime,
+                input.timeZone,
+            );
+
+            const accountIds = new Set<AccountId>();
+
+            for (const action of actions) {
+                collectReferencedAccountIdsFromTaskAction(accountIds, action);
+            }
+
+            const referencedAccounts = await runAllPromises(
+                Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
+            );
+
+            return {actions, referencedAccounts, taskId};
         },
     },
 

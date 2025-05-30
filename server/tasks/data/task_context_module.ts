@@ -2,6 +2,7 @@ import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
+import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
 import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
@@ -10,7 +11,6 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {UnimplementedError, UnknownError} from "~/shared/error/error.js";
@@ -38,34 +38,29 @@ import {
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
-export abstract class TaskContextModuleBase extends ContextModuleBase<{
-    process: ProcessContextModule;
-    cache: CacheContextModule;
-    tracer: TracerContextModule;
-    actor: DynamoActorContextModule;
-}> {
-    private readonly _dangerouslyEscalateToSystemContext: (
+export abstract class TaskContextModuleBase extends ContextModuleBase<ServerActionContextModules> {
+    protected readonly _dangerouslyEscalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: TaskSystemActionContext) => Promise<void>,
-    ) => Promise<void>;
+        action: (context: TaskSystemActionContext) => Promise<Value>,
+    ) => Promise<Value>;
 
     constructor({
         dangerouslyEscalateToSystemContext,
     }: {
-        dangerouslyEscalateToSystemContext: (
+        dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<void>,
-        ) => Promise<void>;
+            action: (context: TaskSystemActionContext) => Promise<Value>,
+        ) => Promise<Value>;
     }) {
         super();
         this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
@@ -152,15 +147,15 @@ export class TaskContextModule extends TaskContextModuleBase {
     }: {
         tokenAgent: TokenAgent;
         router: TaskRealtimeServiceRouterBase;
-        dangerouslyEscalateToSystemContext: (
+        dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<void>,
-        ) => Promise<void>;
+            action: (context: TaskSystemActionContext) => Promise<Value>,
+        ) => Promise<Value>;
     }) {
         super({dangerouslyEscalateToSystemContext});
         this._tokenAgent = tokenAgent;
@@ -431,15 +426,15 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         dangerouslyEscalateToSystemContext,
         shouldSkipIndexing,
     }: {
-        dangerouslyEscalateToSystemContext: (
+        dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: TaskSystemActionContext) => Promise<void>,
-        ) => Promise<void>;
+            action: (context: TaskSystemActionContext) => Promise<Value>,
+        ) => Promise<Value>;
         shouldSkipIndexing: boolean;
     }) {
         assert(process.env.NODE_ENV === "test");
@@ -462,7 +457,12 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         }
     }
 
-    public override loadQueries(): never {
+    public override loadQueries(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        spaceId: SpaceId,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        input: TaskRealtimeLoadQueriesInput,
+    ): Promise<TaskRealtimeLoadQueriesOutput> {
         throw new UnimplementedError(
             "`TestTaskContextModule.loadQueries()` can't be implemented in unit tests because we don't run `TaskRealtimeService` in unit tests",
         );

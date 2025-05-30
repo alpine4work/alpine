@@ -942,6 +942,7 @@ export function useTaskGridViewVirtualizedListBase({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const context = useAppContext();
+    const {timeZone} = useClientInfo();
     const isInertNativeMobileRoute = useIsInertNativeMobileRoute();
     const isBehindMobileFullScreenModal = useIsBehindMobileFullScreenModal();
     const isInert = isInertNativeMobileRoute || isBehindMobileFullScreenModal;
@@ -2574,6 +2575,12 @@ export function useTaskGridViewVirtualizedListBase({
         };
     }, [animationState.animations, events]);
 
+    const duplicateTaskAndAllChildren = useCallback(
+        (taskId: TaskId, {undoManager}: {undoManager: TaskClientStoreUndoManager}) =>
+            store.duplicateTaskAndAllChildren(context, taskId, timeZone, {undoManager}),
+        [store, context, timeZone],
+    );
+
     /* ========================================================================== *\
      *                               Item Rendering                               *
     \* ========================================================================== */
@@ -2707,6 +2714,7 @@ export function useTaskGridViewVirtualizedListBase({
                                         getAreChildTasksExpandedStore={
                                             getAreChildTasksExpandedStore
                                         }
+                                        duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
                                         toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
                                         setTaskDeleteConfirmationState={
                                             setTaskDeleteConfirmationState
@@ -2805,6 +2813,7 @@ export function useTaskGridViewVirtualizedListBase({
                                 onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
                                 getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
                                 toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
+                                duplicateTaskAndAllChildren={duplicateTaskAndAllChildren}
                                 setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
                                 onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
                                     onTaskDeleteConfirmationModalDialogClosedCallbacksRef
@@ -2852,6 +2861,7 @@ export function useTaskGridViewVirtualizedListBase({
         bottomGhostTaskId,
         capabilities,
         columnHeaderControlsWithMinHeightPx,
+        duplicateTaskAndAllChildren,
         events,
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,

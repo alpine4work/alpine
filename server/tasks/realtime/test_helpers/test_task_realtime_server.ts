@@ -1,20 +1,37 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {
+    DynamoActorContextModule,
+    DynamoSessionActorContextModule,
+} from "~/server/accounts/dynamo_actor_context_module.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
+import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
+import {
+    TaskContextModuleBase,
+    TestTaskContextModule,
+    waitForProcessTaskActionTransactionsForTest,
+} from "~/server/tasks/data/task_context_module.js";
 import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
+import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
+import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {SpaceId, TaskRealtimeClientId} from "~/shared/id/types/id_types.js";
+import {SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -27,6 +44,11 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+import {
+    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
+    TaskRealtimeLoadQueriesInput,
+    TaskRealtimeLoadQueriesOutput,
+} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 /**
  * Wait for OpenSearch to have indexed all our action transactions.
@@ -217,5 +239,72 @@ export class TestTaskRealtimeServer {
 
     public evictAll() {
         this.server.evictAllForTest();
+    }
+
+    /**
+     * Similar to `TestTask.action(session)` except the `tasks` context module
+     * supports methods that must call into `TaskRealtimeService` like
+     * `context.tasks.loadQueries()`.
+     */
+    public action(session: TestSession) {
+        return session.action().clone({
+            tasks: new TestTaskContextModuleWithRealtimeServer({
+                server: this,
+                shouldSkipIndexing: !session.context.isOpensearchEnabled,
+                dangerouslyEscalateToSystemContext: session.context.escalateToSystemContext,
+            }),
+        });
+    }
+}
+
+class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
+    private readonly _server: TestTaskRealtimeServer;
+
+    constructor({
+        server,
+        dangerouslyEscalateToSystemContext,
+        shouldSkipIndexing,
+    }: {
+        server: TestTaskRealtimeServer;
+        dangerouslyEscalateToSystemContext: <Value>(
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
+            spaceId: SpaceId,
+            action: (context: TaskSystemActionContext) => Promise<Value>,
+        ) => Promise<Value>;
+        shouldSkipIndexing: boolean;
+    }) {
+        super({dangerouslyEscalateToSystemContext, shouldSkipIndexing});
+        this._server = server;
+    }
+
+    public override async loadQueries(
+        spaceId: SpaceId,
+        input: TaskRealtimeLoadQueriesInput,
+    ): Promise<TaskRealtimeLoadQueriesOutput> {
+        const {queries, extraQueries, updateEvent} = await loadTaskRealtimeQueries(this._context, {
+            server: this._server.server,
+            dangerouslyEscalateToSystemContext: this._dangerouslyEscalateToSystemContext,
+            spaceId,
+            queries: input.queries,
+            taskIds: input.taskIds,
+            collectionIds: input.collectionIds,
+        });
+
+        return {ok: true, queries, extraQueries, updateEvent};
+    }
+
+    public override getTaskWithoutDependencies(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                actor: DynamoSessionActorContextModule;
+            }>,
+    ): Promise<SchemaType<typeof TaskRealtimeGetTaskWithoutDependenciesOutputSchema>> {
+        throw new UnimplementedError(
+            "`TestTaskContextModuleWithRealtimeServer.getTaskWithoutDependencies()` should be implementable but we haven't implemented it yet",
+        );
     }
 }

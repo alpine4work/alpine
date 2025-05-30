@@ -388,7 +388,7 @@ function emptyObjectSchema<const Type extends string>(type: Type) {
     return Schema.object({type: Schema.value(type)});
 }
 
-export const TaskTaskActionSchema = Schema.union({
+export const TaskTaskActionUnion = {
     Create: TaskCreateActionSchema,
     Delete: TaskDeleteActionSchema,
     Undelete: TaskUndeleteActionSchema,
@@ -411,4 +411,6 @@ export const TaskTaskActionSchema = Schema.union({
     // the database.
     UpdateNotepadPagePosition: emptyObjectSchema("UpdateNotepadPagePosition"),
     UpdateAssigneeActivePosition: emptyObjectSchema("UpdateAssigneeActivePosition"),
-});
+};
+
+export const TaskTaskActionSchema = Schema.union(TaskTaskActionUnion);

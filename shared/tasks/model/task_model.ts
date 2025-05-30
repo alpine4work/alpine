@@ -3,16 +3,20 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskUpdateTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {
     TaskCreateAction,
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
+    TaskTaskActionUnion,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {applyTaskActionToTaskModelData} from "~/shared/tasks/model/apply_task_action_to_task_model_data.js";
 import {applyTaskUpdateAccountNameToTaskModelData} from "~/shared/tasks/model/apply_task_update_account_name_to_task_model_data.js";
@@ -33,10 +37,34 @@ import {
     TaskSortableAccount,
     TaskSortableAccountSchema,
 } from "~/shared/tasks/task_sortable_account.js";
-import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
+import {TaskStatus, TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleModel, emptyTaskTitleModel} from "~/shared/tasks/task_title.js";
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
+
+// TypeScript errors here when new TaskTaskActions are added. If you add a
+// new task action type you should make sure to update `getCloneActions()`.
+assertEqualTypes<
+    keyof typeof TaskTaskActionUnion,
+    | "Create"
+    | "Delete"
+    | "Undelete"
+    | "UpdateParentTaskId"
+    | "UpdateParentPosition"
+    | "UpdateChildrenCounts"
+    | "AddCollection"
+    | "RemoveCollection"
+    | "UpdateCollectionPosition"
+    | "UpdateStatus"
+    | "UpdateAssignee"
+    | "UpdateAssigneeStatus"
+    | "UpdateAssigneePosition"
+    | "UpdateTitle"
+    | "UpdateDueDate"
+    | "UpdatePriority"
+    | "UpdateNotepadPagePosition"
+    | "UpdateAssigneeActivePosition"
+>();
 
 const TaskModelDataSchema = Schema.object({
     id: Schema.id<TaskId>(),
@@ -200,6 +228,240 @@ export class TaskModel {
         if (rawData === this.rawData) return this;
 
         return new TaskModel(rawData);
+    }
+
+    /**
+     * Get the actions required to duplicate this task.
+     *
+     * @param creatorId - The actor who is performing the action.
+     * @param actionTime - The time the action was performed.
+     * @param creatorTimeZone - The time zone of the actor.
+     * @param parentTaskId - The ID of the parent task, defaulted to the cloned task's parent.
+     * @param titleSuffix - A suffix to append to the cloned task's title.
+     */
+    public getDuplicateActions({
+        creatorId,
+        actionTime,
+        creatorTimeZone,
+        parentTaskId,
+        titleSuffix,
+    }: {
+        creatorId: AccountId;
+        actionTime: HybridLogicalTime;
+        creatorTimeZone: TimeZone;
+        parentTaskId?: TaskId;
+        titleSuffix?: string;
+    }): {taskId: TaskId; actions: Array<TaskAction>} {
+        const actions: Array<TaskAction> = [];
+
+        // Generate the new task
+        const taskId = generateId<TaskId>();
+        const taskFilterableTime = new TaskFilterableTime({
+            absoluteTime: actionTime,
+            setterTimeZone: creatorTimeZone,
+        });
+
+        const getActionTime: () => HybridLogicalTime = () => {
+            return [actionTime[0], actionTime[1] + actions.length];
+        };
+
+        actions.push({
+            type: "UpdateTask",
+            time: getActionTime(),
+            taskId: taskId,
+            taskAction: {
+                type: "Create",
+                creatorId: creatorId,
+                creatorTimeZone: creatorTimeZone,
+            },
+        });
+
+        // Parent Relationships
+        const parentTask = this.getParent();
+        if (parentTask) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: parentTaskId ?? parentTask.taskId,
+                },
+            });
+
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateParentPosition",
+                    parentPosition: {
+                        orderTime: parentTask.position.orderTime,
+                        orderKey: parentTask.position.orderKey,
+                    },
+                },
+            });
+        }
+
+        // Title
+        // Note: we only support copying titles as text for now
+        const titleText = this.getTitle().getText();
+        let title = this.getTitle();
+        if (titleSuffix) {
+            const suffixRegex = new RegExp(` \\(${titleSuffix}( \\d+)?\\)$`);
+            const suffixMatch = titleText.match(suffixRegex);
+            if (suffixMatch?.index) {
+                // if we already have this suffix, increment the number
+                const suffixNumber = suffixMatch[1] ? parseInt(suffixMatch[1], 10) + 1 : 2;
+                const replacementString = ` (${titleSuffix} ${suffixNumber})`;
+                const startPos = suffixMatch.index;
+                const endPos = startPos + suffixMatch[0].length;
+                title = this.getTitle().replace(startPos, endPos, replacementString).newTitle;
+            } else {
+                // if we don't have this suffix, add it
+                title = this.getTitle().replace(
+                    titleText.length,
+                    titleText.length,
+                    ` (${titleSuffix})`,
+                ).newTitle;
+            }
+        }
+
+        actions.push({
+            type: "UpdateTask",
+            time: getActionTime(),
+            taskId: taskId,
+            taskAction: {
+                type: "UpdateTitle",
+                titleUpdate: title.getRaw(),
+            },
+        });
+
+        // Status
+        let newStatus: TaskStatus;
+        if (this.getStatus().type === "Closed") {
+            newStatus = {
+                type: "Closed",
+                closerId: creatorId,
+                closedTime: taskFilterableTime,
+            };
+        } else {
+            newStatus = {
+                type: "Open",
+            };
+        }
+
+        actions.push({
+            type: "UpdateTask",
+            time: getActionTime(),
+            taskId: taskId,
+            taskAction: {
+                type: "UpdateStatus",
+                status: newStatus,
+            },
+        });
+
+        // Assignee
+        const assignee = this.getAssignee();
+        if (assignee) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assigneeId: assignee.assignee.accountId,
+                        assignerId: creatorId,
+                        assignedTime: taskFilterableTime,
+                    },
+                },
+            });
+        }
+
+        // Assignee Status
+        const assigneeStatus = this.getAssigneeStatus();
+        if (assigneeStatus.type === "Active") {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateAssigneeStatus",
+                    assigneeStatus: {
+                        type: assigneeStatus.type,
+                        activatedTime: taskFilterableTime,
+                    },
+                },
+            });
+        }
+
+        // Assignee Position
+        // Only the assignee can update the task position
+        const assigneePosition = this.getAssigneePosition();
+        if (assignee && assigneePosition && creatorId === assignee.assignee.accountId) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateAssigneePosition",
+                    accountId: assignee.assignee.accountId,
+                    position: {
+                        orderTime: assigneePosition.orderTime,
+                        orderKey: assigneePosition.orderKey,
+                    },
+                },
+            });
+        }
+
+        // Collections
+        const collections = this.getCollections().getArray();
+        for (const collection of collections) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection.collectionId,
+                    orderKey: collection.orderKey,
+                },
+            });
+        }
+
+        // Due Date
+        const dueDate = this.getDueDate();
+        if (dueDate) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: dueDate,
+                },
+            });
+        }
+
+        // Priority
+        const priority = this.getPriority();
+        if (priority) {
+            actions.push({
+                type: "UpdateTask",
+                time: getActionTime(),
+                taskId: taskId,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: priority,
+                },
+            });
+        }
+
+        return {
+            taskId,
+            actions,
+        };
     }
 
     /**

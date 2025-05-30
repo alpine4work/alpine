@@ -1,10 +1,34 @@
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {CalendarDate} from "@internationalized/date";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskAddCollectionAction,
+    TaskCreateAction,
+    TaskTaskAction,
+    TaskUpdateAssigneeAction,
+    TaskUpdateDueDateAction,
+    TaskUpdateParentTaskIdAction,
+    TaskUpdatePriorityAction,
+    TaskUpdateTitleAction,
+} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
+import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+import {
+    TaskTitleModel,
+    createTaskTitleFromText,
+    emptyTaskTitle,
+} from "~/shared/tasks/task_title.js";
 
 test("merging identical tasks returns a referentially equal value to the first one", () => {
     const spaceId = generateId<SpaceId>();
@@ -112,4 +136,287 @@ test("merging tasks returns a referentially equal value to the first one if the 
     expect(task2.merge(task1b)).not.toBe(task2);
     expect(task2.merge(task1b)).not.toBe(task1b);
     expect(task2.merge(task1b)).toEqual(task1b);
+});
+
+describe("getCloneActions", () => {
+    const spaceId = generateId<SpaceId>();
+    const accountId = generateId<AccountId>();
+    const clock = new HybridLogicalClock(unsynchronizedSystemClock);
+    const createdTime = clock.now();
+    const filterableTime = new TaskFilterableTime({
+        absoluteTime: clock.now(),
+        setterTimeZone: defaultTimeZone,
+    });
+    const timeZone = defaultTimeZone;
+
+    let task: TaskModel;
+
+    const getActionReferencedSortableAccount: (id: AccountId) => TaskSortableAccount = id => {
+        return {
+            accountId: id,
+            workingAccountName: "Test",
+            workingAccountNameVersion: 0,
+        };
+    };
+
+    beforeEach(() => {
+        task = TaskModel.createFromAction(
+            spaceId,
+            generateId<TaskId>(),
+            createdTime,
+            {
+                type: "Create",
+                creatorId: accountId,
+                creatorTimeZone: timeZone,
+            },
+            getActionReferencedSortableAccount,
+        );
+    });
+
+    function findActions<T extends TaskTaskAction>(
+        actions: Array<TaskAction>,
+        type: string,
+        expectedCount: number,
+    ): Array<TaskUpdateTaskAction & {readonly taskAction: T}> {
+        const foundActions = actions.filter(
+            a => a.type === "UpdateTask" && a.taskAction.type === type,
+        ) as Array<TaskUpdateTaskAction>;
+        expect(foundActions.length).toBe(expectedCount);
+        return foundActions.map(action => ({
+            type: action.type,
+            time: action.time,
+            taskId: action.taskId,
+            taskAction: action.taskAction as T,
+        }));
+    }
+
+    function findAction<T extends TaskTaskAction>(actions: Array<TaskAction>, type: string) {
+        const foundActions = findActions<T>(actions, type, 1);
+        return foundActions[0]!;
+    }
+
+    test("creates a new task with the correct creator and basic actions", () => {
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const createAction = findAction<TaskCreateAction>(actions, "Create");
+        expect(createAction.taskAction.creatorId).toBe(accountId);
+
+        const basicActionTypes = actions.map(
+            action => "taskAction" in action && action.taskAction.type,
+        );
+        expect(basicActionTypes).toEqual(["Create", "UpdateTitle", "UpdateStatus"]);
+    });
+
+    test("copies parent task relationship", () => {
+        const parentId = generateId<TaskId>();
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: parentId,
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const parentAction = findAction<TaskUpdateParentTaskIdAction>(
+            actions,
+            "UpdateParentTaskId",
+        );
+        expect(parentAction?.taskAction.parentTaskId).toBe(parentId);
+    });
+
+    test("copies title", () => {
+        const expected = "Test Task";
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: createTaskTitleFromText(expected),
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const titleAction = findAction<TaskUpdateTitleAction>(actions, "UpdateTitle");
+
+        // create a model and play the update on it
+        const titleModel = new TaskTitleModel(emptyTaskTitle.get()).apply(
+            titleAction.taskAction.titleUpdate,
+        );
+        expect(titleModel.getText()).toEqual(expected);
+    });
+
+    const titleCopiesCases = [
+        {initial: "Test Task", expected: "Test Task (copy)"},
+        {initial: "Test Task (copy)", expected: "Test Task (copy 2)"},
+        {initial: "Test Task (copy 2)", expected: "Test Task (copy 3)"},
+        {initial: "Test Task (copy 35)", expected: "Test Task (copy 36)"},
+    ];
+
+    for (const {initial, expected} of titleCopiesCases) {
+        test(`adds suffix to title without existing suffix: ${initial} -> ${expected}`, () => {
+            const title = createTaskTitleFromText(initial);
+            task = task.applyAction(
+                {
+                    type: "UpdateTask",
+                    taskId: task.id,
+                    time: clock.now(),
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate: title,
+                    },
+                },
+                getActionReferencedSortableAccount,
+            );
+
+            const {actions} = task.getDuplicateActions({
+                creatorId: accountId,
+                actionTime: clock.now(),
+                creatorTimeZone: timeZone,
+                titleSuffix: "copy",
+            });
+            const titleAction = findAction<TaskUpdateTitleAction>(actions, "UpdateTitle");
+
+            // create a model and play the update on it
+            const titleModel = new TaskTitleModel(title).apply(titleAction.taskAction.titleUpdate);
+            expect(titleModel.getText()).toEqual(expected);
+        });
+    }
+
+    test("copies assignee information", () => {
+        const assigneeId = generateId<AccountId>();
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assigneeId,
+                        assignerId: accountId,
+                        assignedTime: filterableTime,
+                    },
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const assigneeAction = findAction<TaskUpdateAssigneeAction>(actions, "UpdateAssignee");
+        expect(assigneeAction?.taskAction.assignee?.assigneeId).toBe(assigneeId);
+    });
+
+    test("copies collection ids", () => {
+        const collectionId1 = generateId<TaskCollectionId>();
+        const collectionId2 = generateId<TaskCollectionId>();
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collectionId1,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collectionId2,
+                    orderKey: generateOrderKeyBetween(initialOrderKey, null),
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const collectionActions = findActions<TaskAddCollectionAction>(actions, "AddCollection", 2);
+
+        expect(collectionActions[0]?.taskAction.collectionId).toBe(collectionId1);
+        expect(collectionActions[1]?.taskAction.collectionId).toBe(collectionId2);
+    });
+
+    test("copies due date", () => {
+        const dueDate = new CalendarDate(2025, 5, 20);
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate: dueDate,
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const dueDateAction = findAction<TaskUpdateDueDateAction>(actions, "UpdateDueDate");
+        expect(dueDateAction?.taskAction.dueDate).toBe(dueDate);
+    });
+
+    test("copies priority", () => {
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+        });
+        const priorityAction = findAction<TaskUpdatePriorityAction>(actions, "UpdatePriority");
+        expect(priorityAction?.taskAction.priority).toBe("High");
+    });
 });
