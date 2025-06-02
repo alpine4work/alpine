@@ -357,7 +357,22 @@ async function runMergeCommand({
         // eslint-disable-next-line no-console
         console.log();
 
-        await runGit(["merge", "--no-edit", previousStackBranch?.fullName ?? "main"]);
+        try {
+            await runGit(["merge", "--no-edit", previousStackBranch?.fullName ?? "main"]);
+        } catch (error) {
+            // If the process failed with a non-zero exit code (likely because of a merge
+            // conflict) then we want to exit `dev stack merge` with the same exit code.
+            if (
+                error instanceof Error &&
+                isObject(error.cause) &&
+                typeof error.cause.exitCode === "number"
+            ) {
+                process.exit(error.cause.exitCode);
+                return;
+            }
+
+            throw error;
+        }
 
         previousStackBranch = stackBranch;
     }
@@ -402,7 +417,22 @@ async function runRunCommand(
         // eslint-disable-next-line no-console
         console.log(`${chalk.dim("$")} ${chalk.bold(command)} ${args.join(" ")}`);
 
-        await runProcessWithInheritedStdio(command, args, {env: process.env});
+        try {
+            await runProcessWithInheritedStdio(command, args, {env: process.env});
+        } catch (error) {
+            // If the process failed with a non-zero exit code then we want to exit
+            // `dev stack run` with the same exit code.
+            if (
+                error instanceof Error &&
+                isObject(error.cause) &&
+                typeof error.cause.exitCode === "number"
+            ) {
+                process.exit(error.cause.exitCode);
+                return;
+            }
+
+            throw error;
+        }
     }
 
     // Return to the original branch if successful.
