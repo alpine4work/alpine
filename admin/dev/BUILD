@@ -16,6 +16,7 @@ ts_project(
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/node",
         "//:node_modules/@types/ws",
+        "//:node_modules/@types/yargs",
         "//:node_modules/ansi-styles",
         "//:node_modules/chalk",
         "//:node_modules/chokidar",
@@ -27,6 +28,7 @@ ts_project(
         "//:node_modules/pretty-ms",
         "//:node_modules/strip-ansi",
         "//:node_modules/ws",
+        "//:node_modules/yargs",
         "//admin/cron",
         "//admin/dynamo/local",
         "//admin/helpers",
@@ -94,5 +96,12 @@ js_binary(
     name = "path",
     data = [":dev_lib"],
     entry_point = "dev_path_main.js",
+    env = {"NODE_ENV": "development"},
+)
+
+js_binary(
+    name = "stack",
+    data = [":dev_lib"],
+    entry_point = "dev_stack_main.js",
     env = {"NODE_ENV": "development"},
 )

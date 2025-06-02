@@ -18,7 +18,12 @@ has_arg() {
     return 1
 }
 
-if has_arg "--help" "$@"; then
+if has_arg "--help" "$@" && ! has_arg "stack" "$@"; then
+    # Notational conventions:
+    #
+    # - `[arg]`: Optional argument
+    # - `<arg>`: Required argument
+    # - `[...args]`: List of arguments
     echo "Command: dev
 
 Usage:
@@ -31,7 +36,9 @@ Usage:
     dev test --all           Run all unit tests
     dev testlogs             Inspect failed tests
     dev testlogs [path]      Inspect failed tests from a \"bazel_testlogs.zip\" file
-    dev branch [name]        Creates a new branch following our naming convention
+    dev whoami               Print the username used to create branches
+    dev branch <name>        Creates a new branch following our naming convention
+    dev stack <command>      Manage a stack of branches for code review
     dev path                 Print important paths in your development environment
     dev path [name]          Print a single path in your development environment
     dev deployed             Check if the head commit has been deployed
@@ -177,12 +184,33 @@ case "$1" in
         ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:testlogs -- "$(echo -n "$2" | base64)"
         ;;
 
+    whoami)
+        git credential fill <<EOF | grep username | cut -d= -f2
+protocol=https
+host=github.com
+EOF
+        ;;
+
     branch)
         username=$(git credential fill <<EOF | grep username | cut -d= -f2
 protocol=https
 host=github.com
 EOF
 )
+
+        if [ -z "$2" ]; then
+            echo "Missing branch name"
+            echo
+            echo "Usage: dev branch <name>"
+            exit 1
+        fi
+
+        if [[ ! "$2" =~ ^[a-zA-Z][a-zA-Z0-9-]+$ ]]; then
+            echo "Invalid branch name, must only use alphanumeric characters and \"-\""
+            echo
+            echo "Usage: dev branch <name>"
+            exit 1
+        fi
 
         # We recommend creating branches in the format
         # `${githubUsername}/${date}-${name}` because:
@@ -195,6 +223,10 @@ EOF
         # 3. In some git UIs (like [Tower](https://www.git-tower.com/mac)) branches
         #    that start with a slash are put into a collapsible folder.
         git checkout -b "$username/$(date +%Y-%m-%d)-$2"
+        ;;
+
+    stack)
+        ./admin/bin/bazel run --ui_event_filters=-info //admin/dev:stack -- ${@:2}
         ;;
 
     path)
