@@ -68,7 +68,10 @@ async function main(): Promise<{exitCode: number} | void> {
             "pr",
             "Creates GitHub PRs for all branches",
             yargs => {
-                return yargs;
+                return yargs.option("continue", {
+                    describe: "Start creating PRs from the current branch",
+                    type: "boolean",
+                });
             },
             args => runPrCommand(args),
         )
@@ -106,6 +109,7 @@ async function main(): Promise<{exitCode: number} | void> {
             args => runRunCommand(args, passthroughArgs),
         )
         .strict()
+        .version(false)
         .demandCommand(1, "Must provide a command")
         .fail((message, error, yargs) => {
             if (!error) {
@@ -231,7 +235,7 @@ async function runPushCommand({continue: shouldContinue = false}: {continue: boo
     }
 }
 
-async function runPrCommand({}: {}) {
+async function runPrCommand({continue: shouldContinue = false}: {continue: boolean | undefined}) {
     try {
         await runProcess("which", ["gh"]);
     } catch (error) {
@@ -271,6 +275,8 @@ async function runPrCommand({}: {}) {
 
     for (let i = 0; i < stack.branches.length; i++) {
         const stackBranch = stack.branches[i]!;
+
+        if (shouldContinue && stackBranch.fullName < currentBranchFullName) continue;
 
         // eslint-disable-next-line no-console
         if (!isFirst) console.log();
@@ -355,6 +361,9 @@ async function runMergeCommand({
 
         previousStackBranch = stackBranch;
     }
+
+    // Return to the original branch if successful.
+    await runGit(["checkout", currentBranchFullName]);
 }
 
 async function runRunCommand(
@@ -395,6 +404,9 @@ async function runRunCommand(
 
         await runProcessWithInheritedStdio(command, args, {env: process.env});
     }
+
+    // Return to the original branch if successful.
+    await runGit(["checkout", currentBranchFullName]);
 }
 
 /**
