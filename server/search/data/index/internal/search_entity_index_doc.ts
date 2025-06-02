@@ -461,8 +461,7 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
                                 //
                                 // [1]: https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-vector-search.html
                                 ...(process.env.NODE_ENV !== "production" &&
-                                process.platform !== "linux" &&
-                                process.arch !== "arm64"
+                                (process.platform !== "linux" || process.arch !== "arm64")
                                     ? {
                                           engine: "lucene",
                                           parameters: {ef_construction: 100, m: 16},

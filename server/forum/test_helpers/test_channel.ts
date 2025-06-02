@@ -49,14 +49,31 @@ export class TestChannel {
             id = generateId<ChannelId>(),
             name = `Test Channel ${testChannelCount++}`,
             description,
-            accessPolicy,
+            access,
         }: {
             id?: ChannelId;
             name?: string;
             description?: string | MessageContent;
-            accessPolicy?: "Public" | "Private" | AccessPolicy;
+            access?: "Public" | "Private" | AccessPolicy;
         } = {},
     ): Promise<TestChannel> {
+        let accessPolicy: AccessPolicy;
+        if (access === "Public" || access === undefined) {
+            accessPolicy = {
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: {level: "Manage", generation: 1},
+                urlGrant: null,
+            };
+        } else if (access === "Private") {
+            accessPolicy = {
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+        } else {
+            accessPolicy = access;
+        }
+
         const channel = await createChannel(session.action(), {
             spaceId: session.space.id,
             channelId: id,
@@ -65,24 +82,7 @@ export class TestChannel {
                 typeof description === "string"
                     ? createSimpleMessageContent(description)
                     : description,
-            accessPolicy:
-                accessPolicy === "Public"
-                    ? {
-                          accountGrantById: new Map([
-                              [session.account.id, {level: "Manage", generation: 0}],
-                          ]),
-                          defaultGrant: {level: "Manage", generation: 1},
-                          urlGrant: null,
-                      }
-                    : accessPolicy === "Private"
-                    ? {
-                          accountGrantById: new Map([
-                              [session.account.id, {level: "Manage", generation: 0}],
-                          ]),
-                          defaultGrant: null,
-                          urlGrant: null,
-                      }
-                    : accessPolicy,
+            accessPolicy,
         });
 
         return new TestChannel(

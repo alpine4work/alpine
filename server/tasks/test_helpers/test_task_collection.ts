@@ -49,12 +49,29 @@ export class TestTaskCollection {
             access,
         }: {
             name?: string;
-            access?: AccessPolicy;
+            access?: "Public" | "Private" | AccessPolicy;
         } = {},
     ) {
         const id = generateId<TaskCollectionId>();
 
         const time = testClock.nowLogical();
+
+        let accessPolicy: AccessPolicy;
+        if (access === "Public") {
+            accessPolicy = {
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: {level: "Manage", generation: 1},
+                urlGrant: null,
+            };
+        } else if (access === "Private" || access === undefined) {
+            accessPolicy = {
+                accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),
+                defaultGrant: null,
+                urlGrant: null,
+            };
+        } else {
+            accessPolicy = access;
+        }
 
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
@@ -65,13 +82,7 @@ export class TestTaskCollection {
                     type: "Create",
                     creatorId: session.account.id,
                     name,
-                    accessPolicy: access ?? {
-                        accountGrantById: new Map([
-                            [session.account.id, {level: "Manage", generation: 0}],
-                        ]),
-                        defaultGrant: null,
-                        urlGrant: null,
-                    },
+                    accessPolicy,
                 },
             },
         ]);

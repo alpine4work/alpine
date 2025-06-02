@@ -23,7 +23,6 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -77,7 +76,7 @@ export class TestDocument {
             | {
                   title?: string;
                   body?: string;
-                  access?: AccessPolicy;
+                  access?: "Public" | "Private" | AccessPolicy;
                   content?: undefined;
               }
             | {
@@ -87,39 +86,45 @@ export class TestDocument {
               }
         ) = {},
     ): Promise<TestDocument> {
-        const content = options.content
-            ? options.content
-            : assertDocumentContent(
-                  schema.node(
-                      "doc",
-                      {
-                          accessPolicy:
-                              options.access ??
-                              cast<AccessPolicy>({
-                                  accountGrantById: new Map([
-                                      [session.account.id, {level: "Manage", generation: 0}],
-                                  ]),
-                                  defaultGrant: null,
-                                  urlGrant: null,
-                              }),
-                      },
-                      [
-                          schema.node(
-                              "title",
-                              {},
-                              options.title ? [schema.text(options.title)] : [],
-                          ),
-                          ...(options.body
-                              ? options.body
-                                    .trimEnd()
-                                    .split("\n")
-                                    .map(bodyLine =>
-                                        schema.node("paragraph", {}, [schema.text(bodyLine)]),
-                                    )
-                              : [schema.node("paragraph", {}, [])]),
-                      ],
-                  ),
-              );
+        let content: DocumentContent;
+        if (options.content) {
+            content = options.content;
+        } else {
+            let accessPolicy: AccessPolicy;
+            if (options.access === "Public") {
+                accessPolicy = {
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: {level: "Manage", generation: 1},
+                    urlGrant: null,
+                };
+            } else if (options.access === "Private" || options.access === undefined) {
+                accessPolicy = {
+                    accountGrantById: new Map([
+                        [session.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                };
+            } else {
+                accessPolicy = options.access;
+            }
+
+            content = assertDocumentContent(
+                schema.node("doc", {accessPolicy}, [
+                    schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
+                    ...(options.body
+                        ? options.body
+                              .trimEnd()
+                              .split("\n")
+                              .map(bodyLine =>
+                                  schema.node("paragraph", {}, [schema.text(bodyLine)]),
+                              )
+                        : [schema.node("paragraph", {}, [])]),
+                ]),
+            );
+        }
 
         const document = await createDocument(session.action(), {
             spaceId: session.space.id,

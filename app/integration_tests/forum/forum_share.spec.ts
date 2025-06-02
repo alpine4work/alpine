@@ -17,7 +17,7 @@ test("can toggle channel sharing on/off with switch", async ({
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
 
     await services.signIn(browserContext2, session2);
@@ -117,7 +117,7 @@ test("can toggle channel sharing on/off with share dialog default grant", async 
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
 
     await services.signIn(browserContext2, session2);
@@ -251,7 +251,7 @@ test("can toggle channel sharing on/off with share dialog account grant", async 
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
 
     await services.signIn(browserContext2, session2);
@@ -386,7 +386,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
             const channel = await TestChannel.create(session1, {
                 name: "Test Channel 1",
-                accessPolicy: "Private",
+                access: "Private",
             });
             await channel.access.grant(session1, session2, accessLevel);
 
@@ -555,7 +555,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
             const channel = await TestChannel.create(session1, {
                 name: "Test Channel 2",
-                accessPolicy: "Private",
+                access: "Private",
             });
             await channel.access.grantDefault(session1, "View");
             await channel.access.grant(session1, session2, accessLevel);
@@ -608,7 +608,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
             const channel = await TestChannel.create(session1, {
                 name: "Test Channel 3",
-                accessPolicy: "Private",
+                access: "Private",
             });
             await channel.access.grantDefault(session1, "Comment");
             await channel.access.grant(session1, session2, accessLevel);
@@ -661,7 +661,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
             const channel = await TestChannel.create(session1, {
                 name: "Test Channel 4",
-                accessPolicy: "Private",
+                access: "Private",
             });
             await channel.access.grantDefault(session1, "Edit");
             await channel.access.grant(session1, session2, accessLevel);
@@ -714,7 +714,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
             const channel = await TestChannel.create(session1, {
                 name: "Test Channel 5",
-                accessPolicy: "Private",
+                access: "Private",
             });
             await channel.access.grantDefault(session1, "Manage");
             await channel.access.grant(session1, session2, accessLevel);
@@ -757,7 +757,7 @@ test("can switch other account access level between comment and view in realtime
 
     const channel = await TestChannel.create(session2, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
     await channel.access.grant(session2, session1, "Comment");
 
@@ -868,7 +868,7 @@ test("can switch own account access level between manage and view in realtime", 
 
     const channel = await TestChannel.create(session2, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
     await channel.access.grant(session2, session1, "Manage");
 
@@ -928,7 +928,7 @@ test("can't change permission level of account who invited you", async ({
     const space = await TestSpace.create(context, {name: "Test Space"});
     const [session1, session2] = await space.createSessions(2);
 
-    const channel = await TestChannel.create(session1, {accessPolicy: "Private"});
+    const channel = await TestChannel.create(session1, {access: "Private"});
     await channel.access.grant(session1, session2);
 
     await services.signIn(browserContext, session2);
@@ -999,7 +999,7 @@ test("can't change permission level of account who invited the account who invit
     const space = await TestSpace.create(context, {name: "Test Space"});
     const [session1, session2, session3] = await space.createSessions(3);
 
-    const channel = await TestChannel.create(session1, {accessPolicy: "Private"});
+    const channel = await TestChannel.create(session1, {access: "Private"});
     await channel.access.grant(session1, session2);
     await channel.access.grant(session2, session3);
 
@@ -1073,7 +1073,7 @@ test("will be warned before lowering your own permission level", async ({
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
     await channel.access.grant(session1, session2);
 
@@ -1143,7 +1143,7 @@ test("will be prevented from lowering your own permission level if you're the la
     const space = await TestSpace.create(context, {name: "Test Space"});
     const [session1, session2] = await space.createSessions(2);
 
-    const channel = await TestChannel.create(session1, {accessPolicy: "Private"});
+    const channel = await TestChannel.create(session1, {access: "Private"});
     await channel.access.grant(session1, session2, "Edit");
 
     await services.signIn(browserContext, session1);
@@ -1229,7 +1229,7 @@ test("will send a notification when sharing with account", async ({
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
 
     await services.signIn(browserContext2, session2);
@@ -1275,7 +1275,7 @@ test("can share a public channel with any other account in the space", async ({
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Public",
+        access: "Public",
     });
 
     await services.signIn(browserContext2, session2);
@@ -1319,7 +1319,7 @@ test("can share a public channel with any other account in the space and upgrade
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
     await channel.access.grantDefault(session1, "View");
 
@@ -1368,7 +1368,7 @@ test("can share a private channel with any other account in the space", async ({
 
     const channel = await TestChannel.create(session1, {
         name: "Test Channel",
-        accessPolicy: "Private",
+        access: "Private",
     });
 
     await services.signIn(browserContext2, session2);
