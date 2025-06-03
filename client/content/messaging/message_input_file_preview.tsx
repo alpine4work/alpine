@@ -1,5 +1,5 @@
 import {Memo} from "react";
-import {ContentFileMiniPreview} from "~/client/content/content_file_mini_preview.js";
+import {ContentFilePreview} from "~/client/content/content_file_preview_component.js";
 import {MessageInputFilePreviewBase} from "~/client/content/messaging/internal/message_input_file_preview_base.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
@@ -21,7 +21,7 @@ export function MessageInputFilePreview({
 
     return (
         <MessageInputFilePreviewBase onRemove={onRemove}>
-            <ContentFileMiniPreview
+            <ContentFilePreview
                 size={convertRemLengthToPx("20", spacingScale)}
                 signedUrlSearch={signedUrlSearch}
                 file={file}

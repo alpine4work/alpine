@@ -10,7 +10,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context
 import {useReporter} from "~/client/design/reporter.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {DynamoGeneralRealtimeQuery} from "~/client/dynamo/dynamo_general_realtime_query.js";
-import {ChannelViewContentFileMiniPreview} from "~/client/forum/internal/channel_view_content_file_mini_preview.js";
+import {ChannelViewContentFilePreview} from "~/client/forum/internal/channel_view_content_file_preview.js";
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
@@ -185,7 +185,7 @@ export function ChannelViewAside({
                                 sliceIterable(fileReferences, 0, channelViewAsidePostFileMaxCount),
                                 fileReference => {
                                     return (
-                                        <ChannelViewContentFileMiniPreview
+                                        <ChannelViewContentFilePreview
                                             key={`${fileReference.postId}-${fileReference.file.id}`}
                                             postId={fileReference.postId}
                                             file={fileReference.file}

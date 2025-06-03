@@ -1,97 +1,117 @@
 import classNames from "classnames";
-import {Memo, useMemo, useRef} from "react";
+import {useContext, useMemo, useRef} from "react";
+import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {useFileClientStore} from "~/client/content/file_client_store_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {
-    addContentFilePreviewBehavior,
-    renderContentFilePreview,
-} from "~/client/content/internal/content_file_preview.js";
+    addContentFileEntityPreviewBehavior,
+    renderContentFileEntityPreview,
+} from "~/client/content/internal/content_file_entity_preview.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
-import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileModel} from "~/shared/files/file_model.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 
-export function ContentFileMiniPreview({
-    size,
-    signedUrlSearch,
-    file: fileFromProps,
-    attachmentTarget,
-    onOpenViewer,
+export function ContentFileEntityPreview({
+    width,
+    height,
+    blockWidth,
+    fileEntityId,
+    fileEntityResult,
 }: {
-    size: number;
-    signedUrlSearch: string;
-    file: FileModel;
-    attachmentTarget: Memo<FileAttachmentTarget> | "Uploader";
-    onOpenViewer?: Memo<() => {preventDefault: boolean} | void>;
+    width: number;
+    height: number;
+    blockWidth: number;
+    fileEntityId: FileEntityId;
+    fileEntityResult: Result<FileEntityModel>;
 }) {
     const context = useAppContext();
+    const clientInfo = useClientInfo();
     const reporter = useReporter();
     const isInitialAppRender = useIsInitialAppRender();
     const rootNavigate = useRootNavigate();
     const navigate = useNavigate();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
+    const accountStore = useAccountClientStore();
     const fileStore = useFileClientStore();
+    const currentDate = useCurrentDate();
+    const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const file = useStore(
-        useMemo(
-            () => fileStore.getFileStore({signedUrlSearch, file: fileFromProps}),
-            [fileFromProps, fileStore, signedUrlSearch],
-        ),
-    );
-
     const node = useMemo(
-        () => ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: file.id}),
-        [file.id],
+        () => ContentBaseProsemirrorSchemaWithFiles.get().node("file", {fileId: fileEntityId}),
+        [fileEntityId],
     );
 
-    const htmlGenerator = useMemo(() => {
-        const html = renderContentFilePreview({
-            spaceId: space.id,
-            node,
-            file,
-            layout: {width: size, widthFr: 1, height: size},
-            // Code previews use `blockWidth` to scale down text. Set a `blockWidth`
-            // that'll scale the code preview down to a font size of 25.
-            blockWidth:
-                size *
-                (fontSizesBySpacingScale["75"].small.fontSize /
-                    fontSizesBySpacingScale["25"].small.fontSize),
-            transformScale: 1,
-            platform,
-            spacingScale,
-            isInitialAppRender,
-            // Disable video and audio file interactivity. When pressed we should always
-            // open the post in a peek.
-            withoutInteractivity: true,
+    const htmlGeneratorStore = useMemo(() => {
+        return computeStore(get => {
+            const html = renderContentFileEntityPreview(get, {
+                node,
+                fileEntityId,
+                fileEntityResult,
+                fileEntityRenderers,
+                layout: {width, widthFr: 1, height},
+                getContext: () => context,
+                clientInfo,
+                spaceId: space.id,
+                accountStore,
+                fileStore,
+                currentAccount,
+                blockWidth,
+                transformScale: 1,
+                platform,
+                spacingScale,
+                isInitialAppRender,
+                currentDate,
+            });
+
+            html.setAttribute(
+                "class",
+                classNames(html.getAttribute("class"), contentStyles.withoutFileSelectionClassName),
+            );
+
+            return html;
         });
+    }, [
+        accountStore,
+        blockWidth,
+        clientInfo,
+        context,
+        currentAccount,
+        currentDate,
+        fileEntityId,
+        fileEntityRenderers,
+        fileEntityResult,
+        fileStore,
+        height,
+        isInitialAppRender,
+        node,
+        platform,
+        space.id,
+        spacingScale,
+        width,
+    ]);
 
-        html.setAttribute(
-            "class",
-            classNames(
-                html.getAttribute("class"),
-                contentStyles.alwaysShowFileBorderClassName,
-                contentStyles.withoutFileSelectionClassName,
-            ),
-        );
-
-        return html;
-    }, [file, isInitialAppRender, node, platform, size, space.id, spacingScale]);
+    const htmlGenerator = useStore(htmlGeneratorStore);
 
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
 
@@ -128,18 +148,17 @@ export function ContentFileMiniPreview({
 
         const containerElement = assertExists(containerRef.current);
 
-        const cleanup = addContentFilePreviewBehavior(
+        const cleanup = addContentFileEntityPreviewBehavior(
             () => context,
             assertExists(containerElement.firstElementChild) as HTMLElement,
             {
                 spaceId: space.id,
                 node,
-                file,
-                attachmentTarget,
-                isInitialAppRender,
-                rootNavigate,
+                fileEntityId,
+                fileEntityResult,
+                fileEntityRenderers,
+                navigate,
                 getReporter: () => reporter,
-                onOpenViewer,
             },
         );
 
@@ -147,16 +166,15 @@ export function ContentFileMiniPreview({
             cleanup();
         };
     }, [
-        attachmentTarget,
         context,
-        file,
+        fileEntityId,
+        fileEntityRenderers,
+        fileEntityResult,
         isInitialAppRender,
         navigate,
         node,
-        onOpenViewer,
         reporter,
         rootNavigate,
-        signedUrlSearch,
         space.id,
     ]);
 

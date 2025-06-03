@@ -1,4 +1,4 @@
-import {ContentFileEntityMiniPreview} from "~/client/content/content_file_entity_mini_preview.js";
+import {ContentFileEntityPreview} from "~/client/content/content_file_entity_preview_component.js";
 import {MessageInputFilePreviewBase} from "~/client/content/messaging/internal/message_input_file_preview_base.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
@@ -17,10 +17,14 @@ export function MessageInputFileEntityPreview({
 }) {
     const spacingScale = useSpacingScale();
 
+    const size = convertRemLengthToPx("20", spacingScale);
+
     return (
         <MessageInputFilePreviewBase onRemove={onRemove}>
-            <ContentFileEntityMiniPreview
-                size={convertRemLengthToPx("20", spacingScale)}
+            <ContentFileEntityPreview
+                width={size}
+                height={size}
+                blockWidth={size}
                 fileEntityId={fileEntityId}
                 fileEntityResult={fileEntityResult}
             />
