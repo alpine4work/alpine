@@ -162,12 +162,6 @@ const SearchEntityTable = DynamoTableSchema.new({
                         lastUpdatedTime: Schema.integer,
 
                         /**
-                         * The last time this search entity had a "view" search affinity interaction
-                         * viewed. Useful for showing the user a "last opened" date.
-                         */
-                        lastViewedTime: Schema.date.nullable().default(null),
-
-                        /**
                          * If this is non-null then the search entity is in the account's favorites
                          * list. The favorites list is ordered by `OrderKey`. We create an index on
                          * this table that's ordered by this `OrderKey` to efficiently access an
@@ -1329,9 +1323,6 @@ async function addSearchAffinityEntityPoints(
                     points,
                     erosion,
                     lastUpdatedTime: currentTime,
-                    lastViewedTime: isViewInteraction
-                        ? new Date(currentTime)
-                        : item?.lastViewedTime ?? null,
                     favoriteOrderKey: item?.favoriteOrderKey ?? null,
                 });
             },
@@ -1500,7 +1491,6 @@ export async function addSearchAffinityEntityActiveTaskAssigneePoints(
                     points,
                     erosion,
                     lastUpdatedTime: currentTime,
-                    lastViewedTime: null,
                     favoriteOrderKey: null,
                     activeTaskAssignee: {
                         points: pointsIncrement,
@@ -1682,7 +1672,6 @@ export async function clearSearchEntityAffinity(
                 spaceId,
                 accountId: context.actor.getAccountId(),
                 entityId,
-                lastViewedTime: null,
                 favoriteOrderKey: null,
                 ...item,
                 points: 0,
@@ -1738,7 +1727,6 @@ export async function internalGetSearchAffinityEntities(
     Array<{
         entityId: SearchAffinityEntityId;
         points: number;
-        lastViewedTime: Date | null;
         favoriteOrderKey: OrderKey | null;
     }>
 > {
@@ -1777,7 +1765,6 @@ export async function internalGetSearchAffinityEntities(
     return results.map(result => ({
         entityId: result.item.entityId,
         points: result.points,
-        lastViewedTime: result.item.lastViewedTime,
         favoriteOrderKey: result.item.favoriteOrderKey,
     }));
 }
@@ -2277,7 +2264,6 @@ export async function dangerouslyFavoriteSearchEntityWithoutAuthorization(
                 points: 0,
                 erosion: 0,
                 lastUpdatedTime: Date.now(),
-                lastViewedTime: null,
                 favoriteOrderKey: orderKey,
             });
         },

@@ -373,7 +373,6 @@ test("can't read affinitive items for the wrong space", async () => {
                     pointsBucket: getSearchAffinityEntityPointsBucket(points),
                     erosion: 0,
                     lastUpdatedTime: currentTime,
-                    lastViewedTime: null,
                     favoriteOrderKey: null,
                     expirationTime: new Date(
                         currentTime +
@@ -400,7 +399,6 @@ test("can't read affinitive items for the wrong space", async () => {
                     pointsBucket: getSearchAffinityEntityPointsBucket(points2),
                     erosion: 0,
                     lastUpdatedTime: currentTime,
-                    lastViewedTime: null,
                     favoriteOrderKey: null,
                     expirationTime: new Date(
                         currentTime +
@@ -421,7 +419,6 @@ test("can't read affinitive items for the wrong space", async () => {
                     pointsBucket: getSearchAffinityEntityPointsBucket(points1),
                     erosion: 0,
                     lastUpdatedTime: currentTime,
-                    lastViewedTime: null,
                     favoriteOrderKey: null,
                     expirationTime: new Date(
                         currentTime +
@@ -532,7 +529,6 @@ test(
                         pointsBucket: getSearchAffinityEntityPointsBucket(actualPoints),
                         erosion: 0,
                         lastUpdatedTime,
-                        lastViewedTime: null,
                         favoriteOrderKey: null,
                         expirationTime: new Date(
                             currentTime +
@@ -757,7 +753,6 @@ test(
                         pointsBucket: getSearchAffinityEntityPointsBucket(actualPoints),
                         erosion: 0,
                         lastUpdatedTime,
-                        lastViewedTime: null,
                         favoriteOrderKey: null,
                         expirationTime: new Date(
                             currentTime +
@@ -968,7 +963,6 @@ test(
                         pointsBucket: getSearchAffinityEntityPointsBucket(points),
                         erosion: 0,
                         lastUpdatedTime: currentTime,
-                        lastViewedTime: null,
                         favoriteOrderKey: null,
                         expirationTime: new Date(
                             currentTime +
@@ -1411,7 +1405,6 @@ test("marking create document interaction adds erosion to affinity item", async 
         pointsBucket: getSearchAffinityEntityPointsBucket(60),
         erosion: 10,
         lastUpdatedTime: expect.any(Number),
-        lastViewedTime: null,
         favoriteOrderKey: null,
         expirationTime: expect.any(Date),
     });
@@ -1913,7 +1906,6 @@ test("will show top three favorites at the start of affinity list when querying 
                 points: 600,
                 erosion: 0,
                 lastUpdatedTime: currentTime,
-                lastViewedTime: null,
                 favoriteOrderKey: null,
             }),
         ),
@@ -1928,7 +1920,6 @@ test("will show top three favorites at the start of affinity list when querying 
                 points: 500,
                 erosion: 0,
                 lastUpdatedTime: currentTime,
-                lastViewedTime: null,
                 favoriteOrderKey: null,
             }),
         ),
@@ -1943,7 +1934,6 @@ test("will show top three favorites at the start of affinity list when querying 
                 points: 400,
                 erosion: 0,
                 lastUpdatedTime: currentTime,
-                lastViewedTime: null,
                 favoriteOrderKey: null,
             }),
         ),
@@ -1958,7 +1948,6 @@ test("will show top three favorites at the start of affinity list when querying 
                 points: 300,
                 erosion: 0,
                 lastUpdatedTime: currentTime,
-                lastViewedTime: null,
                 favoriteOrderKey: null,
             }),
         ),
@@ -1973,7 +1962,6 @@ test("will show top three favorites at the start of affinity list when querying 
                 points: 200,
                 erosion: 0,
                 lastUpdatedTime: currentTime,
-                lastViewedTime: null,
                 favoriteOrderKey: null,
             }),
         ),
@@ -1992,31 +1980,26 @@ test("will show top three favorites at the start of affinity list when querying 
         {
             entityId: `Account:${session2.account.id}`,
             points: expect.closeTo(600),
-            lastViewedTime: null,
             favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session3.account.id}`,
             points: expect.closeTo(500),
-            lastViewedTime: null,
             favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session4.account.id}`,
             points: expect.closeTo(400),
-            lastViewedTime: null,
             favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session5.account.id}`,
             points: expect.closeTo(300),
-            lastViewedTime: null,
             favoriteOrderKey: null,
         },
         {
             entityId: `Account:${session6.account.id}`,
             points: expect.closeTo(200),
-            lastViewedTime: null,
             favoriteOrderKey: null,
         },
     ]);
@@ -2130,31 +2113,26 @@ test("will show top three favorites at the start of affinity list when querying 
         {
             entityId: `Account:${session2.account.id}`,
             points: expect.closeTo(600),
-            lastViewedTime: null,
             favoriteOrderKey: "a4",
         },
         {
             entityId: `Account:${session3.account.id}`,
             points: expect.closeTo(500),
-            lastViewedTime: null,
             favoriteOrderKey: "a3",
         },
         {
             entityId: `Account:${session4.account.id}`,
             points: expect.closeTo(400),
-            lastViewedTime: null,
             favoriteOrderKey: "a2",
         },
         {
             entityId: `Account:${session5.account.id}`,
             points: expect.closeTo(300),
-            lastViewedTime: null,
             favoriteOrderKey: "a1",
         },
         {
             entityId: `Account:${session6.account.id}`,
             points: expect.closeTo(200),
-            lastViewedTime: null,
             favoriteOrderKey: "a0",
         },
     ]);

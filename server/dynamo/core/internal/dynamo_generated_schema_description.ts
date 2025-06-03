@@ -7953,15 +7953,6 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
-                                    "lastViewedTime": {
-                                        "valueSchema": {
-                                            "type": "Nullable",
-                                            "schema": {
-                                                "type": "Date"
-                                            }
-                                        },
-                                        "optional": true
-                                    },
                                     "favoriteOrderKey": {
                                         "valueSchema": {
                                             "type": "Nullable",
