@@ -72,42 +72,6 @@ export function SpaceLayoutSideBarCreateButton() {
                     [
                         {
                             withCustomLayout: true,
-                            pressErrorTitle: "Couldn’t create post",
-                            onPress: async () => {
-                                const draftId = generateChronologicalId();
-
-                                await peekStackContext.push(
-                                    `/s/${space.id}/posts/new/${draftId}?focus=content`,
-                                );
-                            },
-                            render: ({isPressed, shouldShowPendingSpinner}) => (
-                                <SpaceLayoutSideBarCreateButtonItem
-                                    icon={<PostBrandBigIcon />}
-                                    label="Post"
-                                    description="Share your ideas in a channel"
-                                    isPressed={isPressed}
-                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
-                                />
-                            ),
-                        },
-                        {
-                            withCustomLayout: true,
-                            pressErrorTitle: "Couldn’t open new chat",
-                            onPress: async () => {
-                                await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
-                            },
-                            render: ({isPressed, shouldShowPendingSpinner}) => (
-                                <SpaceLayoutSideBarCreateButtonItem
-                                    icon={<ChatBrandBigIcon />}
-                                    label="Message"
-                                    description="Start a chat with anyone"
-                                    isPressed={isPressed}
-                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
-                                />
-                            ),
-                        },
-                        {
-                            withCustomLayout: true,
                             pressErrorTitle: "Couldn’t create document",
                             onPress: async () => {
                                 const documentId = generateId();
@@ -144,6 +108,42 @@ export function SpaceLayoutSideBarCreateButton() {
                                 />
                             ),
                         },
+                        {
+                            withCustomLayout: true,
+                            pressErrorTitle: "Couldn’t create post",
+                            onPress: async () => {
+                                const draftId = generateChronologicalId();
+
+                                await peekStackContext.push(
+                                    `/s/${space.id}/posts/new/${draftId}?focus=content`,
+                                );
+                            },
+                            render: ({isPressed, shouldShowPendingSpinner}) => (
+                                <SpaceLayoutSideBarCreateButtonItem
+                                    icon={<PostBrandBigIcon />}
+                                    label="Post"
+                                    description="Share your ideas in a channel"
+                                    isPressed={isPressed}
+                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
+                                />
+                            ),
+                        },
+                        {
+                            withCustomLayout: true,
+                            pressErrorTitle: "Couldn’t open new chat",
+                            onPress: async () => {
+                                await peekStackContext.push(`/s/${space.id}/chat/new?focus=picker`);
+                            },
+                            render: ({isPressed, shouldShowPendingSpinner}) => (
+                                <SpaceLayoutSideBarCreateButtonItem
+                                    icon={<ChatBrandBigIcon />}
+                                    label="Message"
+                                    description="Start a chat with anyone"
+                                    isPressed={isPressed}
+                                    shouldShowPendingSpinner={shouldShowPendingSpinner}
+                                />
+                            ),
+                        },
                     ],
                     [
                         {
@@ -151,16 +151,6 @@ export function SpaceLayoutSideBarCreateButton() {
                             key: "more",
                             label: "More",
                             actions: [
-                                {
-                                    label: "Channel",
-                                    icon: <ChannelBrandIcon />,
-                                    pressErrorTitle: "Couldn’t create channel",
-                                    onPress: async () => {
-                                        await peekStackContext.push(
-                                            `/s/${space.id}/channels/new?focus=name`,
-                                        );
-                                    },
-                                },
                                 {
                                     label: "Task collection",
                                     icon: <TaskCollectionBrandIcon />,
@@ -179,6 +169,16 @@ export function SpaceLayoutSideBarCreateButton() {
                                     pressErrorTitle: "Couldn’t create task view",
                                     onPress: async () => {
                                         await peekStackContext.push(`/s/${space.id}/tasks/view`);
+                                    },
+                                },
+                                {
+                                    label: "Channel",
+                                    icon: <ChannelBrandIcon />,
+                                    pressErrorTitle: "Couldn’t create channel",
+                                    onPress: async () => {
+                                        await peekStackContext.push(
+                                            `/s/${space.id}/channels/new?focus=name`,
+                                        );
                                     },
                                 },
                             ],
