@@ -18,19 +18,17 @@ test("chat message stays when changing chat selection", async ({page, context: b
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
-    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
 
-    await page.getByRole("textbox", {name: "New message"}).fill("message0");
+    await expect(page.getByLabel("Send message")).toBeDisabled();
+    await expect(page.getByLabel("New message")).toHaveText("");
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message0");
-    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
+    await page.getByLabel("New message").fill("message0");
 
-    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
+    await expect(page.getByLabel("New message")).toHaveText("message0");
+    await expect(page.getByLabel("Send message")).toBeDisabled();
 
-    await page.getByRole("combobox", {name: "To"}).click();
     await expect(page.getByRole("listbox", {name: "Suggestions"})).toBeVisible();
     await page.getByRole("option", {name: "Siobahn Roy"}).click();
     await expect(page.getByRole("listbox", {name: "Suggestions"})).toBeHidden();
@@ -39,8 +37,8 @@ test("chat message stays when changing chat selection", async ({page, context: b
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message0");
-    await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
+    await expect(page.getByLabel("New message")).toHaveText("message0");
+    await expect(page.getByLabel("Send message")).toBeEnabled();
 
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
@@ -55,8 +53,8 @@ test("chat message stays when changing chat selection", async ({page, context: b
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeVisible();
     await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message0");
-    await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
+    await expect(page.getByLabel("New message")).toHaveText("message0");
+    await expect(page.getByLabel("Send message")).toBeEnabled();
 
     await page.getByRole("combobox", {name: "To"}).click();
     await page.keyboard.press("Backspace");
@@ -66,8 +64,8 @@ test("chat message stays when changing chat selection", async ({page, context: b
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message0");
-    await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
+    await expect(page.getByLabel("New message")).toHaveText("message0");
+    await expect(page.getByLabel("Send message")).toBeEnabled();
 
     await page.getByRole("combobox", {name: "To"}).click();
     await page.keyboard.press("Backspace");
@@ -77,8 +75,8 @@ test("chat message stays when changing chat selection", async ({page, context: b
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message0");
-    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
+    await expect(page.getByLabel("New message")).toHaveText("message0");
+    await expect(page.getByLabel("Send message")).toBeDisabled();
 });
 
 test("send chat message to another account", async ({page, context: browserContext}) => {
@@ -93,17 +91,14 @@ test("send chat message to another account", async ({page, context: browserConte
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
 
-    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
-    await page.getByRole("textbox", {name: "New message"}).fill("message1");
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message1");
-    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
-
-    await page.getByRole("combobox", {name: "To"}).click();
+    await expect(page.getByLabel("Send message")).toBeDisabled();
+    await expect(page.getByLabel("New message")).toHaveText("");
+    await page.getByLabel("New message").fill("message1");
+    await expect(page.getByLabel("New message")).toHaveText("message1");
+    await expect(page.getByLabel("Send message")).toBeDisabled();
 
     await expect(page.getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByText("Kendall Roy")).toBeVisible();
@@ -120,9 +115,9 @@ test("send chat message to another account", async ({page, context: browserConte
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
 
-    await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
-    await page.getByRole("button", {name: "Send message"}).click();
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
+    await expect(page.getByLabel("Send message")).toBeEnabled();
+    await page.getByLabel("Send message").click();
+    await expect(page.getByLabel("New message")).toHaveText("");
 
     await expect(page.getByText("message1")).toBeVisible();
 });
@@ -142,6 +137,9 @@ test("can see chat message from recipient account", async ({page, context: brows
 
     await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/chat/new`);
+
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
 
     await expect(page.getByText("message1")).toBeHidden();
 
@@ -170,12 +168,15 @@ test("can not see chat message from non-recipient account but can send a differe
     await services.signIn(browserContext, session3);
     await page.goto(`/s/${space.id}/chat/new`);
 
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
-    await page.getByRole("textbox", {name: "New message"}).fill("message2");
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message2");
+    await expect(page.getByLabel("New message")).toHaveText("");
+    await page.getByLabel("New message").fill("message2");
+    await expect(page.getByLabel("New message")).toHaveText("message2");
 
     await page.getByRole("combobox", {name: "To"}).fill("Logan");
     await page.getByRole("option", {name: "Logan Roy"}).click();
@@ -183,9 +184,9 @@ test("can not see chat message from non-recipient account but can send a differe
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Logan Roy")).toBeVisible();
     await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message2");
-    await page.getByRole("button", {name: "Send message"}).click();
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
+    await expect(page.getByLabel("New message")).toHaveText("message2");
+    await page.getByLabel("Send message").click();
+    await expect(page.getByLabel("New message")).toHaveText("");
 
     await expect(page.getByText("message2")).toBeVisible();
     await expect(page.getByText("message1")).toBeHidden();
@@ -210,18 +211,16 @@ test("send chat message to multiple accounts", async ({page, context: browserCon
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
     await expect(page.getByText("message3")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
-    await page.getByRole("textbox", {name: "New message"}).fill("message3");
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message3");
-
-    await page.getByRole("combobox", {name: "To"}).click();
+    await expect(page.getByLabel("New message")).toHaveText("");
+    await page.getByLabel("New message").fill("message3");
+    await expect(page.getByLabel("New message")).toHaveText("message3");
 
     await expect(page.getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByText("Kendall Roy")).toBeVisible();
@@ -248,9 +247,9 @@ test("send chat message to multiple accounts", async ({page, context: browserCon
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
     await expect(page.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message3");
-    await page.getByRole("button", {name: "Send message"}).click();
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
+    await expect(page.getByLabel("New message")).toHaveText("message3");
+    await page.getByLabel("Send message").click();
+    await expect(page.getByLabel("New message")).toHaveText("");
 
     await expect(page.getByText("message3")).toBeVisible();
     await expect(page.getByText("message1")).toBeHidden();
@@ -278,6 +277,9 @@ test("reloading the page will keep the chat selection", async ({page, context: b
 
     await services.signIn(browserContext, session2);
     await page.goto(`/s/${space.id}/chat/new`);
+
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
@@ -331,6 +333,9 @@ test("can remove selected chat accounts", async ({page, context: browserContext}
 
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
+
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
 
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
@@ -420,23 +425,12 @@ test("includes recommended group chats for autocomplete", async ({
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
     await expect(page.getByText("message1")).toBeHidden();
     await expect(page.getByText("message2")).toBeHidden();
     await expect(page.getByText("message3")).toBeHidden();
-
-    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
-    await expect(
-        page.getByRole("listbox", {name: "Suggestions"}).getByText("Siobahn Roy"),
-    ).toBeHidden();
-    await expect(
-        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall Roy"),
-    ).toBeHidden();
-    await expect(
-        page.getByRole("listbox", {name: "Suggestions"}).getByText("Kendall and Siobahn"),
-    ).toBeHidden();
-
-    await page.getByRole("combobox", {name: "To"}).click();
 
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
@@ -529,6 +523,9 @@ test("can open chat directly by id", async ({page, context: browserContext}) => 
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/${chat1.id}`);
 
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
     await expect(page.getByRole("heading", {name: "Siobahn"})).toBeVisible();
     await expect(page.getByRole("heading", {name: "Kendall"})).toBeHidden();
     await expect(page.getByRole("heading", {name: "Kendall and Siobahn"})).toBeHidden();
@@ -602,6 +599,9 @@ test("can send self a message", async ({page, context: browserContext}) => {
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/chat/new`);
 
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Logan Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
@@ -611,16 +611,9 @@ test("can send self a message", async ({page, context: browserContext}) => {
     await expect(page.getByText("message3")).toBeHidden();
     await expect(page.getByText("message4")).toBeHidden();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
-    await page.getByRole("textbox", {name: "New message"}).fill("message4");
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message4");
-
-    await page.getByRole("combobox", {name: "To"}).click();
-
-    await expect(page.getByText("message1")).toBeHidden();
-    await expect(page.getByText("message2")).toBeHidden();
-    await expect(page.getByText("message3")).toBeHidden();
-    await expect(page.getByText("message4")).toBeVisible();
+    await expect(page.getByLabel("New message")).toHaveText("");
+    await page.getByLabel("New message").fill("message4");
+    await expect(page.getByLabel("New message")).toHaveText("message4");
 
     await page.getByRole("option", {name: "Logan Roy"}).click();
 
@@ -634,9 +627,9 @@ test("can send self a message", async ({page, context: browserContext}) => {
     await expect(page.getByText("message3")).toBeHidden();
     await expect(page.getByText("message4")).toBeVisible();
 
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("message4");
-    await page.getByRole("button", {name: "Send message"}).click();
-    await expect(page.getByRole("textbox", {name: "New message"})).toHaveText("");
+    await expect(page.getByLabel("New message")).toHaveText("message4");
+    await page.getByLabel("Send message").click();
+    await expect(page.getByLabel("New message")).toHaveText("");
 
     await expect(page.getByText("message4")).toBeVisible();
     await expect(page.getByText("message1")).toBeHidden();
@@ -664,13 +657,17 @@ test("two accounts can look at an empty chat and see new messages appear in real
     await services.signIn(browserContext1, session1);
     await page1.goto(`/s/${space.id}/chat/new`);
 
+    // Wait for React to mount
+    await page1.waitForFunction("dev.contentEditor");
+
     const browserContext2 = await browser.newContext();
     await services.signIn(browserContext2, session4);
     const page2 = await browserContext2.newPage();
     await page2.goto(`/s/${space.id}/chat/new`);
 
-    await expect(page1.getByTestId("ChatAccountPickerInput").getByText("Roman Roy")).toBeHidden();
-    await page1.getByRole("combobox", {name: "To"}).click();
+    // Wait for React to mount
+    await page2.waitForFunction("dev.contentEditor");
+
     await page1.getByRole("option", {name: "Roman Roy"}).click();
     await expect(page1.getByTestId("ChatAccountPickerInput").getByText("Roman Roy")).toBeVisible();
     await expect(page1.getByTestId("ChatAccountPickerContainer:Pending")).toBeHidden();
@@ -686,22 +683,22 @@ test("two accounts can look at an empty chat and see new messages appear in real
     await expect(page2.getByText("message5")).toBeHidden();
     await expect(page2.getByText("message6")).toBeHidden();
 
-    await expect(page1.getByRole("textbox", {name: "New message"})).toHaveText("");
-    await page1.getByRole("textbox", {name: "New message"}).fill("message5");
-    await expect(page1.getByRole("textbox", {name: "New message"})).toHaveText("message5");
+    await expect(page1.getByLabel("New message")).toHaveText("");
+    await page1.getByLabel("New message").fill("message5");
+    await expect(page1.getByLabel("New message")).toHaveText("message5");
     await page1.getByRole("button", {name: "Send message"}).click();
-    await expect(page1.getByRole("textbox", {name: "New message"})).toHaveText("");
+    await expect(page1.getByLabel("New message")).toHaveText("");
 
     await expect(page1.getByText("message5")).toBeVisible();
     await expect(page1.getByText("message6")).toBeHidden();
     await expect(page2.getByText("message5")).toBeVisible();
     await expect(page2.getByText("message6")).toBeHidden();
 
-    await expect(page2.getByRole("textbox", {name: "New message"})).toHaveText("");
-    await page2.getByRole("textbox", {name: "New message"}).fill("message6");
-    await expect(page2.getByRole("textbox", {name: "New message"})).toHaveText("message6");
+    await expect(page2.getByLabel("New message")).toHaveText("");
+    await page2.getByLabel("New message").fill("message6");
+    await expect(page2.getByLabel("New message")).toHaveText("message6");
     await page2.getByRole("button", {name: "Send message"}).click();
-    await expect(page2.getByRole("textbox", {name: "New message"})).toHaveText("");
+    await expect(page2.getByLabel("New message")).toHaveText("");
 
     await expect(page1.getByText("message5")).toBeVisible();
     await expect(page1.getByText("message6")).toBeVisible();

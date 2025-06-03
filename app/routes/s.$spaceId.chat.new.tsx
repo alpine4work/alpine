@@ -29,6 +29,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -281,7 +282,11 @@ export default function NewChatRoute() {
                         selectedAccounts={selectedAccounts}
                         onUpdateSelectedAccounts={setSelectedAccounts}
                         shouldShowPendingSpinner={shouldShowAccountPickerPendingSpinner}
-                        suggestedChats={loaderData.suggestedChats}
+                        suggestedChats={
+                            // If we change to no selected accounts, don't wait for the loader to
+                            // re-execute to clear suggested chats.
+                            selectedAccounts.length > 0 ? loaderData.suggestedChats : emptyArray
+                        }
                         shouldInitiallyFocus={initiallyFocus === "ChatAccountPicker"}
                     />
                 </Box>

@@ -414,13 +414,19 @@ test("can drop file into new chat then change account recipients", async ({
         page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
 
-    await expect(page.getByRole("alertdialog", {name: "JPEG image"})).toBeHidden();
+    // NOTE(calebmer, 2025-06-02): For some reason Playwright can't find an
+    // `alertdialog` role element while a menu is open? So we use
+    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred
+    // form `page.getByRole("alertdialog", {name: "JPEG image"})`.
+    //
+    // This also seems to affect `page.getByRole("button", {name: "Send message"})`.
+    await expect(page.getByLabel("JPEG image")).toBeHidden();
     await page.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg").click();
-    await expect(page.getByRole("alertdialog", {name: "JPEG image"})).toBeVisible();
-    await page.getByRole("alertdialog", {name: "JPEG image"}).getByLabel("Close").click();
-    await expect(page.getByRole("alertdialog", {name: "JPEG image"})).toBeHidden();
+    await expect(page.getByLabel("JPEG image")).toBeVisible();
+    await page.getByLabel("JPEG image").getByLabel("Close").click();
+    await expect(page.getByLabel("JPEG image")).toBeHidden();
 
-    await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
+    await expect(page.getByLabel("Send message")).toBeDisabled();
 
     await page.getByRole("combobox", {name: "To"}).click();
     await page.getByRole("option", {name: session2.account.initialName}).click();
@@ -666,13 +672,19 @@ test("can drag file we didn't upload from document into new chat", async ({
         page1.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg"),
     ).toBeVisible();
 
-    await expect(page1.getByRole("alertdialog", {name: "JPEG image"})).toBeHidden();
+    // NOTE(calebmer, 2025-06-02): For some reason Playwright can't find an
+    // `alertdialog` role element while a menu is open? So we use
+    // `page.getByLabel("JPEG image")` to test visibility instead of the preferred
+    // form `page.getByRole("alertdialog", {name: "JPEG image"})`.
+    //
+    // This also seems to affect `page.getByRole("button", {name: "Send message"})`.
+    await expect(page1.getByLabel("JPEG image")).toBeHidden();
     await page1.getByTestId("MessageInput").getByTestId("ContentFilePreview:image/jpeg").click();
-    await expect(page1.getByRole("alertdialog", {name: "JPEG image"})).toBeVisible();
-    await page1.getByRole("alertdialog", {name: "JPEG image"}).getByLabel("Close").click();
-    await expect(page1.getByRole("alertdialog", {name: "JPEG image"})).toBeHidden();
+    await expect(page1.getByLabel("JPEG image")).toBeVisible();
+    await page1.getByLabel("JPEG image").getByLabel("Close").click();
+    await expect(page1.getByLabel("JPEG image")).toBeHidden();
 
-    await expect(page1.getByRole("button", {name: "Send message"})).toBeDisabled();
+    await expect(page1.getByLabel("Send message")).toBeDisabled();
 
     await page1.getByRole("combobox", {name: "To"}).click();
     await page1.getByRole("option", {name: session3.account.initialName}).click();

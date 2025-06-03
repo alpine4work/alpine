@@ -115,11 +115,12 @@ export function ChatAccountPicker({
     // Preload accounts since we don't load accounts until the dropdown is open.
     useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, currentAccount ? {spaceId: space.id} : null);
 
-    const [shouldLoadAccounts, setShouldLoadAccounts] = useState(false);
+    const [isComboBoxOpen, setIsComboBoxOpen] = useState(false);
+
     const allAccounts =
         useLazyLoadRpc(
             expensivelyGetAllSpaceAccounts,
-            shouldLoadAccounts ? {spaceId: space.id} : null,
+            selectedAccounts.length === 0 || isComboBoxOpen ? {spaceId: space.id} : null,
         ).output?.accounts ?? emptyArray;
 
     const accountById = useMemo(() => {
@@ -261,10 +262,13 @@ export function ChatAccountPicker({
     const comboBoxProps: ComboBoxStateOptions<ChatAccountPickerItem> = {
         // We need to know whether the combobox is open or not to decide whether we
         // should load accounts.
-        onOpenChange: setShouldLoadAccounts,
+        onOpenChange: setIsComboBoxOpen,
 
         label: "To",
         menuTrigger: "manual",
+        // Don't try to close on blur when there are no selected accounts since the
+        // combobox should state open.
+        shouldCloseOnBlur: selectedAccounts.length > 0,
         // Don't close when there are no items.
         allowsEmptyCollection: true,
 
@@ -358,9 +362,30 @@ export function ChatAccountPicker({
     // watch our state for when a close is requested and perform it.
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!shouldCloseComboBox) return;
-        comboBoxState.close();
+
+        // If there are no selected accounts, we don't ever want to close the combobox.
+        if (selectedAccounts.length > 0) {
+            comboBoxState.close();
+        }
+
         setSearchQuery({searchQuery, shouldCloseComboBox: false});
-    }, [comboBoxState, searchQuery, shouldCloseComboBox]);
+    }, [comboBoxState, searchQuery, selectedAccounts.length, shouldCloseComboBox]);
+
+    // If there are no selected accounts, we should always consider the combobox to
+    // be open. Our `<Overlay>` component is set to always be visible if
+    // `selectedAccounts.length === 0` even if `comboBoxState.isOpen` is false.
+    // Catch up `comboBoxState` to this reality in an effect.
+    //
+    // NOTE(calebmer): Admittedly, this is pretty hacky! I think we've outgrown
+    // `react-aria`'s `useCombobox()`. Ideally we'd write our own combobox logic
+    // which has first-class support for always-open comboboxes.
+    useEffect(() => {
+        if (!comboBoxState.isOpen && selectedAccounts.length === 0) {
+            comboBoxState.open();
+            comboBoxState.selectionManager.setFocusedKey(null);
+            if (listBoxRef.current?.parentElement) listBoxRef.current.parentElement.scrollTop = 0;
+        }
+    }, [comboBoxState, selectedAccounts.length]);
 
     const {labelProps, inputProps, buttonProps, listBoxProps} = useComboBox(
         {
@@ -597,12 +622,11 @@ export function ChatAccountPicker({
 
     return (
         <OverlayAnimated
-            // TODO(calebmer): It would be nice, from a design perspective, if while
-            // `selectedAccounts.length === 0` the overlay was always open! Not just when
-            // the input was selected. Since we have nothing else to show the user before
-            // they enter a chat. However, this seems impossible with `react-aria`'s
-            // combobox component. We'd have to implement our own combobox component.
-            isVisible={comboBoxState.isOpen}
+            // Force the overlay to be open if there are no selected accounts. In an effect
+            // we call `comboBoxState.open()` even when `selectedAccounts.length` is 0 but
+            // before that we want to make sure the overlay is visible so it doesn't
+            // flash in.
+            isVisible={comboBoxState.isOpen || selectedAccounts.length === 0}
             disableAnimationIn={true}
             disableAnimationOut={!shouldOverlayAnimate}
             placement="bottom-start"
@@ -721,6 +745,13 @@ export function ChatAccountPicker({
                                     // So intercept this case and don't call into `@react-aria/combobox`.
                                     //
                                     // [1]: https://github.com/adobe/react-spectrum/blob/e7b1c7fa869fbf3f03194f98c3e2f35c9861a613/packages/%40react-aria/combobox/src/useComboBox.ts#L132
+                                } else if (
+                                    event.key === "Escape" &&
+                                    selectedAccounts.length === 0
+                                ) {
+                                    // Since the combobox will never close when there are no selected accounts, let
+                                    // the escape key press propagate up. If we're in a peek that means closing
+                                    // the peek.
                                 } else {
                                     inputProps.onKeyDown?.(event);
                                 }
