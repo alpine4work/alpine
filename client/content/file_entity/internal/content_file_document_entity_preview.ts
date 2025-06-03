@@ -9,6 +9,7 @@ import {AppContext} from "~/client/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/remix/route_layout_context.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
@@ -138,6 +139,11 @@ export function renderContentFileDocumentEntityPreview(
         ].join("; "),
     );
 
+    const content = fileEntity.preview?.content ?? {
+        doc: createDummyDocumentContent(fileEntity.titleWithoutFallback),
+        references: emptyDocumentContentReferences,
+    };
+
     const docHtml = scaledDocHtml.appendChild(new HtmlElementGenerator("div"));
     docHtml.setAttribute(
         "class",
@@ -145,36 +151,32 @@ export function renderContentFileDocumentEntityPreview(
             contentStyles.docClassName,
             contentStyles.narrowRouteLayoutDocClassName,
             contentStyles.withUserSelectNoneDocClassName,
+            isContentTitleEmpty(content.doc) && contentStyles.emptyTitleClassName,
+            isContentBodyEmpty(content.doc) && contentStyles.emptyBodyClassName,
         ),
     );
 
-    const docFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(
-        get,
-        fileEntity.preview?.content ?? {
-            doc: createDummyDocumentContent(fileEntity.titleWithoutFallback),
-            references: emptyDocumentContentReferences,
-        },
-        {
-            isInert: true,
-            getContext,
-            clientInfo,
-            spaceId,
-            accountStore,
-            fileStore,
-            currentAccount,
-            // If we render files/tables inside the preview make sure they have an
-            // appropriately scaled block width (important for row of 3 recursive docs use
-            // case). Make sure that block width doesn't exceed the max width, though
-            // (important for row of 1 recursive docs use case).
-            blockWidth: Math.min(scaledWidthPx, blockMaxWidthPx),
-            transformScale: originalTransformScale * transformScale,
-            platform,
-            spacingScale,
-            isInitialAppRender,
-            currentDate,
-            fileEntityRenderers,
-        },
-    );
+    const docFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(get, content, {
+        placeholder: "Share your ideas…",
+        isInert: true,
+        getContext,
+        clientInfo,
+        spaceId,
+        accountStore,
+        fileStore,
+        currentAccount,
+        // If we render files/tables inside the preview make sure they have an
+        // appropriately scaled block width (important for row of 3 recursive docs use
+        // case). Make sure that block width doesn't exceed the max width, though
+        // (important for row of 1 recursive docs use case).
+        blockWidth: Math.min(scaledWidthPx, blockMaxWidthPx),
+        transformScale: originalTransformScale * transformScale,
+        platform,
+        spacingScale,
+        isInitialAppRender,
+        currentDate,
+        fileEntityRenderers,
+    });
 
     docHtml.appendChild(docFragmentHtml);
 }
