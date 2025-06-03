@@ -42,7 +42,7 @@ export const messageViewAvatarOffsetYPx = createObjectFromKeys(
         convertRemLengthToPx(messageViewAccountAvatarSize, spacingScale) / 2,
 );
 
-export const messageViewMarginY = "6";
+export const messageViewMarginY: Spacing = contentStyles.standaloneBlockMargin;
 
 export const messageViewOutlineBorderRadius = "1";
 export const messageViewOutlineMargin = "1";

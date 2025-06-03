@@ -109,7 +109,8 @@ export function ChannelViewAside({
             <Box
                 position="relative"
                 maxWidth={postListViewAsideMaxWidth}
-                paddingX={screenPaddingX}
+                paddingLeft="2"
+                paddingRight={screenPaddingX}
                 paddingBottom={screenPaddingX}
                 display="flex"
                 flexDirection="column"

@@ -3,6 +3,7 @@ import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
 import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
@@ -18,10 +19,12 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 export function PostContentViewHeader({
     post,
     shouldShowChannel,
+    stopNavigateToChannelPropagation,
     withNavigationBarLayout,
 }: {
     post: PostModel;
     shouldShowChannel: boolean;
+    stopNavigateToChannelPropagation?: boolean;
     withNavigationBarLayout?: boolean;
 }) {
     return (
@@ -29,6 +32,7 @@ export function PostContentViewHeader({
             author={post.author}
             createdTime={post.createdTime}
             channel={shouldShowChannel ? post.channel : undefined}
+            stopNavigateToChannelPropagation={stopNavigateToChannelPropagation}
             withNavigationBarLayout={withNavigationBarLayout}
         />
     );
@@ -41,6 +45,7 @@ export function PostContentViewHeaderBase({
     extraAfterCreatedTime,
     channel,
     channelSelector,
+    stopNavigateToChannelPropagation = false,
     withNavigationBarLayout,
 }: {
     author: AccountModel;
@@ -49,6 +54,7 @@ export function PostContentViewHeaderBase({
     extraAfterCreatedTime?: string;
     channel?: ChannelPreviewModel;
     channelSelector?: ReactNode;
+    stopNavigateToChannelPropagation?: boolean;
     withNavigationBarLayout?: boolean;
 }) {
     const platform = usePlatform();
@@ -68,7 +74,12 @@ export function PostContentViewHeaderBase({
                     <span className={sprinkles({color: "grey-100", fontStyle: "semi-bold"})}>
                         {useAccountModel(author).name}
                     </span>
-                    {channel && <PostContentViewHeaderChannelBase channel={channel} />}
+                    {channel && (
+                        <PostContentViewHeaderChannelBase
+                            channel={channel}
+                            stopNavigateToChannelPropagation={stopNavigateToChannelPropagation}
+                        />
+                    )}
                 </Box>
                 <Box fontSize="50" fontStyle="truncate" color="grey-50">
                     <PrettyAbsoluteDate
@@ -103,13 +114,18 @@ export function PostContentViewHeaderBase({
     );
 }
 
-function PostContentViewHeaderChannelBase({channel}: {channel: ChannelPreviewModel}) {
+function PostContentViewHeaderChannelBase({
+    channel,
+    stopNavigateToChannelPropagation,
+}: {
+    channel: ChannelPreviewModel;
+    stopNavigateToChannelPropagation: boolean;
+}) {
     const navigate = useNavigate();
     const {isPressed, pressProps} = usePress({
         onPress: () => {
             navigate(`/s/${channel.spaceId}/channels/${channel.id}`, {
-                // Don't let the route open in `<PeekStack>`.
-                stopPropagation: true,
+                stopPropagation: stopNavigateToChannelPropagation,
             });
         },
     });
@@ -118,26 +134,28 @@ function PostContentViewHeaderChannelBase({channel}: {channel: ChannelPreviewMod
         <>
             {" "}
             in{" "}
-            <a
-                {...pressProps}
-                className={sprinkles({
-                    color: "grey-100",
-                    fontStyle: "semi-bold",
-                    // This design has a weak link affordance so use a pointer cursor to make it
-                    // clear this text is clickable.
-                    cursor: "pointer",
-                    opacity: isPressed ? "60" : undefined,
-                })}
-                href={`/s/${channel.spaceId}/channels/${channel.id}`}
-                onClick={event => {
-                    // Custom link navigation handling...
-                    event.preventDefault();
+            <FocusRing>
+                <a
+                    {...pressProps}
+                    className={sprinkles({
+                        color: "grey-100",
+                        fontStyle: "semi-bold",
+                        // This design has a weak link affordance so use a pointer cursor to make it
+                        // clear this text is clickable.
+                        cursor: "pointer",
+                        opacity: isPressed ? "60" : undefined,
+                    })}
+                    href={`/s/${channel.spaceId}/channels/${channel.id}`}
+                    onClick={event => {
+                        // Custom link navigation handling...
+                        event.preventDefault();
 
-                    pressProps.onClick?.(event);
-                }}
-            >
-                {channel.name}
-            </a>
+                        pressProps.onClick?.(event);
+                    }}
+                >
+                    {channel.name}
+                </a>
+            </FocusRing>
         </>
     );
 }

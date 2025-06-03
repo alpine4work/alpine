@@ -221,7 +221,12 @@ export function PostContentView({
             ) : (
                 <>
                     <Box position="relative" paddingX={screenPaddingX}>
-                        <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
+                        <PostContentViewHeader
+                            post={post}
+                            shouldShowChannel={shouldShowChannel}
+                            // Don't let the route open in `<PeekStack>` if this is a `<PostView>`.
+                            stopNavigateToChannelPropagation={isPostView}
+                        />
                     </Box>
                     <Box position="absolute" top={screenPaddingX} right={screenPaddingX}>
                         <MenuButton
