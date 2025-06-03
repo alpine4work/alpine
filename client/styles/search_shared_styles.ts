@@ -75,3 +75,7 @@ export const searchAffinityEntityViewMinHeightPx = createObjectFromKeys(
 );
 
 export const searchEntityViewTitleTypeDisplayGap = "1.5";
+
+export const searchEntityHeaderFontSize = "50";
+export const searchEntityHeaderLineHeight = "4";
+export const searchEntityHeaderPaddingTop = "3";

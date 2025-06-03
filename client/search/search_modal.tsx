@@ -53,6 +53,9 @@ import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
+    searchEntityHeaderFontSize,
+    searchEntityHeaderLineHeight,
+    searchEntityHeaderPaddingTop,
     searchEntityViewDefaultMarginX,
     searchEntityViewDefaultPaddingX,
     searchEntityViewMinHeightPx,
@@ -724,20 +727,22 @@ function SearchModalResultList({
         (index: number): VirtualizedScrollViewItem => {
             if (hasFavorites) {
                 if (index === 0) {
-                    const fontSize = "50";
-                    const lineHeight = "4";
-                    const paddingTop = "3";
-
                     return {
                         key: "FavoritesHeader",
-                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        minHeight: addRemLengths(
+                            searchEntityHeaderPaddingTop,
+                            searchEntityHeaderLineHeight,
+                        ),
                         node: (
-                            <Box paddingTop={paddingTop} paddingX={searchEntityViewDefaultMarginX}>
+                            <Box
+                                paddingTop={searchEntityHeaderPaddingTop}
+                                paddingX={searchEntityViewDefaultMarginX}
+                            >
                                 <Box
                                     paddingX={searchEntityViewDefaultPaddingX}
                                     color="grey-50"
-                                    fontSize={fontSize}
-                                    style={{lineHeight: spacing[lineHeight]}}
+                                    fontSize={searchEntityHeaderFontSize}
+                                    style={{lineHeight: spacing[searchEntityHeaderLineHeight]}}
                                 >
                                     Favorites
                                     {hasMoreFavoriteResults && (
@@ -865,20 +870,22 @@ function SearchModalResultList({
                 index -= favoriteResults.length;
 
                 if (index === 0) {
-                    const fontSize = "50";
-                    const lineHeight = "4";
-                    const paddingTop = "3";
-
                     return {
                         key: "SuggestedHeader",
-                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        minHeight: addRemLengths(
+                            searchEntityHeaderPaddingTop,
+                            searchEntityHeaderLineHeight,
+                        ),
                         node: (
-                            <Box paddingX={searchEntityViewDefaultMarginX} paddingTop={paddingTop}>
+                            <Box
+                                paddingX={searchEntityViewDefaultMarginX}
+                                paddingTop={searchEntityHeaderPaddingTop}
+                            >
                                 <Box
                                     paddingX={searchEntityViewDefaultPaddingX}
                                     color="grey-50"
-                                    fontSize={fontSize}
-                                    style={{lineHeight: spacing[lineHeight]}}
+                                    fontSize={searchEntityHeaderFontSize}
+                                    style={{lineHeight: spacing[searchEntityHeaderLineHeight]}}
                                 >
                                     Suggested
                                 </Box>

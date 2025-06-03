@@ -15,6 +15,9 @@ import {SearchEntityView} from "~/client/search/search_entity_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    searchEntityHeaderFontSize,
+    searchEntityHeaderLineHeight,
+    searchEntityHeaderPaddingTop,
     searchEntityViewMinHeightPx,
     searchMobileInputBorderRadius,
     searchMobileInputFontSize,
@@ -201,23 +204,22 @@ export function SearchMobileView({
 
             if (hasFavorites) {
                 if (index === 0) {
-                    const fontSize = "50";
-                    const lineHeight = "4";
-                    const paddingTop = "3";
-
                     return {
                         key: "FavoritesHeader",
-                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        minHeight: addRemLengths(
+                            searchEntityHeaderPaddingTop,
+                            searchEntityHeaderLineHeight,
+                        ),
                         node: (
                             <Box
                                 width="full"
                                 maxWidth={maxWidth}
                                 marginX="center"
-                                paddingTop={paddingTop}
+                                paddingTop={searchEntityHeaderPaddingTop}
                                 paddingX={screenPaddingX}
                                 color="grey-50"
-                                fontSize={fontSize}
-                                style={{lineHeight: spacing[lineHeight]}}
+                                fontSize={searchEntityHeaderFontSize}
+                                style={{lineHeight: spacing[searchEntityHeaderLineHeight]}}
                             >
                                 Favorites
                                 {hasMoreFavoriteResults && (
@@ -253,7 +255,7 @@ export function SearchMobileView({
                         minHeight: searchEntityViewMinHeightPx[spacingScale],
                         node: (
                             <Box width="full" maxWidth={maxWidth} marginX="center">
-                                <SearchMobileViewResult
+                                <SearchMobileEntityView
                                     spaceId={space.id}
                                     searchKey={output.key}
                                     searchTime={output.queryTime}
@@ -269,23 +271,22 @@ export function SearchMobileView({
                 index -= favoriteResults.length;
 
                 if (index === 0) {
-                    const fontSize = "50";
-                    const lineHeight = "4";
-                    const paddingTop = "3";
-
                     return {
                         key: "SuggestedHeader",
-                        minHeight: addRemLengths(paddingTop, lineHeight),
+                        minHeight: addRemLengths(
+                            searchEntityHeaderPaddingTop,
+                            searchEntityHeaderLineHeight,
+                        ),
                         node: (
                             <Box
                                 width="full"
                                 maxWidth={maxWidth}
                                 marginX="center"
                                 paddingX={screenPaddingX}
-                                paddingTop={paddingTop}
+                                paddingTop={searchEntityHeaderPaddingTop}
                                 color="grey-50"
-                                fontSize={fontSize}
-                                style={{lineHeight: spacing[lineHeight]}}
+                                fontSize={searchEntityHeaderFontSize}
+                                style={{lineHeight: spacing[searchEntityHeaderLineHeight]}}
                             >
                                 Suggested
                             </Box>
@@ -306,7 +307,7 @@ export function SearchMobileView({
                 minHeight: searchEntityViewMinHeightPx[spacingScale],
                 node: (
                     <Box width="full" maxWidth={maxWidth} marginX="center">
-                        <SearchMobileViewResult
+                        <SearchMobileEntityView
                             spaceId={space.id}
                             searchKey={output.key}
                             searchTime={output.queryTime}
@@ -381,7 +382,7 @@ export function SearchMobileView({
     );
 }
 
-function SearchMobileViewResult({
+function SearchMobileEntityView({
     spaceId,
     searchKey,
     searchTime,
