@@ -93,25 +93,10 @@ export function useLazyLoadRpc<Input, Output extends {}>(
 export function useIdlyPreloadRpc<Input, Output extends {}>(
     rpc: RpcDefinition<Input, Output>,
     input: Input | null,
-    {
-        initialOutput,
-    }: {
-        /**
-         * Initial data to populate in the store. If provided then we won't call
-         * `fetcher` and will instead put the data from this object in the store.
-         * Future `useSwr()` hook calls may observe this initial data.
-         */
-        initialOutput?: Output | null;
-    } = {},
 ) {
     const context = useAppContext();
     const fetcher = useMemo(() => createRpcCacheFetcher(context, rpc), [context, rpc]);
     const key = useMemo(() => (input !== null ? getRpcCacheKey(rpc, input) : null), [input, rpc]);
 
-    useIdlyPreloadSwr(key, fetcher, {
-        initialData: useMemo(
-            () => (initialOutput ? {...initialOutput, input} : null),
-            [initialOutput, input],
-        ),
-    });
+    useIdlyPreloadSwr(key, fetcher);
 }

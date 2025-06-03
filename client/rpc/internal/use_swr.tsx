@@ -179,7 +179,7 @@ export function useSwr(
     }, [entryResult, initialData]);
 }
 
-let scheduledIdlePreloadRpcCallbacks: readonly [Array<() => void>, Array<() => void>] | null = null;
+let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
 
 /**
  * Preload data into our SWR cache with idle priority. Useful if you have some
@@ -191,7 +191,6 @@ export function useIdlyPreloadSwr(
     fetcher: (key: string) => PromiseLike<object>,
     {
         dedupingInterval = swrDefaultDedupingIntervalMs,
-        initialData = null,
     }: {
         /**
          * When we make a request for a given `key`, how long should we consider the
@@ -199,13 +198,6 @@ export function useIdlyPreloadSwr(
          * the existing pending request instead of sending a new one.
          */
         dedupingInterval?: number;
-
-        /**
-         * Initial data to populate in the store. If provided then we won't call
-         * `fetcher` and will instead put the data from this object in the store.
-         * Future `useSwr()` hook calls may observe this initial data.
-         */
-        initialData?: object | null;
     } = {},
 ) {
     const cache = useGlobalContext(SwrCacheContext);
@@ -231,7 +223,7 @@ export function useIdlyPreloadSwr(
         if (key === null) return;
 
         if (scheduledIdlePreloadRpcCallbacks === null) {
-            scheduledIdlePreloadRpcCallbacks = [[], []];
+            scheduledIdlePreloadRpcCallbacks = [];
 
             // Use the React scheduler to schedule an idle callback.
             // `requestIdleCallback()` is not implemented in Safari. Generally we recommend
@@ -240,14 +232,10 @@ export function useIdlyPreloadSwr(
             unstable_scheduleCallback(unstable_IdlePriority, () => {
                 assert(scheduledIdlePreloadRpcCallbacks !== null);
 
-                const [callbacks1, callbacks2] = scheduledIdlePreloadRpcCallbacks;
+                const callbacks = scheduledIdlePreloadRpcCallbacks;
                 scheduledIdlePreloadRpcCallbacks = null;
 
-                for (const callback of callbacks1) {
-                    callback();
-                }
-
-                for (const callback of callbacks2) {
+                for (const callback of callbacks) {
                     callback();
                 }
             });
@@ -255,32 +243,13 @@ export function useIdlyPreloadSwr(
 
         assert(retainedKeyRef.current === key);
 
-        if (initialData === null) {
-            scheduledIdlePreloadRpcCallbacks[0].push(() => {
-                // Make sure `key` is still retained. If `key` changes or the component
-                // unmounts after we scheduled the idle callback then we need to not run our
-                // idle callback.
-                if (retainedKeyRef.current === key) {
-                    cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
-                }
-            });
-        } else {
-            // If we have `initialData` then add it to the store in an idle callback that
-            // runs after all other idle callbacks. That way if there's another
-            // `useIdlyPreloadSwr()` call with the same key then it will trigger a fetch
-            // instead of using `initialData`.
-            scheduledIdlePreloadRpcCallbacks[1].push(() => {
-                // Make sure `key` is still retained. If `key` changes or the component
-                // unmounts after we scheduled the idle callback then we need to not run our
-                // idle callback.
-                if (retainedKeyRef.current === key) {
-                    cache.revalidateEntryIfNotAvailable(
-                        key,
-                        () => PromiseImmediate.resolve(initialData),
-                        {dedupingInterval},
-                    );
-                }
-            });
-        }
-    }, [cache, dedupingInterval, fetcher, initialData, key]);
+        scheduledIdlePreloadRpcCallbacks.push(() => {
+            // Make sure `key` is still retained. If `key` changes or the component
+            // unmounts after we scheduled the idle callback then we need to not run our
+            // idle callback.
+            if (retainedKeyRef.current === key) {
+                cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
+            }
+        });
+    }, [cache, dedupingInterval, fetcher, key]);
 }
