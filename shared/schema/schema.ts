@@ -1420,6 +1420,25 @@ export class ObjectSchema<Value> extends Schema<Value> {
     }
 
     /**
+     * Omit certain keys from the object schema. Like the `Omit<T, K>` TypeScript
+     * utility.
+     */
+    public omit<const Keys extends ReadonlyArray<string>>(
+        keys: Keys,
+    ): ObjectSchema<Omit<Value, Keys[number]>> {
+        const omitKeys = new Set(keys);
+
+        return new ObjectSchema(
+            new Map(
+                filterMapIterable(this.propertySchemaByKey, ([key, propertySchema]) => {
+                    if (omitKeys.has(key)) return;
+                    return [key, propertySchema];
+                }),
+            ),
+        );
+    }
+
+    /**
      * Makes all properties of the object schema optional. Like the `Partial<T>`
      * TypeScript utility.
      */

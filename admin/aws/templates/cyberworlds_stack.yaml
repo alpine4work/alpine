@@ -1028,6 +1028,31 @@ Resources:
         DeletionPolicy: Retain
         Metadata:
             aws:cdk:path: CyberworldsStack/DocumentsTable/Resource
+    FeedTable1849209D:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+                - AttributeName: partitionKey
+                  AttributeType: S
+                - AttributeName: sortKey
+                  AttributeType: S
+            BillingMode: PAY_PER_REQUEST
+            DeletionProtectionEnabled: true
+            KeySchema:
+                - AttributeName: partitionKey
+                  KeyType: HASH
+                - AttributeName: sortKey
+                  KeyType: RANGE
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            TableName: Feed
+            TimeToLiveSpecification:
+                AttributeName: expirationTime
+                Enabled: true
+        UpdateReplacePolicy: Retain
+        DeletionPolicy: Retain
+        Metadata:
+            aws:cdk:path: CyberworldsStack/FeedTable/Resource
     FilesTable1399FAA4:
         Type: AWS::DynamoDB::Table
         Properties:
@@ -1678,6 +1703,9 @@ Resources:
                                 - DocumentsTable7E808EE5
                                 - Arn
                           - Fn::GetAtt:
+                                - FeedTable1849209D
+                                - Arn
+                          - Fn::GetAtt:
                                 - FilesTable1399FAA4
                                 - Arn
                           - Fn::GetAtt:
@@ -1729,6 +1757,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - DocumentsTable7E808EE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FeedTable1849209D
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -2375,6 +2409,9 @@ Resources:
                                 - DocumentsTable7E808EE5
                                 - Arn
                           - Fn::GetAtt:
+                                - FeedTable1849209D
+                                - Arn
+                          - Fn::GetAtt:
                                 - FilesTable1399FAA4
                                 - Arn
                           - Fn::GetAtt:
@@ -2426,6 +2463,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - DocumentsTable7E808EE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FeedTable1849209D
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3154,6 +3197,9 @@ Resources:
                                 - DocumentsTable7E808EE5
                                 - Arn
                           - Fn::GetAtt:
+                                - FeedTable1849209D
+                                - Arn
+                          - Fn::GetAtt:
                                 - FilesTable1399FAA4
                                 - Arn
                           - Fn::GetAtt:
@@ -3205,6 +3251,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - DocumentsTable7E808EE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FeedTable1849209D
                                         - Arn
                                   - /index/*
                           - Fn::Join:
@@ -3736,6 +3788,9 @@ Resources:
                                 - DocumentsTable7E808EE5
                                 - Arn
                           - Fn::GetAtt:
+                                - FeedTable1849209D
+                                - Arn
+                          - Fn::GetAtt:
                                 - FilesTable1399FAA4
                                 - Arn
                           - Fn::GetAtt:
@@ -3787,6 +3842,12 @@ Resources:
                                 - ""
                                 - - Fn::GetAtt:
                                         - DocumentsTable7E808EE5
+                                        - Arn
+                                  - /index/*
+                          - Fn::Join:
+                                - ""
+                                - - Fn::GetAtt:
+                                        - FeedTable1849209D
                                         - Arn
                                   - /index/*
                           - Fn::Join:
