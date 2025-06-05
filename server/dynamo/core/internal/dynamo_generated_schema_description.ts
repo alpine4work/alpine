@@ -10104,6 +10104,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "hasAddedFeedCandidateEntry": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": true
+                                    },
                                     "taskCount": {
                                         "valueSchema": {
                                             "type": "Integer"

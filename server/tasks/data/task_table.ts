@@ -31,6 +31,7 @@ import {
 } from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
+import {addFeedCandidateEntry} from "~/server/feed/data/feed_table.js";
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {
     ActorContextModule,
@@ -88,6 +89,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
@@ -489,6 +491,14 @@ const TaskTable = DynamoTableSchema.new({
                          * level.
                          */
                         accessPolicy: AccessPolicyRegister.schema,
+
+                        /**
+                         * Have we added a feed candidate entry for the collection? We add an entry
+                         * when the collection is shared with some `defaultGrant`. But if you revoke
+                         * the `defaultGrant` then add it again we don't want to add another feed
+                         * candidate entry.
+                         */
+                        hasAddedFeedCandidateEntry: Schema.boolean.default(false),
 
                         /**
                          * The total number of tasks in the collection. Open and closed. Not
@@ -913,7 +923,7 @@ export type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
 
 type TaskCollectionEssentialAttributesItemBase = Omit<
     TaskCollectionEssentialAttributesItem,
-    "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+    "taskCount" | "openTaskCount" | "lastTaskAddedTime" | "hasAddedFeedCandidateEntry"
 >;
 
 type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
@@ -1526,6 +1536,10 @@ class TaskActionTransactionCommitState {
         Promise<TaskCollectionEssentialAttributesItem | null>
     >();
 
+    private readonly _afterCommitActions: Array<
+        (context: ServerSessionActionContext) => Promise<void>
+    > = [];
+
     private constructor(
         context: ServerSessionActionContext,
         {spaceId, leaseId}: {spaceId: SpaceId; leaseId: TaskActionTransactionLeaseId | null},
@@ -1615,6 +1629,11 @@ class TaskActionTransactionCommitState {
                 try {
                     const forkedState = state._fork();
                     await forkedState._prepareCommit(createLeaseIfLostAccess.actions);
+
+                    assert(
+                        forkedState._afterCommitActions.length === 0,
+                        "Can't register after commit callbacks for lease actions since we don't commit lease actions when creating the lease",
+                    );
                 } catch (error) {
                     if (error instanceof PermissionDeniedError) {
                         hasLostAccess = true;
@@ -1626,12 +1645,17 @@ class TaskActionTransactionCommitState {
                 if (hasLostAccess) {
                     // Create a new state object and make sure we're allowed to commit the actions
                     // we want a lease for BEFORE the actions that cause us to lose access.
-                    const testState = new TaskActionTransactionCommitState(context, {
-                        spaceId,
-                        leaseId: null,
-                    });
                     try {
+                        const testState = new TaskActionTransactionCommitState(context, {
+                            spaceId,
+                            leaseId: null,
+                        });
                         await testState._prepareCommit(createLeaseIfLostAccess.actions);
+
+                        assert(
+                            testState._afterCommitActions.length === 0,
+                            "Can't register after commit callbacks for lease actions since we don't commit lease actions when creating the lease",
+                        );
                     } catch (error) {
                         if (error instanceof PermissionDeniedError) {
                             throw PermissionDeniedError.from(error, "Couldn't apply lease actions");
@@ -1834,6 +1858,12 @@ class TaskActionTransactionCommitState {
             await DynamoTableSchema.executeTransaction(this._context, transactionEntries);
         } else {
             await TaskActionTable.createOrReplaceItem(this._context, actionTransactionItem);
+        }
+
+        // Hooray! We've successfully committed the transaction. Now run our after
+        // commit actions...
+        if (this._afterCommitActions.length > 0) {
+            await runAllPromises(this._afterCommitActions.map(action => action(this._context)));
         }
 
         return {
@@ -2283,6 +2313,18 @@ class TaskActionTransactionCommitState {
             expectedAccessLevel,
             this,
         );
+    }
+
+    /**
+     * Run some code after the action transaction has successfully committed.
+     *
+     * You can't register after commit actions when creating a lease (an error will
+     * be thrown). Since we don't actually commit lease actions until later.
+     */
+    public registerAfterCommitAction(
+        action: (context: ServerSessionActionContext) => Promise<void>,
+    ) {
+        this._afterCommitActions.push(action);
     }
 }
 
@@ -3046,13 +3088,15 @@ async function actuallyCommitTaskActionTransaction(
                             );
                         }
 
+                        const {creatorId} = collectionAction;
+
                         const newCollectionItem: TaskCollectionEssentialAttributesItem = {
                             partitionType: "TaskCollection",
                             sortRangeType: "EssentialAttributes",
                             collectionId,
                             spaceId,
                             createdTime: action.time,
-                            creatorId: collectionAction.creatorId,
+                            creatorId,
                             rawDeletedTime: null,
                             rawUndeletedTime: null,
                             name: new LabelStringRegister(collectionAction.name, action.time),
@@ -3061,6 +3105,8 @@ async function actuallyCommitTaskActionTransaction(
                                 collectionAction.accessPolicy,
                                 action.time,
                             ),
+                            hasAddedFeedCandidateEntry:
+                                !!collectionAction.accessPolicy.defaultGrant,
                             taskCount: 0,
                             openTaskCount: 0,
                             lastTaskAddedTime: null,
@@ -3078,6 +3124,47 @@ async function actuallyCommitTaskActionTransaction(
                         }
 
                         state.createCollectionItem(newCollectionItem);
+
+                        state.registerAfterCommitAction(async context => {
+                            const entry: FeedEntry = {
+                                type: "TaskCollection",
+                                collectionId,
+                                sharedTime: new Date(action.time[0]),
+                                sharerId: creatorId,
+                                creatorId,
+                                event: "Created",
+                            };
+
+                            // If we created a public task collection then add a feed candidate entry after
+                            // 15 minutes. We wait 15 minutes to give the user the chance to add some tasks
+                            // to the collection. So the feed entry we publish doesn't show an empty task
+                            // collection.
+                            if (newCollectionItem.hasAddedFeedCandidateEntry) {
+                                context.jobs.send(
+                                    {
+                                        type: "AddFeedCandidateEntry",
+                                        jobId: generateId(),
+                                        spaceId,
+                                        entry,
+                                    },
+                                    {delaySeconds: 15 * 60},
+                                );
+                            }
+                            // If we're creating a private task collection then only add an entry to the
+                            // creator account's personal feed.
+                            else {
+                                context.jobs.send(
+                                    {
+                                        type: "AddFeedAccountCandidateEntry",
+                                        jobId: generateId(),
+                                        spaceId,
+                                        accountId: creatorId,
+                                        entry,
+                                    },
+                                    {delaySeconds: 15 * 60},
+                                );
+                            }
+                        });
                         break;
                     }
                     case "Undelete": {
@@ -3201,10 +3288,60 @@ async function actuallyCommitTaskActionTransaction(
                                     throw new FailedPreconditionError(result.reason);
                                 }
 
+                                const oldHasAddedFeedCandidateEntry =
+                                    collectionItem.hasAddedFeedCandidateEntry;
+                                const newHasAddedFeedCandidateEntry =
+                                    oldHasAddedFeedCandidateEntry ||
+                                    !!newAccessPolicy.value.defaultGrant;
+
                                 state.updateCollectionItem({
                                     ...collectionItem,
                                     accessPolicy: newAccessPolicy,
+                                    hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
                                 });
+
+                                // If we're sharing a task collection for the first time then add a feed
+                                // candidate entry after 15 minutes. We wait 15 minutes to give the user the
+                                // chance to add some tasks to the collection. So the feed entry we publish
+                                // doesn't show an empty task collection.
+                                //
+                                // Unless there are 8 or more open tasks. Then we add the feed candidate entry
+                                // immediately since we have enough tasks to render a good preview in feed.
+                                if (
+                                    newHasAddedFeedCandidateEntry &&
+                                    !oldHasAddedFeedCandidateEntry
+                                ) {
+                                    state.registerAfterCommitAction(async context => {
+                                        const entry: FeedEntry = {
+                                            type: "TaskCollection",
+                                            collectionId,
+                                            sharedTime: new Date(action.time[0]),
+                                            sharerId: state.getActorAccountId(),
+                                            creatorId: collectionItem.creatorId,
+                                            event: "SharedWithAccessPolicyDefaultGrant",
+                                        };
+
+                                        if (collectionItem.openTaskCount >= 8) {
+                                            context.process.waitUntil(async () => {
+                                                await addFeedCandidateEntry(
+                                                    context,
+                                                    spaceId,
+                                                    entry,
+                                                );
+                                            });
+                                        } else {
+                                            context.jobs.send(
+                                                {
+                                                    type: "AddFeedCandidateEntry",
+                                                    jobId: generateId(),
+                                                    spaceId,
+                                                    entry,
+                                                },
+                                                {delaySeconds: 15 * 60},
+                                            );
+                                        }
+                                    });
+                                }
                                 break;
                             }
                             default:
