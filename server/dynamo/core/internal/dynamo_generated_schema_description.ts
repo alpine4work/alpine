@@ -7059,6 +7059,12 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": true
                                     },
+                                    "hasAddedFeedCandidateEntry": {
+                                        "valueSchema": {
+                                            "type": "Boolean"
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"

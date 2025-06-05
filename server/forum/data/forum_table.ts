@@ -35,6 +35,10 @@ import {
     DynamoGeneralRealtimeTableSchema,
 } from "~/server/dynamo/core/general_realtime/dynamo_general_realtime_table_schema.js";
 import {
+    addFeedAccountCandidateEntry,
+    addFeedCandidateEntry,
+} from "~/server/feed/data/feed_table.js";
+import {
     FileAuthorizer,
     attachFileFromAttachment,
     detachFile,
@@ -92,6 +96,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
@@ -240,6 +245,14 @@ const ForumRealtimeTable = DynamoGeneralRealtimeTableSchema.new({
                                 defaultGrant: {level: "Manage", generation: 0},
                                 urlGrant: null,
                             }),
+
+                        /**
+                         * Have we added a feed candidate entry for the channel? We add an entry when
+                         * the channel is shared with some `defaultGrant`. But if you revoke the
+                         * `defaultGrant` then add it again we don't want to add another feed
+                         * candidate entry.
+                         */
+                        hasAddedFeedCandidateEntry: Schema.boolean.default(false),
                     }),
                 },
 
@@ -1056,6 +1069,7 @@ export async function runMoveForumChannelsAndPostsMigration(
                                     defaultGrant: {level: "Manage", generation: 0},
                                     urlGrant: null,
                                 },
+                                hasAddedFeedCandidateEntry: false,
                             },
                         ),
                     ]);
@@ -1090,6 +1104,10 @@ export async function seedTestChannels(
                 defaultGrant: {level: "Manage", generation: 0},
                 urlGrant: null,
             },
+            // We haven't actually added a feed candidate entry for this channel but we
+            // think it'd be weird if you unshared then re-shared this initial channel for
+            // the space to get a feed entry.
+            hasAddedFeedCandidateEntry: true,
         },
     );
 
@@ -1146,6 +1164,10 @@ export function internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntr
                     defaultGrant: {level: "Manage", generation: 1},
                     urlGrant: null,
                 },
+                // We haven't actually added a feed candidate entry for this channel but we
+                // think it'd be weird if you unshared then re-shared this initial channel for
+                // the space to get a feed entry.
+                hasAddedFeedCandidateEntry: true,
             },
             {
                 onAfterTransactionExecutedSuccessfully: () => {
@@ -1217,16 +1239,19 @@ export async function createChannel(
         );
     }
 
+    const creatorId = context.actor.getAccountId();
+
     const channelItem: ChannelAttributesItem = {
         partitionType: "Channel",
         sortRangeType: "Attributes",
         channelId,
         spaceId,
         createdTime: new Date(),
-        creatorId: context.actor.getAccountId(),
+        creatorId,
         name,
         description,
         accessPolicy,
+        hasAddedFeedCandidateEntry: !!accessPolicy.defaultGrant,
     };
 
     const {transactionEntry, getEvent} =
@@ -1261,6 +1286,27 @@ export async function createChannel(
     // load the channel. This optimization kicks in for the create channel Remix
     // route.
     ChannelPreviewItemAuthorizationCache.set(context, "Strong", channelId, channelItem);
+
+    context.process.waitUntil(async () => {
+        const entry: FeedEntry = {
+            type: "Channel",
+            channelId,
+            sharedTime: channelItem.createdTime,
+            sharerId: creatorId,
+            creatorId,
+            event: "Created",
+        };
+
+        // If we created a public channel then we immediately add it to the feed.
+        if (channelItem.hasAddedFeedCandidateEntry) {
+            await addFeedCandidateEntry(context, channelItem.spaceId, entry);
+        }
+        // If we're creating a private channel then only add an entry to the
+        // creator account's personal feed.
+        else {
+            await addFeedAccountCandidateEntry(context, channelItem.spaceId, creatorId, entry);
+        }
+    });
 
     context.jobs.send({
         type: "IndexSearchEntity",
@@ -2483,12 +2529,13 @@ async function updateChannelAccessPolicyBase(
 }> {
     const readTime = new Date();
 
-    const {spaceId, getDynamoGeneralRealtimeEventTransaction} =
+    const {channelItem, shouldAddFeedCandidateEntry, getDynamoGeneralRealtimeEventTransaction} =
         await context.dynamo.retryTransaction(
             async (
                 context,
             ): Promise<{
-                spaceId: SpaceId;
+                channelItem: ChannelAttributesItem;
+                shouldAddFeedCandidateEntry: boolean;
                 getDynamoGeneralRealtimeEventTransaction: (
                     context: ServerContentActionContext,
                 ) => Promise<{
@@ -2523,6 +2570,10 @@ async function updateChannelAccessPolicyBase(
                     throw new FailedPreconditionError(result.reason);
                 }
 
+                const oldHasAddedFeedCandidateEntry = channelItem.hasAddedFeedCandidateEntry;
+                const newHasAddedFeedCandidateEntry =
+                    oldHasAddedFeedCandidateEntry || !!newAccessPolicy.defaultGrant;
+
                 const oldAccountIdsWithGrant = Array.from(oldAccessPolicy.accountGrantById.keys());
                 const newAccountIdsWithGrant = Array.from(newAccessPolicy.accountGrantById.keys());
 
@@ -2538,10 +2589,13 @@ async function updateChannelAccessPolicyBase(
                     const {getEvent} = await ForumRealtimeTable.directlyUpdateItem(context, {
                         ...channelItem,
                         accessPolicy: newAccessPolicy,
+                        hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
                     });
 
                     return {
-                        spaceId: channelItem.spaceId,
+                        channelItem,
+                        shouldAddFeedCandidateEntry:
+                            newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
                         getDynamoGeneralRealtimeEventTransaction: async context => ({
                             readTime,
                             eventTransaction: [await getEvent(context)],
@@ -2566,6 +2620,7 @@ async function updateChannelAccessPolicyBase(
                             ForumRealtimeTable.transactionDirectlyUpdateItem({
                                 ...channelItem,
                                 accessPolicy: newAccessPolicy,
+                                hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
                             }),
                             ForumRealtimeTable.transactionDirectlyUpdateItem({
                                 ...contributorsItem,
@@ -2574,7 +2629,9 @@ async function updateChannelAccessPolicyBase(
                         ]);
 
                     return {
-                        spaceId: channelItem.spaceId,
+                        channelItem,
+                        shouldAddFeedCandidateEntry:
+                            newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry,
                         getDynamoGeneralRealtimeEventTransaction: async context => ({
                             readTime,
                             eventTransaction: (await getEventTransaction(
@@ -2589,9 +2646,22 @@ async function updateChannelAccessPolicyBase(
             },
         );
 
+    if (shouldAddFeedCandidateEntry) {
+        context.process.waitUntil(async () => {
+            await addFeedCandidateEntry(context, channelItem.spaceId, {
+                type: "Channel",
+                channelId,
+                sharedTime: readTime,
+                sharerId: context.actor.getAccountId(),
+                creatorId: channelItem.creatorId,
+                event: "SharedWithAccessPolicyDefaultGrant",
+            });
+        });
+    }
+
     context.jobs.send({
         type: "IndexSearchEntity",
-        spaceId,
+        spaceId: channelItem.spaceId,
         update: {
             type: "Channel",
             channelId,
@@ -2606,7 +2676,7 @@ async function updateChannelAccessPolicyBase(
         context.jobs.send({
             type: "SendShareNotification",
             jobId: generateId(),
-            spaceId,
+            spaceId: channelItem.spaceId,
             actorAccountId: context.actor.getAccountId(),
             entityId: `Channel:${channelId}`,
             notification,
@@ -2851,6 +2921,13 @@ export async function createPost(
 
         await DynamoGeneralRealtimeTableSchema.executeTransaction(context, [
             transactionEntry,
+
+            // We create the `PostFiles` item in a transaction instead of asynchronously
+            // with `context.process.waitUntil()` because we want the `PostFiles` realtime
+            // event to be applied atomically to clients alongside the create post realtime
+            // event. Otherwise `context.process.waitUntil()` would be fine. It's not
+            // critical to write this item so it's a bit of a bummer we double our DynamoDB
+            // WCU cost for posts with files.
             ForumRealtimeTable.transactionDangerouslyCreateItemWithoutExistenceConditionCheck({
                 partitionType: "Channel",
                 sortRangeType: "PostFiles",
@@ -2862,6 +2939,26 @@ export async function createPost(
             }),
         ]);
     }
+
+    // TODO(calebmer): If the Node.js process crashes between the DynamoDB write
+    // creating the post and this code, we won't show the newly created post in the
+    // home feed! Which is pretty bad.
+    //
+    // I think we should probably move all this after-write logic to DynamoDB
+    // streams for reliability. We should make all this after-write logic
+    // idempotent and retry until the DynamoDB stream event is processed. Not just
+    // here but in `createPostComment()` and `sendChatMessage()` and
+    // `createChannel()`. Really anywhere that schedules some
+    // `context.process.waitUntil()` work after a write that we want done reliably.
+    context.process.waitUntil(async () => {
+        await addFeedCandidateEntry(context, postItem.spaceId, {
+            type: "Post",
+            postId: postItem.postId,
+            channelId: postItem.channelId,
+            authorId: postItem.authorId,
+            createdTime: postItem.createdTime,
+        });
+    });
 
     // We don't delete our post draft in a transaction with post creation.
     // It's ok if we don't successfully delete the draft. It'll stay in the user's
@@ -2945,8 +3042,8 @@ export async function createPost(
                     maxChannelContributionCount,
                 );
 
-                // If this account has already reached the max contribution count then don't
-                // increment their contributions anymore.
+                // Optimization: If this account has already reached the max contribution count
+                // then don't increment their contributions anymore.
                 if (oldContributionCount === newContributionCount) {
                     return contributorsItem;
                 }

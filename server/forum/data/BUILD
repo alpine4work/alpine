@@ -23,12 +23,7 @@ ts_project(
     visibility = [
         "//admin/crawl:__pkg__",
         "//app:__pkg__",
-        "//server/alpha:__pkg__",
-        "//server/files/entity:__pkg__",
-        "//server/migration:__pkg__",
-        "//server/notifications/data:__pkg__",
-        "//server/rpc:__pkg__",
-        "//server/search/data/index:__pkg__",
+        "//server:__subpackages__",
     ],
     deps = [
         "//server/access",
@@ -36,6 +31,7 @@ ts_project(
         "//server/context",
         "//server/dynamo/core",
         "//server/dynamo/core/general_realtime",
+        "//server/feed/data",
         "//server/files/data",
         "//server/messaging/helpers",
         "//server/notifications/core",
