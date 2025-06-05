@@ -18,6 +18,7 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {
     PostContent,
     PostContentProsemirrorSchema,
@@ -222,6 +223,10 @@ export class TestPost extends TestCommentRoomBase {
 
     public async get(): Promise<PostModel> {
         return (await getPost(this.space.systemAction(), this.id)).model;
+    }
+
+    public async getRealtime(): Promise<DynamoGeneralRealtimeItem<PostModel>> {
+        return await getPost(this.space.systemAction(), this.id);
     }
 
     public async updateContent(
