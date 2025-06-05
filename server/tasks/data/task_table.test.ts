@@ -23,6 +23,7 @@ import {
     authorizeTaskAccess,
     authorizeTaskAccessIfPossible,
     authorizeTaskCollectionAccess,
+    authorizeTaskCollectionAccessIfPossible,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
     backfillTaskComments,
@@ -21067,50 +21068,65 @@ test("can authorize task collections in various states as various actors", async
     await privateDeletedCollection.delete(session1);
     await urlPublicDeletedCollection.delete(session1);
 
+    const authorize = async (
+        context: ServerActionContext,
+        collectionId: TaskCollectionId,
+        expectedAccessLevel: AccessLevel,
+    ) => {
+        const result = await authorizeTaskCollectionAccessIfPossible(
+            context,
+            collectionId,
+            expectedAccessLevel,
+        );
+
+        try {
+            await authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel);
+            expect(result.ok).toEqual(true);
+        } catch (error) {
+            expect(result.ok).toEqual(false);
+            expect(result.error).toEqual(error);
+            throw error;
+        }
+    };
+
+    await expect(authorize(session1.action(), publicCollection.id, "View")).resolves.not.toThrow();
+    await expect(authorize(session2.action(), publicCollection.id, "View")).resolves.not.toThrow();
+    await expect(authorize(session3.action(), publicCollection.id, "View")).resolves.not.toThrow();
+    await expect(authorize(otherSession.action(), publicCollection.id, "View")).rejects.toThrow(
+        "Account doesn't have access to space",
+    );
+    await expect(authorize(context.anonymousAction(), publicCollection.id, "View")).rejects.toThrow(
+        "Unauthenticated session",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "View"),
+        authorize(space.systemAction(), publicCollection.id, "View"),
     ).resolves.not.toThrow();
+    await expect(authorize(otherSpace.systemAction(), publicCollection.id, "View")).rejects.toThrow(
+        "System actor doesn't have access to task collection's space",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "View"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "View"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "View"),
-    ).rejects.toThrow("Account doesn't have access to space");
-    await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "View"),
-    ).rejects.toThrow("Unauthenticated session");
-    await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "View"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
-    await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicCollection.id,
             "View",
@@ -21118,99 +21134,93 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Comment"),
+        authorize(session1.action(), publicCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "Comment"),
+        authorize(session2.action(), publicCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "Comment"),
+        authorize(session3.action(), publicCollection.id, "Comment"),
     ).resolves.not.toThrow();
+    await expect(authorize(otherSession.action(), publicCollection.id, "Comment")).rejects.toThrow(
+        "Account doesn't have access to space",
+    );
     await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
-    await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Comment"),
+        authorize(context.anonymousAction(), publicCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "Comment"),
+        authorize(space.systemAction(), publicCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Comment"),
+        authorize(otherSpace.systemAction(), publicCollection.id, "Comment"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicCollection.id,
             "Comment",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicCollection.id,
             "Comment",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicCollection.id,
             "Comment",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicCollection.id,
             "Comment",
         ),
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
+    await expect(authorize(session1.action(), publicCollection.id, "Edit")).resolves.not.toThrow();
+    await expect(authorize(session2.action(), publicCollection.id, "Edit")).resolves.not.toThrow();
+    await expect(authorize(session3.action(), publicCollection.id, "Edit")).resolves.not.toThrow();
+    await expect(authorize(otherSession.action(), publicCollection.id, "Edit")).rejects.toThrow(
+        "Account doesn't have access to space",
+    );
+    await expect(authorize(context.anonymousAction(), publicCollection.id, "Edit")).rejects.toThrow(
+        "Unauthenticated session",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), publicCollection.id, "Edit"),
+        authorize(space.systemAction(), publicCollection.id, "Edit"),
     ).resolves.not.toThrow();
+    await expect(authorize(otherSpace.systemAction(), publicCollection.id, "Edit")).rejects.toThrow(
+        "System actor doesn't have access to task collection's space",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), publicCollection.id, "Edit"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), publicCollection.id, "Edit"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), publicCollection.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
-    await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), publicCollection.id, "Edit"),
-    ).rejects.toThrow("Unauthenticated session");
-    await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), publicCollection.id, "Edit"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), publicCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
-    await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicCollection.id,
             "Edit",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicCollection.id,
             "Edit",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicCollection.id,
             "Edit",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicCollection.id,
             "Edit",
@@ -21218,57 +21228,49 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "View"),
+        authorize(session1.action(), publicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "View"),
+        authorize(session2.action(), publicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "View"),
+        authorize(session3.action(), publicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "View"),
+        authorize(otherSession.action(), publicDeletedCollection.id, "View"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            publicDeletedCollection.id,
-            "View",
-        ),
+        authorize(context.anonymousAction(), publicDeletedCollection.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "View"),
+        authorize(space.systemAction(), publicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            publicDeletedCollection.id,
-            "View",
-        ),
+        authorize(otherSpace.systemAction(), publicDeletedCollection.id, "View"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedCollection.id,
             "View",
@@ -21276,44 +21278,36 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Comment"),
+        authorize(session1.action(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "Comment"),
+        authorize(session2.action(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "Comment"),
+        authorize(session3.action(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Comment"),
+        authorize(otherSession.action(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            publicDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(context.anonymousAction(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "Comment"),
+        authorize(space.systemAction(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            publicDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(otherSpace.systemAction(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedCollection.id,
             "Comment",
@@ -21322,7 +21316,7 @@ test("can authorize task collections in various states as various actors", async
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedCollection.id,
             "Comment",
@@ -21331,7 +21325,7 @@ test("can authorize task collections in various states as various actors", async
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedCollection.id,
             "Comment",
@@ -21340,115 +21334,103 @@ test("can authorize task collections in various states as various actors", async
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedCollection.id,
             "Comment",
         ),
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
+    await expect(authorize(session1.action(), publicDeletedCollection.id, "Edit")).rejects.toThrow(
+        'Can only view deleted task collection, access level "Edit" is not allowed',
+    );
+    await expect(authorize(session2.action(), publicDeletedCollection.id, "Edit")).rejects.toThrow(
+        'Can only view deleted task collection, access level "Edit" is not allowed',
+    );
+    await expect(authorize(session3.action(), publicDeletedCollection.id, "Edit")).rejects.toThrow(
+        'Can only view deleted task collection, access level "Edit" is not allowed',
+    );
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), publicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
-    await expect(
-        authorizeTaskCollectionAccess(session2.action(), publicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), publicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), publicDeletedCollection.id, "Edit"),
+        authorize(otherSession.action(), publicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            publicDeletedCollection.id,
-            "Edit",
-        ),
+        authorize(context.anonymousAction(), publicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), publicDeletedCollection.id, "Edit"),
+        authorize(space.systemAction(), publicDeletedCollection.id, "Edit"),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            publicDeletedCollection.id,
-            "Edit",
-        ),
+        authorize(otherSpace.systemAction(), publicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
+    await expect(authorize(session1.action(), privateCollection.id, "View")).resolves.not.toThrow();
+    await expect(authorize(session2.action(), privateCollection.id, "View")).resolves.not.toThrow();
+    await expect(authorize(session3.action(), privateCollection.id, "View")).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to task collection',
+    );
+    await expect(authorize(otherSession.action(), privateCollection.id, "View")).rejects.toThrow(
+        "Account doesn't have access to space",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "View"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "View"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "View"),
-    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "View"),
-    ).rejects.toThrow("Account doesn't have access to space");
-    await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "View"),
+        authorize(context.anonymousAction(), privateCollection.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "View"),
+        authorize(space.systemAction(), privateCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "View"),
+        authorize(otherSpace.systemAction(), privateCollection.id, "View"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateCollection.id,
             "View",
         ),
     ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateCollection.id,
             "View",
@@ -21456,99 +21438,97 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Comment"),
+        authorize(session1.action(), privateCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "Comment"),
+        authorize(session2.action(), privateCollection.id, "Comment"),
     ).resolves.not.toThrow();
+    await expect(authorize(session3.action(), privateCollection.id, "Comment")).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to task collection',
+    );
+    await expect(authorize(otherSession.action(), privateCollection.id, "Comment")).rejects.toThrow(
+        "Account doesn't have access to space",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
-    await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Comment"),
+        authorize(context.anonymousAction(), privateCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "Comment"),
+        authorize(space.systemAction(), privateCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Comment"),
+        authorize(otherSpace.systemAction(), privateCollection.id, "Comment"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateCollection.id,
             "Comment",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateCollection.id,
             "Comment",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateCollection.id,
             "Comment",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateCollection.id,
             "Comment",
         ),
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
+    await expect(authorize(session1.action(), privateCollection.id, "Edit")).resolves.not.toThrow();
+    await expect(authorize(session2.action(), privateCollection.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task collection',
+    );
+    await expect(authorize(session3.action(), privateCollection.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task collection',
+    );
+    await expect(authorize(otherSession.action(), privateCollection.id, "Edit")).rejects.toThrow(
+        "Account doesn't have access to space",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), privateCollection.id, "Edit"),
-    ).resolves.not.toThrow();
-    await expect(
-        authorizeTaskCollectionAccess(session2.action(), privateCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), privateCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), privateCollection.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
-    await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), privateCollection.id, "Edit"),
+        authorize(context.anonymousAction(), privateCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), privateCollection.id, "Edit"),
+        authorize(space.systemAction(), privateCollection.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), privateCollection.id, "Edit"),
+        authorize(otherSpace.systemAction(), privateCollection.id, "Edit"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateCollection.id,
             "Edit",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateCollection.id,
             "Edit",
@@ -21556,57 +21536,49 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "View"),
+        authorize(session1.action(), privateDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "View"),
+        authorize(session2.action(), privateDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
+    await expect(authorize(session3.action(), privateDeletedCollection.id, "View")).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to task collection',
+    );
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "View"),
-    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "View"),
+        authorize(otherSession.action(), privateDeletedCollection.id, "View"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            privateDeletedCollection.id,
-            "View",
-        ),
+        authorize(context.anonymousAction(), privateDeletedCollection.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "View"),
+        authorize(space.systemAction(), privateDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            privateDeletedCollection.id,
-            "View",
-        ),
+        authorize(otherSpace.systemAction(), privateDeletedCollection.id, "View"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedCollection.id,
             "View",
         ),
     ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedCollection.id,
             "View",
@@ -21614,46 +21586,34 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Comment"),
+        authorize(session1.action(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "Comment"),
+        authorize(session2.action(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "Comment"),
+        authorize(session3.action(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSession.action(),
-            privateDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(otherSession.action(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            privateDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(context.anonymousAction(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "Comment"),
+        authorize(space.systemAction(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            privateDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(otherSpace.systemAction(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedCollection.id,
             "Comment",
@@ -21662,7 +21622,7 @@ test("can authorize task collections in various states as various actors", async
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedCollection.id,
             "Comment",
@@ -21671,72 +21631,64 @@ test("can authorize task collections in various states as various actors", async
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedCollection.id,
             "Comment",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedCollection.id,
             "Comment",
         ),
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
+    await expect(authorize(session1.action(), privateDeletedCollection.id, "Edit")).rejects.toThrow(
+        'Can only view deleted task collection, access level "Edit" is not allowed',
+    );
+    await expect(authorize(session2.action(), privateDeletedCollection.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task collection',
+    );
+    await expect(authorize(session3.action(), privateDeletedCollection.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task collection',
+    );
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), privateDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
-    await expect(
-        authorizeTaskCollectionAccess(session2.action(), privateDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), privateDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), privateDeletedCollection.id, "Edit"),
+        authorize(otherSession.action(), privateDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            privateDeletedCollection.id,
-            "Edit",
-        ),
+        authorize(context.anonymousAction(), privateDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), privateDeletedCollection.id, "Edit"),
+        authorize(space.systemAction(), privateDeletedCollection.id, "Edit"),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            privateDeletedCollection.id,
-            "Edit",
-        ),
+        authorize(otherSpace.systemAction(), privateDeletedCollection.id, "Edit"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedCollection.id,
             "Edit",
@@ -21744,49 +21696,49 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "View"),
+        authorize(session1.action(), urlPublicCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "View"),
+        authorize(session2.action(), urlPublicCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "View"),
+        authorize(session3.action(), urlPublicCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "View"),
+        authorize(otherSession.action(), urlPublicCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "View"),
+        authorize(context.anonymousAction(), urlPublicCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "View"),
+        authorize(space.systemAction(), urlPublicCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "View"),
+        authorize(otherSpace.systemAction(), urlPublicCollection.id, "View"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicCollection.id,
             "View",
@@ -21794,49 +21746,49 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Comment"),
+        authorize(session1.action(), urlPublicCollection.id, "Comment"),
     ).resolves.not.toThrow();
+    await expect(authorize(session2.action(), urlPublicCollection.id, "Comment")).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to task collection',
+    );
+    await expect(authorize(session3.action(), urlPublicCollection.id, "Comment")).rejects.toThrow(
+        'Actor doesn\'t have "Comment" access level to task collection',
+    );
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Comment"),
+        authorize(otherSession.action(), urlPublicCollection.id, "Comment"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Comment"),
+        authorize(context.anonymousAction(), urlPublicCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "Comment"),
+        authorize(space.systemAction(), urlPublicCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Comment"),
+        authorize(otherSpace.systemAction(), urlPublicCollection.id, "Comment"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicCollection.id,
             "Comment",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicCollection.id,
             "Comment",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicCollection.id,
             "Comment",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicCollection.id,
             "Comment",
@@ -21844,49 +21796,49 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), urlPublicCollection.id, "Edit"),
+        authorize(session1.action(), urlPublicCollection.id, "Edit"),
     ).resolves.not.toThrow();
+    await expect(authorize(session2.action(), urlPublicCollection.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task collection',
+    );
+    await expect(authorize(session3.action(), urlPublicCollection.id, "Edit")).rejects.toThrow(
+        'Actor doesn\'t have "Edit" access level to task collection',
+    );
+    await expect(authorize(otherSession.action(), urlPublicCollection.id, "Edit")).rejects.toThrow(
+        "Account doesn't have access to space",
+    );
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), urlPublicCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(session3.action(), urlPublicCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
-    await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), urlPublicCollection.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
-    await expect(
-        authorizeTaskCollectionAccess(context.anonymousAction(), urlPublicCollection.id, "Edit"),
+        authorize(context.anonymousAction(), urlPublicCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), urlPublicCollection.id, "Edit"),
+        authorize(space.systemAction(), urlPublicCollection.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSpace.systemAction(), urlPublicCollection.id, "Edit"),
+        authorize(otherSpace.systemAction(), urlPublicCollection.id, "Edit"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicCollection.id,
             "Edit",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicCollection.id,
             "Edit",
@@ -21894,57 +21846,49 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "View"),
+        authorize(session1.action(), urlPublicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "View"),
+        authorize(session2.action(), urlPublicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "View"),
+        authorize(session3.action(), urlPublicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), urlPublicDeletedCollection.id, "View"),
+        authorize(otherSession.action(), urlPublicDeletedCollection.id, "View"),
     ).rejects.toThrow("Only space members may read deleted task collections");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            urlPublicDeletedCollection.id,
-            "View",
-        ),
+        authorize(context.anonymousAction(), urlPublicDeletedCollection.id, "View"),
     ).rejects.toThrow("Only space members may read deleted task collections");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), urlPublicDeletedCollection.id, "View"),
+        authorize(space.systemAction(), urlPublicDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            urlPublicDeletedCollection.id,
-            "View",
-        ),
+        authorize(otherSpace.systemAction(), urlPublicDeletedCollection.id, "View"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedCollection.id,
             "View",
         ),
     ).resolves.not.toThrow();
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "View",
@@ -21952,48 +21896,32 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Comment"),
+        authorize(session1.action(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "Comment"),
+        authorize(session2.action(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "Comment"),
+        authorize(session3.action(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSession.action(),
-            urlPublicDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(otherSession.action(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            urlPublicDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(context.anonymousAction(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(
-            space.systemAction(),
-            urlPublicDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(space.systemAction(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            urlPublicDeletedCollection.id,
-            "Comment",
-        ),
+        authorize(otherSpace.systemAction(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "Comment",
@@ -22002,21 +21930,21 @@ test("can authorize task collections in various states as various actors", async
         'Can only view deleted task collection, access level "Comment" is not allowed',
     );
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedCollection.id,
             "Comment",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedCollection.id,
             "Comment",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "Comment",
@@ -22024,57 +21952,49 @@ test("can authorize task collections in various states as various actors", async
     ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
 
     await expect(
-        authorizeTaskCollectionAccess(session1.action(), urlPublicDeletedCollection.id, "Edit"),
+        authorize(session1.action(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(session2.action(), urlPublicDeletedCollection.id, "Edit"),
+        authorize(session2.action(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(session3.action(), urlPublicDeletedCollection.id, "Edit"),
+        authorize(session3.action(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(otherSession.action(), urlPublicDeletedCollection.id, "Edit"),
+        authorize(otherSession.action(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Account doesn't have access to space");
     await expect(
-        authorizeTaskCollectionAccess(
-            context.anonymousAction(),
-            urlPublicDeletedCollection.id,
-            "Edit",
-        ),
+        authorize(context.anonymousAction(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
-        authorizeTaskCollectionAccess(space.systemAction(), urlPublicDeletedCollection.id, "Edit"),
+        authorize(space.systemAction(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
-            otherSpace.systemAction(),
-            urlPublicDeletedCollection.id,
-            "Edit",
-        ),
+        authorize(otherSpace.systemAction(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("System actor doesn't have access to task collection's space");
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedCollection.id,
             "Edit",
         ),
     ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
     await expect(
-        authorizeTaskCollectionAccess(
+        authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "Edit",

@@ -4211,6 +4211,42 @@ export async function authorizeTaskCollectionAccess(
 }
 
 /**
+ * Tests if the context's actor is allowed to access the provided collection
+ * with the provided access level. Returns an error if access is unauthorized.
+ *
+ * Loads data from DynamoDB but if you are in `TaskRealtimeService` and have
+ * up-to-date in-memory you may pass in a `loaders` object to use your
+ * in-memory task instead. See the disclaimers on `authorizeTaskQueryAccess()`
+ * before using the `loaders` object.
+ */
+export async function authorizeTaskCollectionAccessIfPossible(
+    context: ServerActionContext,
+    collectionId: TaskCollectionId,
+    expectedAccessLevel: AccessLevel,
+    loaders: {
+        getCollectionIndexDocIfExists: (
+            taskId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null = null,
+): Promise<Result<{spaceId: SpaceId}, ErrorBase>> {
+    const collectionItem = await getTaskCollectionItemForAuthorization(
+        context,
+        collectionId,
+        loaders,
+    );
+
+    const result = await authorizeTaskCollectionItemAccessIfPossibleForActor(
+        context,
+        context.actor,
+        collectionItem,
+        expectedAccessLevel,
+    );
+    if (!result.ok) return result;
+
+    return {ok: true, value: {spaceId: collectionItem.spaceId}};
+}
+
+/**
  * Can the provided account access the provided collection index doc? Returns
  * false if not.
  *
