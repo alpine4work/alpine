@@ -37,6 +37,7 @@ import {
     getPostCommentsFromStart,
     getPostContentAndChannelPreview,
     getPostDraftIfExists,
+    getPostIfPossible,
     getPostNotificationSubscribers,
     isSubscribedToChannel,
     sendChannelShareNotification,
@@ -1327,6 +1328,7 @@ test("can't get a post that does not exist", async () => {
     const session = await space.createSession();
 
     await expect(getPost(session.action(), generateId())).rejects.toThrow(NotFoundError);
+    await expect(getPostIfPossible(session.action(), generateId())).rejects.toThrow(NotFoundError);
     await expect(getPostContentAndChannelPreview(session.action(), generateId())).rejects.toThrow(
         NotFoundError,
     );
@@ -1349,6 +1351,9 @@ test("can't get a post for a different space", async () => {
     const post = await channel.createPost(session);
 
     await expect(getPost(otherSession.action(), post.id)).rejects.toThrow(PermissionDeniedError);
+    expect((await getPostIfPossible(otherSession.action(), post.id)).error).toBeInstanceOf(
+        PermissionDeniedError,
+    );
     await expect(getPostContentAndChannelPreview(otherSession.action(), post.id)).rejects.toThrow(
         PermissionDeniedError,
     );
@@ -1372,6 +1377,9 @@ test("can't get a post from channel actor doesn't have view access to", async ()
     await expect(getPost(session2.action(), post.id)).rejects.toThrow(
         'Actor doesn\'t have "View" access level to channel',
     );
+    expect((await getPostIfPossible(session2.action(), post.id)).error).toEqual(
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to channel'),
+    );
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
         'Actor doesn\'t have "View" access level to channel',
     );
@@ -1386,6 +1394,7 @@ test("can't get a post from channel actor doesn't have view access to", async ()
     await channel.access.grantDefault(session1, "View");
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostIfPossible(session2.action(), post.id)).ok).toEqual(true);
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
@@ -1397,6 +1406,7 @@ test("can't get a post from channel actor doesn't have view access to", async ()
     await channel.access.grantDefault(session1, "Comment");
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostIfPossible(session2.action(), post.id)).ok).toEqual(true);
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
@@ -1408,6 +1418,7 @@ test("can't get a post from channel actor doesn't have view access to", async ()
     await channel.access.grantDefault(session1, "Edit");
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostIfPossible(session2.action(), post.id)).ok).toEqual(true);
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
@@ -1419,6 +1430,7 @@ test("can't get a post from channel actor doesn't have view access to", async ()
     await channel.access.grantDefault(session1, "Manage");
 
     await expect(getPost(session2.action(), post.id)).resolves.toBeTruthy();
+    expect((await getPostIfPossible(session2.action(), post.id)).ok).toEqual(true);
     await expect(getPostContentAndChannelPreview(session2.action(), post.id)).resolves.toBeTruthy();
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
@@ -1426,6 +1438,25 @@ test("can't get a post from channel actor doesn't have view access to", async ()
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
+
+    await channel.access.revokeDefault(session1);
+
+    await expect(getPost(session2.action(), post.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    expect((await getPostIfPossible(session2.action(), post.id)).error).toEqual(
+        new PermissionDeniedError('Actor doesn\'t have "View" access level to channel'),
+    );
+    await expect(getPostContentAndChannelPreview(session2.action(), post.id)).rejects.toThrow(
+        'Actor doesn\'t have "View" access level to channel',
+    );
+    expect(
+        (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
+            ?.message,
+    ).toContain('Actor doesn\'t have "View" access level to channel');
+    await expect(
+        getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
+    ).rejects.toThrow('Actor doesn\'t have "View" access level to channel');
 });
 
 test("can get a post", async () => {
@@ -1439,6 +1470,9 @@ test("can get a post", async () => {
     expect((await getPost(session.action(), post.id)).model.content.doc.toJSON()).toEqual(
         testContent1.toJSON(),
     );
+    expect(
+        (await getPostIfPossible(session.action(), post.id)).value?.model.content.doc.toJSON(),
+    ).toEqual(testContent1.toJSON());
     expect(
         (await getPostContentAndChannelPreview(session.action(), post.id)).content.toJSON(),
     ).toEqual(testContent1.toJSON());
@@ -5575,6 +5609,36 @@ test("authorizing post access after getting post as system actor is cached", asy
         expect(getCount()).toEqual(0);
 
         await getPost(actionContext, post.id);
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "View");
+
+        expect(getCount()).toEqual(2);
+
+        await authorizePostAccess(actionContext, post.id, "Edit");
+
+        expect(getCount()).toEqual(2);
+
+        for (let i = 0; i < 5; i++) {
+            await runAllPromises([
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccess(actionContext, post.id, "View"),
+                authorizePostAccessIfPossible(actionContext, post.id, "View"),
+            ]);
+        }
+
+        expect(getCount()).toEqual(2);
+    }
+
+    dynamoClientExecuteActionTestCounter.resetForTest();
+
+    {
+        const actionContext = space.systemAction();
+
+        expect(getCount()).toEqual(0);
+
+        await getPostIfPossible(actionContext, post.id);
 
         expect(getCount()).toEqual(2);
 

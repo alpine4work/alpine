@@ -125,6 +125,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -3067,14 +3068,27 @@ export async function createPost(
 export async function getPost(
     context: ServerContentActionContext,
     postId: PostId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<PostModel>> {
+    return unwrapResult(await getPostIfPossible(context, postId, options));
+}
+
+/**
+ * Gets the post with the provided `PostId`. If you don't have access to the
+ * post we return a result with an error instead of throwing. Throws an error
+ * if the post doesn't exist in the database.
+ */
+export async function getPostIfPossible(
+    context: ServerContentActionContext,
+    postId: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<Result<DynamoGeneralRealtimeItem<PostModel>, ErrorBase>> {
     const postItemPromise = ForumRealtimeTable.getItemIfExists(
         context,
         {
             partitionType: "Post",
             sortRangeType: "Attributes",
-            postId: postId,
+            postId,
         },
         {consistency},
     );
@@ -3086,11 +3100,18 @@ export async function getPost(
     const postItem = await postItemPromise;
     if (!postItem) throw createPostNotFoundError(postId);
 
-    const post = await ForumRealtimeTable.buildRealtimeItem(context, postItem);
+    const [authorizationResult, postResult] = await runAllPromises([
+        authorizeChannelAccessIfPossible(context, postItem.channelId, "View"),
+        captureResultPromise(ForumRealtimeTable.buildRealtimeItem(context, postItem)),
+    ]);
+    if (!authorizationResult.ok) return authorizationResult;
 
-    await authorizeChannelAccess(context, post.model.channel.id, "View");
+    // Ignore errors from `postResult` if authorization fails (since it's probably
+    // the same error). Otherwise, if authorization passed and building the post
+    // item failed treat that as an exception.
+    const post = unwrapResult(postResult);
 
-    return post;
+    return {ok: true, value: post};
 }
 
 export async function getPostContentAndChannelPreview(
