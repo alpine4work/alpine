@@ -151,8 +151,9 @@ test("will index a document after a timeout", async () => {
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
+    // `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 
@@ -209,8 +210,9 @@ test("will only index a document once if update happened within the timeout", as
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
+    // `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 
@@ -284,8 +286,9 @@ test("will only index a document once if update happened within timeout even acr
     cache.evictAllDocumentsForTest();
     otherCache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
+    // `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 
@@ -351,8 +354,9 @@ test("will index a document again if update happened after timeout", async () =>
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
+    // `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 
@@ -511,8 +515,9 @@ test("will index a document again if update happened after timeout with more upd
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
+    // `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 
@@ -576,7 +581,10 @@ test("will not schedule another indexing job if document title is updated after 
 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
+
+    // Clear the timer for the `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    import.meta.jest.clearAllTimers();
 });
 
 test("will schedule another indexing job if document title is updated after content update", async () => {
@@ -674,8 +682,9 @@ test("will schedule another indexing job if document title is updated after cont
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
+    // `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 
@@ -790,8 +799,9 @@ test("will not schedule another indexing job if document title is updated twice 
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job and the
+    // `AddFeedAccountCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(2);
     import.meta.jest.clearAllTimers();
 });
 
@@ -1661,7 +1671,8 @@ test("newly created documents will be visible in search even before indexing", a
     // Make sure there are no more jobs in the queue.
     cache.evictAllDocumentsForTest();
 
-    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job.
-    expect(import.meta.jest.getTimerCount()).toEqual(1);
+    // Clear the timer for the `IndexSearchEntityEmbeddingChunks` job, the
+    // `AddFeedAccountCandidateEntry` job, and the `AddFeedCandidateEntry` job.
+    expect(import.meta.jest.getTimerCount()).toEqual(3);
     import.meta.jest.clearAllTimers();
 });

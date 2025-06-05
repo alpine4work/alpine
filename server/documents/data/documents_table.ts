@@ -36,6 +36,7 @@ import {
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
+import {addFeedCandidateEntry} from "~/server/feed/data/feed_table.js";
 import {FileAuthorizer, getFileFromAttachment} from "~/server/files/data/files_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -100,6 +101,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
@@ -449,6 +451,14 @@ const DocumentsTable = DynamoTableSchema.new({
                         stepCountByAccountId: DocumentStepCountByAccountId.schema.default(
                             new DocumentStepCountByAccountId(new Map()),
                         ),
+
+                        /**
+                         * Have we added a feed candidate entry for the document? We add an entry when
+                         * the document is shared with some `defaultGrant`. But if you revoke the
+                         * `defaultGrant` then add it again we don't want to add another feed
+                         * candidate entry.
+                         */
+                        hasAddedFeedCandidateEntry: Schema.boolean.default(false),
                     }),
                 },
 
@@ -814,6 +824,17 @@ export async function* expensiveScanEveryDocumentAndDocumentCommentForMigration(
     }
 }
 
+const documentIndexSearchEntityJobFastDelaySeconds = 10;
+const documentIndexSearchEntityJobFastMaxGeneration = 60;
+const documentIndexSearchEntityJobRegularDelaySeconds = 60;
+
+/**
+ * If you've been editing the document for more than ~3 consecutive minutes
+ * before sharing the document then we want to immediately add the document as
+ * a feed candidate instead of waiting 15 minutes to add the feed candidate.
+ */
+const documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration = 20;
+
 /**
  * The throttle interval for document indexing jobs in seconds. Indexing a
  * document requires reading the entire thing and saving it to OpenSearch which
@@ -833,11 +854,13 @@ export async function* expensiveScanEveryDocumentAndDocumentCommentForMigration(
  * documents is and slow down indexing once it reaches a certain threshold.
  */
 function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
-    // For the first 10 minutes (60 * 10 / 60) update every 10 seconds.
-    if (generation <= 60) return 10;
+    // For the first 10 minutes (`fastMaxGeneration * fastDelaySeconds / 60`)
+    // update every 10 seconds.
+    if (generation <= documentIndexSearchEntityJobFastMaxGeneration)
+        return documentIndexSearchEntityJobFastDelaySeconds;
 
     // After that initial period, update every 60 seconds.
-    return 60;
+    return documentIndexSearchEntityJobRegularDelaySeconds;
 }
 
 /**
@@ -846,7 +869,7 @@ function getDocumentIndexSearchEntityJobDelaySeconds(generation: number) {
 export async function createDocument(
     context: ServerSessionActionContext,
     {
-        id = generateId<DocumentId>(),
+        id: documentId = generateId<DocumentId>(),
         spaceId,
         content = createEmptyDocumentContent(context.actor.getAccountId()),
     }: {
@@ -887,28 +910,76 @@ export async function createDocument(
         updatedTraits: {type: "Any"},
     };
 
+    const creatorId = context.actor.getAccountId();
+
+    const hasAddedFeedCandidateEntry = !!accessPolicy.defaultGrant;
+
     await DynamoTableSchema.executeTransaction(context, [
         DocumentsTable.transactionCreateItem({
             partitionType: "Document",
             sortRangeType: "Attributes",
             createdTime,
             spaceId,
-            documentId: id,
-            creatorId: context.actor.getAccountId(),
+            documentId,
+            creatorId,
             version,
             titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
             accessPolicy,
             lastIndexSearchEntityJob: newIndexSearchEntityJob,
             stepCountByAccountId: new DocumentStepCountByAccountId(new Map()),
+            hasAddedFeedCandidateEntry,
         }),
         DocumentsTable.transactionCreateOrReplaceItem({
             partitionType: "Document",
-            documentId: id,
+            documentId,
             sortRangeType: "Snapshot",
             version,
             content,
         }),
     ]);
+
+    {
+        const entry: FeedEntry = {
+            type: "Document",
+            documentId,
+            sharedTime: createdTime,
+            sharerId: creatorId,
+            creatorId,
+            event: "Created",
+        };
+
+        // If we created a public document then we immediately add it to the feed.
+        //
+        // We wait 15min before adding to the feed so the user has time to type in the
+        // document. That way if the user opens their feed they don't see an empty
+        // document. Also, we have to wait a bit for the document content preview to be
+        // generated anyway or else we'll only have the document's title.
+        if (hasAddedFeedCandidateEntry) {
+            context.jobs.send(
+                {
+                    type: "AddFeedCandidateEntry",
+                    jobId: generateId(),
+                    spaceId,
+                    entry,
+                },
+                {delaySeconds: 15 * 60},
+            );
+        }
+        // If we're creating a private document then only add an entry to the
+        // creator account's personal feed.
+        else {
+            context.jobs.send(
+                {
+                    type: "AddFeedAccountCandidateEntry",
+                    jobId: generateId(),
+                    spaceId,
+                    accountId: creatorId,
+                    entry,
+                },
+                {delaySeconds: 15 * 60},
+            );
+        }
+    }
 
     context.jobs.send(
         {
@@ -916,7 +987,7 @@ export async function createDocument(
             spaceId,
             update: {
                 type: "Document",
-                documentId: id,
+                documentId,
                 updatedTraits: newIndexSearchEntityJob.updatedTraits,
             },
         },
@@ -929,12 +1000,12 @@ export async function createDocument(
         // affinity list.
         markSearchAffinityCreateDocumentEntityInteraction(context, {
             spaceId,
-            documentId: id,
+            documentId,
         }),
     );
 
     return {
-        id,
+        id: documentId,
         createdTime,
         version,
     };
@@ -1896,11 +1967,11 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
             documentId,
         },
         item => {
-            // If the content preview is from a later version than noop.
+            // If the content preview is from a later version then noop.
             if (item && item.version >= version) return item;
 
-            // If the existing content preview is the same as the new content preview than
-            // noop.
+            // Optimization: If the existing content preview is the same as the new content
+            // preview then noop.
             //
             // There is a race condition bug here:
             //
@@ -2421,6 +2492,7 @@ export class DocumentContentCacheForUpdate {
         readonly creatorId: AccountId | null;
         readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
         readonly stepCountByAccountId: DocumentStepCountByAccountId;
+        readonly hasAddedFeedCandidateEntry: boolean;
         readonly version: number;
         readonly content: DocumentContent;
         readonly accessPolicy: AccessPolicy;
@@ -2448,6 +2520,7 @@ export class DocumentContentCacheForUpdate {
             newInvertedSteps: ReadonlyArray<Step>;
             newLastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
             newStepCountByAccountId: DocumentStepCountByAccountId;
+            newHasAddedFeedCandidateEntry: boolean;
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
@@ -2466,6 +2539,8 @@ export class DocumentContentCacheForUpdate {
                     creatorId: internalDocument.attributes.creatorId,
                     lastIndexSearchEntityJob: internalDocument.attributes.lastIndexSearchEntityJob,
                     stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
+                    hasAddedFeedCandidateEntry:
+                        internalDocument.attributes.hasAddedFeedCandidateEntry,
                     version: internalDocument.version,
                     content: internalDocument.content,
                     accessPolicy: internalDocument.content.attrs.accessPolicy,
@@ -2508,7 +2583,7 @@ export class DocumentContentCacheForUpdate {
                     // If we read a past version of the document that might be because we're using
                     // DynamoDB eventual consistency and we can't yet read the latest write. So try
                     // to load the document one more time but with strong consistency instead.
-                    nullableAttributes = await DocumentsTable.getItemIfExists(
+                    nullableAttributes = await DocumentsTable.getItem(
                         context,
                         {
                             partitionType: "Document",
@@ -2517,12 +2592,6 @@ export class DocumentContentCacheForUpdate {
                         },
                         {consistency: "Strong"},
                     );
-
-                    // The document was deleted from the database but not our cache.
-                    if (!nullableAttributes) {
-                        this._entries.evictEntry(id);
-                        return null;
-                    }
 
                     if (entry.version > nullableAttributes.version) {
                         throw new InternalError(
@@ -2574,6 +2643,7 @@ export class DocumentContentCacheForUpdate {
                             creatorId: entry.creatorId,
                             lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
                             stepCountByAccountId: attributes.stepCountByAccountId,
+                            hasAddedFeedCandidateEntry: attributes.hasAddedFeedCandidateEntry,
                             version: attributes.version,
                             content,
                             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -2591,6 +2661,7 @@ export class DocumentContentCacheForUpdate {
                 creatorId: entry.creatorId,
                 lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
                 stepCountByAccountId: entry.stepCountByAccountId,
+                hasAddedFeedCandidateEntry: entry.hasAddedFeedCandidateEntry,
                 version: entry.version,
                 content: entry.content,
                 accessPolicy: entry.content.attrs.accessPolicy,
@@ -2605,6 +2676,7 @@ export class DocumentContentCacheForUpdate {
                     newInvertedSteps,
                     newLastIndexSearchEntityJob,
                     newStepCountByAccountId,
+                    newHasAddedFeedCandidateEntry,
                     clientId,
                 }) => {
                     const updatedEntry = entry;
@@ -2627,6 +2699,7 @@ export class DocumentContentCacheForUpdate {
                             creatorId: entry.creatorId,
                             lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                             stepCountByAccountId: newStepCountByAccountId,
+                            hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
                             version: entry.version + newSteps.length,
                             content: newContent,
                             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -2648,8 +2721,10 @@ type DocumentContentCacheForUpdateEntry = {
     readonly creatorId: AccountId | null;
     readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
     readonly stepCountByAccountId: DocumentStepCountByAccountId;
+    readonly hasAddedFeedCandidateEntry: boolean;
     readonly version: number;
     readonly content: DocumentContent;
+
     /**
      * Steps after the snapshot the content was loaded at.
      *
@@ -2802,13 +2877,6 @@ class DocumentContentCacheForUpdateEntries {
                 stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
             };
         });
-    }
-
-    /**
-     * Evict the entry for the provided id. noop if the entry doesn't exist.
-     */
-    public evictEntry(id: DocumentId) {
-        this._entryByDocumentId.get(id)?.evict();
     }
 }
 
@@ -3245,6 +3313,12 @@ export async function updateDocumentContent(
             }
         }
 
+        // Add a feed candidate entry when the document is given a default grant for
+        // the first time.
+        const oldHasAddedFeedCandidateEntry = internalDocument.hasAddedFeedCandidateEntry;
+        const newHasAddedFeedCandidateEntry =
+            oldHasAddedFeedCandidateEntry || !!newAccessPolicy.defaultGrant;
+
         const commentThreadItemPromiseById = new Map<
             DocumentCommentThreadId,
             Promise<DocumentCommentThreadItem | null>
@@ -3483,6 +3557,7 @@ export async function updateDocumentContent(
                         accessPolicy: newContent.attrs.accessPolicy,
                         lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                         stepCountByAccountId: newStepCountByAccountId,
+                        hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
                     },
                     {
                         condition: {
@@ -3533,6 +3608,83 @@ export async function updateDocumentContent(
                                     entityId: `Document:${documentId}`,
                                     notification: intentionallyUpdateAccessPolicy.notification,
                                 });
+                            }
+
+                            // If we just updated `hasAddedFeedCandidateEntry` to true this update then
+                            // make sure to actually add the feed candidate entry. We add the feed
+                            // candidate entry 15min after the document is shared (if the document
+                            // doesn't have much content). In case the user shared the document before
+                            // writing the document's title or any text. 15min gives the user time to
+                            // write the document's introduction and gives our backend time to generate
+                            // the document `ContentPreview` item (which is generated by the
+                            // `IndexSearchEntity` job) we need to render the document in the home
+                            // feed.
+                            //
+                            // We picked 15min since that's the max SQS message delay. Arguably the delay
+                            // should be longer since it often takes a human more than 15min to write a
+                            // doc. Though at least some of the time, if the user is sharing a doc maybe
+                            // they've finished writing it?
+                            //
+                            // ### Deciding when to immediately add the feed candidate
+                            //
+                            // We decide whether the document has "enough content" by looking at
+                            // `lastIndexSearchEntityJob.generation`. Why do we use this instead of looking
+                            // at the document's `version` or `content.nodeSize`? Well,
+                            // `lastIndexSearchEntityJob.generation` can give us a very rough approximation
+                            // of how much _time_ has been spent editing the document.
+                            // `lastIndexSearchEntityJob.generation` is incremented at least once every 10
+                            // seconds (`documentIndexSearchEntityJobFastDelaySeconds`) of editing. So if
+                            // we wait for the generation to be 20 then we know there have been 20 10
+                            // second time periods where the user has made at least one edit (~3 minutes
+                            // total).
+                            //
+                            // Why is it better to wait for a certain amount of time to pass instead of
+                            // looking at `content.nodeSize` which directly determines how much content is
+                            // visible in a preview? Well, document content previews are only updated
+                            // during an `IndexSearchEntity` action. So if the user creates a document,
+                            // pastes a lot of content, and shares the document publicly if we checked that
+                            // `content.nodeSize` was above a certain threshold and added a feed candidate
+                            // then when users view the document in their feed it would have no content
+                            // because we haven't run the `IndexSearchEntity` job yet! Waiting for some
+                            // amount of time to pass therefore gives us some assurance that the user has
+                            // typed enough content for the start of the document to be filled and for
+                            // `IndexSearchEntity` to have run a couple times.
+                            //
+                            // Another approach could be to read the document content preview item here and
+                            // check the content preview size to make a decision about whether to
+                            // immediately add the document feed candidate. This seems pretty reasonable.
+                            if (newHasAddedFeedCandidateEntry && !oldHasAddedFeedCandidateEntry) {
+                                const entry: FeedEntry = {
+                                    type: "Document",
+                                    documentId,
+                                    sharedTime: currentTime,
+                                    sharerId: context.actor.getAccountId(),
+                                    creatorId: internalDocument.creatorId,
+                                    event: "SharedWithAccessPolicyDefaultGrant",
+                                };
+
+                                if (
+                                    newLastIndexSearchEntityJob.generation >=
+                                    documentIndexSearchEntityJobImmediatelyAddFeedCandidateEntryAfterGeneration
+                                ) {
+                                    context.process.waitUntil(async () => {
+                                        await addFeedCandidateEntry(
+                                            context,
+                                            internalDocument.spaceId,
+                                            entry,
+                                        );
+                                    });
+                                } else {
+                                    context.jobs.send(
+                                        {
+                                            type: "AddFeedCandidateEntry",
+                                            jobId: generateId(),
+                                            spaceId: internalDocument.spaceId,
+                                            entry,
+                                        },
+                                        {delaySeconds: 15 * 60},
+                                    );
+                                }
                             }
                         },
                     },
@@ -3789,6 +3941,7 @@ export async function updateDocumentContent(
                     newInvertedSteps: invertedSteps,
                     newLastIndexSearchEntityJob,
                     newStepCountByAccountId,
+                    newHasAddedFeedCandidateEntry,
                     clientId,
                 });
             }
