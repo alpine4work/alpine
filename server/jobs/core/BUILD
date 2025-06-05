@@ -15,6 +15,7 @@ ts_project(
         "//server/search/core",
         "//shared/context",
         "//shared/error",
+        "//shared/feed",
         "//shared/helpers",
         "//shared/schema",
         "//shared/tracer",

@@ -10,6 +10,8 @@ export const jobQueueNameByType = {
     NotificationEvent: "Default",
     ProcessFile: "FileProcessor",
     SendShareNotification: "Default",
+    AddFeedCandidateEntry: "Default",
+    AddFeedAccountCandidateEntry: "Default",
 } as const satisfies Record<JobDescription["type"], string>;
 
 export type JobTypeByQueueName = {

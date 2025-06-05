@@ -5,6 +5,7 @@ import {
     IndexSearchEntityJobDescriptionSchema,
 } from "~/server/search/core/index_search_entity_job_description.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
+import {FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
@@ -89,6 +90,21 @@ const SendShareNotificationJobDescriptionSchema = Schema.object({
     notification: ShareNotificationSchema,
 });
 
+const AddFeedCandidateEntryJobDescriptionSchema = Schema.object({
+    type: Schema.value("AddFeedCandidateEntry"),
+    jobId: Schema.id(),
+    spaceId: Schema.id<SpaceId>(),
+    entry: FeedEntrySchema,
+});
+
+const AddFeedAccountCandidateEntryJobDescriptionSchema = Schema.object({
+    type: Schema.value("AddFeedAccountCandidateEntry"),
+    jobId: Schema.id(),
+    spaceId: Schema.id<SpaceId>(),
+    accountId: Schema.id<AccountId>(),
+    entry: FeedEntrySchema,
+});
+
 export const JobDescriptionSchema = Schema.union({
     Test: TestJobDescriptionSchema,
     IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
@@ -97,4 +113,6 @@ export const JobDescriptionSchema = Schema.union({
     NotificationEvent: NotificationEventJobDescriptionSchema,
     ProcessFile: ProcessFileJobDescriptionSchema,
     SendShareNotification: SendShareNotificationJobDescriptionSchema,
+    AddFeedCandidateEntry: AddFeedCandidateEntryJobDescriptionSchema,
+    AddFeedAccountCandidateEntry: AddFeedAccountCandidateEntryJobDescriptionSchema,
 });

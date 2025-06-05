@@ -7,6 +7,7 @@ import {
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -24,6 +25,7 @@ import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
+import {Id} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -310,6 +312,27 @@ export async function getFeedAccountCandidateEntriesForTest(
 }
 
 /**
+ * Processes the `AddFeedCandidateEntry` job by calling
+ * `addFeedCandidateEntry()`. The only difference is this function needs to be
+ * idempotent since SQS jobs may be delivered multiple times.
+ */
+export async function processAddFeedCandidateEntryJob(
+    context: ServerActionContext,
+    {jobId, spaceId, entry}: {jobId: Id; spaceId: SpaceId; entry: FeedEntry},
+) {
+    try {
+        await addFeedCandidateEntry(context, spaceId, entry, {clientRequestToken: jobId});
+    } catch (error) {
+        // Ignore idempotent parameter mismatch errors. That means we've already added
+        // an entry. We don't want to add the entry again. SQS job handling must be
+        // idempotent!
+        if (isDynamoIdempotentParameterMismatchError(error)) return;
+
+        throw error;
+    }
+}
+
+/**
  * Add a feed candidate entry for the space. When accounts view their feed we
  * read candidate entries, rank them with some algorithm, and then add entries
  * to the top of the account's personal feed.
@@ -318,6 +341,7 @@ export async function addFeedCandidateEntry(
     context: ServerActionContext,
     spaceId: SpaceId,
     entry: FeedEntry,
+    {clientRequestToken}: {clientRequestToken?: string} = {},
 ) {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -334,34 +358,71 @@ export async function addFeedCandidateEntry(
 
         const index = item?.nextIndex ?? 0;
 
-        await DynamoTableSchema.executeTransaction(context, [
-            item
-                ? FeedTable.transactionDirectlyUpdateItem({
-                      ...item,
-                      nextIndex: index + 1,
-                  })
-                : FeedTable.transactionCreateItem(
-                      {
-                          partitionType: "FeedCandidates",
-                          sortRangeType: "Attributes",
-                          spaceId,
+        await DynamoTableSchema.executeTransaction(
+            context,
+            [
+                item
+                    ? FeedTable.transactionDirectlyUpdateItem({
+                          ...item,
                           nextIndex: index + 1,
-                      },
-                      {isConditionCheckErrorRetriable: true},
-                  ),
+                      })
+                    : FeedTable.transactionCreateItem(
+                          {
+                              partitionType: "FeedCandidates",
+                              sortRangeType: "Attributes",
+                              spaceId,
+                              nextIndex: index + 1,
+                          },
+                          {isConditionCheckErrorRetriable: true},
+                      ),
 
-            // If your condition check on the `Attributes` item passes then we're
-            // guaranteed there's no item with this `index` as a key. So we can safely
-            // use create-or-replace to save some RCUs.
-            FeedTable.transactionCreateOrReplaceItem({
-                partitionType: "FeedCandidates",
-                sortRangeType: "Entry",
-                spaceId,
-                index,
-                entry,
-            }),
-        ]);
+                // If your condition check on the `Attributes` item passes then we're
+                // guaranteed there's no item with this `index` as a key. So we can safely
+                // use create-or-replace to save some RCUs.
+                FeedTable.transactionCreateOrReplaceItem({
+                    partitionType: "FeedCandidates",
+                    sortRangeType: "Entry",
+                    spaceId,
+                    index,
+                    entry,
+                }),
+            ],
+            {clientRequestToken},
+        );
     });
+}
+
+/**
+ * Processes the `AddFeedAccountCandidateEntry` job by calling
+ * `addFeedAccountCandidateEntry()`. The only difference is this function needs
+ * to be idempotent since SQS jobs may be delivered multiple times.
+ */
+export async function processAddFeedAccountCandidateEntryJob(
+    context: ServerActionContext,
+    {
+        jobId,
+        spaceId,
+        accountId,
+        entry,
+    }: {
+        jobId: Id;
+        spaceId: SpaceId;
+        accountId: AccountId;
+        entry: FeedEntry;
+    },
+) {
+    try {
+        await addFeedAccountCandidateEntry(context, spaceId, accountId, entry, {
+            clientRequestToken: jobId,
+        });
+    } catch (error) {
+        // Ignore idempotent parameter mismatch errors. That means we've already added
+        // an entry. We don't want to add the entry again. SQS job handling must be
+        // idempotent!
+        if (isDynamoIdempotentParameterMismatchError(error)) return;
+
+        throw error;
+    }
 }
 
 /**
@@ -377,6 +438,7 @@ export async function addFeedAccountCandidateEntry(
     spaceId: SpaceId,
     accountId: AccountId,
     entry: FeedEntry,
+    {clientRequestToken}: {clientRequestToken?: string} = {},
 ) {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -396,35 +458,39 @@ export async function addFeedAccountCandidateEntry(
 
         const index = item?.nextIndex ?? 0;
 
-        await DynamoTableSchema.executeTransaction(context, [
-            item
-                ? FeedTable.transactionDirectlyUpdateItem({
-                      ...item,
-                      nextIndex: index + 1,
-                  })
-                : FeedTable.transactionCreateItem(
-                      {
-                          partitionType: "FeedAccountCandidates",
-                          sortRangeType: "Attributes",
-                          spaceId,
-                          accountId,
+        await DynamoTableSchema.executeTransaction(
+            context,
+            [
+                item
+                    ? FeedTable.transactionDirectlyUpdateItem({
+                          ...item,
                           nextIndex: index + 1,
-                      },
-                      {isConditionCheckErrorRetriable: true},
-                  ),
+                      })
+                    : FeedTable.transactionCreateItem(
+                          {
+                              partitionType: "FeedAccountCandidates",
+                              sortRangeType: "Attributes",
+                              spaceId,
+                              accountId,
+                              nextIndex: index + 1,
+                          },
+                          {isConditionCheckErrorRetriable: true},
+                      ),
 
-            // If your condition check on the `Attributes` item passes then we're
-            // guaranteed there's no item with this `index` as a key. So we can safely
-            // use create-or-replace to save some RCUs.
-            FeedTable.transactionCreateOrReplaceItem({
-                partitionType: "FeedAccountCandidates",
-                sortRangeType: "Entry",
-                spaceId,
-                accountId,
-                index,
-                entry,
-            }),
-        ]);
+                // If your condition check on the `Attributes` item passes then we're
+                // guaranteed there's no item with this `index` as a key. So we can safely
+                // use create-or-replace to save some RCUs.
+                FeedTable.transactionCreateOrReplaceItem({
+                    partitionType: "FeedAccountCandidates",
+                    sortRangeType: "Entry",
+                    spaceId,
+                    accountId,
+                    index,
+                    entry,
+                }),
+            ],
+            {clientRequestToken},
+        );
     });
 }
 
