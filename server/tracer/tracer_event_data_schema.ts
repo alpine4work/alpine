@@ -307,6 +307,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
                 endDate: DateStringSchema,
             },
         },
+        ec2: {
+            securityGroupId: Schema.string,
+            instanceCount: Schema.integer,
+        },
     },
     email: {
         template: IdentifierStringSchema,

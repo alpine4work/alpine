@@ -18,6 +18,7 @@ export type AppServiceConstants = {
             readonly taskRealtimeServiceLocalPort?: string;
             readonly ecsCluster?: string;
             readonly taskRealtimeServiceEcsTaskDefinitionFamily?: string;
+            readonly taskRealtimeSecurityGroupId?: string;
             readonly allMiniLmL6V2LanguageModel?: string;
             readonly cohereApiKey?: string;
             readonly apnsCertificate?: string;

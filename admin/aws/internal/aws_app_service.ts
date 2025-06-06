@@ -232,6 +232,7 @@ export class AwsAppService extends Construct {
                     `--fileProcessorJobQueueUrl=${sqs.getFileProcessorJobQueueUrl()}`,
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
+                    `--taskRealtimeSecurityGroupId=${taskRealtimeService.securityGroup.securityGroupId}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     "--cohereApiKey=$COHERE_API_KEY",
                     `--cloudflareAccountId=${cloudflareAccountId}`,

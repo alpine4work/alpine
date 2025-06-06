@@ -1,6 +1,14 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
-import {InstanceSize, InstanceType, Peer, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {
+    InstanceSize,
+    InstanceType,
+    Peer,
+    Port,
+    SecurityGroup,
+    SubnetType,
+    Vpc,
+} from "aws-cdk-lib/aws-ec2";
 import {
     AmiHardwareType,
     AsgCapacityProvider,
@@ -25,9 +33,11 @@ import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export class AwsTaskRealtimeService extends Construct {
     public readonly autoScalingGroup: AutoScalingGroup;
+    public readonly securityGroup: SecurityGroup;
     public readonly taskDefinition: TaskDefinition;
 
     constructor(
@@ -104,6 +114,16 @@ export class AwsTaskRealtimeService extends Construct {
             // client devices to connect directly to our `TaskRealtimeService` AWS servers.
             vpcSubnets: {subnetType: SubnetType.PUBLIC},
         });
+
+        this.securityGroup = assertExists(
+            // @ts-expect-error: The `securityGroup` property is private but we need to use
+            // it. We could construct our own `SecurityGroup` and pass it into
+            // `new AutoScalingGroup()` but that would delete the existing `SecurityGroup`
+            // which is probably fine but would rather not risk it.
+            //
+            // https://github.com/aws/aws-cdk/blob/a0289271aa9990f85c120d0549b878bd3c6ea484/packages/aws-cdk-lib/aws-autoscaling/lib/auto-scaling-group.ts#L1337
+            this.autoScalingGroup.securityGroup,
+        );
 
         // Add the ability to connect to our EC2 instances with Session Manager.
         // https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html

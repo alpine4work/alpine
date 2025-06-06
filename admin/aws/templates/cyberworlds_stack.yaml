@@ -2635,8 +2635,12 @@ Resources:
                               - Ref: EcsClusterFB9B21B5
                               - "
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
-                                altimeServiceTaskDefinition81563AFA
-                                --honeycombApiKey=$HONEYCOMB_API_KEY --cohereApiKey=$COHERE_API_KEY
+                                altimeServiceTaskDefinition81563AFA --taskRealtimeSecurityGroupId="
+                              - Fn::GetAtt:
+                                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                                    - GroupId
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
+                                --cohereApiKey=$COHERE_API_KEY
                                 --cloudflareAccountId=d496846050bfc973d24617456c59242b
                                 --cloudflareR2AccessKeyId=$CLOUDFLARE_R2_ACCESS_KEY_ID
                                 --cloudflareR2SecretAccessKey=$CLOUDFLARE_R2_SECRET_ACCESS_KEY
@@ -3431,9 +3435,12 @@ Resources:
                               - Ref: EcsClusterFB9B21B5
                               - "
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
-                                altimeServiceTaskDefinition81563AFA
-                                --honeycombApiKey=$HONEYCOMB_API_KEY --cohereApiKey=$COHERE_API_KEY
-                                --githubAppId=$GITHUB_APP_ID
+                                altimeServiceTaskDefinition81563AFA --taskRealtimeSecurityGroupId="
+                              - Fn::GetAtt:
+                                    - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
+                                    - GroupId
+                              - " --honeycombApiKey=$HONEYCOMB_API_KEY
+                                --cohereApiKey=$COHERE_API_KEY --githubAppId=$GITHUB_APP_ID
                                 --githubAppClientId=$GITHUB_APP_CLIENT_ID
                                 --githubAppClientSecret=$GITHUB_APP_CLIENT_SECRET
                                 --githubAppInstallationId=$GITHUB_APP_INSTALLATION_ID

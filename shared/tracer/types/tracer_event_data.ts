@@ -903,6 +903,17 @@ export type TracerEventData = {
                 readonly endDate?: DateString;
             };
         };
+
+        /**
+         * Information regarding AWS EC2.
+         */
+        readonly ec2?: {
+            /** A EC2 security group ID related to this span. */
+            readonly securityGroupId?: string;
+
+            /** The number of EC2 instances related to this span. */
+            readonly instanceCount?: number;
+        };
     };
 
     readonly email?: {

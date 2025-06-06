@@ -1,10 +1,18 @@
-import {DescribeNetworkInterfacesCommand, EC2Client, NetworkInterface} from "@aws-sdk/client-ec2";
+import {
+    DescribeNetworkInterfacesCommand,
+    DescribeNetworkInterfacesCommandOutput,
+    EC2Client,
+    NetworkInterface,
+} from "@aws-sdk/client-ec2";
 import {
     ContainerInstance,
     DescribeContainerInstancesCommand,
+    DescribeContainerInstancesCommandOutput,
     DescribeTasksCommand,
+    DescribeTasksCommandOutput,
     ECSClient,
     ListTasksCommand,
+    ListTasksCommandOutput,
     Task,
 } from "@aws-sdk/client-ecs";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
@@ -15,8 +23,11 @@ import {
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 
 /**
@@ -30,21 +41,25 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
     private readonly _ec2Client: EC2Client;
     private readonly _ecsCluster: string;
     private readonly _ecsTaskDefinitionFamily: string;
+    private readonly _securityGroupId: string;
 
     constructor({
         region,
         ecsCluster,
         ecsTaskDefinitionFamily,
+        securityGroupId,
     }: {
         region: string;
         ecsCluster: string;
         ecsTaskDefinitionFamily: string;
+        securityGroupId: string;
     }) {
         super();
         this._ecsClient = new ECSClient({region});
         this._ec2Client = new EC2Client({region});
         this._ecsCluster = ecsCluster;
         this._ecsTaskDefinitionFamily = ecsTaskDefinitionFamily;
+        this._securityGroupId = securityGroupId;
     }
 
     protected _loadRoutes(
@@ -61,152 +76,60 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
     private async _actuallyLoadRoutes(
         context: ServerProcessContext,
     ): Promise<TaskRealtimeServiceRoutes> {
-        let nextListTasksToken: string | undefined;
-        const outputPromises: Array<
-            Promise<{
-                tasks: Array<Task>;
-                containerInstanceByArn: Map<string, ContainerInstance>;
-                networkInterfaceByInstanceId: Map<string, NetworkInterface>;
-            }>
-        > = [];
-
-        try {
-            do {
-                // `ListTasks` can only return 100 entries at a time.
-                const maxResults = 100;
-
-                // https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ListTasks.html
-                const listTasksOutput = await context.tracer.withSpan(
-                    "ECS ListTasks",
-                    async (context, span) => {
-                        const command = new ListTasksCommand({
-                            maxResults,
-                            cluster: this._ecsCluster,
-                            family: this._ecsTaskDefinitionFamily,
-                        });
-
-                        span.addData({
-                            aws: {
-                                ecs: {
-                                    cluster: command.input.cluster,
-                                    taskDefinitionFamily: command.input.family,
-                                },
-                            },
-                        });
-
-                        const output = await this._ecsClient.send(command);
-
-                        span.addData({
-                            aws: {
-                                ecs: {
-                                    taskCount: output.taskArns?.length ?? 0,
-                                },
-                            },
-                        });
-
-                        return output;
-                    },
+        const outputs: Array<{
+            tasks: Array<Task>;
+            containerInstanceByArn: Map<string, ContainerInstance>;
+            networkInterfaceByInstanceId: Map<string, NetworkInterface>;
+        }> = await parallelMapAsyncIterableToArray(
+            this._runListTasks(context),
+            async listTasksOutput => {
+                const describeTasksOutput = await this._runDescribeTasks(
+                    context,
+                    listTasksOutput.taskArns ?? [],
                 );
 
-                outputPromises.push(
-                    (async () => {
-                        // https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeTasks.html
-                        const describeTasksOutput = await context.tracer.withSpan(
-                            "ECS DescribeTasks",
-                            (context, span) => {
-                                const command = new DescribeTasksCommand({
-                                    cluster: this._ecsCluster,
-                                    tasks: listTasksOutput.taskArns ?? [],
-                                    include: ["TAGS"],
-                                });
+                if ((describeTasksOutput.failures?.length ?? 0) > 0) {
+                    throw new InternalError("Failed to describe some ECS task(s)");
+                }
 
-                                span.addData({
-                                    aws: {
-                                        ecs: {
-                                            cluster: command.input.cluster,
-                                            taskCount: command.input.tasks?.length ?? 0,
-                                        },
-                                    },
-                                });
+                const describeContainerInstancesOutput = await this._runDescribeContainerInstances(
+                    context,
+                    filterMapArray(
+                        describeTasksOutput.tasks ?? [],
+                        task => task.containerInstanceArn,
+                    ),
+                );
 
-                                return this._ecsClient.send(command);
-                            },
-                        );
+                if ((describeContainerInstancesOutput.failures?.length ?? 0) > 0) {
+                    throw new InternalError("Failed to describe some ECS container instance(s)");
+                }
 
-                        if ((describeTasksOutput.failures?.length ?? 0) > 0) {
-                            throw new InternalError("Failed to describe some ECS task(s)");
-                        }
+                const describeNetworkInterfacesOutputs = await arrayFromAsyncIterable(
+                    this._runDescribeNetworkInterfaces(
+                        context,
+                        filterMapArray(
+                            describeContainerInstancesOutput.containerInstances ?? [],
+                            containerInstance => containerInstance.ec2InstanceId,
+                        ),
+                    ),
+                );
 
-                        // https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeContainerInstances.html
-                        const describeContainerInstancesOutput = await context.tracer.withSpan(
-                            "ECS DescribeContainerInstances",
-                            (context, span) => {
-                                const command = new DescribeContainerInstancesCommand({
-                                    cluster: this._ecsCluster,
-                                    containerInstances: filterMapArray(
-                                        describeTasksOutput.tasks ?? [],
-                                        task => task.containerInstanceArn,
-                                    ),
-                                });
+                const containerInstanceByArn = new Map(
+                    filterMapArray(
+                        describeContainerInstancesOutput.containerInstances ?? [],
+                        containerInstance => {
+                            const {containerInstanceArn} = containerInstance;
+                            if (!containerInstanceArn) return;
+                            return [containerInstanceArn, containerInstance];
+                        },
+                    ),
+                );
 
-                                span.addData({
-                                    aws: {
-                                        ecs: {
-                                            cluster: command.input.cluster,
-                                            containerInstanceCount:
-                                                command.input.containerInstances?.length ?? 0,
-                                        },
-                                    },
-                                });
-
-                                return this._ecsClient.send(command);
-                            },
-                        );
-
-                        if ((describeContainerInstancesOutput.failures?.length ?? 0) > 0) {
-                            throw new InternalError(
-                                "Failed to describe some ECS container instance(s)",
-                            );
-                        }
-
-                        // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeNetworkInterfaces.html
-                        const describeNetworkInterfacesOutput = await context.tracer.withSpan(
-                            "EC2 DescribeNetworkInterfaces",
-                            () => {
-                                const command = new DescribeNetworkInterfacesCommand({
-                                    // Same `maxResults` as our `ListTasks` command. If `ListTasks` has more than
-                                    // `maxResults` we'll be making multiple requests.
-                                    MaxResults: maxResults,
-                                    Filters: [
-                                        {
-                                            Name: "attachment.instance-id",
-                                            Values: filterMapArray(
-                                                describeContainerInstancesOutput.containerInstances ??
-                                                    [],
-                                                containerInstance =>
-                                                    containerInstance.ec2InstanceId,
-                                            ),
-                                        },
-                                    ],
-                                });
-
-                                return this._ec2Client.send(command);
-                            },
-                        );
-
-                        const containerInstanceByArn = new Map(
-                            filterMapArray(
-                                describeContainerInstancesOutput.containerInstances ?? [],
-                                containerInstance => {
-                                    const {containerInstanceArn} = containerInstance;
-                                    if (!containerInstanceArn) return;
-                                    return [containerInstanceArn, containerInstance];
-                                },
-                            ),
-                        );
-
-                        const networkInterfaceByInstanceId = new Map(
-                            filterMapArray(
+                const networkInterfaceByInstanceId = new Map(
+                    flatMapIterable(
+                        describeNetworkInterfacesOutputs,
+                        describeNetworkInterfacesOutput =>
+                            filterMapIterable(
                                 describeNetworkInterfacesOutput.NetworkInterfaces ?? [],
                                 networkInterface => {
                                     const instanceId = networkInterface.Attachment?.InstanceId;
@@ -214,27 +137,16 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
                                     return [instanceId, networkInterface];
                                 },
                             ),
-                        );
-
-                        return {
-                            tasks: describeTasksOutput.tasks ?? [],
-                            containerInstanceByArn,
-                            networkInterfaceByInstanceId,
-                        };
-                    })(),
+                    ),
                 );
 
-                nextListTasksToken = listTasksOutput.nextToken;
-            } while (nextListTasksToken);
-        } catch (error) {
-            // If an error is thrown while listing tasks, make sure we still wait for our
-            // describe task promises.
-            await runAllPromises(outputPromises);
-
-            throw error;
-        }
-
-        const outputs = await runAllPromises(outputPromises);
+                return {
+                    tasks: describeTasksOutput.tasks ?? [],
+                    containerInstanceByArn,
+                    networkInterfaceByInstanceId,
+                };
+            },
+        );
 
         const partitionPlaneByCount = new DefaultMap<
             number,
@@ -366,5 +278,162 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
         return {
             partitionPlanes: Array.from(partitionPlaneByCount.values()),
         };
+    }
+
+    private async *_runListTasks(
+        context: ServerProcessContext,
+    ): AsyncIterableIterator<ListTasksCommandOutput> {
+        // `ListTasks` can only return 100 entries at a time and
+        // `DescribeTasks`/`DescribeContainerInstances` can only consume 100 entries at
+        // a time.
+        const maxResults = 100;
+
+        let nextToken: string | undefined;
+
+        do {
+            // https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ListTasks.html
+            const output = await context.tracer.withSpan("ECS ListTasks", async (context, span) => {
+                const command = new ListTasksCommand({
+                    maxResults,
+                    nextToken,
+                    cluster: this._ecsCluster,
+                    family: this._ecsTaskDefinitionFamily,
+                });
+
+                span.addData({
+                    aws: {
+                        ecs: {
+                            cluster: command.input.cluster,
+                            taskDefinitionFamily: command.input.family,
+                        },
+                    },
+                });
+
+                const output = await this._ecsClient.send(command);
+
+                span.addData({
+                    aws: {
+                        ecs: {
+                            taskCount: output.taskArns?.length ?? 0,
+                        },
+                    },
+                });
+
+                return output;
+            });
+
+            nextToken = output.nextToken;
+            yield output;
+        } while (nextToken !== undefined);
+    }
+
+    private _runDescribeTasks(
+        context: ServerProcessContext,
+        tasks: Array<string>,
+    ): Promise<DescribeTasksCommandOutput> {
+        // https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeTasks.html
+        return context.tracer.withSpan("ECS DescribeTasks", (context, span) => {
+            const command = new DescribeTasksCommand({
+                cluster: this._ecsCluster,
+                tasks,
+                include: ["TAGS"],
+            });
+
+            span.addData({
+                aws: {
+                    ecs: {
+                        cluster: command.input.cluster,
+                        taskCount: command.input.tasks?.length ?? 0,
+                    },
+                },
+            });
+
+            return this._ecsClient.send(command);
+        });
+    }
+
+    private _runDescribeContainerInstances(
+        context: ServerProcessContext,
+        containerInstances: Array<string>,
+    ): Promise<DescribeContainerInstancesCommandOutput> {
+        // https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeContainerInstances.html
+        return context.tracer.withSpan("ECS DescribeContainerInstances", (context, span) => {
+            const command = new DescribeContainerInstancesCommand({
+                cluster: this._ecsCluster,
+                containerInstances,
+            });
+
+            span.addData({
+                aws: {
+                    ecs: {
+                        cluster: command.input.cluster,
+                        containerInstanceCount: command.input.containerInstances?.length ?? 0,
+                    },
+                },
+            });
+
+            return this._ecsClient.send(command);
+        });
+    }
+
+    private async *_runDescribeNetworkInterfaces(
+        context: ServerProcessContext,
+        ec2InstanceIds: Array<string>,
+    ): AsyncIterableIterator<DescribeNetworkInterfacesCommandOutput> {
+        const maxResults = 100;
+        let nextToken: string | undefined;
+
+        do {
+            // https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeNetworkInterfaces.html
+            const output = await context.tracer.withSpan(
+                "EC2 DescribeNetworkInterfaces",
+                (context, span) => {
+                    const command = new DescribeNetworkInterfacesCommand({
+                        MaxResults: maxResults,
+                        NextToken: nextToken,
+                        Filters: [
+                            // It appears that `DescribeNetworkInterfaces` iterates through ALL EC2 network
+                            // interfaces in our AWS account. This is inefficient when we have many EC2
+                            // instances running. From reading [the documentation][1] it seems like
+                            // `group-id` (referencing a security group) is indexed and may speed up our
+                            // request.
+                            //
+                            // > If you have a large number of network interfaces, the operation fails
+                            // > unless you use pagination or one of the following filters: `group-id`,
+                            // > `mac-address`, `private-dns-name`, `private-ip-address`, `subnet-id`,
+                            // > or `vpc-id`.
+                            //
+                            // So we filter by the security group for `TaskRealtimeService` in addition to
+                            // the EC2 instance IDs we're looking for.
+                            //
+                            // [1]: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeNetworkInterfaces.html
+                            {
+                                Name: "group-id",
+                                Values: [this._securityGroupId],
+                            },
+
+                            {
+                                Name: "attachment.instance-id",
+                                Values: ec2InstanceIds,
+                            },
+                        ],
+                    });
+
+                    span.addData({
+                        aws: {
+                            ec2: {
+                                securityGroupId: this._securityGroupId,
+                                instanceCount: ec2InstanceIds.length,
+                            },
+                        },
+                    });
+
+                    return this._ec2Client.send(command);
+                },
+            );
+
+            nextToken = output.NextToken;
+            yield output;
+        } while (nextToken !== undefined);
     }
 }

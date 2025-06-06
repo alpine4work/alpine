@@ -77,6 +77,7 @@ export const options = {
     taskRealtimeServiceLocalPort: {type: "string"},
     ecsCluster: {type: "string"},
     taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
+    taskRealtimeServiceSecurityGroupId: {type: "string"},
     apnsCertificate: {type: "string"},
     apnsCertificatePrivateKey: {type: "string"},
     jobQueueArn: {type: "string"},
@@ -169,6 +170,10 @@ export async function run({
                   ecsTaskDefinitionFamily: assertExists(
                       options.taskRealtimeServiceEcsTaskDefinitionFamily,
                       "`taskRealtimeServiceEcsTaskDefinitionFamily` option is required in production",
+                  ),
+                  securityGroupId: assertExists(
+                      options.taskRealtimeServiceSecurityGroupId,
+                      "`taskRealtimeServiceSecurityGroupId` option is required in production",
                   ),
               })
             : new TaskRealtimeServiceLocalRouter({
