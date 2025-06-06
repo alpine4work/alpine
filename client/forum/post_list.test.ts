@@ -2,7 +2,7 @@ import {
     PostBasicList,
     PostListInterface,
     PostListItem,
-    PostListWithChannelHeader,
+    PostListWithHeader,
 } from "~/client/forum/post_list.js";
 import {MessageList} from "~/client/messaging/message_list.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -996,9 +996,9 @@ test("can add a channel header at the beginning", () => {
         {type: "PostContent", post: post5, postCommentsState: "Closed"},
     ]);
 
-    const listWithHeader = new PostListWithChannelHeader(
+    const listWithHeader = new PostListWithHeader(
         {
-            isOnlyNavigationBar: false,
+            type: "Channel",
             channel,
             channelAndMetadataQuery: null,
             initialIsSubscribed: false,
@@ -1012,9 +1012,9 @@ test("can add a channel header at the beginning", () => {
 
     expect(getItems(listWithHeader)).toEqual([
         {
-            type: "ChannelHeader",
-            channelHeader: {
-                isOnlyNavigationBar: false,
+            type: "Header",
+            header: {
+                type: "Channel",
                 channel,
                 channelAndMetadataQuery: null,
                 initialIsSubscribed: false,

@@ -16,7 +16,7 @@ import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_ke
  * (backed by a `functional-red-black-tree`) and want to use it as a
  * virtualized tree.
  */
-export abstract class VirtualizedTreeBase<NodeKey extends Key, NodeOrderKey, Node, Item> {
+export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
     /**
      * Should we iterate through `nodeByOrderKey` in reverse order?
      */
@@ -50,7 +50,6 @@ export abstract class VirtualizedTreeBase<NodeKey extends Key, NodeOrderKey, Nod
         this._itemCountSubtreeCache = itemCountSubtreeCache;
     }
 
-    protected abstract _getNodeKey(node: Node): NodeKey;
     protected abstract _getNodeItemCount(node: Node): number;
     protected abstract _getNodeItem(
         node: Node,
@@ -271,7 +270,6 @@ export abstract class VirtualizedTreeBase<NodeKey extends Key, NodeOrderKey, Nod
  * knowledge about the physical state of items onscreen.
  */
 export class VirtualizedTree<NodeKey extends Key, Node, Item> extends VirtualizedTreeBase<
-    NodeKey,
     OrderKey,
     Node,
     Item

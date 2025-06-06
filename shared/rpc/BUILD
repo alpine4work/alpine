@@ -13,6 +13,7 @@ ts_project(
         "//shared/documents",
         "//shared/dynamo",
         "//shared/error",
+        "//shared/feed",
         "//shared/forum",
         "//shared/helpers",
         "//shared/notifications",

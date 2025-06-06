@@ -18,6 +18,7 @@ import {
     NotFoundError,
     OutOfRangeError,
 } from "~/shared/error/error.js";
+import {FeedEntryModel, FeedPostEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
@@ -26,30 +27,37 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
 import {decodeIdInto} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessagingTypingState} from "~/shared/messaging/messaging_realtime_protocol.js";
+import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
+import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 
 // All this post list code is the result of incremental evolution over time
 // which means it's not as clean as it could be. It's gone through a couple
 // refactors without fundamentally rethinking the structure. A brief history:
 //
-// 1. `PostList` was created.
-// 2. `VirtualizedTree` was created by refactoring the relevant code out of
-//    `PostList` so it could be used in other places.
-// 3. `PostList` was split into `PostBasicList` and `PostQueryList` so we could
-//    power a `<PostListView>` with a DynamoDB general realtime query.
+// 1. [2023-01-26] `PostList` was created.
+//
+// 2. [2023-03-31] `VirtualizedTree` was created by refactoring the relevant
+//    code out of `PostList` so it could be used in other places.
+//
+// 3. [2024-04-15] `PostList` was split into `PostBasicList` and
+//    `PostQueryList` so we could power a `<PostListView>` with a DynamoDB
+//    general realtime query.
+//
+// 4. [2025-05-20] `PostFeedList` was added (in `post_feed_list.ts`) since now
+//    we want to render a `<PostListView>` with both posts and non-posts.
 
-export type PostListChannelHeader =
+export type PostListHeader =
     | {
-          readonly isOnlyNavigationBar: true;
-          readonly shouldNotShowChannelId: ChannelId | null;
+          readonly type: "NavigationBar";
+          readonly shouldNotShowChannelId?: ChannelId;
       }
     | {
-          readonly isOnlyNavigationBar: false;
+          readonly type: "Channel";
           readonly channel: ChannelModel;
           readonly channelAndMetadataQuery: DynamoGeneralRealtimeQuery<ChannelOrMetadataModel> | null;
           readonly initialIsSubscribed: boolean;
@@ -60,6 +68,10 @@ export type PostListChannelHeader =
               accountGrantById: ReadonlyMap<AccountId, {level: AccessLevel}>;
               notification: ShareNotification | null;
           }) => Promise<void>;
+      }
+    | {
+          readonly type: "FeedCreateSection";
+          readonly initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
       };
 
 export type PostCommentsState = PostCommentsOpenState | "Closed";
@@ -81,17 +93,14 @@ type PostCommentsOpenState = "Open" | "AlwaysOpen";
  */
 export interface PostListInterface {
     /**
-     * Get the number of posts in this list.
+     * Is the post list exactly one post and that post's comments?
+     *
+     * If this is true then `getPostContentItemIfExists(0)` must be non-null.
+     *
+     * May return false even if there's only one post and the post's comments
+     * because we don't want special single post treatment.
      */
-    getPostCount(): number;
-
-    /**
-     * Get the post content item for the provided index. If this index is pointing
-     * at a comment then we will return the item for the post the comment is a part
-     * of. Will return null if the index is out of bounds. Every index in this
-     * list is associated to a post.
-     */
-    getPostContentItemIfExists(index: number): PostListPostContentItem | null;
+    isSinglePost(): boolean;
 
     /**
      * Get the total number of items in the list.
@@ -103,6 +112,14 @@ export interface PostListInterface {
      * of bounds.
      */
     getItem(index: number): PostListItem;
+
+    /**
+     * Get the post content item for the provided index. If this index is pointing
+     * at a comment then we will return the item for the post the comment is a part
+     * of. Will return null if the index is out of bounds or if the item is not
+     * associated with a post (e.g. channel header or feed entry).
+     */
+    getPostContentItemIfExists(index: number): PostListPostContentItem | null;
 
     /**
      * Get a post by its `PostId`.
@@ -125,50 +142,37 @@ export interface PostListInterface {
     hasOpenPostComments(): boolean;
 }
 
-type PostListItemExtra = {
+export type PostListItemExtra = {
     readonly postComments: MessageList<PostCommentModel>;
     readonly postCommentsState: PostCommentsState;
 };
 
 /**
- * Adds a channel header item to the beginning of a post list.
+ * Adds a header item to the beginning of a post list.
  */
-export class PostListWithChannelHeader implements PostListInterface {
-    private readonly _channelHeader: PostListChannelHeader;
+export class PostListWithHeader implements PostListInterface {
+    private readonly _header: PostListHeader;
     private readonly _posts: PostListInterface;
 
-    constructor(channelHeader: PostListChannelHeader, posts: PostListInterface) {
-        this._channelHeader = channelHeader;
+    constructor(header: PostListHeader, posts: PostListInterface) {
+        this._header = header;
         this._posts = posts;
     }
 
-    getPostCount(): number {
-        return this._posts.getPostCount();
+    // After adding a header, the post list is not a single post anymore.
+    public isSinglePost(): boolean {
+        return false;
     }
 
-    getPostContentItemIfExists(index: number): PostListPostContentItem | null {
-        if (index === 0) return null;
-
-        const item = this._posts.getPostContentItemIfExists(index - 1);
-        if (!item) return null;
-
-        return {
-            ...item,
-            postContentItemIndex: item.postContentItemIndex + 1,
-            postCommentInputItemIndex:
-                item.postCommentInputItemIndex !== null ? item.postCommentInputItemIndex + 1 : null,
-        };
-    }
-
-    getItemCount(): number {
+    public getItemCount(): number {
         return this._posts.getItemCount() + 1;
     }
 
-    getItem(index: number): PostListItem {
+    public getItem(index: number): PostListItem {
         if (index === 0) {
             return {
-                type: "ChannelHeader",
-                channelHeader: this._channelHeader,
+                type: "Header",
+                header: this._header,
             };
         }
 
@@ -177,8 +181,9 @@ export class PostListWithChannelHeader implements PostListInterface {
         // Adjust any item indexes to consider items that come before posts in
         // our `PostList`.
         switch (item.type) {
-            case "ChannelHeader":
+            case "Header":
             case "MoreUnloadedPosts":
+            case "FeedEntry":
                 return item;
             case "PostContent": {
                 return {
@@ -210,7 +215,21 @@ export class PostListWithChannelHeader implements PostListInterface {
         }
     }
 
-    getPostByIdIfExists(postId: PostId): {
+    public getPostContentItemIfExists(index: number): PostListPostContentItem | null {
+        if (index === 0) return null;
+
+        const item = this._posts.getPostContentItemIfExists(index - 1);
+        if (!item) return null;
+
+        return {
+            ...item,
+            postContentItemIndex: item.postContentItemIndex + 1,
+            postCommentInputItemIndex:
+                item.postCommentInputItemIndex !== null ? item.postCommentInputItemIndex + 1 : null,
+        };
+    }
+
+    public getPostByIdIfExists(postId: PostId): {
         post: PostModel;
         postComments: MessageList<PostCommentModel>;
         postContentItemIndex: number;
@@ -229,7 +248,7 @@ export class PostListWithChannelHeader implements PostListInterface {
         };
     }
 
-    hasOpenPostComments(): boolean {
+    public hasOpenPostComments(): boolean {
         return this._posts.hasOpenPostComments();
     }
 }
@@ -243,12 +262,8 @@ export class PostListWithChannelHeader implements PostListInterface {
 abstract class PostListBase<NodeOrderKey> implements PostListInterface {
     protected abstract readonly _posts: PostListVirtualizedTreeBase<NodeOrderKey>;
 
-    public getPostCount(): number {
-        return this._posts.getNodeCount();
-    }
-
-    public getLastPostIdIfExists(): PostId | null {
-        return this._posts.getLastNodeIfExists()?.model.id ?? null;
+    public isSinglePost(): boolean {
+        return this._posts.getNodeCount() === 1;
     }
 
     public hasPostId(postId: PostId): boolean {
@@ -344,27 +359,21 @@ abstract class PostListBase<NodeOrderKey> implements PostListInterface {
 }
 
 abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTreeBase<
-    PostId,
     NodeOrderKey,
     DynamoGeneralRealtimeItem<PostModel> & {
         readonly extra: PostListItemExtra | null;
     },
-    Exclude<PostListItem, PostListChannelHeaderItem | PostListMoreUnloadedPostsItem>
+    Exclude<
+        PostListItem,
+        PostListHeaderItem | PostListMoreUnloadedPostsItem | PostListFeedEntryItem
+    >
 > {
-    protected override _getNodeKey(post: DynamoGeneralRealtimeItem<PostModel>): PostId {
-        return post.model.id;
-    }
-
     protected override _getNodeItemCount(
         node: DynamoGeneralRealtimeItem<PostModel> & {
             readonly extra: PostListItemExtra | null;
         },
     ): number {
-        const {
-            postCommentsState = "Closed",
-            postComments = initialPostModelCommentsCache.getOrSetDefault(node.model),
-        } = node.extra ?? emptyObject;
-
+        const {postCommentsState, postComments} = getPostListItemExtra(node);
         return 1 + (postCommentsState !== "Closed" ? postComments.getItemCount() + 1 : 0);
     }
 
@@ -374,90 +383,11 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
         },
         index: number,
         postContentItemIndex: number,
-    ): Exclude<PostListItem, PostListChannelHeaderItem | PostListMoreUnloadedPostsItem> {
-        const {
-            postCommentsState = "Closed",
-            postComments = initialPostModelCommentsCache.getOrSetDefault(node.model),
-        } = node.extra ?? emptyObject;
-
-        if (index === 0) {
-            return {
-                type: "PostContent",
-                post: node.model,
-                postComments,
-                postCommentsState,
-                postContentItemIndex,
-                postCommentInputItemIndex:
-                    postCommentsState !== "Closed"
-                        ? postContentItemIndex + postComments.getItemCount() + 1
-                        : null,
-            };
-        }
-
-        if (postCommentsState !== "Closed") {
-            const postCommentIndex = index - 1;
-            const postCommentCount = postComments.getItemCount();
-            const postCommentInputItemIndex =
-                postContentItemIndex + postComments.getItemCount() + 1;
-
-            if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
-                const item = postComments.getItem(postCommentIndex);
-                switch (item.type) {
-                    case "Loaded": {
-                        return {
-                            type: "LoadedPostComment",
-                            post: node.model,
-                            postComments,
-                            postCommentIndex,
-                            postComment: item.message,
-                            postCommentInputItemIndex,
-                        };
-                    }
-                    case "Unloaded": {
-                        return {
-                            type: "UnloadedPostComment",
-                            post: node.model,
-                            postComments,
-                            postCommentIndex,
-                            postCommentInputItemIndex,
-                        };
-                    }
-                    case "Optimistic": {
-                        return {
-                            type: "OptimisticPostComment",
-                            post: node.model,
-                            postComments,
-                            postCommentIndex,
-                            postComment: item.message,
-                            postCommentInputItemIndex,
-                            optimisticPostCommentIndex: item.optimisticMessageIndex,
-                        };
-                    }
-                    case "TypingIndicators": {
-                        return {
-                            type: "PostCommentsTypingIndicator",
-                            post: node.model,
-                            postComments,
-                            typingStateByConnectionId: item.typingStateByConnectionId,
-                            postCommentInputItemIndex,
-                        };
-                    }
-                    default:
-                        throw exhaustive(item);
-                }
-            }
-
-            if (index === postCommentCount + 1) {
-                return {
-                    type: "PostCommentInput",
-                    post: node.model,
-                    postComments,
-                    postContentItemIndex,
-                };
-            }
-        }
-
-        throw new OutOfRangeError("Index out of bounds");
+    ): Exclude<
+        PostListItem,
+        PostListHeaderItem | PostListMoreUnloadedPostsItem | PostListFeedEntryItem
+    > {
+        return getPostListVirtualizedTreeNodeItem(node, index, postContentItemIndex);
     }
 
     public getPostByItemIndexIfExists(itemIndex: number): {
@@ -472,10 +402,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
         if (!nodeResult) return null;
         const {node, startItemIndex} = nodeResult;
 
-        const {
-            postCommentsState = "Closed",
-            postComments = initialPostModelCommentsCache.getOrSetDefault(node.model),
-        } = node.extra ?? emptyObject;
+        const {postCommentsState, postComments} = getPostListItemExtra(node);
 
         return {
             node: {
@@ -510,10 +437,7 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
 
         const startItemIndex = this._getPreviousItemCount(iterator);
 
-        const {
-            postCommentsState = "Closed",
-            postComments = initialPostModelCommentsCache.getOrSetDefault(node.model),
-        } = node.extra ?? emptyObject;
+        const {postCommentsState, postComments} = getPostListItemExtra(node);
 
         return {
             node: {
@@ -524,6 +448,97 @@ abstract class PostListVirtualizedTreeBase<NodeOrderKey> extends VirtualizedTree
             startItemIndex,
         };
     }
+}
+
+export function getPostListVirtualizedTreeNodeItem(
+    node: DynamoGeneralRealtimeItem<PostModel> & {
+        readonly extra: PostListItemExtra | null;
+    },
+    index: number,
+    postContentItemIndex: number,
+): Exclude<
+    PostListItem,
+    PostListHeaderItem | PostListMoreUnloadedPostsItem | PostListFeedEntryItem
+> {
+    const {postCommentsState, postComments} = getPostListItemExtra(node);
+
+    if (index === 0) {
+        return {
+            type: "PostContent",
+            post: node.model,
+            postComments,
+            postCommentsState,
+            postContentItemIndex,
+            postCommentInputItemIndex:
+                postCommentsState !== "Closed"
+                    ? postContentItemIndex + postComments.getItemCount() + 1
+                    : null,
+        };
+    }
+
+    if (postCommentsState !== "Closed") {
+        const postCommentIndex = index - 1;
+        const postCommentCount = postComments.getItemCount();
+        const postCommentInputItemIndex = postContentItemIndex + postComments.getItemCount() + 1;
+
+        if (0 <= postCommentIndex && postCommentIndex < postCommentCount) {
+            const item = postComments.getItem(postCommentIndex);
+            switch (item.type) {
+                case "Loaded": {
+                    return {
+                        type: "LoadedPostComment",
+                        post: node.model,
+                        postComments,
+                        postCommentIndex,
+                        postComment: item.message,
+                        postCommentInputItemIndex,
+                    };
+                }
+                case "Unloaded": {
+                    return {
+                        type: "UnloadedPostComment",
+                        post: node.model,
+                        postComments,
+                        postCommentIndex,
+                        postCommentInputItemIndex,
+                    };
+                }
+                case "Optimistic": {
+                    return {
+                        type: "OptimisticPostComment",
+                        post: node.model,
+                        postComments,
+                        postCommentIndex,
+                        postComment: item.message,
+                        postCommentInputItemIndex,
+                        optimisticPostCommentIndex: item.optimisticMessageIndex,
+                    };
+                }
+                case "TypingIndicators": {
+                    return {
+                        type: "PostCommentsTypingIndicator",
+                        post: node.model,
+                        postComments,
+                        typingStateByConnectionId: item.typingStateByConnectionId,
+                        postCommentInputItemIndex,
+                    };
+                }
+                default:
+                    throw exhaustive(item);
+            }
+        }
+
+        if (index === postCommentCount + 1) {
+            return {
+                type: "PostCommentInput",
+                post: node.model,
+                postComments,
+                postContentItemIndex,
+            };
+        }
+    }
+
+    throw new OutOfRangeError("Index out of bounds");
 }
 
 /**
@@ -565,41 +580,58 @@ export class PostBasicList extends PostListBase<number> {
                   };
               },
     ) {
-        return new PostBasicList({
-            hasMorePosts: result.type === "Many" && result.hasMorePosts,
-            posts: PostBasicListVirtualizedTree.new(
-                result.type === "One"
-                    ? [
-                          {
-                              ...result.post,
-                              extra: {
-                                  postCommentsState: result.postCommentsState ?? "Closed",
-                                  postComments: !result.postComments
-                                      ? MessageList.new<PostCommentModel>({
-                                            messageCount: result.post.model.commentCount,
-                                            lastMessageChangeTime:
-                                                result.post.model.lastCommentChangeTime,
-                                        })
-                                      : MessageList.new<PostCommentModel>({
-                                            messageCount: result.post.model.commentCount,
-                                            lastMessageChangeTime:
-                                                result.post.model.lastCommentChangeTime,
-                                        }).loadMessages({
-                                            messageCount: result.post.model.commentCount,
-                                            messages: result.postComments.comments,
-                                            otherReferencedMessages:
-                                                result.postComments.otherReferencedComments,
-                                        }),
-                              },
-                          },
-                      ]
-                    : result.posts.map(post => ({...post, extra: null})),
-            ),
-        });
+        let hasMorePosts: boolean;
+        let posts: PostBasicListVirtualizedTree;
+
+        switch (result.type) {
+            case "Many": {
+                hasMorePosts = result.hasMorePosts;
+                posts = PostBasicListVirtualizedTree.new(
+                    result.posts.map(post => ({...post, extra: null})),
+                );
+                break;
+            }
+            case "One": {
+                hasMorePosts = false;
+                posts = PostBasicListVirtualizedTree.new([
+                    {
+                        ...result.post,
+                        extra: {
+                            postCommentsState: result.postCommentsState ?? "Closed",
+                            postComments: !result.postComments
+                                ? MessageList.new<PostCommentModel>({
+                                      messageCount: result.post.model.commentCount,
+                                      lastMessageChangeTime:
+                                          result.post.model.lastCommentChangeTime,
+                                  })
+                                : MessageList.new<PostCommentModel>({
+                                      messageCount: result.post.model.commentCount,
+                                      lastMessageChangeTime:
+                                          result.post.model.lastCommentChangeTime,
+                                  }).loadMessages({
+                                      messageCount: result.post.model.commentCount,
+                                      messages: result.postComments.comments,
+                                      otherReferencedMessages:
+                                          result.postComments.otherReferencedComments,
+                                  }),
+                        },
+                    },
+                ]);
+                break;
+            }
+            default:
+                throw exhaustive(result);
+        }
+
+        return new PostBasicList({hasMorePosts, posts});
     }
 
     public override hasMorePosts(): boolean {
         return this._hasMorePosts;
+    }
+
+    public getLastPostIdIfExists(): PostId | null {
+        return this._posts.getLastNodeIfExists()?.model.id ?? null;
     }
 
     public loadMorePosts({
@@ -611,7 +643,9 @@ export class PostBasicList extends PostListBase<number> {
     }) {
         const newPosts = this._posts.addPosts(posts.map(post => ({...post, extra: null})));
 
-        if (newPosts === this._posts) return this;
+        if (newPosts === this._posts && hasMorePosts === this._hasMorePosts) {
+            return this;
+        }
 
         return new PostBasicList({
             hasMorePosts,
@@ -783,7 +817,9 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
                 nodeByOrderKey =
                     // If the currently visible item has a higher version then don't update with
                     // the newly loaded post.
-                    iterator.value.version > post.version ? nodeByOrderKey : iterator.update(post);
+                    iterator.value.version > post.version
+                        ? nodeByOrderKey
+                        : iterator.update({...post, extra: iterator.value.extra});
             }
         }
 
@@ -879,10 +915,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         const iterator = nodeByOrderKey.find(postVisibility.index);
         assert(iterator.value);
 
-        const {
-            postCommentsState = "Closed",
-            postComments = initialPostModelCommentsCache.getOrSetDefault(iterator.value.model),
-        } = iterator.value.extra ?? emptyObject;
+        const {postCommentsState, postComments} = getPostListItemExtra(iterator.value);
 
         // Can not toggle post comments if it is always open.
         if (postCommentsState === "AlwaysOpen")
@@ -919,10 +952,7 @@ class PostBasicListVirtualizedTree extends PostListVirtualizedTreeBase<number> {
         const iterator = nodeByOrderKey.find(postVisibility.index);
         assert(iterator.value);
 
-        const {
-            postCommentsState = "Closed",
-            postComments = initialPostModelCommentsCache.getOrSetDefault(iterator.value.model),
-        } = iterator.value.extra ?? emptyObject;
+        const {postCommentsState, postComments} = getPostListItemExtra(iterator.value);
 
         const newPostComments = update(postComments);
         if (newPostComments === postComments) return this;
@@ -1112,10 +1142,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
         const key = createDynamoItemKeyFromPostId(postId);
 
         const newQuery = this.query.updateItemExtraByKeyIfExists(key, item => {
-            const {
-                postCommentsState = "Closed",
-                postComments = initialPostModelCommentsCache.getOrSetDefault(item.model),
-            } = item.extra ?? emptyObject;
+            const {postCommentsState, postComments} = getPostListItemExtra(item);
 
             // Can not toggle post comments if it is always open.
             if (postCommentsState === "AlwaysOpen")
@@ -1143,10 +1170,7 @@ class PostQueryListVirtualizedTree extends PostListVirtualizedTreeBase<DynamoInd
         const key = createDynamoItemKeyFromPostId(postId);
 
         const newQuery = this.query.updateItemExtraByKeyIfExists(key, item => {
-            const {
-                postCommentsState = "Closed",
-                postComments = initialPostModelCommentsCache.getOrSetDefault(item.model),
-            } = item.extra ?? emptyObject;
+            const {postCommentsState, postComments} = getPostListItemExtra(item);
 
             const newPostComments = update(postComments);
             if (newPostComments === postComments) return item.extra;
@@ -1188,6 +1212,19 @@ function createInitialPostModelComments(post: PostModel): MessageList<PostCommen
     });
 }
 
+export function getPostListItemExtra(
+    post: DynamoGeneralRealtimeItem<PostModel> & {
+        readonly extra: PostListItemExtra | null;
+    },
+) {
+    return (
+        post.extra ?? {
+            postCommentsState: "Closed",
+            postComments: initialPostModelCommentsCache.getOrSetDefault(post.model),
+        }
+    );
+}
+
 /**
  * Manually build a `DynamoItemKey` from a `PostId` using the same process the
  * server uses. The data within `DynamoItemKey`s is not secure by design,
@@ -1218,18 +1255,19 @@ function createDynamoItemKeyFromPostId(postId: PostId): DynamoItemKey {
  * An individual item in a paginated post list.
  */
 export type PostListItem =
-    | PostListChannelHeaderItem
+    | PostListHeaderItem
     | PostListPostContentItem
     | PostListLoadedPostCommentItem
     | PostListUnloadedPostCommentItem
     | PostListOptimisticPostCommentItem
     | PostListPostCommentsTypingIndicator
     | PostListPostCommentInputItem
-    | PostListMoreUnloadedPostsItem;
+    | PostListMoreUnloadedPostsItem
+    | PostListFeedEntryItem;
 
-export type PostListChannelHeaderItem = {
-    readonly type: "ChannelHeader";
-    readonly channelHeader: PostListChannelHeader;
+export type PostListHeaderItem = {
+    readonly type: "Header";
+    readonly header: PostListHeader;
 };
 
 /**
@@ -1352,4 +1390,14 @@ export type PostListPostCommentInputItem = {
  */
 export type PostListMoreUnloadedPostsItem = {
     readonly type: "MoreUnloadedPosts";
+};
+
+/**
+ * We use `<PostListView>` to render the home feed. In addition to posts we
+ * have some other non-post feed entries. Non-post feed entries are expressed
+ * by this item.
+ */
+export type PostListFeedEntryItem = {
+    readonly type: "FeedEntry";
+    readonly entry: Exclude<FeedEntryModel, FeedPostEntryModel>;
 };

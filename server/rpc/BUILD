@@ -31,6 +31,7 @@ ts_project(
         "//server/context",
         "//server/documents/data",
         "//server/emails",
+        "//server/feed/read",
         "//server/files/entity",
         "//server/forum/data",
         "//server/notifications/data",

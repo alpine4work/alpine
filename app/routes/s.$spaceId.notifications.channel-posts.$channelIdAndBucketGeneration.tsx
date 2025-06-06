@@ -238,11 +238,8 @@ function ChannelPostsRoute() {
 
     return (
         <PostListView
-            channelHeader={useMemo(
-                () =>
-                    platform === "mobile"
-                        ? {isOnlyNavigationBar: true, shouldNotShowChannelId: null}
-                        : undefined,
+            header={useMemo(
+                () => (platform === "mobile" ? {type: "NavigationBar"} : undefined),
                 [platform],
             )}
             posts={posts}

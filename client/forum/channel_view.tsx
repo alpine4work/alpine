@@ -14,7 +14,7 @@ import {ChannelViewNameEditor} from "~/client/forum/internal/channel_view_name_e
 import {ChannelViewSubscribeButton} from "~/client/forum/internal/channel_view_subscribe_button.js";
 import {optimisticCreatePostEventEmitter} from "~/client/forum/internal/optimistic_create_post_event_emitter.js";
 import {
-    PostListChannelHeader,
+    PostListHeader,
     PostQueryList,
     PostQueryListDynamoGeneralRealtimeIndexQuery,
 } from "~/client/forum/post_list.js";
@@ -384,8 +384,8 @@ export function ChannelView({
     });
 
     const channelHeader = useMemo(
-        (): PostListChannelHeader & {isOnlyNavigationBar: false} => ({
-            isOnlyNavigationBar: false,
+        (): PostListHeader & {type: "Channel"} => ({
+            type: "Channel",
             channel,
             channelAndMetadataQuery,
             initialIsSubscribed,
@@ -434,7 +434,7 @@ export function ChannelView({
             height="full"
         >
             <PostListView
-                channelHeader={channelHeader}
+                header={channelHeader}
                 posts={posts}
                 onTogglePostComments={useCallback(
                     postId => setPosts(posts => posts.togglePostComments(postId)),

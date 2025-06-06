@@ -16,7 +16,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useReporter} from "~/client/design/reporter.js";
-import {PostListChannelHeader} from "~/client/forum/post_list.js";
+import {PostListHeader} from "~/client/forum/post_list.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
@@ -65,7 +65,7 @@ export type PostRealtimeProcedures = {
 export function PostCommentInput(props: {
     isStickyPositioned: boolean;
     inputRef?: Ref<MessageInputRef>;
-    channelHeader: Memo<PostListChannelHeader> | undefined;
+    header: Memo<PostListHeader> | undefined;
     post: PostModel;
     viewRef: RefObject<VirtualizedScrollViewRef>;
     proceduresRef: Ref<PostRealtimeProcedures>;
@@ -93,23 +93,18 @@ export function PostCommentInput(props: {
         () =>
             hasAccessLevel(
                 getAccountAccessLevelAssumingSpaceAccess(
-                    // Use the `accessPolicy` from `channelHeader` if applicable. Because we update
-                    // the `channel` in `channelHeader` in realtime. Whereas the `channel` preview
+                    // Use the `accessPolicy` from `header` if applicable. Because we update
+                    // the `channel` in `header` in realtime. Whereas the `channel` preview
                     // in the `PostModel` might not update in realtime.
-                    !props.channelHeader?.isOnlyNavigationBar &&
-                        props.channelHeader?.channel.id === props.post.channel.id
-                        ? props.channelHeader.channel.accessPolicy
+                    props.header?.type === "Channel" &&
+                        props.header.channel.id === props.post.channel.id
+                        ? props.header.channel.accessPolicy
                         : props.post.channel.accessPolicy,
                     currentAccount?.id,
                 ),
                 "Comment",
             ),
-        [
-            currentAccount?.id,
-            props.channelHeader,
-            props.post.channel.accessPolicy,
-            props.post.channel.id,
-        ],
+        [currentAccount?.id, props.header, props.post.channel.accessPolicy, props.post.channel.id],
     );
 
     if (!hasCommentAccessLevel) {

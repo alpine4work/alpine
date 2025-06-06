@@ -36,10 +36,10 @@ import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
 import {resolveFlexSizes} from "~/client/forum/internal/resolve_flex_sizes.js";
 import {PostContentView, PostContentViewInitialScroll} from "~/client/forum/post_content_view.js";
 import {
-    PostListChannelHeader,
+    PostListHeader,
     PostListInterface,
     PostListPostContentItem,
-    PostListWithChannelHeader,
+    PostListWithHeader,
 } from "~/client/forum/post_list.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -96,7 +96,7 @@ import {
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -150,14 +150,14 @@ export type PostListViewRef = {
  * This component handles all rendering for a post unit. Including rendering an
  * individual post on a post route. Since even when rendering an individual
  * post you still need to virtualize the list of comments. This means there is
- * some confusing overloading because features like `channelHeader` and `aside`
+ * some confusing overloading because features like `header` and `aside`
  * which are important in the context of a channel are not important in the
  * context of rendering a single post.
  */
 function PostListView(
     {
-        channelHeader,
-        posts: postsWithoutChannelHeader,
+        header,
+        posts: postsWithoutHeader,
         onTogglePostComments,
         onUpdatePostComments,
         onLoadMorePosts,
@@ -176,7 +176,7 @@ function PostListView(
          * If this post list is rendering a channel, you may provide this prop and we
          * will render an area at the top of the list describing the channel.
          */
-        channelHeader?: Memo<PostListChannelHeader>;
+        header?: Memo<PostListHeader>;
 
         /**
          * The post content to be rendered in this post list view.
@@ -340,21 +340,20 @@ function PostListView(
     });
 
     const posts = useMemo(
-        () =>
-            channelHeader
-                ? new PostListWithChannelHeader(channelHeader, postsWithoutChannelHeader)
-                : postsWithoutChannelHeader,
-        [channelHeader, postsWithoutChannelHeader],
+        () => (header ? new PostListWithHeader(header, postsWithoutHeader) : postsWithoutHeader),
+        [header, postsWithoutHeader],
     );
 
     const hasAside = routeLayout !== "narrow" && !!aside;
     const hasNavigationBar = !!navigationBar?.navigationBar;
-    const hasChannelHeader = !!channelHeader;
+    const hasHeader = !!header;
 
-    const shouldNotShowChannelId = channelHeader
-        ? channelHeader.isOnlyNavigationBar
-            ? channelHeader.shouldNotShowChannelId
-            : channelHeader.channel.id
+    const shouldNotShowChannelId = header
+        ? header.type === "NavigationBar"
+            ? header.shouldNotShowChannelId ?? null
+            : header.type === "Channel"
+            ? header.channel.id
+            : null
         : null;
 
     // Always pin the post comment input to the bottom of the list view on mobile
@@ -362,8 +361,8 @@ function PostListView(
     // comments to determine if we're in a single post context.
     const isPostView =
         hasNavigationBar &&
-        !channelHeader &&
-        posts.getPostCount() === 1 &&
+        !header &&
+        posts.isSinglePost() &&
         posts.getPostContentItemIfExists(0)?.postCommentsState === "AlwaysOpen";
 
     // On mobile, the comment button doesn't expand/collapse. Instead it opens the
@@ -939,7 +938,11 @@ function PostListView(
 
             let item = posts.getItem(aboveIndex);
 
-            while (item.type === "ChannelHeader" || item.type === "MoreUnloadedPosts") {
+            while (
+                item.type === "Header" ||
+                item.type === "MoreUnloadedPosts" ||
+                item.type === "FeedEntry"
+            ) {
                 aboveIndex++;
                 if (aboveIndex < posts.getItemCount()) {
                     item = posts.getItem(aboveIndex);
@@ -1018,9 +1021,9 @@ function PostListView(
             const item = posts.getItem(index);
 
             switch (item.type) {
-                case "ChannelHeader": {
+                case "Header": {
                     return {
-                        key: "ChannelHeader",
+                        key: "Header",
                         minHeight: hasNavigationBar ? spacing[navigationBarHeight] : "0rem",
                         node: (
                             <div
@@ -1042,12 +1045,12 @@ function PostListView(
                                     }}
                                 >
                                     {hasNavigationBar && <Spacer space={navigationBarHeight} />}
-                                    {!item.channelHeader.isOnlyNavigationBar && (
+                                    {item.header.type === "Channel" ? (
                                         <ChannelViewHeader
-                                            channelHeader={item.channelHeader}
-                                            hasNoPosts={posts.getPostCount() === 0}
+                                            header={item.header}
+                                            hasNoPosts={posts.getItemCount() === 1}
                                         />
-                                    )}
+                                    ) : null}
                                 </div>
                                 {asideSpacer}
                                 {sideBarRightSpacer}
@@ -1091,10 +1094,10 @@ function PostListView(
                                         minWidth: 0,
                                     }}
                                 >
-                                    {hasChannelHeader && index === 1 && (
-                                        // This is the first post in a `<PostListView>` with a `channelHeader` so we
+                                    {hasHeader && index === 1 && (
+                                        // This is the first post in a `<PostListView>` with a `header` so we
                                         // need to draw a border between the first `<PostListView>` and the
-                                        // `channelHeader`.
+                                        // `header`.
                                         <div
                                             className={sprinkles({
                                                 position: "absolute",
@@ -1150,7 +1153,7 @@ function PostListView(
                                         isPostView={isPostView}
                                         availableWidth={availablePostWidth}
                                         initialScroll={
-                                            index === 0 || (hasChannelHeader && index === 1)
+                                            index === 0 || (hasHeader && index === 1)
                                                 ? initialScrollForFirstPost ?? null
                                                 : null
                                         }
@@ -1289,13 +1292,13 @@ function PostListView(
                                             // You shouldn't be able to edit, delete, or reply to comments if you don't
                                             // have `Comment` access on the post.
                                             //
-                                            // Use the `accessPolicy` from `channelHeader` if applicable. Because we update
-                                            // the `channel` in `channelHeader` in realtime. Whereas the `channel` preview
+                                            // Use the `accessPolicy` from `header` if applicable. Because we update
+                                            // the `channel` in `header` in realtime. Whereas the `channel` preview
                                             // in the `PostModel` might not update in realtime.
                                             readOnlyIfAccessPolicyDoesNotHaveCommentAccessLevel={
-                                                !channelHeader?.isOnlyNavigationBar &&
-                                                channelHeader?.channel.id === item.post.channel.id
-                                                    ? channelHeader.channel.accessPolicy
+                                                header?.type === "Channel" &&
+                                                header.channel.id === item.post.channel.id
+                                                    ? header.channel.accessPolicy
                                                     : item.post.channel.accessPolicy
                                             }
                                         />
@@ -1430,7 +1433,7 @@ function PostListView(
                         <PostCommentInput
                             isStickyPositioned={true}
                             inputRef={inputRefByPostId.get(item.post.id)}
-                            channelHeader={channelHeader}
+                            header={header}
                             post={item.post}
                             viewRef={viewRef}
                             proceduresRef={procedures => {
@@ -1642,6 +1645,13 @@ function PostListView(
                         ),
                     };
                 }
+
+                case "FeedEntry": {
+                    throw new UnimplementedError(
+                        "TODO(calebmer): Will be implemented later in the stack",
+                    );
+                }
+
                 default:
                     throw exhaustive(item);
             }
@@ -1655,7 +1665,7 @@ function PostListView(
             isPostView,
             spacingScale,
             withSafeAreaInsetTop,
-            hasChannelHeader,
+            hasHeader,
             postEditing,
             shouldNotShowChannelId,
             availablePostWidth,
@@ -1667,7 +1677,7 @@ function PostListView(
             fileAttachmentTargetByPostId,
             highlightPostComment,
             handleJumpToPostComment,
-            channelHeader,
+            header,
             platform,
             replyingToPostCommentIndexByPostId,
             inputRefByPostId,
@@ -1883,7 +1893,7 @@ function PostListView(
                 {isPostView &&
                     (() => {
                         const lastPostContentItem = assertExists(
-                            posts.getPostContentItemIfExists(channelHeader ? 1 : 0),
+                            posts.getPostContentItemIfExists(header ? 1 : 0),
                         );
 
                         const replyingToPostCommentIndex = replyingToPostCommentIndexByPostId.get(
@@ -1900,7 +1910,7 @@ function PostListView(
                             <PostCommentInput
                                 isStickyPositioned={false}
                                 inputRef={inputRefByPostId.get(lastPostContentItem.post.id)}
-                                channelHeader={channelHeader}
+                                header={header}
                                 post={lastPostContentItem.post}
                                 viewRef={viewRef}
                                 proceduresRef={procedures => {

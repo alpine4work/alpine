@@ -218,16 +218,6 @@ const UnpersistedIsResolvedByCommentThreadIdSchema = Schema.map(
     Schema.boolean,
 );
 
-/**
- * Renders a virtualized list of posts which can expand their comments inline.
- *
- * This component handles all rendering for a post unit. Including rendering an
- * individual post on a post route. Since even when rendering an individual
- * post you still need to virtualize the list of comments. This means there is
- * some confusing overloading because features like `channelHeader` and `aside`
- * which are important in the context of a channel are not important in the
- * context of rendering a single post.
- */
 function DocumentCommentThreadListView(
     {
         documentId,

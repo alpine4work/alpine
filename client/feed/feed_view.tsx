@@ -1,7 +1,8 @@
-import {useCallback, useMemo} from "react";
+import {useCallback, useMemo, useState} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FeedViewSideBar} from "~/client/feed/internal/feed_view_side_bar.js";
-import {PostBasicList} from "~/client/forum/post_list.js";
+import {PostFeedList} from "~/client/forum/post_feed_list.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
@@ -18,20 +19,32 @@ import {postViewFlex} from "~/client/styles/forum_shared_styles.js";
 import {searchEntitySideBarWidth} from "~/client/styles/search_shared_styles.js";
 import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
+import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
+import {FeedEntryModel} from "~/shared/feed/feed_entry_model.js";
+import {getFeedEntries} from "~/shared/rpc/feed_rpc_definitions.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 
 export function FeedView({
     initialAffinitySearch,
+    initialFeed,
 }: {
     initialAffinitySearch: RpcDefinitionOutputType<typeof searchByAffinity>;
+    initialFeed: {
+        endCursor: FeedEntryCursor | null;
+        hasMoreEntries: boolean;
+        entries: ReadonlyArray<FeedEntryModel>;
+    };
 }) {
+    const context = useAppContext();
     const spacingScale = useSpacingScale();
     const clientInfo = useClientInfo();
     const routeLayout = useRouteLayout();
     const {space} = useSpaceContext();
 
     const [resizeRef, size] = useResizeObserver();
+
+    const [feed, setFeed] = useState(() => PostFeedList.new(initialFeed));
 
     const sideBarLeftSize = useMemo(
         () =>
@@ -81,16 +94,28 @@ export function FeedView({
         <Box ref={resizeRef} width="full" height="full" overflow="hidden">
             <PostListView
                 navigationBar={routeLayout === "narrow" ? navigationBar : undefined}
-                posts={useMemo(() => {
-                    // TODO(calebmer): Will be implemented later in the stack
-                    return PostBasicList.new({type: "Many", hasMorePosts: false, posts: []});
-                }, [])}
-                onTogglePostComments={useCallback(() => {
-                    // TODO(calebmer): Will be implemented later in the stack
-                }, [])}
-                onUpdatePostComments={useCallback(() => {
-                    // TODO(calebmer): Will be implemented later in the stack
-                }, [])}
+                header={useMemo(
+                    () => ({type: "FeedCreateSection", initialAffinitySearch}),
+                    [initialAffinitySearch],
+                )}
+                posts={feed}
+                onTogglePostComments={useCallback(
+                    postId => setFeed(feed => feed.togglePostComments(postId)),
+                    [],
+                )}
+                onUpdatePostComments={useCallback(
+                    (postId, update) => setFeed(feed => feed.updatePostComments(postId, update)),
+                    [],
+                )}
+                onLoadMorePosts={async ({limit}) => {
+                    const output = await getFeedEntries(context, {
+                        spaceId: space.id,
+                        limit,
+                        afterCursor: feed.endCursor ?? undefined,
+                    });
+
+                    setFeed(feed => feed.loadMoreEntries(output));
+                }}
                 shouldBeConnectedToChannelRealtime={false}
                 onPostRealtimeEventTransaction={useCallback(() => {
                     // TODO(calebmer): Will be implemented later in the stack

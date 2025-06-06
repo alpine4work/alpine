@@ -11,7 +11,7 @@ import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_a
 import {ChannelViewContributorsSection} from "~/client/forum/internal/channel_view_contributors_section.js";
 import {ChannelViewSubscribeButton} from "~/client/forum/internal/channel_view_subscribe_button.js";
 import {PostFauxInputCreateButton} from "~/client/forum/internal/post_faux_input_create_button.js";
-import {PostListChannelHeader} from "~/client/forum/post_list.js";
+import {PostListHeader} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -43,10 +43,10 @@ import {
 } from "~/shared/messaging/message_content_schema.js";
 
 export function ChannelViewHeader({
-    channelHeader,
+    header,
     hasNoPosts,
 }: {
-    channelHeader: PostListChannelHeader & {isOnlyNavigationBar: false};
+    header: PostListHeader & {type: "Channel"};
     hasNoPosts: boolean;
 }) {
     const platform = usePlatform();
@@ -56,17 +56,17 @@ export function ChannelViewHeader({
     const accessLevel = useMemo(
         () =>
             getAccountAccessLevelAssumingSpaceAccess(
-                channelHeader.channel.accessPolicy,
+                header.channel.accessPolicy,
                 currentAccount?.id,
             ),
-        [channelHeader.channel.accessPolicy, currentAccount?.id],
+        [header.channel.accessPolicy, currentAccount?.id],
     );
 
     let contributors: ChannelContributorsModel | null = null;
 
-    if (channelHeader.channelAndMetadataQuery) {
-        for (let i = 0; i < channelHeader.channelAndMetadataQuery.getItemCount(); i++) {
-            const item = channelHeader.channelAndMetadataQuery.getItem(i);
+    if (header.channelAndMetadataQuery) {
+        for (let i = 0; i < header.channelAndMetadataQuery.getItemCount(); i++) {
+            const item = header.channelAndMetadataQuery.getItem(i);
 
             if (item.type === "Loaded" && item.item.model instanceof ChannelContributorsModel) {
                 contributors = item.item.model;
@@ -93,29 +93,29 @@ export function ChannelViewHeader({
                         rowGap={channelViewHeaderSectionGap}
                     >
                         <ChannelViewContributorsSection
-                            channel={channelHeader.channel}
+                            channel={header.channel}
                             contributors={contributors}
                             withoutTitle={true}
                             onAddAccountGrantsToAccessPolicy={
-                                channelHeader.onAddAccountGrantsToAccessPolicy
+                                header.onAddAccountGrantsToAccessPolicy
                             }
                         />
                         {platform === "mobile" && (
                             <ChannelViewSubscribeButton
-                                channelId={channelHeader.channel.id}
-                                initialIsSubscribed={channelHeader.initialIsSubscribed}
+                                channelId={header.channel.id}
+                                initialIsSubscribed={header.initialIsSubscribed}
                             />
                         )}
                     </Box>
                     <Box marginBottom="-1.5">
                         <h3 className={sprinkles({color: "grey-50"})}>About</h3>
-                        {!channelHeader.isEditingDescription ? (
-                            <ChannelViewHeaderMobileDescription channel={channelHeader.channel} />
+                        {!header.isEditingDescription ? (
+                            <ChannelViewHeaderMobileDescription channel={header.channel} />
                         ) : (
                             <ChannelViewHeaderMobileDescriptionEditor
-                                channel={channelHeader.channel}
-                                onCancel={channelHeader.onCancelDescriptionEditing}
-                                onSave={channelHeader.onSaveDescription}
+                                channel={header.channel}
+                                onCancel={header.onCancelDescriptionEditing}
+                                onSave={header.onSaveDescription}
                             />
                         )}
                     </Box>
@@ -127,7 +127,7 @@ export function ChannelViewHeader({
                     paddingBottom={postContentViewOuterMarginY}
                     paddingX={screenPaddingX}
                 >
-                    <PostFauxInputCreateButton channel={channelHeader.channel} />
+                    <PostFauxInputCreateButton channel={header.channel} />
                 </Box>
             ) : routeLayout === "narrow" ? (
                 <Spacer space={channelViewHeaderSectionGap} />
