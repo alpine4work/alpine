@@ -18,6 +18,7 @@ ts_project(
         "//client/icons",
         "//client/messaging",
         "//client/navigation",
+        "//client/search",
         "//client/search/core",
         "//client/shimmer",
         "//client/spaces",

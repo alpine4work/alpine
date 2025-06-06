@@ -5,13 +5,13 @@ import {
     brandIconSplashColorShade,
 } from "~/client/icons/brand/internal/brand_icon_splash_color.js";
 import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 const DocumentBrandBigIconMemo = memo(DocumentBrandBigIcon);
 export {DocumentBrandBigIconMemo as DocumentBrandBigIcon};
 
-function DocumentBrandBigIcon() {
+function DocumentBrandBigIcon({size = "12"}: {size?: Spacing}) {
     const {color: contextColor} = useContext(IconContext);
 
     const color =
@@ -31,7 +31,7 @@ function DocumentBrandBigIcon() {
             viewBox="0 0 48 48"
             // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
             // set to rem units so use `style` instead.
-            style={{width: spacing["12"], height: spacing["12"]}}
+            style={{width: spacing[size], height: spacing[size]}}
         >
             <path
                 className={splashColorClassName}

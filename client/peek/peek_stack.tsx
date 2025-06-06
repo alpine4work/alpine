@@ -109,12 +109,12 @@ const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
 const peekUnderlayOffset = spacing["2"];
 
-const maxPeekHeight = "42rem";
+export const peekMaxHeight = "42rem";
 const viewportPeekMarginTop = spacing["4"];
-const peekHeight = `min(100vh - ${viewportPeekMarginTop}, ${maxPeekHeight})`;
+const peekHeight = `min(100vh - ${viewportPeekMarginTop}, ${peekMaxHeight})`;
 const peekHeightWithUnderlayOffset =
     `min(100vh + ${subtractRemLengths(peekBottomBuffer, viewportPeekMarginTop)}, ` +
-    `${addRemLengths(maxPeekHeight, peekBottomBuffer)})`;
+    `${addRemLengths(peekMaxHeight, peekBottomBuffer)})`;
 
 const peekControlsHeight = "6";
 

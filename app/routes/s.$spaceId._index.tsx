@@ -4,12 +4,13 @@ import {FeedView} from "~/client/feed/feed_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {postContentViewMinHeightPx} from "~/client/styles/forum_shared_styles.js";
+import {feedEntryHeight, postContentViewMinHeightPx} from "~/client/styles/forum_shared_styles.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/get_initial_virtualized_scroll_view_rendered_item_count.js";
 import {getAndUpdateFeedEntries} from "~/server/feed/read/feed_read.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FeedEntryCursorSchema} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModelSchema} from "~/shared/feed/feed_entry_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -49,8 +50,10 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
 
     const feedEntryLimit = getInitialVirtualizedScrollViewRenderedItemCount(
         clientInfo,
-        // TODO(calebmer): Will look at `feedEntryHeight` too later in the stack.
-        postContentViewMinHeightPx[spacingScale],
+        Math.min(
+            convertRemLengthToPx(feedEntryHeight, spacingScale),
+            postContentViewMinHeightPx[spacingScale],
+        ),
     );
 
     const [affinitySearch, feed] = await runAllPromises([

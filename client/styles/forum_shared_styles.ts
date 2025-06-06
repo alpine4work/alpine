@@ -1,6 +1,8 @@
+import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {contentStyles, fontSizes, navigationBarStyles} from "~/client/styles/styles.js";
 import {
     RemLength,
+    addRemLengths,
     convertRemLengthToPx,
     parseRemLength,
     screenPaddingX,
@@ -150,4 +152,12 @@ export const channelCreatorDescriptionFieldMinHeightPx = createObjectFromKeys(
     spacingScale =>
         contentStyles.paragraphLineHeightPx[spacingScale] * 3 +
         convertRemLengthToPx(channelCreatorDescriptionFieldPaddingY, spacingScale) * 2,
+);
+
+export const feedEntryHeight = addRemLengths(
+    postContentViewOuterMarginY,
+    postContentViewHeaderAvatarSize,
+    postContentViewInnerMarginY,
+    documentCommentThreadPreviewHeight,
+    postContentViewOuterMarginY,
 );

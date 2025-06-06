@@ -27,6 +27,8 @@ import {safeAreaOnlyScrollbarInsetTop} from "~/client/design/scrollbar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useScrollToAvoidBottomBarsAndMobileKeyboard} from "~/client/design/use_scroll_to_avoid_bottom_bars_and_mobile_keyboard.js";
 import {ChannelViewHeader} from "~/client/forum/internal/channel_view_header.js";
+import {FeedCreateSection} from "~/client/forum/internal/feed_create_section.js";
+import {FeedEntryView} from "~/client/forum/internal/feed_entry_view.js";
 import {
     PostCommentInput,
     PostRealtimeProcedures,
@@ -62,7 +64,9 @@ import {
     useSpacingScale,
 } from "~/client/remix/spacing_scale_context.js";
 import {PostShimmer} from "~/client/shimmer/post_shimmer.js";
+import {feedCreateSectionMinHeight} from "~/client/styles/feed_shared_styles.js";
 import {
+    feedEntryHeight,
     postContentViewMinHeightPx,
     postListViewAsideFlex,
     postListViewAsideMaxWidth,
@@ -90,13 +94,14 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {
     Spacing,
+    addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
@@ -1024,7 +1029,12 @@ function PostListView(
                 case "Header": {
                     return {
                         key: "Header",
-                        minHeight: hasNavigationBar ? spacing[navigationBarHeight] : "0rem",
+                        minHeight: addRemLengths(
+                            hasNavigationBar ? spacing[navigationBarHeight] : "0rem",
+                            item.header.type === "FeedCreateSection"
+                                ? feedCreateSectionMinHeight[routeLayout]
+                                : "0rem",
+                        ),
                         node: (
                             <div
                                 className={sprinkles({
@@ -1049,6 +1059,12 @@ function PostListView(
                                         <ChannelViewHeader
                                             header={item.header}
                                             hasNoPosts={posts.getItemCount() === 1}
+                                        />
+                                    ) : item.header.type === "FeedCreateSection" ? (
+                                        <FeedCreateSection
+                                            initialAffinitySearch={
+                                                item.header.initialAffinitySearch
+                                            }
                                         />
                                     ) : null}
                                 </div>
@@ -1647,9 +1663,79 @@ function PostListView(
                 }
 
                 case "FeedEntry": {
-                    throw new UnimplementedError(
-                        "TODO(calebmer): Will be implemented later in the stack",
-                    );
+                    return {
+                        key: `FeedEntry:${item.entry.getId()}`,
+                        minHeight: feedEntryHeight,
+                        node: (
+                            <div
+                                className={sprinkles({
+                                    display: "flex",
+                                    justifyContent: "center",
+                                })}
+                            >
+                                {sideBarLeftSpacer}
+                                <div
+                                    className={sprinkles({
+                                        position: "relative",
+                                        width: "full",
+                                        maxWidth: contentStyles.contentMaxWidth,
+                                        overflow: "hidden",
+                                    })}
+                                    style={{
+                                        flex: postViewFlex,
+                                    }}
+                                >
+                                    {hasHeader && index === 1 && (
+                                        // This is the first post in a `<PostListView>` with a `header` so we
+                                        // need to draw a border between the first `<PostListView>` and the
+                                        // `header`.
+                                        <div
+                                            className={sprinkles({
+                                                position: "absolute",
+                                                left: "0",
+                                                right: "0",
+                                                top: "0",
+                                                height: "border",
+                                                paddingX: screenPaddingX,
+                                            })}
+                                        >
+                                            <div
+                                                className={sprinkles({
+                                                    height: "full",
+                                                    width: "full",
+                                                    backgroundColor: "grey-5",
+                                                })}
+                                            />
+                                        </div>
+                                    )}
+                                    <div
+                                        className={sprinkles({
+                                            position: "absolute",
+                                            left: "0",
+                                            right: "0",
+                                            bottom: "0",
+                                            height: "border",
+                                            paddingX: screenPaddingX,
+                                        })}
+                                    >
+                                        <div
+                                            className={sprinkles({
+                                                height: "full",
+                                                width: "full",
+                                                backgroundColor: "grey-5",
+                                            })}
+                                        />
+                                    </div>
+                                    <FeedEntryView
+                                        entry={item.entry}
+                                        availableWidth={availablePostWidth}
+                                    />
+                                </div>
+                                {asideSpacer}
+                                {sideBarRightSpacer}
+                            </div>
+                        ),
+                    };
                 }
 
                 default:
@@ -1659,6 +1745,7 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
+            routeLayout,
             sideBarLeftSpacer,
             asideSpacer,
             sideBarRightSpacer,
