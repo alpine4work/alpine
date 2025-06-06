@@ -52,7 +52,12 @@ import {
 } from "~/client/styles/styles.js";
 import {paragraphClassName} from "~/shared/content/content_styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
+import {
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
@@ -84,6 +89,7 @@ export function PostContentView({
     shouldShowChannel,
     postEditing,
     isPostView,
+    availableWidth: availableWidthProp,
     initialScroll,
     idBase,
     onTogglePostComments,
@@ -96,6 +102,7 @@ export function PostContentView({
     postEditing: PostEditing;
     shouldShowChannel: boolean;
     isPostView: boolean;
+    availableWidth?: number;
     initialScroll: PostContentViewInitialScroll | null;
     idBase: string;
     onTogglePostComments: () => void;
@@ -200,6 +207,14 @@ export function PostContentView({
         });
     }, [initialScroll, post.content.doc]);
 
+    const availableWidth = useMemo(() => {
+        if (availableWidthProp === undefined) return undefined;
+
+        return (
+            availableWidthProp - convertRemLengthToPx(screenPaddingX[platform], spacingScale) * 2
+        );
+    }, [availableWidthProp, platform, spacingScale]);
+
     return (
         <Box
             data-testid={
@@ -269,12 +284,14 @@ export function PostContentView({
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({padding: postContentViewInnerMarginY})}
+                            availableWidth={availableWidth}
                         />
                     ) : (
                         <ContentViewWithSeeMoreToggle
                             contentUpdatedTime={post.contentUpdatedTime}
                             fileAttachmentTarget={fileAttachmentTarget}
                             className={sprinkles({padding: postContentViewInnerMarginY})}
+                            availableWidth={availableWidth}
                             content={post.content}
                             contentSnippet={postSnippet}
                             // If we were editing this post then show all content instead of collapsing

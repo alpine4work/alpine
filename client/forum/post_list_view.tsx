@@ -33,6 +33,7 @@ import {
 } from "~/client/forum/internal/post_comment_input.js";
 import {usePostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostMobileEditor} from "~/client/forum/internal/post_mobile_editor.js";
+import {resolveFlexSizes} from "~/client/forum/internal/resolve_flex_sizes.js";
 import {PostContentView, PostContentViewInitialScroll} from "~/client/forum/post_content_view.js";
 import {
     PostListChannelHeader,
@@ -87,7 +88,12 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {
+    Spacing,
+    convertRemLengthToPx,
+    screenPaddingX,
+    spacing,
+} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -157,6 +163,7 @@ function PostListView(
         onLoadMorePosts,
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
+        availableWidth,
         aside,
         sideBarLeftSize,
         sideBarRightSize,
@@ -234,6 +241,23 @@ function PostListView(
                 eventTransaction: ReadonlyArray<DynamoGeneralRealtimeEvent<PostModel>>;
             }) => void
         >;
+
+        /**
+         * The width available to our `<PostListView>` component. If set then we'll
+         * pass `availableWidth` props down to our child components like
+         * `<PostContentView>` and `<MessageView>`. If undefined then we don't pass
+         * down the prop.
+         *
+         * Knowing the available width is important when rendering some content nodes.
+         * Particularly tables, files, and file entities. Since their layout adjusts
+         * based on the available space. By default these components use
+         * `clientInfo.screenWidth` as the available width.
+         *
+         * Pass in the width available to `<PostListView>`. We'll subtract width used
+         * by any sidebars defined by `sideBarLeftSize` and `sideBarRightSize` when
+         * figuring out the available width for any child components.
+         */
+        availableWidth?: number;
 
         /**
          * An element we render to the side of the post list but still within the
@@ -354,6 +378,42 @@ function PostListView(
     if (platform === "mobile" && !isPostView) {
         assert(!posts.hasOpenPostComments(), "Posts can't have open comments on mobile");
     }
+
+    const availablePostWidth = useMemo(() => {
+        if (availableWidth === undefined) return undefined;
+
+        const sizes: Array<{maxSize: number; flex: number}> = [];
+
+        if (sideBarLeftSize) {
+            sizes.push({
+                maxSize: convertRemLengthToPx(sideBarLeftSize.maxWidth, spacingScale),
+                flex: sideBarLeftSize.flex,
+            });
+        }
+
+        sizes.push({
+            maxSize: convertRemLengthToPx(contentStyles.contentMaxWidth, spacingScale),
+            flex: postViewFlex,
+        });
+
+        if (hasAside) {
+            sizes.push({
+                maxSize: convertRemLengthToPx(postListViewAsideMaxWidth, spacingScale),
+                flex: postListViewAsideFlex,
+            });
+        }
+
+        if (sideBarRightSize) {
+            sizes.push({
+                maxSize: convertRemLengthToPx(sideBarRightSize.maxWidth, spacingScale),
+                flex: sideBarRightSize.flex,
+            });
+        }
+
+        const resolvedSizes = resolveFlexSizes(availableWidth, sizes);
+
+        return assertExists(sideBarLeftSize ? resolvedSizes[1] : resolvedSizes[0]);
+    }, [availableWidth, hasAside, sideBarLeftSize, sideBarRightSize, spacingScale]);
 
     const isLoadingRef = useRef(false);
     const setErrorState = useErrorState();
@@ -1088,6 +1148,7 @@ function PostListView(
                                             shouldNotShowChannelId !== item.post.channel.id
                                         }
                                         isPostView={isPostView}
+                                        availableWidth={availablePostWidth}
                                         initialScroll={
                                             index === 0 || (hasChannelHeader && index === 1)
                                                 ? initialScrollForFirstPost ?? null
@@ -1224,6 +1285,7 @@ function PostListView(
                                                 );
                                             }}
                                             roomDisplayedCreatedTime={item.post.createdTime}
+                                            availableWidth={availablePostWidth}
                                             // You shouldn't be able to edit, delete, or reply to comments if you don't
                                             // have `Comment` access on the post.
                                             //
@@ -1596,6 +1658,7 @@ function PostListView(
             hasChannelHeader,
             postEditing,
             shouldNotShowChannelId,
+            availablePostWidth,
             initialScrollForFirstPost,
             idBase,
             onTogglePostComments,

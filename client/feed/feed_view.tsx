@@ -16,7 +16,8 @@ import {
 } from "~/client/styles/feed_shared_styles.js";
 import {postViewFlex} from "~/client/styles/forum_shared_styles.js";
 import {searchEntitySideBarWidth} from "~/client/styles/search_shared_styles.js";
-import {contentStyles} from "~/client/styles/styles.js";
+import {contentStyles, spaceLayoutStyles} from "~/client/styles/styles.js";
+import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 
@@ -56,6 +57,16 @@ export function FeedView({
         [routeLayout, spacingScale],
     );
 
+    const availableWidth = useMemo(
+        () =>
+            routeLayout !== "narrow"
+                ? size?.width ??
+                  clientInfo.screenWidth -
+                      convertRemLengthToPx(spaceLayoutStyles.sideBarWidth, spacingScale)
+                : undefined,
+        [clientInfo.screenWidth, routeLayout, size?.width, spacingScale],
+    );
+
     const navigationBar = useNavigationBar({
         isDisabled: routeLayout !== "narrow",
         title: space.name,
@@ -84,6 +95,10 @@ export function FeedView({
                 onPostRealtimeEventTransaction={useCallback(() => {
                     // TODO(calebmer): Will be implemented later in the stack
                 }, [])}
+                // On narrower screens we need to set `availableWidth` to correctly calculate
+                // the block width of posts. Having an accurate block width is important for
+                // correctly rendering tables, files, and file entities.
+                availableWidth={availableWidth}
                 // The amount of space to reserve for our left sidebar. We render the sidebar
                 // using `extraChildren`. We also reserve some right sidebar space on large
                 // screens to visually center our post content.
