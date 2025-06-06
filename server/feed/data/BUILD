@@ -8,6 +8,10 @@ ts_project(
         "//server/forum/test_helpers",
         "//server/tasks/test_helpers",
     ],
+    tests = {
+        "feed_table_test": {"size": "medium"},
+        "feed_table_slow_test": {"size": "medium"},
+    },
     visibility = [
         "//admin/crawl:__pkg__",
         "//admin/dynamo:__pkg__",

@@ -22,6 +22,10 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
+// Increase test timeout since some of these tests can take a while to setup
+// (e.g. they need to create hundreds of posts).
+import.meta.jest.setTimeout(1000 * 30);
+
 import.meta.jest.useFakeTimers();
 
 enableMockFileTaskCollectionEntityModelForTest();
