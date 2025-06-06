@@ -43,7 +43,7 @@ export const options = {
     taskRealtimeServiceLocalPort: {type: "string"},
     ecsCluster: {type: "string"},
     taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
-    taskRealtimeSecurityGroupId: {type: "string"},
+    taskRealtimeServiceSecurityGroupId: {type: "string"},
     allMiniLmL6V2LanguageModel: {type: "string"},
     cohereApiKey: {type: "string"},
     apnsCertificate: {type: "string"},

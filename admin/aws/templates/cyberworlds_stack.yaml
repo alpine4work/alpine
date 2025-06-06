@@ -2635,7 +2635,8 @@ Resources:
                               - Ref: EcsClusterFB9B21B5
                               - "
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
-                                altimeServiceTaskDefinition81563AFA --taskRealtimeSecurityGroupId="
+                                altimeServiceTaskDefinition81563AFA
+                                --taskRealtimeServiceSecurityGroupId="
                               - Fn::GetAtt:
                                     - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
                                     - GroupId
@@ -3435,7 +3436,8 @@ Resources:
                               - Ref: EcsClusterFB9B21B5
                               - "
                                 --taskRealtimeServiceEcsTaskDefinitionFamily=CyberworldsStackTaskRe\
-                                altimeServiceTaskDefinition81563AFA --taskRealtimeSecurityGroupId="
+                                altimeServiceTaskDefinition81563AFA
+                                --taskRealtimeServiceSecurityGroupId="
                               - Fn::GetAtt:
                                     - TaskRealtimeServiceAutoScalingGroupInstanceSecurityGroupBA653730
                                     - GroupId

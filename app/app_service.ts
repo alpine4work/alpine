@@ -158,8 +158,8 @@ async function createAppService({
                       "`taskRealtimeServiceEcsTaskDefinitionFamily` option is required in production",
                   ),
                   securityGroupId: assertExists(
-                      options.taskRealtimeSecurityGroupId,
-                      "`taskRealtimeSecurityGroupId` option is required in production",
+                      options.taskRealtimeServiceSecurityGroupId,
+                      "`taskRealtimeServiceSecurityGroupId` option is required in production",
                   ),
               })
             : new TaskRealtimeServiceLocalRouter({

@@ -246,7 +246,7 @@ export class AwsJobQueueService extends Construct {
                     "--edgeServiceUrl=https://alpine.inc",
                     `--ecsCluster=${ecsCluster.cluster.clusterName}`,
                     `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
-                    `--taskRealtimeSecurityGroupId=${taskRealtimeService.securityGroup.securityGroupId}`,
+                    `--taskRealtimeServiceSecurityGroupId=${taskRealtimeService.securityGroup.securityGroupId}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     "--cohereApiKey=$COHERE_API_KEY",
                     "--githubAppId=$GITHUB_APP_ID",
