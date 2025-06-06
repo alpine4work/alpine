@@ -464,7 +464,11 @@ async function runGit(args: ProcessArgs) {
     // eslint-disable-next-line no-console
     console.log(`${chalk.dim("$")} ${chalk.bold("git")} ${argsString}`);
 
-    await runProcessWithInheritedStdio("git", args);
+    await runProcessWithInheritedStdio("git", args, {
+        // The git CLI needs to inherit all environment variables to find
+        // the user's `~/.gitconfig` file with their name/email.
+        env: process.env,
+    });
 }
 
 /**
