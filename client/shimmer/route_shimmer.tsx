@@ -39,6 +39,20 @@ import {
     documentCommentThreadPreviewHeight,
 } from "~/client/styles/document_shared_styles.js";
 import {
+    feedCreateSectionButtonHeight,
+    feedCreateSectionForYouHeadingMarginBottom,
+    feedCreateSectionGap,
+    feedCreateSectionHeadingFontSize,
+    feedCreateSectionHeadingLineHeight,
+    feedCreateSectionMarginTop,
+    feedViewSideBarLeftFlex,
+    feedViewSideBarPaddingLeft,
+    feedViewSideBarRightFlex,
+    feedViewSideBarRightMaxWidth,
+    feedViewSideBarSpaceNameFontSize,
+    feedViewSideBarSpaceNameNegativeMarginBottom,
+} from "~/client/styles/feed_shared_styles.js";
+import {
     channelCreatorDescriptionFieldMinHeightPx,
     channelCreatorFieldHelpMarginTop,
     channelCreatorGap,
@@ -79,6 +93,10 @@ import {
 import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {
     searchAffinityEntityViewMinHeightPx,
+    searchEntityHeaderFontSize,
+    searchEntityHeaderLineHeight,
+    searchEntityHeaderPaddingTop,
+    searchEntitySideBarWidth,
     searchEntityViewDefaultPaddingX,
     searchMobileInputBorderRadius,
     searchMobileInputMarginBottom,
@@ -162,6 +180,7 @@ const shimmerOptionsByRouteId: Record<
       }
     | false
 > = {
+    "routes/s.$spaceId._index": {component: FeedRouteShimmer},
     "routes/s.$spaceId.channels.$channelId._index": {component: ChannelRouteShimmer},
     "routes/s.$spaceId.channels.$channelId.files": {component: ChannelFilesRouteShimmer},
     "routes/s.$spaceId.channels.new": {component: ChannelCreatorRouteShimmer},
@@ -213,10 +232,6 @@ const shimmerOptionsByRouteId: Record<
     },
     "routes/s.$spaceId.tasks.collections.$collectionId": {component: TaskCollectionRouteShimmer},
     "routes/s.$spaceId.tasks.view": {component: TaskQueryRouteShimmer},
-
-    // TODO(calebmer): We don't currently have a design for these routes. Once we
-    // implement these routes we should add appropriate shimmers.
-    "routes/s.$spaceId._index": false,
 
     // NOTE(rohit): For this route, we only have a `loader` for the space layout
     // without any UI, hence no shimmer.
@@ -345,6 +360,205 @@ function RouteShimmer({
             </Box>
         );
     }
+}
+
+function FeedRouteShimmer() {
+    const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
+
+    return (
+        <Box overflow="hidden" width="full" height="full" display="flex" flexDirection="column">
+            {routeLayout === "narrow" && (
+                <Box flexShrink="0" width="full" paddingX={screenPaddingX}>
+                    <Box height="safe-area-inset-top" />
+                    <Box
+                        height={navigationBarHeight}
+                        display="flex"
+                        justifyContent="center"
+                        alignItems="center"
+                        paddingX={navigationBarMobileGap}
+                    >
+                        <TextShimmer fontSize="100" width="24" />
+                    </Box>
+                </Box>
+            )}
+            <Box
+                overflow="hidden"
+                flexGrow="1"
+                width="full"
+                display="flex"
+                justifyContent="space-between"
+            >
+                {routeLayout !== "narrow" && (
+                    <Box
+                        width="full"
+                        maxWidth={searchEntitySideBarWidth}
+                        style={{flex: feedViewSideBarLeftFlex}}
+                        paddingLeft={feedViewSideBarPaddingLeft}
+                    >
+                        <Box
+                            display="flex"
+                            alignItems="center"
+                            height={navigationBarHeight}
+                            marginBottom={`-${feedViewSideBarSpaceNameNegativeMarginBottom}`}
+                            paddingX={searchEntityViewDefaultPaddingX}
+                        >
+                            <TextShimmer fontSize={feedViewSideBarSpaceNameFontSize} width="32" />
+                        </Box>
+                        <Box paddingX={searchEntityViewDefaultPaddingX}>
+                            <Spacer space={searchEntityHeaderPaddingTop} />
+                            <TextShimmer
+                                fontSize={{
+                                    fontSize: fontSizes[searchEntityHeaderFontSize].fontSize,
+                                    lineHeight: spacing[searchEntityHeaderLineHeight],
+                                }}
+                                width="16"
+                            />
+                        </Box>
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="64"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="32"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="48"
+                        />
+                        <Box paddingX={searchEntityViewDefaultPaddingX}>
+                            <Spacer space={searchEntityHeaderPaddingTop} />
+                            <TextShimmer
+                                fontSize={{
+                                    fontSize: fontSizes[searchEntityHeaderFontSize].fontSize,
+                                    lineHeight: spacing[searchEntityHeaderLineHeight],
+                                }}
+                                width="16"
+                            />
+                        </Box>
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="96"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="64"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="48"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="96"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="64"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="32"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="48"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="96"
+                        />
+                        <SearchEntityShimmer
+                            paddingX={searchEntityViewDefaultPaddingX}
+                            marginX="0"
+                            titleWidth="64"
+                        />
+                    </Box>
+                )}
+                <Box
+                    width="full"
+                    maxWidth={contentStyles.contentMaxWidth}
+                    style={{flex: postViewFlex}}
+                >
+                    <Box paddingX={screenPaddingX} position="relative">
+                        <Spacer space={feedCreateSectionMarginTop[routeLayout]} />
+                        <TextShimmer
+                            fontSize={{
+                                fontSize:
+                                    fontSizes[feedCreateSectionHeadingFontSize[routeLayout]]
+                                        .fontSize,
+                                lineHeight: feedCreateSectionHeadingLineHeight[routeLayout],
+                            }}
+                            width={routeLayout === "narrow" ? "9" : "14"}
+                        />
+                        <Box style={{height: feedCreateSectionButtonHeight[routeLayout]}} />
+                        {routeLayout === "narrow" && (
+                            <>
+                                <Spacer space={feedCreateSectionGap[routeLayout]} />
+                                <TextShimmer
+                                    fontSize={{
+                                        fontSize:
+                                            fontSizes[feedCreateSectionHeadingFontSize[routeLayout]]
+                                                .fontSize,
+                                        lineHeight: feedCreateSectionHeadingLineHeight[routeLayout],
+                                    }}
+                                    width="16"
+                                />
+                                <SearchEntityShimmer paddingX="0" marginX="0" titleWidth="96" />
+                                <SearchEntityShimmer paddingX="0" marginX="0" titleWidth="64" />
+                                <SearchEntityShimmer paddingX="0" marginX="0" titleWidth="48" />
+                                <SearchEntityShimmer paddingX="0" marginX="0" titleWidth="96" />
+                                <SearchEntityShimmer paddingX="0" marginX="0" titleWidth="64" />
+                            </>
+                        )}
+                        <Spacer space={feedCreateSectionGap[routeLayout]} />
+                        <TextShimmer
+                            fontSize={{
+                                fontSize:
+                                    fontSizes[feedCreateSectionHeadingFontSize[routeLayout]]
+                                        .fontSize,
+                                lineHeight: feedCreateSectionHeadingLineHeight[routeLayout],
+                            }}
+                            width="16"
+                        />
+                        <Spacer space={feedCreateSectionForYouHeadingMarginBottom} />
+                        <Box
+                            position="absolute"
+                            left={screenPaddingX}
+                            right={screenPaddingX}
+                            height="border"
+                            borderBottom="grey-5"
+                            style={{bottom: -1}}
+                        />
+                    </Box>
+                    <PostShimmer />
+                    <PostShimmer />
+                    <PostShimmer />
+                    <PostShimmer />
+                    <PostShimmer />
+                </Box>
+                {routeLayout !== "narrow" && spacingScale !== "small" && (
+                    <Box
+                        width="full"
+                        maxWidth={feedViewSideBarRightMaxWidth}
+                        style={{flex: feedViewSideBarRightFlex}}
+                    />
+                )}
+            </Box>
+        </Box>
+    );
 }
 
 function ChannelRouteShimmer() {
@@ -1527,7 +1741,7 @@ function SearchRouteShimmer() {
 
     return (
         <Box width="full" maxWidth={maxWidth} marginX="center">
-            <Box paddingX={screenPaddingX}>
+            <Box paddingX={screenPaddingX} pointerEvents="auto">
                 <Box height="safe-area-inset-top" />
                 <Box
                     height={navigationBarHeight}
@@ -1547,7 +1761,14 @@ function SearchRouteShimmer() {
                     }}
                 />
                 <Box height={searchMobileInputMarginBottom} />
-                <Box height="1" />
+                <Box height={searchEntityHeaderPaddingTop} />
+                <TextShimmer
+                    fontSize={{
+                        fontSize: fontSizes[searchEntityHeaderFontSize].fontSize,
+                        lineHeight: spacing[searchEntityHeaderLineHeight],
+                    }}
+                    width="16"
+                />
             </Box>
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="64" />
             <SearchEntityShimmer paddingX={screenPaddingX} marginX="0" titleWidth="32" />
