@@ -41,8 +41,6 @@ import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_sea
 import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
 
-export const searchEntitySideBarWidth = "96";
-
 export function SearchEntityView({
     result,
     isSelected = false,

@@ -10,6 +10,7 @@ const metadataByRouteId: Record<
 > = {
     "routes/s.$spaceId._index": {
         errorTitle: "Couldn’t open space",
+        isFullWidth: true,
     },
     "routes/s.$spaceId.channels.$channelId._index": {
         errorTitle: "Couldn’t open channel",
@@ -34,6 +35,9 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.create.more": {
         errorTitle: "Couldn’t open menu",
+    },
+    "routes/s.$spaceId.dev.empty": {
+        errorTitle: "Couldn’t open space",
     },
     "routes/s.$spaceId.documents.$documentId._index": {
         errorTitle: "Couldn’t open document",

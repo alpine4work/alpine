@@ -23,6 +23,7 @@ import {
     PointerEvent as SyntheticPointerEvent,
     useCallback,
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -53,7 +54,7 @@ import {
     subscribeToUpdateSearchFavoriteEntityMenuAction,
     updateSearchFavoriteEntityMenuAction,
 } from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
+import {getSearchEntityPath} from "~/client/search/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -457,7 +458,9 @@ function SearchFavoritesViewInner({
     const rpcCache = useGlobalContext(RpcCacheContext);
     const dndContext = useDndContext();
 
-    const [randomSeed] = useState(() => initialAppRenderId ?? generateId());
+    const [randomSeed] = useState(() =>
+        initialAppRenderId ? `${initialAppRenderId}-SearchFavoritesView` : generateId(),
+    );
 
     const sortableIds = useMemo(() => {
         const sortableIds: Array<string> = [];
@@ -643,6 +646,8 @@ function SearchFavoritesViewItem({
     const currentTime = useCurrentTimeRoundedToHour();
     const activeContextMenuActions = useContextMenuActions();
 
+    const id = useId();
+
     const path = useMemo(
         () =>
             getSearchEntityPath({
@@ -711,7 +716,7 @@ function SearchFavoritesViewItem({
         (): ReadonlyArray<ReadonlyArray<MenuAction>> => [
             [
                 {
-                    key: result.id,
+                    key: id,
                     label: "Copy link",
                     icon: <LinkIcon />,
                     iconPlacement: "end",
@@ -730,15 +735,15 @@ function SearchFavoritesViewItem({
                 },
             ],
         ],
-        [path, handleRemovePress, result.id],
+        [id, handleRemovePress, path],
     );
 
     const hasActiveContextMenu = useMemo(
         () =>
             activeContextMenuActions?.some(actions =>
-                actions.some(action => !action.withCustomLayout && action.key === result.id),
+                actions.some(action => !action.withCustomLayout && action.key === id),
             ) ?? false,
-        [activeContextMenuActions, result.id],
+        [activeContextMenuActions, id],
     );
 
     return (

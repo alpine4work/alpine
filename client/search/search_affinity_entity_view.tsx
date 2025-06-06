@@ -1,4 +1,4 @@
-import {useMemo} from "react";
+import {memo, useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {getSearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
@@ -9,7 +9,10 @@ import {
 } from "~/client/styles/search_shared_styles.js";
 import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 
-export function SearchAffinityEntityView({
+const SearchAffinityEntityViewMemo = memo(SearchAffinityEntityView);
+export {SearchAffinityEntityViewMemo as SearchAffinityEntityView};
+
+function SearchAffinityEntityView({
     result,
     lineClamp,
 }: {

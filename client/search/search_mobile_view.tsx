@@ -10,7 +10,7 @@ import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
+import {getSearchEntityPath} from "~/client/search/get_search_entity_path.js";
 import {SearchEntityView} from "~/client/search/search_entity_view.js";
 import {useSearchState} from "~/client/search/use_search_state.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";

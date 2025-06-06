@@ -45,9 +45,9 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {getSearchEntityPath} from "~/client/search/internal/get_search_entity_path.js";
+import {getSearchEntityPath} from "~/client/search/get_search_entity_path.js";
 import {SearchInstructionalPlaceholder} from "~/client/search/internal/search_instructional_placeholder.js";
-import {SearchEntityView, searchEntitySideBarWidth} from "~/client/search/search_entity_view.js";
+import {SearchEntityView} from "~/client/search/search_entity_view.js";
 import {SearchStateExecutionOutput, useSearchState} from "~/client/search/use_search_state.js";
 import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -56,6 +56,7 @@ import {
     searchEntityHeaderFontSize,
     searchEntityHeaderLineHeight,
     searchEntityHeaderPaddingTop,
+    searchEntitySideBarWidth,
     searchEntityViewDefaultMarginX,
     searchEntityViewDefaultPaddingX,
     searchEntityViewMinHeightPx,

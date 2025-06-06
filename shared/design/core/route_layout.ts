@@ -1,3 +1,5 @@
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+
 /**
  * How the current route should be laid out. By default this is derived from
  * the platform: on `desktop` the layout is `wide` and on `mobile` the layout
@@ -18,3 +20,10 @@
  * change if you're rendering a sub-route.
  */
 export type RouteLayout = "narrow" | "wide";
+
+/**
+ * All the route layouts.
+ */
+export const allRouteLayouts = ["narrow", "wide"] as const;
+
+assertEqualTypes<(typeof allRouteLayouts)[number], RouteLayout>();

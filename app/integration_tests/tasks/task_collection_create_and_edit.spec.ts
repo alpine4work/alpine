@@ -14,7 +14,7 @@ test("can create a task collection and edit the name", async ({
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}`);
+    await page.goto(`/s/${space.id}/dev/empty`);
 
     await page.getByLabel("Create").click();
     await page.getByText("More").click();

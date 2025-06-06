@@ -175,6 +175,8 @@ const shimmerOptionsByRouteId: Record<
     "routes/s.$spaceId.create.more": {
         component: () => <MobileSettingsRowsShimmer titleWidth="12" />,
     },
+    // This route is only used in tests, so we don't bother with a shimmer.
+    "routes/s.$spaceId.dev.empty": false,
     "routes/s.$spaceId.documents.$documentId._index": {component: DocumentRouteShimmer},
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
         inboxBannerMaxWidth: documentCommentThreadListViewMaxWidth,

@@ -14,7 +14,7 @@ test("can create a channel and edit the name/description", async ({
     const session = await space.createSession();
 
     await services.signIn(browserContext, session);
-    await page.goto(`/s/${space.id}`);
+    await page.goto(`/s/${space.id}/dev/empty`);
 
     await page.getByLabel("Create").click();
     await page.getByText("More").click();
@@ -103,7 +103,7 @@ test("can create a private channel", async ({
     const [session1, session2] = await space.createSessions(2);
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}`);
+    await page1.goto(`/s/${space.id}/dev/empty`);
 
     await page1.getByLabel("Create").click();
     await page1.getByText("More").click();
@@ -155,7 +155,7 @@ test("can create a public channel", async ({
     const [session1, session2] = await space.createSessions(2);
 
     await services.signIn(browserContext1, session1);
-    await page1.goto(`/s/${space.id}`);
+    await page1.goto(`/s/${space.id}/dev/empty`);
 
     await page1.getByLabel("Create").click();
     await page1.getByText("More").click();

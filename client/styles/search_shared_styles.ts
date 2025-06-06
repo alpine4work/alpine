@@ -27,6 +27,8 @@ export const searchMobileInputMinHeight = addRemLengths(
 
 export const searchMobileInputBorderRadius = `${parseRemLength(searchMobileInputMinHeight) / 2}rem`;
 
+export const searchEntitySideBarWidth = "96";
+
 /**
  * Minimum height of the body text snippet in a search result. We show at least
  * two lines when there's no title and zero lines when there is a title.

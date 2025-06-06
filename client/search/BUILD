@@ -4,6 +4,8 @@ ts_project(
     name = "search",
     visibility = [
         "//app:__subpackages__",
+        "//client/feed:__pkg__",
+        "//client/forum:__pkg__",
         "//client/spaces/layout:__pkg__",
     ],
     deps = [

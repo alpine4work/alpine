@@ -87,7 +87,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DynamoGeneralRealtimeEvent} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -158,6 +158,9 @@ function PostListView(
         shouldBeConnectedToChannelRealtime,
         onPostRealtimeEventTransaction,
         aside,
+        sideBarLeftSize,
+        sideBarRightSize,
+        extraChildren,
         navigationBar,
         withSafeAreaInsetTop = false,
         initialScrollForFirstPost,
@@ -247,7 +250,30 @@ function PostListView(
          *
          * On mobile the aside will not be rendered.
          */
+        // TODO(calebmer): Could we get rid of the `aside` prop and use
+        // `sideBarRightSize` instead? I think if we add scroll event functions then
+        // it's doable.
         aside?: ReactNode;
+
+        /**
+         * Space allocated for a sidebar rendered to the left of the post list. Doesn't
+         * actually render a sidebar, you have to render the sidebar yourself. Probably
+         * using the `extraChildren` prop.
+         */
+        sideBarLeftSize?: Memo<{maxWidth: Spacing; flex: number}>;
+
+        /**
+         * Space allocated for a sidebar rendered to the right of the post list. Doesn't
+         * actually render a sidebar, you have to render the sidebar yourself. Probably
+         * using the `extraChildren` prop.
+         */
+        sideBarRightSize?: Memo<{maxWidth: Spacing; flex: number}>;
+
+        /**
+         * Extra children to be rendered in our post list's `<VirtualizedScrollView>`.
+         * Passed into the `<VirtualizedScrollView>`'s `extraChildren` prop.
+         */
+        extraChildren?: ReactNode;
 
         /**
          * If you want to include a navigation bar in this list view you may pass in
@@ -883,6 +909,50 @@ function PostListView(
 
     const idBase = useId();
 
+    const sideBarLeftSpacer = useMemo(() => {
+        if (!sideBarLeftSize) return null;
+
+        return (
+            <div
+                className={sprinkles({
+                    width: "full",
+                    maxWidth: sideBarLeftSize.maxWidth,
+                })}
+                style={{flex: sideBarLeftSize.flex}}
+            />
+        );
+    }, [sideBarLeftSize]);
+
+    const sideBarRightSpacer = useMemo(() => {
+        if (!sideBarRightSize) return null;
+
+        return (
+            <div
+                className={sprinkles({
+                    width: "full",
+                    maxWidth: sideBarRightSize.maxWidth,
+                })}
+                style={{flex: sideBarRightSize.flex}}
+            />
+        );
+    }, [sideBarRightSize]);
+
+    const asideSpacer = useMemo(() => {
+        if (!hasAside) return null;
+
+        return (
+            <div
+                className={sprinkles({
+                    width: "full",
+                    maxWidth: postListViewAsideMaxWidth,
+                })}
+                style={{
+                    flex: postListViewAsideFlex,
+                }}
+            />
+        );
+    }, [hasAside]);
+
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {
             const item = posts.getItem(index);
@@ -899,6 +969,7 @@ function PostListView(
                                     justifyContent: "center",
                                 })}
                             >
+                                {sideBarLeftSpacer}
                                 <div
                                     className={sprinkles({
                                         width: "full",
@@ -918,17 +989,8 @@ function PostListView(
                                         />
                                     )}
                                 </div>
-                                {hasAside && (
-                                    <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            maxWidth: postListViewAsideMaxWidth,
-                                        })}
-                                        style={{
-                                            flex: postListViewAsideFlex,
-                                        }}
-                                    />
-                                )}
+                                {asideSpacer}
+                                {sideBarRightSpacer}
                             </div>
                         ),
                     };
@@ -954,6 +1016,7 @@ function PostListView(
                                             : undefined,
                                 })}
                             >
+                                {sideBarLeftSpacer}
                                 <div
                                     className={sprinkles({
                                         position: "relative",
@@ -1045,17 +1108,8 @@ function PostListView(
                                         }}
                                     />
                                 </div>
-                                {hasAside && (
-                                    <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            maxWidth: postListViewAsideMaxWidth,
-                                        })}
-                                        style={{
-                                            flex: postListViewAsideFlex,
-                                        }}
-                                    />
-                                )}
+                                {asideSpacer}
+                                {sideBarRightSpacer}
                             </div>
                         ),
                         renderAdditionalItemIndexes:
@@ -1200,6 +1254,7 @@ function PostListView(
                                             justifyContent: "center",
                                         })}
                                     >
+                                        {sideBarLeftSpacer}
                                         <div
                                             className={sprinkles({
                                                 position: "relative",
@@ -1222,18 +1277,8 @@ function PostListView(
                                                     />
                                                 )}
                                         </div>
-                                        {hasAside && (
-                                            <div
-                                                className={sprinkles({
-                                                    width: "full",
-                                                    maxWidth: postListViewAsideMaxWidth,
-                                                    overflow: "hidden",
-                                                })}
-                                                style={{
-                                                    flex: postListViewAsideFlex,
-                                                }}
-                                            />
-                                        )}
+                                        {asideSpacer}
+                                        {sideBarRightSpacer}
                                     </div>
                                 );
                             },
@@ -1253,6 +1298,7 @@ function PostListView(
                                     overflow: "hidden",
                                 })}
                             >
+                                {sideBarLeftSpacer}
                                 <div
                                     className={sprinkles({
                                         position: "relative",
@@ -1277,18 +1323,8 @@ function PostListView(
                                         }
                                     />
                                 </div>
-                                {hasAside && (
-                                    <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            maxWidth: postListViewAsideMaxWidth,
-                                            overflow: "hidden",
-                                        })}
-                                        style={{
-                                            flex: postListViewAsideFlex,
-                                        }}
-                                    />
-                                )}
+                                {asideSpacer}
+                                {sideBarRightSpacer}
                             </div>
                         ),
                     };
@@ -1433,6 +1469,7 @@ function PostListView(
                                                     : undefined,
                                         })}
                                     >
+                                        {sideBarLeftSpacer}
                                         <div
                                             className={sprinkles({
                                                 position: "relative",
@@ -1481,18 +1518,8 @@ function PostListView(
                                                 />
                                             </div>
                                         </div>
-                                        {hasAside && (
-                                            <div
-                                                className={sprinkles({
-                                                    width: "full",
-                                                    maxWidth: postListViewAsideMaxWidth,
-                                                    overflow: "hidden",
-                                                })}
-                                                style={{
-                                                    flex: postListViewAsideFlex,
-                                                }}
-                                            />
-                                        )}
+                                        {asideSpacer}
+                                        {sideBarRightSpacer}
                                     </div>
                                 </div>
                             );
@@ -1516,6 +1543,7 @@ function PostListView(
                                     paddingBottom: "safe-area-inset",
                                 })}
                             >
+                                {sideBarLeftSpacer}
                                 <div
                                     className={sprinkles({
                                         width: "full",
@@ -1546,18 +1574,8 @@ function PostListView(
                                         />
                                     </div>
                                 </div>
-                                {hasAside && (
-                                    <div
-                                        className={sprinkles({
-                                            width: "full",
-                                            maxWidth: postListViewAsideMaxWidth,
-                                            overflow: "hidden",
-                                        })}
-                                        style={{
-                                            flex: postListViewAsideFlex,
-                                        }}
-                                    />
-                                )}
+                                {asideSpacer}
+                                {sideBarRightSpacer}
                             </div>
                         ),
                     };
@@ -1569,7 +1587,9 @@ function PostListView(
         [
             posts,
             hasNavigationBar,
-            hasAside,
+            sideBarLeftSpacer,
+            asideSpacer,
+            sideBarRightSpacer,
             isPostView,
             spacingScale,
             withSafeAreaInsetTop,
@@ -1584,10 +1604,10 @@ function PostListView(
             fileAttachmentTargetByPostId,
             highlightPostComment,
             handleJumpToPostComment,
+            channelHeader,
             platform,
             replyingToPostCommentIndexByPostId,
             inputRefByPostId,
-            channelHeader,
             shouldBeConnectedToChannelRealtime,
             onPostRealtimeEventTransaction,
             onUpdatePostComments,
@@ -1662,7 +1682,6 @@ function PostListView(
                     elementRef={navigationBar?.scrollViewRef}
                     scrollbarInsetTop={
                         navigationBar?.scrollbarInsetTop ??
-                        spacing[navigationBarHeight] ??
                         (withSafeAreaInsetTop ? safeAreaOnlyScrollbarInsetTop : undefined)
                     }
                     bufferedItemHeight={postContentViewMinHeightPx[spacingScale]}
@@ -1759,6 +1778,7 @@ function PostListView(
                                     </div>
                                 </>
                             )}
+                            {extraChildren}
                         </>
                     }
                     extraChildrenOutsideContentElement={({contentHeight}) => (
