@@ -1,5 +1,4 @@
 import {ContextModuleBase, ContextModuleModulesType} from "~/shared/context/context_module_base.js";
-import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -151,8 +150,8 @@ type ContextStatic = {
      */
     withSync<Modules extends {[key: string]: ContextModuleBase}, Value>(
         modules: Modules & ContextModulesDependencies<Modules>,
-        action: (context: Context<Modules>) => Promise<Value>,
-    ): Promise<Value>;
+        action: (context: Context<Modules>) => Value,
+    ): Value;
 };
 
 export const Context: ContextStatic = {
@@ -166,57 +165,35 @@ export const Context: ContextStatic = {
         modules: Modules & ContextModulesDependencies<Modules>,
         action: (context: Context<Modules>) => Promise<Value>,
     ): Promise<Value> {
-        // If we have a `ProcessContextModule` then extend the lifetime of the context
-        // with any `context.process.waitUntil()` calls.
-        if (!modules.process) {
-            const context = Context.new(modules);
-            try {
-                const value = await action(context);
-                return value;
-            } finally {
+        const context = Context.new(modules);
+
+        // Turn on `waitUntil()` tracking. When this value is null (the default) we
+        // don't destroy the context when all `waitUntil()` calls finish. For contexts
+        // you manually destroy (like those created by `Context.new()` and
+        // `context.clone()` like `ServerProcessContext`) we shouldn't destroy the
+        // context when all `waitUntil()`s finish.
+        //
+        // However, action-scoped contexts created with `context.with()` should be
+        // destroyed after all `waitUntil()` promises finish.
+        //
+        // @ts-expect-error: This property exists but it's private since we only want
+        // to use it in this `context.ts` file. Ignore the TypeScript error.
+        context._waitUntilPromiseCount = 1;
+
+        try {
+            const value = await action(context);
+            return value;
+        } finally {
+            assert(typeof context._waitUntilPromiseCount === "number");
+
+            // @ts-expect-error: This property exists but it's private since we only want
+            // to use it in this `context.ts` file. Ignore the TypeScript error.
+            context._waitUntilPromiseCount--;
+
+            // If the lifetime of the context was extended by calling `_waitUntil()` then
+            // don't destroy the context just yet.
+            if (context._waitUntilPromiseCount === 0) {
                 context.destroy();
-            }
-        } else {
-            const processContextModule = modules.process;
-            assert(processContextModule instanceof ProcessContextModule);
-
-            let taskPromises: Array<Promise<unknown>> = [];
-
-            const context = Context.new<Modules>({
-                ...modules,
-                process: new ProcessContextModule({
-                    waitUntil: promise => {
-                        processContextModule.waitUntil(promise);
-
-                        // We keep track of tasks our request is waiting on since we don't want to
-                        // destroy the request context until all tasks have completed. Since the task
-                        // may reference the request context.
-                        taskPromises.push(promise);
-                    },
-                }),
-            });
-
-            try {
-                const result = await action(context);
-                return result;
-            } finally {
-                // Wait for all our tasks to resolve before we can destroy our request context.
-                // The tasks may end up using the request context.
-                //
-                // We need to loop since while waiting for our tasks to finish, we may queue
-                // more tasks.
-                const loop = () => {
-                    const currentTaskPromises = taskPromises;
-                    taskPromises = [];
-
-                    if (currentTaskPromises.length === 0) {
-                        context.destroy();
-                    } else {
-                        void Promise.allSettled(currentTaskPromises).finally(loop);
-                    }
-                };
-
-                loop();
             }
         }
     },
@@ -225,57 +202,35 @@ export const Context: ContextStatic = {
         modules: Modules & ContextModulesDependencies<Modules>,
         action: (context: Context<Modules>) => Value,
     ): Value {
-        // If we have a `ProcessContextModule` then extend the lifetime of the context
-        // with any `context.process.waitUntil()` calls.
-        if (!modules.process) {
-            const context = Context.new(modules);
-            try {
-                const value = action(context);
-                return value;
-            } finally {
+        const context = Context.new(modules);
+
+        // Turn on `waitUntil()` tracking. When this value is null (the default) we
+        // don't destroy the context when all `waitUntil()` calls finish. For contexts
+        // you manually destroy (like those created by `Context.new()` and
+        // `context.clone()` like `ServerProcessContext`) we shouldn't destroy the
+        // context when all `waitUntil()`s finish.
+        //
+        // However, action-scoped contexts created with `context.with()` should be
+        // destroyed after all `waitUntil()` promises finish.
+        //
+        // @ts-expect-error: This property exists but it's private since we only want
+        // to use it in this `context.ts` file. Ignore the TypeScript error.
+        context._waitUntilPromiseCount = 1;
+
+        try {
+            const value = action(context);
+            return value;
+        } finally {
+            assert(typeof context._waitUntilPromiseCount === "number");
+
+            // @ts-expect-error: This property exists but it's private since we only want
+            // to use it in this `context.ts` file. Ignore the TypeScript error.
+            context._waitUntilPromiseCount--;
+
+            // If the lifetime of the context was extended by calling `_waitUntil()` then
+            // don't destroy the context just yet.
+            if (context._waitUntilPromiseCount === 0) {
                 context.destroy();
-            }
-        } else {
-            const processContextModule = modules.process;
-            assert(processContextModule instanceof ProcessContextModule);
-
-            let taskPromises: Array<Promise<unknown>> = [];
-
-            const context = Context.new<Modules>({
-                ...modules,
-                process: new ProcessContextModule({
-                    waitUntil: promise => {
-                        processContextModule.waitUntil(promise);
-
-                        // We keep track of tasks our request is waiting on since we don't want to
-                        // destroy the request context until all tasks have completed. Since the task
-                        // may reference the request context.
-                        taskPromises.push(promise);
-                    },
-                }),
-            });
-
-            try {
-                const result = action(context);
-                return result;
-            } finally {
-                // Wait for all our tasks to resolve before we can destroy our request context.
-                // The tasks may end up using the request context.
-                //
-                // We need to loop since while waiting for our tasks to finish, we may queue
-                // more tasks.
-                const loop = () => {
-                    const currentTaskPromises = taskPromises;
-                    taskPromises = [];
-
-                    if (currentTaskPromises.length === 0) {
-                        context.destroy();
-                    } else {
-                        void Promise.allSettled(currentTaskPromises).finally(loop);
-                    }
-                };
-
-                loop();
             }
         }
     },
@@ -293,6 +248,7 @@ export const Context: ContextStatic = {
 const ContextImplementation = class Context {
     private readonly _modules: {[key: string]: ContextModuleBase<{}>};
     private _isDestroyed = false;
+    private _waitUntilPromiseCount: number | null = null;
     private readonly _parentContext: Context | null;
     private readonly _childContexts = new Set<Context>();
 
@@ -410,57 +366,30 @@ const ContextImplementation = class Context {
         newModules: {[key: string]: ContextModuleBase<{}>},
         action: (context: Context) => Promise<Value>,
     ): Promise<Value> {
-        // If we have a `ProcessContextModule` then extend the lifetime of the context
-        // with any `context.process.waitUntil()` calls.
-        if (!this._modules.process && !newModules.process) {
-            const newContext = this.clone(newModules);
-            try {
-                const value = await action(newContext);
-                return value;
-            } finally {
+        const newContext = this.clone(newModules);
+
+        // Turn on `waitUntil()` tracking. When this value is null (the default) we
+        // don't destroy the context when all `waitUntil()` calls finish. For contexts
+        // you manually destroy (like those created by `Context.new()` and
+        // `context.clone()` like `ServerProcessContext`) we shouldn't destroy the
+        // context when all `waitUntil()`s finish.
+        //
+        // However, action-scoped contexts created with `context.with()` should be
+        // destroyed after all `waitUntil()` promises finish.
+        newContext._waitUntilPromiseCount = 1;
+
+        try {
+            const value = await action(newContext);
+            return value;
+        } finally {
+            assert(typeof newContext._waitUntilPromiseCount === "number");
+
+            newContext._waitUntilPromiseCount--;
+
+            // If the lifetime of the context was extended by calling `_waitUntil()` then
+            // don't destroy the context just yet.
+            if (newContext._waitUntilPromiseCount === 0) {
                 newContext.destroy();
-            }
-        } else {
-            const processContextModule = newModules.process ?? this._modules.process;
-            assert(processContextModule instanceof ProcessContextModule);
-
-            let taskPromises: Array<Promise<unknown>> = [];
-
-            const newContext = this.clone({
-                ...newModules,
-                process: new ProcessContextModule({
-                    waitUntil: promise => {
-                        processContextModule.waitUntil(promise);
-
-                        // We keep track of tasks our request is waiting on since we don't want to
-                        // destroy the request context until all tasks have completed. Since the task
-                        // may reference the request context.
-                        taskPromises.push(promise);
-                    },
-                }),
-            });
-
-            try {
-                const result = await action(newContext);
-                return result;
-            } finally {
-                // Wait for all our tasks to resolve before we can destroy our request context.
-                // The tasks may end up using the request context.
-                //
-                // We need to loop since while waiting for our tasks to finish, we may queue
-                // more tasks.
-                const loop = () => {
-                    const currentTaskPromises = taskPromises;
-                    taskPromises = [];
-
-                    if (currentTaskPromises.length === 0) {
-                        newContext.destroy();
-                    } else {
-                        void Promise.allSettled(currentTaskPromises).finally(loop);
-                    }
-                };
-
-                loop();
             }
         }
     }
@@ -469,58 +398,105 @@ const ContextImplementation = class Context {
         newModules: {[key: string]: ContextModuleBase<{}>},
         action: (context: Context) => Value,
     ): Value {
-        // If we have a `ProcessContextModule` then extend the lifetime of the context
-        // with any `context.process.waitUntil()` calls.
-        if (!this._modules.process && !newModules.process) {
-            const newContext = this.clone(newModules);
-            try {
-                const value = action(newContext);
-                return value;
-            } finally {
+        const newContext = this.clone(newModules);
+
+        // Turn on `waitUntil()` tracking. When this value is null (the default) we
+        // don't destroy the context when all `waitUntil()` calls finish. For contexts
+        // you manually destroy (like those created by `Context.new()` and
+        // `context.clone()` like `ServerProcessContext`) we shouldn't destroy the
+        // context when all `waitUntil()`s finish.
+        //
+        // However, action-scoped contexts created with `context.with()` should be
+        // destroyed after all `waitUntil()` promises finish.
+        newContext._waitUntilPromiseCount = 1;
+
+        try {
+            const value = action(newContext);
+            return value;
+        } finally {
+            assert(typeof newContext._waitUntilPromiseCount === "number");
+
+            newContext._waitUntilPromiseCount--;
+
+            // If the lifetime of the context was extended by calling `_waitUntil()` then
+            // don't destroy the context just yet.
+            if (newContext._waitUntilPromiseCount === 0) {
                 newContext.destroy();
             }
-        } else {
-            const processContextModule = newModules.process ?? this._modules.process;
-            assert(processContextModule instanceof ProcessContextModule);
-
-            let taskPromises: Array<Promise<unknown>> = [];
-
-            const newContext = this.clone({
-                ...newModules,
-                process: new ProcessContextModule({
-                    waitUntil: promise => {
-                        processContextModule.waitUntil(promise);
-
-                        // We keep track of tasks our request is waiting on since we don't want to
-                        // destroy the request context until all tasks have completed. Since the task
-                        // may reference the request context.
-                        taskPromises.push(promise);
-                    },
-                }),
-            });
-
-            try {
-                const result = action(newContext);
-                return result;
-            } finally {
-                // Wait for all our tasks to resolve before we can destroy our request context.
-                // The tasks may end up using the request context.
-                //
-                // We need to loop since while waiting for our tasks to finish, we may queue
-                // more tasks.
-                const loop = () => {
-                    const currentTaskPromises = taskPromises;
-                    taskPromises = [];
-
-                    if (currentTaskPromises.length === 0) {
-                        newContext.destroy();
-                    } else {
-                        void Promise.allSettled(currentTaskPromises).finally(loop);
-                    }
-                };
-
-                loop();
-            }
         }
+    }
+
+    /**
+     * Extend the context's lifetime for action-scoped context's. Action scoped
+     * context's are created with:
+     *
+     * - `parentContext.with(modules, action)`
+     * - `parentContext.withSync(modules, action)`
+     * - `Context.with(modules, action)`
+     * - `Context.withSync(modules, action)`
+     *
+     * Action scoped contexts live until the end of their `action` function and
+     * then they're destroyed (by calling `context.destroy()`). Unless a developer
+     * uses `context.process.waitUntil(promise)` within the action. This extends
+     * the context's lifetime until after `promise` passed to `waitUntil()`
+     * resolves/rejects.
+     *
+     * Non-action scoped contexts are created with:
+     *
+     * - `parentContext.clone(modules)`
+     * - `Context.new(modules)`
+     *
+     * You must manually destroy these contexts when you're done with them (by
+     * calling `context.destroy()`).
+     *
+     * This method implements lifetime extension for action scoped contexts. When
+     * called it loops up the context parent tree incrementing
+     * `_waitUntilPromiseCount`. Which is null for non-action scoped contexts and
+     * non-null for action scoped contexts. When the promise resolves/rejects we
+     * loop through the context parent tree again decrementing
+     * `_waitUntilPromiseCount` for action scoped contexts. If
+     * `_waitUntilPromiseCount` reaches 0 then we destroy the context.
+     */
+    private _waitUntil(promise: Promise<unknown>) {
+        // Can't extend the context's lifespan if the context has already been
+        // destroyed.
+        if (this._isDestroyed) throw new InternalError("Context was destroyed");
+
+        let currentContext: Context | null = this;
+        while (currentContext !== null) {
+            if (currentContext._waitUntilPromiseCount !== null) {
+                currentContext._waitUntilPromiseCount++;
+            }
+
+            currentContext = currentContext._parentContext;
+        }
+
+        let hasSettled = false;
+
+        const settle = () => {
+            // Protect against a buggy non-native `Promise` implementation that
+            // resolves/rejects twice. It's important the following code only runs
+            // once or else we risk destroying contexts twice.
+            if (hasSettled) return;
+            hasSettled = true;
+
+            let currentContext: Context | null = this;
+            while (currentContext !== null) {
+                if (currentContext._waitUntilPromiseCount !== null) {
+                    currentContext._waitUntilPromiseCount--;
+
+                    if (currentContext._waitUntilPromiseCount === 0) {
+                        currentContext.destroy();
+                    }
+                }
+
+                currentContext = currentContext._parentContext;
+            }
+        };
+
+        // Provide an error handler so we don't have unhandled promise rejection logs.
+        // The `waitUntil` implementation provided to `ProcessContextModule` is
+        // expected to handle errors.
+        promise.then(settle, settle);
     }
 };

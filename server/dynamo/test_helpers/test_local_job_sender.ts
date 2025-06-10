@@ -105,7 +105,11 @@ export class TestLocalJobSender implements JobSenderBase {
         {delaySeconds = 0}: {delaySeconds?: number} = {},
     ) {
         const tracer = context.tracer.getTracer();
-        const processContextModule = context.process.fork();
+
+        // Create a new context because if we need to wait for a timeout (because of
+        // `delaySeconds`) `context` will likely have been destroyed by the time the
+        // timeout runs.
+        const sendContext = Context.new({process: context.process.fork()});
 
         const jobStartTime = new Date(Date.now() + delaySeconds * 1000);
 
@@ -115,7 +119,7 @@ export class TestLocalJobSender implements JobSenderBase {
             assert(!hasRun);
             hasRun = true;
 
-            processContextModule.waitUntil(
+            sendContext.process.waitUntil(
                 tracer.withSpan(`Process job ${job.type} (locally)`, async span => {
                     const spaceId = getJobDescriptionSpaceId(job);
 

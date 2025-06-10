@@ -35,6 +35,12 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      */
     public waitUntil(action: Promise<unknown> | (() => Promise<unknown>)): void {
         const promise = typeof action === "function" ? action() : action;
+
+        // @ts-expect-error: This `_waitUntil()` method exists on the `Context` object
+        // but it's marked as private since we only want the function here to call it.
+        // Ignore the TypeScript error complaining this method is private.
+        this._context._waitUntil(promise);
+
         this._waitUntil(promise);
     }
 

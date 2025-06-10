@@ -1,7 +1,11 @@
 import {expectTypeOf} from "expect-type";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
+import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 
 class TestContextModule extends ContextModuleBase {
@@ -24,7 +28,7 @@ class DependentTestContextModule extends ContextModuleBase<{test1: TestContextMo
     }
 }
 
-test("lazily initializes modules once when they are accessed", () => {
+test("create context with modules", () => {
     const testModule1 = new TestContextModule();
     const testModule2 = new TestContextModule();
 
@@ -462,4 +466,226 @@ test("can't construct a context with a module that's already been bound", () => 
     Context.new({
         test: contextModule,
     });
+});
+
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes", async () => {
+    const promiseWaiter = new PromiseWaiter();
+
+    const promiseResolver1 = createPromiseResolver();
+    const promiseResolver3 = createPromiseResolver();
+    const promiseResolver2 = createPromiseResolver();
+
+    const rootContext = Context.new({
+        process: new ProcessContextModule({waitUntil: promiseWaiter.waitUntil}),
+    });
+
+    let parentContext: Context<{process: ProcessContextModule}>;
+
+    await rootContext.with({}, async _parentContext => {
+        parentContext = _parentContext;
+
+        await parentContext.with({}, async childContext => {
+            childContext.process.waitUntil(async () => {
+                await promiseResolver1.promise;
+                childContext.process.waitUntil(promiseResolver3.promise);
+            });
+
+            childContext.process.waitUntil(promiseResolver2.promise);
+        });
+
+        promiseResolver1.resolve();
+        await waitMacrotask();
+    });
+
+    promiseResolver2.resolve();
+    await waitMacrotask();
+
+    expect(() => rootContext.process).not.toThrow("Context was destroyed");
+    expect(() => parentContext.process).not.toThrow("Context was destroyed");
+
+    promiseResolver3.resolve();
+    await waitMacrotask();
+
+    await promiseWaiter.wait();
+
+    expect(() => rootContext.process).not.toThrow("Context was destroyed");
+    expect(() => parentContext.process).toThrow("Context was destroyed");
+});
+
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: `withSync()`)", async () => {
+    const promiseWaiter = new PromiseWaiter();
+
+    const promiseResolver1 = createPromiseResolver();
+    const promiseResolver3 = createPromiseResolver();
+    const promiseResolver2 = createPromiseResolver();
+
+    const rootContext = Context.new({
+        process: new ProcessContextModule({waitUntil: promiseWaiter.waitUntil}),
+    });
+
+    let parentContext: Context<{process: ProcessContextModule}>;
+
+    await rootContext.with({}, async _parentContext => {
+        parentContext = _parentContext;
+
+        parentContext.withSync({}, childContext => {
+            childContext.process.waitUntil(async () => {
+                await promiseResolver1.promise;
+                childContext.process.waitUntil(promiseResolver3.promise);
+            });
+
+            childContext.process.waitUntil(promiseResolver2.promise);
+        });
+
+        promiseResolver1.resolve();
+        await waitMacrotask();
+    });
+
+    promiseResolver2.resolve();
+    await waitMacrotask();
+
+    expect(() => rootContext.process).not.toThrow("Context was destroyed");
+    expect(() => parentContext.process).not.toThrow("Context was destroyed");
+
+    promiseResolver3.resolve();
+    await waitMacrotask();
+
+    await promiseWaiter.wait();
+
+    expect(() => rootContext.process).not.toThrow("Context was destroyed");
+    expect(() => parentContext.process).toThrow("Context was destroyed");
+});
+
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: `Context.with()`)", async () => {
+    const promiseWaiter = new PromiseWaiter();
+
+    const promiseResolver1 = createPromiseResolver();
+    const promiseResolver3 = createPromiseResolver();
+    const promiseResolver2 = createPromiseResolver();
+
+    let parentContext: Context<{process: ProcessContextModule}>;
+
+    await Context.with(
+        {process: new ProcessContextModule({waitUntil: promiseWaiter.waitUntil})},
+        async _parentContext => {
+            parentContext = _parentContext;
+
+            await parentContext.with({}, async childContext => {
+                childContext.process.waitUntil(async () => {
+                    await promiseResolver1.promise;
+                    childContext.process.waitUntil(promiseResolver3.promise);
+                });
+
+                childContext.process.waitUntil(promiseResolver2.promise);
+            });
+
+            promiseResolver1.resolve();
+            await waitMacrotask();
+        },
+    );
+
+    promiseResolver2.resolve();
+    await waitMacrotask();
+
+    expect(() => parentContext.process).not.toThrow("Context was destroyed");
+
+    promiseResolver3.resolve();
+    await waitMacrotask();
+
+    await promiseWaiter.wait();
+
+    expect(() => parentContext.process).toThrow("Context was destroyed");
+});
+
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: intermediate non-action scoped context)", async () => {
+    const promiseWaiter = new PromiseWaiter();
+
+    const promiseResolver1 = createPromiseResolver();
+    const promiseResolver3 = createPromiseResolver();
+    const promiseResolver2 = createPromiseResolver();
+
+    const rootContext = Context.new({
+        process: new ProcessContextModule({waitUntil: promiseWaiter.waitUntil}),
+    });
+
+    let parentContext: Context<{process: ProcessContextModule}>;
+    let intermediateContext: Context<{process: ProcessContextModule}>;
+
+    await rootContext.with({}, async _parentContext => {
+        parentContext = _parentContext;
+
+        intermediateContext = parentContext.clone({});
+
+        await intermediateContext.with({}, async childContext => {
+            childContext.process.waitUntil(async () => {
+                await promiseResolver1.promise;
+                childContext.process.waitUntil(promiseResolver3.promise);
+            });
+
+            childContext.process.waitUntil(promiseResolver2.promise);
+        });
+
+        promiseResolver1.resolve();
+        await waitMacrotask();
+    });
+
+    promiseResolver2.resolve();
+    await waitMacrotask();
+
+    expect(() => rootContext.process).not.toThrow("Context was destroyed");
+    expect(() => parentContext.process).not.toThrow("Context was destroyed");
+    expect(() => intermediateContext.process).not.toThrow("Context was destroyed");
+
+    promiseResolver3.resolve();
+    await waitMacrotask();
+
+    await promiseWaiter.wait();
+
+    expect(() => rootContext.process).not.toThrow("Context was destroyed");
+    expect(() => parentContext.process).toThrow("Context was destroyed");
+    expect(() => intermediateContext.process).toThrow("Context was destroyed");
+});
+
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: fully resolve inside action)", async () => {
+    const promiseWaiter = new PromiseWaiter();
+
+    const promiseResolver1 = createPromiseResolver();
+    const promiseResolver3 = createPromiseResolver();
+    const promiseResolver2 = createPromiseResolver();
+
+    const rootContext = Context.new({
+        process: new ProcessContextModule({waitUntil: promiseWaiter.waitUntil}),
+    });
+
+    let parentContext: Context<{process: ProcessContextModule}>;
+
+    await rootContext.with({}, async _parentContext => {
+        parentContext = _parentContext;
+
+        await parentContext.with({}, async childContext => {
+            childContext.process.waitUntil(async () => {
+                await promiseResolver1.promise;
+                childContext.process.waitUntil(promiseResolver3.promise);
+            });
+
+            childContext.process.waitUntil(promiseResolver2.promise);
+        });
+
+        promiseResolver1.resolve();
+        await waitMacrotask();
+
+        promiseResolver2.resolve();
+        await waitMacrotask();
+
+        promiseResolver3.resolve();
+        await waitMacrotask();
+
+        expect(() => rootContext.process).not.toThrow("Context was destroyed");
+        expect(() => parentContext.process).not.toThrow("Context was destroyed");
+    });
+
+    await promiseWaiter.wait();
+
+    expect(() => rootContext.process).not.toThrow("Context was destroyed");
+    expect(() => parentContext.process).toThrow("Context was destroyed");
 });
