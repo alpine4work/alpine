@@ -19,6 +19,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {FeedPostEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 
@@ -41,6 +42,11 @@ const context = createTestContext({
         }
     },
 });
+
+// This is unrelated to our feed tests but we want a sanity check in at least
+// one test file to make sure our Jest internals hack in `createTestContext()`
+// works and the timeout we set at the top of this file isn't lowered to 10s.
+assert((globalThis as any)[Symbol.for("TEST_TIMEOUT_SYMBOL")] === 1000 * 30);
 
 test("creating a post will create a feed candidate", async () => {
     const space = await TestSpace.create(context);

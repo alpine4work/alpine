@@ -263,7 +263,42 @@ export function createTestContext({
     //
     // The timeout shouldn't be too long since it will make it harder to debug
     // actual test failures due to timeout.
-    if (import.meta.jest) import.meta.jest.setTimeout(1000 * 10);
+    if (import.meta.jest) {
+        // HACK: If the test file raises the timeout by calling
+        // `import.meta.jest.setTimeout()` to something larger than 10s we don't want
+        // to lower that test file specific timeout back down to 10s (e.g.
+        // `feed_table.test.ts`).
+        //
+        // Looking at the Jest source code `import.meta.jest.setTimeout()` [writes to
+        // a symbol on the global object][1] and later that [symbol is read to
+        // determine the test's timeout][2].
+        //
+        // We hook into this mechanism to read the current test timeout and use it if
+        // it's greater than 10s to make sure we're not lowering the timeout.
+        //
+        // [1]: https://github.com/jestjs/jest/blob/edee3ab3a8290b220970e2f32212b6a91d6ca8cd/packages/jest-runtime/src/index.ts#L2308-L2311
+        // [2]: https://github.com/jestjs/jest/blob/edee3ab3a8290b220970e2f32212b6a91d6ca8cd/packages/jest-circus/src/eventHandler.ts#L229-L233
+        const testTimeoutSymbol = Symbol.for("TEST_TIMEOUT_SYMBOL");
+
+        const oldTestTimeout: unknown = (globalThis as any)[testTimeoutSymbol];
+        assert(typeof oldTestTimeout === "number" || oldTestTimeout === undefined);
+
+        // If a test file called `import.meta.jest.setTimeout()` before
+        // `createTestContext()` (e.g. `feed_table.test.ts`) and the timeout is greater
+        // than 10s, then use the previous timeout from the first
+        // `import.meta.jest.setTimeout()` call.
+        const minTestTimeout = 1000 * 10;
+        const newTestTimeout =
+            oldTestTimeout !== undefined && oldTestTimeout > minTestTimeout
+                ? oldTestTimeout
+                : minTestTimeout;
+
+        import.meta.jest.setTimeout(newTestTimeout);
+
+        // Double check that our hack works and that `import.meta.jest.setTimeout()`
+        // actually updates the global `testTimeoutSymbol` property.
+        assert((globalThis as any)[testTimeoutSymbol] === newTestTimeout);
+    }
 
     let temporaryDirectoryPath: string | null = null;
     let dynamoLocal: DynamoLocal | null = null;
