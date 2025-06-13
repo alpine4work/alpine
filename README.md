@@ -11,7 +11,7 @@ To develop for Cyberworlds, run the following after you've cloned the repo:
 We use [Bazel](https://bazel.build) which installs all the tools you need. Including
 [Node.js](https://nodejs.org/en) and package managers like [pnpm](https://pnpm.io).
 
-## Recommend setup
+## Recommended setup
 
 We recommend the following setup steps as well:
 
