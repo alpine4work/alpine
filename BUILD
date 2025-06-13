@@ -148,6 +148,15 @@ copy_to_bin(
     visibility = ["//visibility:public"],
 )
 
+copy_to_bin(
+    name = "prettier_config_files",
+    srcs = [
+        ".prettierignore",
+        "prettier.config.cjs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 compile_pip_requirements(
     name = "requirements",
     src = "requirements.txt",

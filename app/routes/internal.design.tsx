@@ -1,12 +1,93 @@
+import {ArrowClockwise} from "phosphor-react";
+import {useMemo, useState} from "react";
+import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {ColorSchemeToggleButton} from "~/client/design/playground/color_scheme_toggle_button.js";
 import {DesignPlaygroundTooltipPage} from "~/client/design/playground/design_playground_tooltip_page.js";
+import {TextInput} from "~/client/design/text_input.js";
+import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {sprinkles} from "~/client/styles/styles.js";
+import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
+import {generateId} from "~/shared/id/id.js";
 
 export function meta() {
     return [{title: `Design Playground${metaTitlePostfix}`}];
+}
+
+function BlobsPlayground() {
+    const initialSeed = useInitialAppRenderId();
+    const [seed, setSeed] = useState<string>(initialSeed ?? generateId());
+    const [hueSpread, setHueSpread] = useState<number>(15);
+    const [themeColor, setThemeColor] = useState<ThemeColor>("blue");
+    const settings = useMemo(
+        () => ({
+            seed,
+            themeColor,
+            hueSpread,
+        }),
+        [seed, themeColor, hueSpread],
+    );
+
+    return (
+        <Box>
+            <h2>Blobs Playground</h2>
+            <Box style={{flexBasis: 400}} display="flex" flexDirection="row" gap="4" marginY="4">
+                <Box display="flex" gap="4" alignItems="center" justifyContent="flex-start">
+                    <TextInput label="Seed" value={seed} onChange={setSeed} />
+                    <IconButton description="Randomize seed" onPress={() => setSeed(generateId())}>
+                        <ArrowClockwise />
+                    </IconButton>
+                </Box>
+                <Box
+                    display="flex"
+                    flexDirection="column"
+                    alignItems="center"
+                    justifyContent="flex-start"
+                >
+                    <Box width="24">Theme</Box>
+                    <select
+                        value={themeColor}
+                        onChange={e => setThemeColor(e.target.value as ThemeColor)}
+                        className={sprinkles({
+                            paddingX: "3",
+                            paddingY: "2",
+                            borderRadius: "1",
+                        })}
+                    >
+                        {themeColors.map(color => (
+                            <option key={color} value={color}>
+                                {color}
+                            </option>
+                        ))}
+                    </select>
+                </Box>
+                <Box display="flex" gap="4" alignItems="center" justifyContent="flex-start">
+                    <TextInput
+                        label="Hue spread"
+                        value={hueSpread.toString()}
+                        onChange={value => setHueSpread(Number(value))}
+                    />
+                </Box>
+            </Box>
+            <Box
+                style={{
+                    aspectRatio: `2 / 1`,
+                    transformOrigin: "top left",
+                    transform: `scale(0.5)`,
+                }}
+                boxShadow="elevation-10"
+                borderRadius="1"
+                overflow="hidden"
+                position="relative"
+                flex="auto"
+            >
+                <BlobsArt settings={settings} />
+            </Box>
+        </Box>
+    );
 }
 
 export default function DesignPlaygroundRoute() {
@@ -155,6 +236,7 @@ export default function DesignPlaygroundRoute() {
                         </Box>
                     </Box>
                 </Box>
+                <BlobsPlayground />
             </Box>
         </main>
     );

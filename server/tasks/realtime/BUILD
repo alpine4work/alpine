@@ -26,6 +26,10 @@ ts_project(
             "size": "medium",
             "tags": ["cpu:3"],
         },
+        "task_data_with_realtime_server_test": {
+            "size": "medium",
+            "tags": ["cpu:3"],
+        },
     },
     visibility = ["//server/tasks/realtime/test_helpers:__pkg__"],
     deps = [

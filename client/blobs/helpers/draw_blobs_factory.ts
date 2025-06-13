@@ -1,11 +1,11 @@
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
+import {blobFactoryShaderFragSource} from "~/client/blobs/helpers/blobs_shader_frag.js";
+import {blobFactoryShaderVertSource} from "~/client/blobs/helpers/blobs_shader_vert.js";
 import {
     BlobFactorySettings,
     blobFactoryModeFromSettings,
-} from "~/client/blob_factory/blob_factory_types.js";
-import {blobFactoryShaderFragSource} from "~/client/blob_factory/internal/blob_factory_shader_frag.js";
-import {blobFactoryShaderVertSource} from "~/client/blob_factory/internal/blob_factory_shader_vert.js";
+} from "~/client/blobs/helpers/blobs_types.js";
 import {Gl} from "~/client/helpers/gl/gl.js";
 import {
     GlBufferUsage,
@@ -17,7 +17,6 @@ import {
 } from "~/client/helpers/gl/gl_types.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {InternalError} from "~/shared/error/error.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
@@ -131,41 +130,28 @@ const blobFactory = new Lazy<
     };
 });
 
+/*
+ * Draws the blobs to the canvas.
+ */
 export function drawBlobFactoryToCanvas(
     canvas: HTMLCanvasElement,
     scale: number,
     settings: BlobFactorySettings,
     blobs: BlobFactoryBlobs,
 ) {
+    // First check if we've already drawn this blob
+    const blobKey = btoa(JSON.stringify(settings));
+    if (canvas.getAttribute("data-drawn") === blobKey) return;
+
     const drawResult = blobFactory.get();
     if (!drawResult.isGlSupported) return;
     const size = new Vector2(canvas.width, canvas.height).div(scale);
     const result = drawResult.draw(size, scale, settings, blobs);
     const ctx = canvas.getContext("2d")!;
     ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
-}
 
-export async function drawBlobFactoryToBlob(
-    size: Vector2,
-    scale: number,
-    settings: BlobFactorySettings,
-    blobs: BlobFactoryBlobs,
-): Promise<string> {
-    const drawResult = blobFactory.get();
-
-    // TODO(calebmer): Do we need more graceful degradation than throwing an error?
-    if (!drawResult.isGlSupported) throw new InternalError("Browser does not support webgl2");
-
-    const canvas = drawResult.draw(size, scale, settings, blobs);
-    return await new Promise<string>((resolve, reject) => {
-        canvas.toBlob(blob => {
-            if (!blob) {
-                reject(new InternalError("Failed to convert canvas to blob"));
-            } else {
-                resolve(URL.createObjectURL(blob));
-            }
-        });
-    });
+    // Set the attribute to mark that we've drawn this blob
+    canvas.setAttribute("data-drawn", blobKey);
 }
 
 export class BlobFactoryBlob {
@@ -210,14 +196,8 @@ export class BlobFactoryBlob {
 }
 
 export function getInterpolatedThemeColor(n: number, theme: ThemeColor): Color {
-    if (n < 5) {
-        // TODO(calebmer): We used to have a `theme-5` color. When coming back to blobs
-        // update this!
+    if (n < 10) {
         return Color(colors[`${theme}-10`]);
-    } else if (n < 10) {
-        // TODO(calebmer): We used to have a `theme-5` color. When coming back to blobs
-        // update this!
-        return interpolateColors(colors[`${theme}-10`], colors[`${theme}-10`], invLerp(5, 10, n));
     } else if (n < 20) {
         return interpolateColors(colors[`${theme}-10`], colors[`${theme}-20`], invLerp(10, 20, n));
     } else if (n < 30) {

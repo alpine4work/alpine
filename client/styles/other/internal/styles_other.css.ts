@@ -14,6 +14,7 @@ export * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/co
 export * as contentFileVideoAndAudioPlayerControlsStyles from "~/client/styles/other/internal/content_file_video_and_audio_player_controls.css.js";
 export * as contentViewStyles from "~/client/styles/other/internal/content_view.css.js";
 export * as contentStyles from "~/client/styles/other/internal/content.css.js";
+export * as blobsArtStyles from "~/client/styles/other/internal/blobs_art.css.js";
 export * as documentBlobsStyles from "~/client/styles/other/internal/document_blobs.css.js";
 export * as documentCommentThreadsStyles from "~/client/styles/other/internal/document_comment_threads.css.js";
 export * as documentContentStyles from "~/client/styles/other/internal/document_content.css.js";

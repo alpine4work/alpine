@@ -68,7 +68,7 @@ ts_project(
         "//:node_modules/pretty-ms",
         "//:node_modules/react",
         "//:node_modules/react-router",
-        "//client/blob_factory",
+        "//client/blobs",
         "//client/chat",
         "//client/content/file_entity",
         "//client/context",

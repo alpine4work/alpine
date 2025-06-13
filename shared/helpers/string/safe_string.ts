@@ -124,3 +124,50 @@ export function safeJoin(
 export function isSafeString(string: unknown): string is SafeString {
     return isPlainObject(string) && string._tag === safeStringTag;
 }
+
+/**
+ * Converts any string into a SafeString. Use sparingly and wisely.
+ * We use SafeString in places we want to prevent attacks like SQL injection or XSS.
+ *
+ * If you use this it's on you to guarantee your string isn't supplied by a user.
+ */
+export function dangerouslyCreateSafeString(string: string): SafeString {
+    return {_tag: safeStringTag, string};
+}
+
+/**
+ * Safely embed an object key. Tests for alphanumeric plus '#', '_', and '-'.
+ *
+ * Be careful how you use this utility as you're potentially allowing user
+ * input in a `SafeString`! Make sure you use this somewhere that supports an
+ * alphanumeric string and the string can't do anything bad.
+ */
+function safeObjectEntryString(string: string): SafeString {
+    assert(/^[a-zA-Z0-9#_-]+$/.test(string));
+    return {_tag: safeStringTag, string};
+}
+
+/**
+ * Creates a safe JS object of string keys and values.
+ */
+export function safeFlatObjectString(
+    object: Readonly<Record<string, string | number | boolean>>,
+): SafeString {
+    const entries: Array<SafeString> = [];
+    for (const [key, value] of Object.entries(object)) {
+        let safeValue;
+        if (typeof value === "string") {
+            safeValue = safeJoin([safe`"`, safeObjectEntryString(value), safe`"`], safe``);
+        } else if (typeof value === "number") {
+            safeValue = safeNumber(value);
+        } else {
+            safeValue = value ? safe`true` : safe`false`;
+        }
+
+        const safeKey = safeObjectEntryString(key);
+        const entry = safeJoin([safe`"`, safeKey, safe`": `, safeValue], safe``);
+        entries.push(entry);
+    }
+
+    return safeJoin([safe`{`, safeJoin(entries, safe`,`), safe`}`], safe``);
+}

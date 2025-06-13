@@ -1,10 +1,7 @@
 import {json} from "@remix-run/router";
 import {useEffect, useId, useMemo, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
-import {
-    DocumentBlobFactory,
-    useDocumentBlobSettings,
-} from "~/client/blob_factory/document_blobs.js";
+import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
@@ -13,6 +10,7 @@ import {Link} from "~/client/design/link.js";
 import {MultilineTextInput} from "~/client/design/multiline_text_input.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
+import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {sprinkles} from "~/client/styles/styles.js";
 import {requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
@@ -24,8 +22,9 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {randomArrayItem} from "~/shared/helpers/array/random_array_item.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
+import {generateId} from "~/shared/id/id.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 // TODO(calebmer): Lint rule that in JSX and error display messages you use a
@@ -126,13 +125,6 @@ export default function HomePage() {
         typeof ActionSchema
     > | null>(null);
 
-    const [{randomSeed, themeColor}] = useState(() => ({
-        randomSeed: Math.random().toString(),
-        themeColor: randomArrayItem(themeColors),
-    }));
-
-    const blobSettings = useDocumentBlobSettings({defaultSeed: randomSeed});
-
     // If the form submission was successful, clear our inputs.
     useEffect(() => {
         if (fetcher.state === "idle" && fetcher.data?.ok) {
@@ -141,6 +133,20 @@ export default function HomePage() {
             setMessage("");
         }
     }, [fetcher.data?.ok, fetcher.state]);
+
+    const initialAppRenderId = useInitialAppRenderId();
+    const [idForGeneration] = useState(initialAppRenderId ?? generateId());
+    const randomBlobsSettings = useMemo(() => {
+        const random = new StableRandom(idForGeneration);
+        const hueSpread = random.randomInteger(idForGeneration, 0, 20, 80);
+        const themeColorIndex = random.randomInteger(idForGeneration, 0, 0, themeColors.length - 1);
+        const themeColor = themeColors[themeColorIndex] || "blue";
+        return {
+            seed: idForGeneration.replaceAll(/[^a-zA-Z0-9]/g, ""),
+            hueSpread,
+            themeColor,
+        };
+    }, [idForGeneration]);
 
     return (
         <Box
@@ -154,13 +160,7 @@ export default function HomePage() {
             zIndex="0"
             padding="safe-area-inset"
         >
-            <DocumentBlobFactory
-                settings={useMemo(
-                    () => ({...blobSettings, textFillEnabled: false, baseThemeColor: themeColor}),
-                    [blobSettings, themeColor],
-                )}
-                containerId={id}
-            />
+            <BlobsArt settings={randomBlobsSettings} />
             <main
                 className={sprinkles({
                     width: "full",
