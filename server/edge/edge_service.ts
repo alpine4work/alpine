@@ -181,6 +181,15 @@ async function handleFetch(
         return response;
     }
 
+    // Optimization: In development, any requests that load a resource from Vite
+    // should go directly to `AppService` and skip tracing. Without this, a
+    // significant number of Honeycomb events come from Vite requests in
+    // development environments.
+    if (process.env.NODE_ENV === "development" && url.pathname.startsWith("/vite/")) {
+        // eslint-disable-next-line no-global-fetch
+        return fetch(request);
+    }
+
     // Create a new tracer for every request because we need a Honeycomb client and
     // the Honeycomb client needs `executionContext.waitUntil()` which is request
     // scoped. Tracers are cheap to construct so this is fine.

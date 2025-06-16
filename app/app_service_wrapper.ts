@@ -212,6 +212,9 @@ export async function run({
         let bazelBuildPromiseResolver: PromiseResolver<void> | null = null;
 
         const viteDevServer = await vite.createServer({
+            // Put all Vite dev server paths under the `/vite/` prefix to make it easy to
+            // tell Vite requests apart from other requests.
+            base: "/vite/",
             root: rootPath,
             cacheDir: joinPath(runfilesPath, "cyberworlds/app/optimize_deps"),
             configFile: joinPath(rootPath, "vite.config.mjs"),
