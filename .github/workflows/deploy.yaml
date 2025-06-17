@@ -72,17 +72,11 @@ jobs:
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc fetch //server/deploy/script/... --config=github-runner --config=production --remote_cache=
                   admin/bin/bazel --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc build //:node_modules --config=github-runner --config=production --remote_cache=
 
-            # Save our repository cache after we finish fetching but before we run the
-            # deploy! The ordering here is important since we don't want to include deploy
-            # build artifacts in the cache. Only fetched external repositories.
-            - if: steps.cache.outputs.cache-hit != 'true'
-              name: Save Bazel repositories cache
-              uses: actions/cache/save@v3
-              with:
-                  path: |
-                      ~/.cache/bazelisk
-                      ~/.cache/bazel
-                  key: ${{ steps.cache.outputs.cache-primary-key }}
+            # IMPORTANT: Never save fetched Bazel repositories in the deploy job! Because
+            # we fetch a subset of external repositories during deploy
+            # (`bazel fetch //server/deploy/script/...` vs `bazel fetch //...` in
+            # `test.yaml`) so if a test CI job uses the deploy cache artifact it will fail
+            # because external repositories like `opensearch_local` weren't fetched!
 
             # This starts the [Bazel remote cache][1] proxy server. For more information
             # see `test.yaml`.
