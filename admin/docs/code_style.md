@@ -263,6 +263,128 @@ graph gets pretty complex. But if you put shorter conditions first and those sho
 early return you can safely forget about the condition as you move forward in the function! Since
 you know for sure that condition has finished executing.
 
+### Don’t use `try`/`catch` for control flow
+
+Avoid using `try`/`catch` to catch specific kinds of errors. For example `NotFoundError`s or
+`PermissionDeniedError`s. `try`/`catch` should _only_ be used for exception handling. If your code
+needs to handle a not found case or permission denied case then the function you’re calling needs to
+explicitly return a not found or permission denied case.
+
+For example, we have a lot of server functions that look like this.
+
+```ts
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {Result} from "~/shared/helpers/control/result.js";
+
+async function getChannel(channelId: ChannelId): Promise<ChannelModel> {
+    const channel = await getChannelIfExists(channelId);
+    if (channel === null) throw new NotFoundError("Channel not found");
+    return channel;
+}
+
+async function getChannelIfExists(channelId: ChannelId): Promise<ChannelModel | null> {
+    const channelResult = await getChannelIfPossible(channelId);
+    if (channelResult === null) return null;
+    return unwrapResult(channelResult);
+}
+
+async function getChannelIfPossible(
+    channelId: ChannelId,
+): Promise<Result<ChannelModel, PermissionDeniedError> | null> {
+    // ...
+}
+```
+
+-   `getChannel()` throws if the channel is not found or the user doesn’t have access to the channel
+-   `getChannelIfExists()` returns null if the channel is not found or throws if the user doesn’t
+    have access to the channel
+-   `getChannelIfPossible()` returns null if the channel is not found, returns an object with
+    `ok: false` and the `PermissionDeniedError` if the user doesn’t have access to the channel, and
+    returns an object with `ok: true` and the `ChannelModel` if the user does have access to the
+    channel
+
+By convention we add `IfExists` if the function returns null and `IfPossible` if the function
+returns a `Result`.
+
+When would you want to call each variant? Let’s walk through an example. Say you’re writing the data
+loading code for a new route and you need to choose which function to call:
+
+-   Call `getChannel()` if the route can’t render without a channel. Both channel not found and
+    channel permission denied errors should show the user an error screen.
+-   Call `getChannelIfExists()` if you can render the route without a channel. Channel permission
+    denied will show the user an error screen but you can render custom UI if the channel wasn’t
+    found. Maybe a special “get started” experience.
+-   Call `getChannelIfPossible()` if you must render the route regardless of whether you have a
+    channel or not. For example, when rendering a channel embedded in a document. The Alice who
+    created the document may have access to the channel but if Bob has access to the document but
+    _not_ the channel they should be able to read everything else in the document while the embedded
+    channel shows a “Private channel” error message.
+
+If you need to handle permission denied errors, don’t do this:
+
+```ts
+// ❌ No
+
+try {
+    const channel = await getChannel(channelId);
+
+    // Some other code...
+} catch (error) {
+    if (error instanceof NotFoundError) {
+        // Handle not found...
+    } else if (error instanceof PermissionDeniedError) {
+        // Handle permission denied...
+    } else {
+        throw error;
+    }
+}
+```
+
+…instead do this:
+
+```ts
+// ✅ Yes
+
+const channelResult = await getChannelIfPossible(channelId);
+
+if (!channelResult) {
+    // Handle not found...
+    return;
+}
+
+if (!channelResult.ok) {
+    // Handle permission denied...
+    return;
+}
+
+const channel = channelResult.value;
+
+// Some other code...
+```
+
+**💡 Why?** It’s easier to read code written this way. You can read one case at a time instead of in
+the `try`/`catch` example you see a `try` and have to scroll all the way down to the `catch` then
+guess what specifically in the `try` threw the error that’s being handled.
+
+Also, code written this way is less prone to weird edge case bugs. Say `getChannel()` throws a
+`PermissionDeniedError` because some database service isn’t properly configured (not because the
+user doesn’t have access to the channel). We’ll want to show this to the user as “unexpected
+internal error” not “you don’t have access.” Similarly for `NotFoundError`, what if the `SpaceId`
+the channel is in was deleted so while we found the channel we throw a `NotFoundError` because we
+can’t find the space. We may not want to run the same channel not found logic in a `try`/`catch` for
+this.
+
+This style of code is directly inspired by how languages like Rust and Haskell handle errors. Check
+out the documentation for [Rust’s `Result` type](https://doc.rust-lang.org/std/result/) and
+[Haskell’s `Either` type](https://hackage.haskell.org/package/base-4.21.0.0/docs/Data-Either.html).
+Our `Result` type is basically the same as Rust’s `Result` type and we should treat thrown errors
+similar to Rust `panic!()` calls.
+“[Error Handling in Rust](https://burntsushi.net/rust-error-handling/)” by the creator of ripgrep is
+a comprehensive post if you’re interested how Rust handles errors. Popular content creators like
+[Theo (t3.gg) also advocate for a version of this pattern](https://www.youtube.com/watch?v=Y6jT-IkV0VM)
+though Theo’s approach is more inspired by
+[Go error handling](https://go.dev/blog/error-handling-and-go).
+
 ## Naming
 
 ### File names should be snake case
