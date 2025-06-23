@@ -51,6 +51,7 @@ import {
     DocumentCommentThreadListView,
     DocumentCommentThreadListViewRef,
 } from "~/client/documents/document_comment_thread_list_view.js";
+import {DocumentContentCoverModal} from "~/client/documents/internal/document_content_cover_modal.js";
 import {
     DocumentContentEditorSideDecoration,
     DocumentContentEditorSideDecorations,
@@ -77,6 +78,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {LecturnIcon} from "~/client/icons/lecturn_icon.js";
+import {PanoramaIcon} from "~/client/icons/panorama_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {NavigationBarRef} from "~/client/navigation/navigation_bar_types.js";
@@ -248,6 +250,7 @@ export function DocumentContentEditor({
     const presentationControllerRef = useRef<DocumentPresentationControllerRef>(null);
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
+    const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
 
     const {
         spaceId,
@@ -1569,23 +1572,37 @@ export function DocumentContentEditor({
                           ],
                       ]
                     : emptyArray),
-                ...(platform !== "mobile"
-                    ? [
-                          [
+                [
+                    ...(hasAccessLevel(accessLevel, "Edit") &&
+                    process.env.NODE_ENV === "development"
+                        ? [
+                              cast<MenuAction>({
+                                  label: "Cover",
+                                  icon: <PanoramaIcon />,
+                                  iconPlacement: "end",
+                                  pressErrorTitle: "Couldn’t open cover settings",
+                                  onPress: () => {
+                                      setIsCoverModalOpen(true);
+                                  },
+                              }),
+                          ]
+                        : []),
+                    ...(platform !== "mobile"
+                        ? [
                               cast<MenuAction>({
                                   label: "Present",
                                   icon: <LecturnIcon />,
                                   iconPlacement: "end",
-                                  pressErrorTitle: "Couldn’t present document",
+                                  pressErrorTitle: "Couldn’t open present settings",
                                   onPress: async () => {
                                       await assertExists(
                                           presentationControllerRef.current,
                                       ).present();
                                   },
                               }),
-                          ],
-                      ]
-                    : []),
+                          ]
+                        : []),
+                ],
             ],
             [
                 accessLevel,
@@ -2139,6 +2156,13 @@ export function DocumentContentEditor({
                     editorState={editorState}
                     accessLevel={accessLevel}
                     fileAttachmentTarget={fileAttachmentTarget}
+                />
+            )}
+            {isCoverModalOpen && (
+                <DocumentContentCoverModal
+                    editorRef={editorRef}
+                    editorState={editorState}
+                    onClose={() => setIsCoverModalOpen(false)}
                 />
             )}
         </Box>

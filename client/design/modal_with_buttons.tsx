@@ -36,6 +36,7 @@ function ModalWithButtons(
         "aria-describedby": ariaDescribedBy,
         "data-ownedby": dataOwnedBy,
         maxWidth,
+        withoutOpenAnimation,
         withoutCloseAnimation,
         withoutCloseButton,
         withoutCloseInteractions,
@@ -59,6 +60,7 @@ function ModalWithButtons(
         "aria-describedby"?: string;
         "data-ownedby"?: string;
         maxWidth?: Spacing | RemLength;
+        withoutOpenAnimation?: boolean;
         withoutCloseAnimation?: boolean;
         withoutCloseButton?: boolean;
         withoutCloseInteractions?: boolean;
@@ -90,6 +92,7 @@ function ModalWithButtons(
             data-ownedby={dataOwnedBy}
             onClose={onClose}
             maxWidth={maxWidth}
+            withoutOpenAnimation={withoutOpenAnimation}
             withoutCloseAnimation={withoutCloseAnimation}
             withoutCloseButton={withoutCloseButton}
             withoutCloseInteractions={withoutCloseInteractions}

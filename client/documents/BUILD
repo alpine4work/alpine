@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/prosemirror-state",
         "//:node_modules/prosemirror-transform",
         "//:node_modules/scheduler",
+        "//client/blobs",
         "//client/content",
         "//client/dev",
         "//client/helpers",

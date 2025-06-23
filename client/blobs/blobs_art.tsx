@@ -43,10 +43,12 @@ type BlobArtProps = {
             hueSpread: BlobsSettings["hueSpread"];
         }
     >;
+    scale?: number;
 };
 
 function BlobsArtComponent({
     settings: passedSettings,
+    scale,
 }: BlobArtProps & {style?: React.CSSProperties}) {
     const settings: BlobsSettings = useMemo(
         () => ({
@@ -148,8 +150,9 @@ function BlobsArtComponent({
                 })}
                 style={{
                     width: blobsCanvasWidthPx,
-                    left: "50%",
-                    transform: "translateX(-50%)",
+                    left: `calc(-1 * (${blobsCanvasWidthPx / 2}px + 100%))`,
+                    transform: scale ? `scale(${scale})` : undefined,
+                    transformOrigin: "center top",
                 }}
                 data-testid={process.env.NODE_ENV !== "production" ? `BlobArtCanvas` : undefined}
             />

@@ -198,6 +198,7 @@ export const NavigationBarContent = forwardRef(function NavigationBarContent(
             pointerEvents="auto"
             position="relative"
             zIndex="0"
+            flexShrink="0"
             width="full"
             height={navigationBarHeight}
             display="flex"

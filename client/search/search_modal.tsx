@@ -56,10 +56,12 @@ import {
     searchEntityHeaderFontSize,
     searchEntityHeaderLineHeight,
     searchEntityHeaderPaddingTop,
-    searchEntitySideBarWidth,
     searchEntityViewDefaultMarginX,
     searchEntityViewDefaultPaddingX,
     searchEntityViewMinHeightPx,
+    searchModalInputHeight,
+    searchModalMaxHeight,
+    searchModalMaxWidth,
 } from "~/client/styles/search_shared_styles.js";
 import {
     contentStyles,
@@ -85,11 +87,6 @@ import {
 } from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchEntityId, isSearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
-
-const searchModalInputHeight = "16";
-const searchModalPeekContentMaxHeight = "160";
-
-const searchModalMaxHeight = addRemLengths(searchModalInputHeight, searchModalPeekContentMaxHeight);
 
 const searchModalPeekControlsHeight = "6";
 
@@ -257,7 +254,7 @@ export function SearchModal({
     return (
         <Modal
             aria-label="Search"
-            maxWidth={addRemLengths(searchEntitySideBarWidth, peekNarrowLayoutWidth)}
+            maxWidth={searchModalMaxWidth}
             height="full"
             maxHeight={searchModalMaxHeight}
             borderRadius="2.5"

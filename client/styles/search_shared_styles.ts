@@ -1,3 +1,4 @@
+import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
 import {contentStyles, fontSizes} from "~/client/styles/styles.js";
 import {
     RemLength,
@@ -28,6 +29,15 @@ export const searchMobileInputMinHeight = addRemLengths(
 export const searchMobileInputBorderRadius = `${parseRemLength(searchMobileInputMinHeight) / 2}rem`;
 
 export const searchEntitySideBarWidth = "96";
+
+export const searchModalInputHeight = "16";
+export const searchModalPeekContentMaxHeight = "160";
+
+export const searchModalMaxWidth = addRemLengths(searchEntitySideBarWidth, peekNarrowLayoutWidth);
+export const searchModalMaxHeight = addRemLengths(
+    searchModalInputHeight,
+    searchModalPeekContentMaxHeight,
+);
 
 /**
  * Minimum height of the body text snippet in a search result. We show at least
