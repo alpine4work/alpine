@@ -181,6 +181,7 @@ import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -378,6 +379,11 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * Set the `hasPresentShortcut` attribute.
      */
     setHasPresentShortcut(hasPresentShortcut: boolean): void;
+
+    /**
+     * Set the `cover` attribute.
+     */
+    setCover(cover: DocumentContentCover | null): void;
 
     /**
      * If we're in a mobile environment and `withoutMobileKeyboardToolbar` is false
@@ -776,6 +782,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 insertFiles: unimplementedDispatchCommand,
                 insertTable: unimplementedDispatchCommand,
                 setHasPresentShortcut: unimplementedDispatchCommand,
+                setCover: unimplementedDispatchCommand,
                 openMobileKeyboardToolbarCommentInputIfPossible: () => {
                     throw new UnimplementedError(
                         "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
@@ -1050,6 +1057,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 view.dispatch(
                     view.state.tr.setDocAttribute("hasPresentShortcut", hasPresentShortcut),
                 );
+            },
+            setCover: cover => {
+                const view = assertExists(viewRef.current);
+                view.dispatch(view.state.tr.setDocAttribute("cover", cover));
             },
             _getInternalView: () => {
                 return assertExists(viewRef.current);

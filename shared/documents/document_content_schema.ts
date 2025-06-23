@@ -24,6 +24,7 @@ import {
     titleClassName,
 } from "~/shared/content/content_styles.js";
 import {HighlightColor, isHighlightColor} from "~/shared/design/core/highlight_color.js";
+import {DocumentContentCoverSchema} from "~/shared/documents/document_content_cover.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {isId} from "~/shared/id/id.js";
@@ -330,6 +331,11 @@ const documentContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 hasPresentShortcut: {
                     schema: Schema.boolean,
                     default: false,
+                },
+
+                cover: {
+                    schema: DocumentContentCoverSchema.nullable(),
+                    default: null,
                 },
             },
         },

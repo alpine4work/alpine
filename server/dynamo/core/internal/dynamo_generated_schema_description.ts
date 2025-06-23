@@ -1608,6 +1608,60 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "type": "Boolean"
                                                                     },
                                                                     "optional": true
+                                                                },
+                                                                "cover": {
+                                                                    "valueSchema": {
+                                                                        "type": "Nullable",
+                                                                        "schema": {
+                                                                            "type": "Union",
+                                                                            "typeKey": "type",
+                                                                            "variantSchemaByTypeValue": {
+                                                                                "Blobs": {
+                                                                                    "type": "Object",
+                                                                                    "propertySchemaByKey": {
+                                                                                        "type": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Value",
+                                                                                                "value": "Blobs"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        },
+                                                                                        "seed": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "String"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        },
+                                                                                        "themeColor": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Enum",
+                                                                                                "values": [
+                                                                                                    "red",
+                                                                                                    "orange",
+                                                                                                    "yellow",
+                                                                                                    "green",
+                                                                                                    "cyan",
+                                                                                                    "blue",
+                                                                                                    "indigo",
+                                                                                                    "purple",
+                                                                                                    "pink"
+                                                                                                ]
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        },
+                                                                                        "hueSpread": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Integer"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "referenceId": "4f75671b"
+                                                                    },
+                                                                    "optional": true
                                                                 }
                                                             }
                                                         },
@@ -2895,6 +2949,25 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "value": {
                                                                                     "valueSchema": {
                                                                                         "type": "Boolean"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "cover": {
+                                                                            "type": "Object",
+                                                                            "propertySchemaByKey": {
+                                                                                "type": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Value",
+                                                                                        "value": "cover"
+                                                                                    },
+                                                                                    "optional": false
+                                                                                },
+                                                                                "value": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Reference",
+                                                                                        "reuseReferenceId": "4f75671b"
                                                                                     },
                                                                                     "optional": false
                                                                                 }
