@@ -160,13 +160,13 @@ export class TokenAgentPrivateSide {
         assert(currentTimeForTest === undefined || import.meta.jest);
 
         if (originalUrl.searchParams.has("exp"))
-            throw new InvalidArgumentError('URL already has "exp" search param');
+            throw new InvalidArgumentError("URL already has `exp` search param");
         if (originalUrl.searchParams.has("iss"))
-            throw new InvalidArgumentError('URL already has "iss" search param');
+            throw new InvalidArgumentError("URL already has `iss` search param");
         if (originalUrl.searchParams.has("aud"))
-            throw new InvalidArgumentError('URL already has "aud" search param');
+            throw new InvalidArgumentError("URL already has `aud` search param");
         if (originalUrl.searchParams.has("sig"))
-            throw new InvalidArgumentError('URL already has "sig" search param');
+            throw new InvalidArgumentError("URL already has `sig` search param");
 
         const currentTime =
             currentTimeForTest !== undefined ? currentTimeForTest.getTime() : Date.now();

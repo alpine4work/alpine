@@ -141,13 +141,13 @@ async function runNewCommand({
 }) {
     if (!branchNameRegExp.test(stackName)) {
         throw new InvalidArgumentError(
-            quote`Invalid stack name ${stackName}, must only use alphanumeric characters and "-"`,
+            quote`Invalid stack name ${stackName}, must only use alphanumeric characters and \`-\``,
         );
     }
 
     if (!branchNameRegExp.test(firstBranchName)) {
         throw new InvalidArgumentError(
-            quote`Invalid branch name ${firstBranchName}, must only use alphanumeric characters and "-"`,
+            quote`Invalid branch name ${firstBranchName}, must only use alphanumeric characters and \`-\``,
         );
     }
 
@@ -184,7 +184,7 @@ async function runNewCommand({
 async function runAddCommand({name: branchName = ""}: {name: string | undefined}) {
     if (!branchNameRegExp.test(branchName)) {
         throw new InvalidArgumentError(
-            quote`Invalid branch name ${branchName}, must only use alphanumeric characters and "-"`,
+            quote`Invalid branch name ${branchName}, must only use alphanumeric characters and \`-\``,
         );
     }
 
@@ -243,7 +243,7 @@ async function runPrCommand({continue: shouldContinue = false}: {continue: boole
             throw error;
 
         throw new FailedPreconditionError(
-            `Can't find the GitHub CLI, to install visit: ${chalk.underline(
+            `Can’t find the GitHub CLI, to install visit: ${chalk.underline(
                 "https://cli.github.com",
             )}`,
         );
@@ -455,6 +455,7 @@ async function runGit(args: ProcessArgs) {
         .filter(isNonNullableOrFalse)
         .map((arg, i) => {
             arg = String(arg);
+            // eslint-disable-next-line string-quotes
             if (arg.includes(" ") || arg.length === 0) arg = `"${arg}"`;
             if (i === 0) return chalk.bold(arg);
             return arg;
@@ -497,6 +498,7 @@ async function runGh(
         .filter(isNonNullableOrFalse)
         .map((arg, i) => {
             arg = String(arg);
+            // eslint-disable-next-line string-quotes
             if (arg.includes(" ") || arg.length === 0) arg = `"${arg}"`;
             if (i === 0 || i === 1) return chalk.bold(arg);
             return arg;
@@ -587,7 +589,7 @@ async function checkGitIsClean() {
     const statusOutput = await runProcess("git", ["status", "--porcelain"]);
     if (statusOutput.trim().length > 0) {
         throw new FailedPreconditionError(
-            "Working directory isn't clean, please commit or stash changes",
+            "Working directory isn’t clean, please commit or stash changes",
         );
     }
 }

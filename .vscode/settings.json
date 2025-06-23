@@ -10,7 +10,9 @@
     "editor.formatOnSave": true,
     "editor.unicodeHighlight.allowedCharacters": {
         "‘": true,
-        "’": true
+        "’": true,
+        "“": true,
+        "”": true
     },
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,

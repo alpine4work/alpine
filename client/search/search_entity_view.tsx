@@ -213,6 +213,7 @@ export function SearchEntityView({
                                 textOverflow: "ellipsis",
                                 // Render contextual alternate glyphs. Particularly important that we render
                                 // the right "@" for mentions.
+                                // eslint-disable-next-line string-quotes
                                 fontFeatureSettings: '"calt" on',
                                 minHeight:
                                     result.title === null
@@ -372,6 +373,8 @@ function SearchEntityViewExplainDebugWidgetOverlay({
 }
 
 function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSearchHitExplanation) {
+    /* eslint-disable string-quotes */
+
     const structureClassName = sprinkles({color: "grey-30"});
     const valueClassName = sprinkles({fontStyle: "code-semi-bold"});
     const descriptionClassName = sprinkles({color: "grey-60"});
@@ -448,4 +451,6 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
     };
 
     return print("", "", rootExplanation, printValue(rootExplanation.value));
+
+    /* eslint-enable string-quotes */
 }

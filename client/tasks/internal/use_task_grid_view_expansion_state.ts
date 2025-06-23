@@ -142,7 +142,7 @@ function createTaskGridViewExpansionStateManager({
                 // they reload the page.
                 context.tracer
                     .getRoot()
-                    .logException("Couldn't persist task grid view expansion state", error);
+                    .logException("Couldn’t persist task grid view expansion state", error);
             });
         };
 

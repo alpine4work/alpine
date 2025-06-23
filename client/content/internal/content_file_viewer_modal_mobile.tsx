@@ -93,7 +93,7 @@ export function ContentFileViewerModalMobile({
         }
 
         if (!url) {
-            throw new FailedPreconditionError("File hasn't finished uploading", {
+            throw new FailedPreconditionError("File hasn’t finished uploading", {
                 displayMessage: errorDisplayMessage`The file hasn’t finished uploading. Wait a few seconds then try again.`,
             });
         }
@@ -109,7 +109,7 @@ export function ContentFileViewerModalMobile({
 
         const contentType = response.headers.get("content-type");
         if (!contentType) {
-            throw new InternalError(`File download request is missing "Content-Type" header`);
+            throw new InternalError("File download request is missing `Content-Type` header");
         }
 
         const blob = await response.blob();

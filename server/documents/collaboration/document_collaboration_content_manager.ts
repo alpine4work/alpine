@@ -318,11 +318,11 @@ export class DocumentCollaborationContentManager {
             // don't end up batching the update.
             if (hasSameClientIdAsNextPersistenceState) {
                 if ((update.resolveCommentThreadIds?.length ?? 0) > 0) {
-                    throw new InternalError("Can't batch updates that resolve comment threads");
+                    throw new InternalError("Can’t batch updates that resolve comment threads");
                 }
 
                 if ((update.unresolveCommentThreadIds?.length ?? 0) > 0) {
-                    throw new InternalError("Can't batch updates that unresolve comment threads");
+                    throw new InternalError("Can’t batch updates that unresolve comment threads");
                 }
             }
 
@@ -490,7 +490,7 @@ export class DocumentCollaborationContentManager {
                                 // We save steps anyway to preserve as much user data as we can.
                                 if (conflictingSteps.length > 0) {
                                     throw new InternalError(
-                                        "Some process updated document content other than the document's durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
+                                        "Some process updated document content other than the document’s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
                                     );
                                 }
 

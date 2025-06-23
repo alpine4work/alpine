@@ -117,7 +117,7 @@ export function ContentEditorMobileKeyboardSubstitute({
 
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
-        "Can't server render `<ContentEditorMobileKeyboardSubstitute>`",
+        "Can’t server render `<ContentEditorMobileKeyboardSubstitute>`",
     );
 
     const substituteRef = useRef<HTMLDivElement>(null);

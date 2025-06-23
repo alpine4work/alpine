@@ -56,7 +56,7 @@ test("can not request alpha access twice", async () => {
     }).rejects.toThrow(FailedPreconditionError);
 });
 
-test('can request alpha twice with "+" extension email trick', async () => {
+test("can request alpha twice with `+` extension email trick", async () => {
     const id = generateId();
 
     await requestAlphaAccess(context.anonymousAction(), {

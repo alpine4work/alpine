@@ -11,7 +11,7 @@ module.exports = {
     meta: {
         schema: [],
         messages: {
-            commitBlocker: `Must remove all "${commitBlocker}" instances before committing`,
+            commitBlocker: `Must remove all \`${commitBlocker}\` instances before committing`,
         },
     },
 

@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
 import {Node} from "prosemirror-model";

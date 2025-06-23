@@ -299,7 +299,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
             if (body instanceof ReadableStream) {
                 if (typeof contentLength !== "number") {
                     throw new InternalError(
-                        '"Content-Length" header is required when calling `PutObject()` with a stream body',
+                        "`Content-Length` header is required when calling `PutObject()` with a stream body",
                     );
                 }
 
@@ -340,7 +340,7 @@ export class MiniflareR2Client implements CloudflareR2ClientBase {
 
             if (body instanceof ReadableStream && streamContentLength !== contentLength) {
                 throw new InternalError(
-                    quote`"Content-Length" header is ${contentLength} byte(s) but the stream body had ${streamContentLength} byte(s)`,
+                    quote`\`Content-Length\` header is ${contentLength} byte(s) but the stream body had ${streamContentLength} byte(s)`,
                 );
             }
 

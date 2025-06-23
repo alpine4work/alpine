@@ -428,7 +428,8 @@ export function testFileProcessorContentTypes(
                                         item.type === "Newline"
                                             ? "\n"
                                             : item.classes
-                                            ? `<span class="${item.classes}">${escapeHtml(
+                                            ? // eslint-disable-next-line string-quotes
+                                              `<span class="${item.classes}">${escapeHtml(
                                                   item.string,
                                               )}</span>`
                                             : escapeHtml(item.string),
@@ -578,7 +579,7 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                         throw new InternalError(
                             quote`Actual alternative PDF page ${
                                 i + 1
-                            } doesn't look the same as expected alternative PDF page ${
+                            } doesn’t look the same as expected alternative PDF page ${
                                 i + 1
                             }, diff image saved to \`bazel-testlogs\``,
                         );
@@ -901,7 +902,7 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
                         throw new InternalError(
                             quote`Actual alternative video frame ${
                                 i + 1
-                            } doesn't look the same as expected alternative video frame ${
+                            } doesn’t look the same as expected alternative video frame ${
                                 i + 1
                             }, diff image saved to \`bazel-testlogs\``,
                         );
@@ -918,7 +919,7 @@ async function testFileProcessorServiceContentTypeExpectedAlternativeSimilarity(
             }
             default:
                 throw new UnimplementedError(
-                    quote`Similarity test for content type ${expectedAlternative.contentType} hasn't been implemented`,
+                    quote`Similarity test for content type ${expectedAlternative.contentType} hasn’t been implemented`,
                 );
         }
     } catch (error) {
@@ -1056,7 +1057,7 @@ async function testFileProcessorServiceContentTypeExpectedImagePreviewContentSim
         ]);
 
         throw new InternalError(
-            "Actual preview image doesn't look the same as expected preview image, diff image saved to `bazel-testlogs`",
+            "Actual preview image doesn’t look the same as expected preview image, diff image saved to `bazel-testlogs`",
         );
     }
 }
@@ -1075,13 +1076,13 @@ function compareFileImagePreviewPlaceholders(
 
     if (actualPixelGrid.length !== expectedPixelGrid.length) {
         throw new InvalidArgumentError(
-            `Placeholder height doesn't match, actual placeholder: ${actualPlaceholderString}`,
+            `Placeholder height doesn’t match, actual placeholder: ${actualPlaceholderString}`,
         );
     }
 
     if (actualSerializedPixelGrid[0] !== expectedSerializedPixelGrid[0]) {
         throw new InvalidArgumentError(
-            `Placeholder "hasAlphaChannel" doesn't match, actual placeholder: ${actualPlaceholderString}`,
+            `Placeholder \`hasAlphaChannel\` doesn’t match, actual placeholder: ${actualPlaceholderString}`,
         );
     }
 
@@ -1097,7 +1098,7 @@ function compareFileImagePreviewPlaceholders(
 
         if (actualPixelRow.length !== expectedPixelRow.length) {
             throw new InvalidArgumentError(
-                `Placeholder width doesn't match, actual placeholder: ${actualPlaceholderString}`,
+                `Placeholder width doesn’t match, actual placeholder: ${actualPlaceholderString}`,
             );
         }
 
@@ -1126,7 +1127,7 @@ function compareFileImagePreviewPlaceholders(
 
     if (averageDistance >= 4) {
         throw new InvalidArgumentError(
-            `Placeholder pixel doesn't match (average distance = ${averageDistance}), actual placeholder: ${actualPlaceholderString}`,
+            `Placeholder pixel doesn’t match (average distance = ${averageDistance}), actual placeholder: ${actualPlaceholderString}`,
         );
     }
 }

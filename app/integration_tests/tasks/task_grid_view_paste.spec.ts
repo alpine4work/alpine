@@ -1112,7 +1112,7 @@ test("can paste a formatted list and it will create tasks in an already nested t
     ]);
 });
 
-test("can paste a formatted list and it will create tasks in a detail view's subtasks", async ({
+test("can paste a formatted list and it will create tasks in a detail view’s subtasks", async ({
     page,
     context: browserContext,
 }) => {

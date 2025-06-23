@@ -49,7 +49,7 @@ export function validateTracerEventFlatDataForPropagation(
     for (const key of Object.keys(data)) {
         if (!key.startsWith("context."))
             throw new InvalidArgumentError(
-                'Can only propagate event attributes in the "context." attribute namespace',
+                "Can only propagate event attributes in the `context.` attribute namespace",
             );
     }
 }

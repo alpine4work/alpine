@@ -65,7 +65,7 @@ export function createFileIcoImageProcessor(
                     (image1, image2) => image2.width * image2.height - image1.width * image1.height,
                 )[0];
                 if (!bestImage) {
-                    throw new InvalidArgumentError('No images in ".ico" file');
+                    throw new InvalidArgumentError("No images in `.ico` file");
                 }
 
                 return bestImage;

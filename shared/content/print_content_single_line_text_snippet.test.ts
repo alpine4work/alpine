@@ -16,12 +16,14 @@ test("headings collapse onto the same line", () => {
         ]),
         schema.node("heading", {level: 2}, [schema.text("And is followed by another heading.")]),
         schema.node("paragraph", {}, [
+            // eslint-disable-next-line string-quotes
             schema.text('Nice. "This paragraph ends with a quote containing punctuation."'),
         ]),
         schema.node("paragraph", {}, [schema.text("No extra punctuation added")]),
     ]);
 
     expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        // eslint-disable-next-line string-quotes
         'This is a heading: Followed by a paragraph. This is another heading? Except that last heading had punctuation. This paragraph ends with a colon: And is followed by another heading. Nice. "This paragraph ends with a quote containing punctuation." No extra punctuation added',
     );
 });

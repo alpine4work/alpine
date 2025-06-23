@@ -683,7 +683,7 @@ test("layouts file entity, standard image, and tall image", () => {
     ]);
 });
 
-test("layouts file entity in table with a column width that's half the block width", () => {
+test("layouts file entity in table with a column width that’s half the block width", () => {
     expect(
         computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
             maxFileCount: 1,
@@ -694,7 +694,7 @@ test("layouts file entity in table with a column width that's half the block wid
     ).toEqual([{height: 274.588, width: 276, widthFr: 1}]);
 });
 
-test("layouts file entity in table with a column width that's more than half the block width", () => {
+test("layouts file entity in table with a column width that’s more than half the block width", () => {
     expect(
         computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
             maxFileCount: 1,
@@ -714,7 +714,7 @@ test("layouts file entity in table with a column width that's more than half the
     ).toEqual([{height: 192, width: 476, widthFr: 1}]);
 });
 
-test("layouts file entity in table with a column width that's more less than half the block width", () => {
+test("layouts file entity in table with a column width that’s more less than half the block width", () => {
     expect(
         computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
             maxFileCount: 1,
@@ -725,7 +725,7 @@ test("layouts file entity in table with a column width that's more less than hal
     ).toEqual([{height: 242.235, width: 226, widthFr: 1}]);
 });
 
-test("layouts file entity in table with a column width that's more less than a third of the block width", () => {
+test("layouts file entity in table with a column width that’s more less than a third of the block width", () => {
     expect(
         computeContentFileRowLikeLayout([`Document:${generateId<DocumentId>()}`], {
             maxFileCount: 1,

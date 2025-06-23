@@ -7,7 +7,7 @@ const typescriptEslint = require("@typescript-eslint/eslint-plugin");
 const workspacePath = process.cwd();
 
 const runfilesPath = process.env.RUNFILES;
-if (!process.env.RUNFILES) throw new Error('Expected "RUNFILES" environment variable');
+if (!process.env.RUNFILES) throw new Error("Expected `RUNFILES` environment variable");
 
 const eslintTypeCheckingRuleIds = new Set(
     Object.keys(typescriptEslint.configs["disable-type-checked"].rules),

@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 /**
  * The typography styles available in our product.
  *

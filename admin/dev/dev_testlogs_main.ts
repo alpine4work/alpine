@@ -146,7 +146,7 @@ async function main(): Promise<{exitCode: number}> {
 
                     if (!failuresAndErrorsMatch) {
                         throw new InternalError(
-                            quote`Failed to parse "test.xml" file: ${testXmlPath}`,
+                            quote`Failed to parse \`test.xml\` file: ${testXmlPath}`,
                         );
                     }
 

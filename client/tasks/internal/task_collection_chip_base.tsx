@@ -172,6 +172,7 @@ function TaskCollectionChipBase(
                     maxWidth: nameMaxWidth ? spacing[nameMaxWidth] : undefined,
                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                     // for consistency if the user types anything like 2x2 or an @ mention.
+                    // eslint-disable-next-line string-quotes
                     fontFeatureSettings: '"calt" on',
                 }}
             >

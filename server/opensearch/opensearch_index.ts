@@ -296,7 +296,7 @@ export class OpensearchIndex<
 
                 assert(
                     existingAnalyzer === analyzer,
-                    "Can't have two analyzers with the same name in one index",
+                    "Can’t have two analyzers with the same name in one index",
                 );
             },
             addCustomFilter: filter => {
@@ -308,7 +308,7 @@ export class OpensearchIndex<
 
                 assert(
                     existingFilter === filter,
-                    "Can't have two filters with the same name in one index",
+                    "Can’t have two filters with the same name in one index",
                 );
             },
         };

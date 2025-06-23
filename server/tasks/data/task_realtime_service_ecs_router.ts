@@ -197,7 +197,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
 
                 if (!containerInstance) {
                     throw new InternalError(
-                        "Couldn't find `TaskRealtimeService` EC2 task's container instance",
+                        "Couldn’t find `TaskRealtimeService` EC2 task’s container instance",
                     );
                 }
 
@@ -249,7 +249,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
 
                 if (!networkInterface) {
                     throw new InternalError(
-                        "Couldn't find `TaskRealtimeService` EC2 task container instance's network interface",
+                        "Couldn’t find `TaskRealtimeService` EC2 task container instance’s network interface",
                     );
                 }
 
@@ -259,7 +259,7 @@ export class TaskRealtimeServiceEcsRouter extends TaskRealtimeServiceRouterBase 
 
                 if (!publicDnsName) {
                     throw new InternalError(
-                        "Couldn't find `TaskRealtimeService` EC2 task container instance network interface's public DNS name",
+                        "Couldn’t find `TaskRealtimeService` EC2 task container instance network interface’s public DNS name",
                     );
                 }
 

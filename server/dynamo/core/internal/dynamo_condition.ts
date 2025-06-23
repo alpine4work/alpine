@@ -406,7 +406,7 @@ class DynamoConditionAttributeExpression<
         const propertySchema = schema.propertySchemaByKey.get(this._key);
         if (!propertySchema)
             throw new InternalError(
-                quote`Property ${this._key} not found. Is this a partition key or sort range key property? We don't currently support conditions on those properties`,
+                quote`Property ${this._key} not found. Is this a partition key or sort range key property? We don’t currently support conditions on those properties`,
             );
 
         const serializedKey = propertySchema.serializedKey ?? this._key;

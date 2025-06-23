@@ -460,7 +460,7 @@ export class FileClientStore {
                             getContext()
                                 .tracer.getRoot()
                                 .logException(
-                                    "Couldn't refresh expired file preview URL signature",
+                                    "Couldn’t refresh expired file preview URL signature",
                                     error,
                                 );
                         },
@@ -550,7 +550,7 @@ export class FileClientStore {
                             getContext()
                                 .tracer.getRoot()
                                 .logException(
-                                    "Polling for file that hasn't finished loading failed",
+                                    "Polling for file that hasn’t finished loading failed",
                                     error,
                                 );
                         },

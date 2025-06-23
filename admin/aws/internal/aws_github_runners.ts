@@ -287,6 +287,8 @@ export class AwsGithubRunners extends Construct {
             // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
             // environment variable. We add this option to
             // `@cloudsnorkel/cdk-github-runners` through a patch.
+            //
+            // eslint-disable-next-line string-quotes
             userDataExtra: Fn.join("", ['{"jobQueueUrl":"', sqs.getJobQueueUrl(), '"}']),
         });
 
@@ -371,6 +373,8 @@ export class AwsGithubRunners extends Construct {
 
             imageBuilder: deployImageBuilder,
 
+            /* eslint-disable string-quotes */
+
             // Pass parameters to the AWS GitHub workflow through the `USER_DATA_EXTRA`
             // environment variable. We add this option to
             // `@cloudsnorkel/cdk-github-runners` through a patch.
@@ -381,6 +385,8 @@ export class AwsGithubRunners extends Construct {
                 sqs.getFileProcessorJobQueueUrl(),
                 '"}',
             ]),
+
+            /* eslint-enable string-quotes */
         });
 
         const deployRunnerProviderRole: unknown = (deployRunnerProvider as any).role;

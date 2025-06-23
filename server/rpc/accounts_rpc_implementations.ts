@@ -23,7 +23,7 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
             if (input.accountIds.size === 0) {
-                throw new InvalidArgumentError('Must call "getAccounts" with at least one account');
+                throw new InvalidArgumentError("Must call `getAccounts` with at least one account");
             }
 
             const accounts = await runAllPromises(
@@ -41,7 +41,7 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             if (input.accountIds.size === 0) {
                 throw new InvalidArgumentError(
-                    'Must call "getAccountsIfExist" with at least one account',
+                    "Must call `getAccountsIfExist` with at least one account",
                 );
             }
 

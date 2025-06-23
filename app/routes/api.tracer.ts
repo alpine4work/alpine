@@ -23,12 +23,12 @@ export async function action({request, context, span}: LoaderArgs) {
 
             if (typeof event.time !== "number" || !Number.isFinite(event.time) || event.time < 0)
                 throw new InvalidArgumentError(
-                    'Expected each event to have a positive number "time" property',
+                    "Expected each event to have a positive number `time` property",
                 );
 
             if (!isPlainObject(event.data))
                 throw new InvalidArgumentError(
-                    'Expected each event to have a "data" object property',
+                    "Expected each event to have a `data` object property",
                 );
 
             try {
@@ -36,7 +36,7 @@ export async function action({request, context, span}: LoaderArgs) {
 
                 if (event.data["meta.untrusted"] !== true)
                     throw new InvalidArgumentError(
-                        'All events coming from an untrusted client must have the "meta.untrusted" attribute set to true',
+                        "All events coming from an untrusted client must have the `meta.untrusted` attribute set to true",
                     );
 
                 // We may have other untrusted hosts in the future. We validate both the
@@ -44,7 +44,7 @@ export async function action({request, context, span}: LoaderArgs) {
                 // `js.host = "Node"` and be guaranteed to see only trusted events.
                 if (event.data["js.host"] !== "Web")
                     throw new InvalidArgumentError(
-                        'All events coming from an untrusted client must have "js.host" set to an untrusted host',
+                        "All events coming from an untrusted client must have `js.host` set to an untrusted host",
                     );
 
                 // Now that we've validated our event, send it with our root tracer. The root

@@ -278,13 +278,13 @@ export type ValidateAccessPolicyUpdateResult =
     | {
           ok: false;
           reason:
-              | "Can't update access policy unless actor has manage access"
-              | "Can't set new account grant manage generation to be less than or equal to our actor's manage generation"
-              | "Can't change account grant manage generation"
-              | "Can't revoke manage access from an account with a manage generation less than our actor"
-              | "Can't change default grant manage generation"
-              | "Can't set new default grant manage generation to be less than or equal to our actor's manage generation"
-              | "Can't update access policy so that no one has manage access";
+              | "Can’t update access policy unless actor has manage access"
+              | "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation"
+              | "Can’t change account grant manage generation"
+              | "Can’t revoke manage access from an account with a manage generation less than our actor"
+              | "Can’t change default grant manage generation"
+              | "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation"
+              | "Can’t update access policy so that no one has manage access";
       };
 
 /**
@@ -303,7 +303,7 @@ export function validateAccessPolicyUpdate(
         oldAccessPolicy,
     );
     if (actorManageGeneration === null) {
-        return {ok: false, reason: "Can't update access policy unless actor has manage access"};
+        return {ok: false, reason: "Can’t update access policy unless actor has manage access"};
     }
 
     let hasManageAccessLevelAccountGrant = false;
@@ -320,20 +320,20 @@ export function validateAccessPolicyUpdate(
         // 3. Revoking access for a manage generation less than our own
         if (newAccountGrant.level === "Manage" && oldAccountGrant?.level === "Manage") {
             if (newAccountGrant.generation !== oldAccountGrant.generation) {
-                return {ok: false, reason: "Can't change account grant manage generation"};
+                return {ok: false, reason: "Can’t change account grant manage generation"};
             }
         } else if (newAccountGrant.level === "Manage" && oldAccountGrant?.level !== "Manage") {
             if (newAccountGrant.generation <= actorManageGeneration) {
                 return {
                     ok: false,
-                    reason: "Can't set new account grant manage generation to be less than or equal to our actor's manage generation",
+                    reason: "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation",
                 };
             }
         } else if (newAccountGrant.level !== "Manage" && oldAccountGrant?.level === "Manage") {
             if (oldAccountGrant.generation < actorManageGeneration) {
                 return {
                     ok: false,
-                    reason: "Can't revoke manage access from an account with a manage generation less than our actor",
+                    reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
                 };
             }
         }
@@ -350,7 +350,7 @@ export function validateAccessPolicyUpdate(
         ) {
             return {
                 ok: false,
-                reason: "Can't revoke manage access from an account with a manage generation less than our actor",
+                reason: "Can’t revoke manage access from an account with a manage generation less than our actor",
             };
         }
     }
@@ -364,7 +364,7 @@ export function validateAccessPolicyUpdate(
         oldAccessPolicy.defaultGrant?.level === "Manage"
     ) {
         if (newAccessPolicy.defaultGrant.generation !== oldAccessPolicy.defaultGrant.generation) {
-            return {ok: false, reason: "Can't change default grant manage generation"};
+            return {ok: false, reason: "Can’t change default grant manage generation"};
         }
     } else if (
         newAccessPolicy.defaultGrant?.level === "Manage" &&
@@ -373,7 +373,7 @@ export function validateAccessPolicyUpdate(
         if (newAccessPolicy.defaultGrant.generation <= actorManageGeneration) {
             return {
                 ok: false,
-                reason: "Can't set new default grant manage generation to be less than or equal to our actor's manage generation",
+                reason: "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation",
             };
         }
     }
@@ -385,7 +385,7 @@ export function validateAccessPolicyUpdate(
 
     // Make sure someone has manage access in the new access policy.
     if (!hasManageAccessLevel) {
-        return {ok: false, reason: "Can't update access policy so that no one has manage access"};
+        return {ok: false, reason: "Can’t update access policy so that no one has manage access"};
     }
 
     return {ok: true};

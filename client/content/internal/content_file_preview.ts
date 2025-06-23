@@ -29,8 +29,8 @@ import {Reporter} from "~/client/design/reporter.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
-import {fileDottedSvg} from "~/client/icons/file_dotted_svg.js";
-import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
+import {fileDottedIconSvg} from "~/client/icons/file_dotted_icon_svg.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_icon_svg.js";
 import {getPlatformWithoutListening} from "~/client/remix/platform_context.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
 import {
@@ -204,7 +204,7 @@ export function renderContentFilePreview({
 
         unknownHtml.appendChild(
             createSvgHtmlGenerator(
-                fileDottedSvg({
+                fileDottedIconSvg({
                     weight: "light",
                     className: sprinkles({
                         color: "grey-30",
@@ -1048,6 +1048,8 @@ export function getFileImagePreviewRenderingAdjustments(placeholder: FileImagePr
 }
 
 export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewPlaceholder) {
+    /* eslint-disable string-quotes */
+
     const pixelGrid = placeholder.get();
     const pixelGridWidth = pixelGrid[0].length;
     const pixelGridHeight = pixelGrid.length;
@@ -1091,6 +1093,8 @@ export function renderFileImagePreviewPlaceholder(placeholder: FileImagePreviewP
 
     svg += "</g></svg>";
     return svg;
+
+    /* eslint-enable string-quotes */
 }
 
 /**
@@ -1203,6 +1207,8 @@ function renderFileProcessingPreviewPlaceholder(
     pixelGrid: ReadonlyArray<ReadonlyArray<ColorWithShade>>,
     {className = ""}: {className?: string} = {},
 ) {
+    /* eslint-disable string-quotes */
+
     const pixelGridWidth = pixelGrid[0]!.length;
     const pixelGridHeight = pixelGrid.length;
 
@@ -1238,6 +1244,8 @@ function renderFileProcessingPreviewPlaceholder(
 
     svg += "</g></svg>";
     return svg;
+
+    /* eslint-enable string-quotes */
 }
 
 export function addContentFilePreviewBehaviorBase(
@@ -1948,7 +1956,7 @@ export async function handleCopyContentFile(
 
             // Silently error if converting to a blob fails.
             if (!imagePreviewContentBlob) {
-                scheduleUncaughtError(new InternalError("Couldn't convert canvas to blob"));
+                scheduleUncaughtError(new InternalError("Couldn’t convert canvas to blob"));
             }
         } finally {
             document.body.removeChild(canvasElement);
@@ -1999,7 +2007,7 @@ export function handleDownloadContentFile({
     file: FileClientStoreData;
 }) {
     if (file.isUploading) {
-        throw new FailedPreconditionError("File hasn't finished uploading", {
+        throw new FailedPreconditionError("File hasn’t finished uploading", {
             displayMessage: errorDisplayMessage`The file hasn’t finished uploading. Wait a few seconds then try again.`,
         });
     }

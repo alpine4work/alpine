@@ -4335,7 +4335,7 @@ Resources:
     CDKMetadata:
         Type: AWS::CDK::Metadata
         Properties:
-            # Removed "Analytics" property
+            # Removed `Analytics` property
         Metadata:
             aws:cdk:path: CyberworldsLifecycleStack/CDKMetadata/Default
 Outputs:

@@ -1476,7 +1476,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("won't send new notifications for account that loses access to task", async () => {
+        test("won’t send new notifications for account that loses access to task", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1641,7 +1641,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("won't get a notification for a mention if the account doesn't have access to task", async () => {
+        test("won’t get a notification for a mention if the account doesn’t have access to task", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 

@@ -874,7 +874,7 @@ test("snips a single line in the middle of a single paragraph with marks", () =>
     );
 });
 
-test("snips a single line in the middle of a single paragraph with marks and doesn't treat mentions as line breaks", () => {
+test("snips a single line in the middle of a single paragraph with marks and doesn’t treat mentions as line breaks", () => {
     const accountId1 = generateId();
     const accountId2 = generateId();
 

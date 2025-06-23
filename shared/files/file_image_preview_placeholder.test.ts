@@ -116,6 +116,7 @@ test("can go through a serialize, JSON, deserialize, serialize loop", () => {
     const placeholder3 = JSON.stringify(placeholder2);
 
     expect(placeholder3).toEqual(
+        // eslint-disable-next-line string-quotes
         '[false,5,"yNTYzdfbztjcztfbzdba1tnZ2tzc3+Pj4uTl3d7guLSutrKs0M7L0M3IsK2klaerlqqtn7K0o7K1p7K0"]',
     );
 

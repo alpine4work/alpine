@@ -819,8 +819,8 @@ export function TaskDetailView({
                     // match the action.
                     label: showComments ? "Close comments" : "Open comments",
                     pressErrorTitle: showComments
-                        ? "Couldn't close comments"
-                        : "Couldn't open comments",
+                        ? "Couldn’t close comments"
+                        : "Couldn’t open comments",
                     onPress: async () => {
                         // If the user tries to open a task's comments, then make sure the task
                         // is created before we open comments.

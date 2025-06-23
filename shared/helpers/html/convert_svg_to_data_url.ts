@@ -11,6 +11,7 @@ export function convertSvgToDataUrl(svg: string): string {
         .replace(/\?/g, "%3F")
         .replace(/[\t\n\r]/gm, " ")
         .replace(/\s\s+/g, " ")
+        // eslint-disable-next-line string-quotes
         .replace(/"/g, "'")
         .replace(/> </g, "><");
 

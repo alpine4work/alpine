@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {Parser} from "@lezer/common";
 import {highlightTree} from "@lezer/highlight";
 import {createTwoFilesPatch} from "diff";

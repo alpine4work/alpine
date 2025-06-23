@@ -1,7 +1,7 @@
 import {InternalError} from "~/shared/error/error.js";
 
 function cantUpdateFrozenMap(): never {
-    throw new InternalError("Can't update frozen map");
+    throw new InternalError("Can’t update frozen map");
 }
 
 /**

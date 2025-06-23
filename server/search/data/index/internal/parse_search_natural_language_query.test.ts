@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import _Fuse from "fuse.js";
 import {parseSearchNaturalLanguageQuery} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
 import {

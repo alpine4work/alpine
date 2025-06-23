@@ -1448,7 +1448,7 @@ async function actuallyIndexTaskAction(
             if (!oldTask) {
                 throw state.retry(
                     new InternalError(
-                        "Task not found in index, shouldn't be allowed to commit an update action before a create action",
+                        "Task not found in index, shouldn’t be allowed to commit an update action before a create action",
                     ),
                 );
             }
@@ -1503,7 +1503,7 @@ async function actuallyIndexTaskAction(
             if (!oldCollection) {
                 throw state.retry(
                     new InternalError(
-                        "Task collection not found in index, shouldn't be allowed to commit an update action before a create action",
+                        "Task collection not found in index, shouldn’t be allowed to commit an update action before a create action",
                     ),
                 );
             }

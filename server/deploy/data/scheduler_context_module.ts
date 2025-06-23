@@ -79,7 +79,7 @@ export class SchedulerContextModule extends SchedulerContextModuleBase {
         const currentTime = new Date();
 
         if (isDateDefinitelyLessThanWithUncertaintyWindow(time, currentTime)) {
-            throw new InvalidArgumentError("Can't create schedule that executes in the past");
+            throw new InvalidArgumentError("Can’t create schedule that executes in the past");
         }
 
         const timeZone = "Etc/UTC";

@@ -79,6 +79,8 @@ export async function startSqsLocal({
     const awsRegion = "us-east-1";
     const awsAccountId = "local";
 
+    /* eslint-disable string-quotes */
+
     const configContents = [];
 
     configContents.push('include classpath("application.conf")');
@@ -130,6 +132,8 @@ messages-storage {
 }`);
     }
 
+    /* eslint-enable string-quotes */
+
     await fs.writeFile(configPath, configContents.join("\n\n") + "\n");
 
     const subprocess = spawn(javaPath, [`-Dconfig.file=${configPath}`, "-jar", elasticmqJarPath], {
@@ -158,6 +162,7 @@ messages-storage {
                 new CreateQueueCommand({
                     QueueName: "JobQueue",
                     Attributes: {
+                        // eslint-disable-next-line string-quotes
                         RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:JobDeadLetterQueue","maxReceiveCount":"5"}`,
                     },
                 }),
@@ -166,6 +171,7 @@ messages-storage {
                 new CreateQueueCommand({
                     QueueName: "FileProcessorJobQueue",
                     Attributes: {
+                        // eslint-disable-next-line string-quotes
                         RedrivePolicy: `{"deadLetterTargetArn":"arn:aws:sqs:${awsRegion}:${awsAccountId}:FileProcessorJobDeadLetterQueue","maxReceiveCount":"5"}`,
                     },
                 }),

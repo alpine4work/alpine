@@ -1222,7 +1222,7 @@ export async function createChannel(
     await authorizeSpaceAccess(context, spaceId);
 
     if (accessPolicy.urlGrant) {
-        throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
+        throw new InvalidArgumentError("Channels don’t currently support `urlGrant`s");
     }
 
     if (
@@ -1235,7 +1235,7 @@ export async function createChannel(
         ))
     ) {
         throw new InvalidArgumentError(
-            'Account actor must have "Manage" access level on channels they create',
+            "Account actor must have `Manage` access level on channels they create",
         );
     }
 
@@ -1366,7 +1366,7 @@ async function authorizeChannelItemAccessIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "System actor doesn't have access to channel's space",
+                        "System actor doesn’t have access to channel’s space",
                     ),
                 };
             }
@@ -1383,7 +1383,7 @@ async function authorizeChannelItemAccessIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "Impersonated account actor doesn't have access to channel's space",
+                        "Impersonated account actor doesn’t have access to channel’s space",
                     ),
                 };
             }
@@ -1424,7 +1424,7 @@ async function authorizeChannelItemAccessIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        quote`Actor doesn't have ${expectedAccessLevel} access level to channel`,
+                        quote`Actor doesn’t have ${expectedAccessLevel} access level to channel`,
                         {
                             aggregateDedupeKey: channelId,
                             displayMessage:
@@ -1747,7 +1747,7 @@ export function getChannelAndMetadataIfPossible(
                         channelPromiseResolver.reject(result.error);
                     } else {
                         channelPromiseResolver.reject(
-                            new InternalError("Promise resolver wasn't resolved"),
+                            new InternalError("Promise resolver wasn’t resolved"),
                         );
                     }
                 }
@@ -2558,7 +2558,7 @@ async function updateChannelAccessPolicyBase(
                 const newAccessPolicy = updateAccessPolicy(oldAccessPolicy);
 
                 if (newAccessPolicy.urlGrant) {
-                    throw new InvalidArgumentError("Channels don't currently support `urlGrant`s");
+                    throw new InvalidArgumentError("Channels don’t currently support `urlGrant`s");
                 }
 
                 const result = validateAccessPolicyUpdate(
@@ -3717,7 +3717,7 @@ export async function authorizePostAccessIfPossible(
                         return {
                             ok: false,
                             error: new PermissionDeniedError(
-                                "Account doesn't have edit access to post",
+                                "Account doesn’t have edit access to post",
                             ),
                         };
                     }
@@ -4192,7 +4192,7 @@ export function updatePostCommentContent(
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
         if (commentItem.payload.clerical)
-            throw new FailedPreconditionError("Can't update clerical comment content");
+            throw new FailedPreconditionError("Can’t update clerical comment content");
 
         const contentUpdatedTime = new Date(
             Math.max(
@@ -4323,10 +4323,10 @@ export function deletePostComment(
             throw new PermissionDeniedError("Can only delete post comments you authored");
 
         if (commentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can't delete comments with a non-content payload");
+            throw new FailedPreconditionError("Can’t delete comments with a non-content payload");
 
         if (commentItem.payload.clerical)
-            throw new FailedPreconditionError("Can't delete clerical comments");
+            throw new FailedPreconditionError("Can’t delete clerical comments");
 
         const deletedTime = new Date(
             Math.max(
@@ -5139,12 +5139,12 @@ export async function authorizePostDraftAccess(
         case "System": {
             // We don't have a use case for system actions looking at drafts right now. So
             // block it.
-            throw new PermissionDeniedError("System actors can't access post drafts");
+            throw new PermissionDeniedError("System actors can’t access post drafts");
         }
         case "Session":
         case "ImpersonatedAccount": {
             if (accountId !== context.actor.getAccountId()) {
-                throw new PermissionDeniedError("Can't access drafts from other accounts");
+                throw new PermissionDeniedError("Can’t access drafts from other accounts");
             }
             break;
         }

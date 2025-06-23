@@ -7,7 +7,7 @@ import {parseSearchContent} from "~/server/search/data/index/internal/parse_sear
 test("properly highlights content with `<em>` HTML tags", () => {
     expect(
         parseSearchContent(
-            `The <em>word</em> <em>hella</em> was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean "very". Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the <em>word</em> dance in a chorus, so she decided to end each line of "<em>Hella</em> Good"'s chorus with the phrase "keep on dancing".`,
+            `The <em>word</em> <em>hella</em> was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean “very”. Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the <em>word</em> dance in a chorus, so she decided to end each line of “<em>Hella</em> Good”’s chorus with the phrase “keep on dancing”.`,
             {shouldParseEmphasisHtmlTagAsHighlight: true},
         ).toJSON(),
     ).toEqual({
@@ -30,7 +30,7 @@ test("properly highlights content with `<em>` HTML tags", () => {
                     },
                     {
                         type: "text",
-                        text: ' was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean "very". Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the ',
+                        text: " was a slang term used mostly in the San Francisco Bay Area and other parts of California to mean “very”. Having toured in the Bay Area, Stefani borrowed the term to describe her mood. Stefani wanted to use the ",
                     },
                     {
                         type: "text",
@@ -39,14 +39,14 @@ test("properly highlights content with `<em>` HTML tags", () => {
                     },
                     {
                         type: "text",
-                        text: ' dance in a chorus, so she decided to end each line of "',
+                        text: " dance in a chorus, so she decided to end each line of “",
                     },
                     {
                         type: "text",
                         marks: [{type: "highlight", attrs: {color: "orange"}}],
                         text: "Hella",
                     },
-                    {type: "text", text: ' Good"\'s chorus with the phrase "keep on dancing".'},
+                    {type: "text", text: " Good”’s chorus with the phrase “keep on dancing”."},
                 ],
             },
         ],
@@ -340,7 +340,7 @@ test("works when certain nodes have empty text", () => {
     });
 });
 
-test("doesn't parse marks in a code block", () => {
+test("doesn’t parse marks in a code block", () => {
     expect(parseSearchContent("This is a\n```\nfoo**bar**\n```\ncode block").toJSON()).toEqual({
         type: "doc",
         content: [

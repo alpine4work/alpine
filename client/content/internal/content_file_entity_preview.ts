@@ -125,7 +125,7 @@ export function renderContentFileEntityPreview(
             fileEntityResult?.error ??
             getOrSetDefaultMapValue((fallbackErrorByNode ??= new WeakMap()), node, () =>
                 !fileEntityRenderers
-                    ? new InternalError("File entity renderers weren't provided")
+                    ? new InternalError("File entity renderers weren’t provided")
                     : new NotFoundError("File entity not found in content references"),
             );
 
@@ -237,7 +237,7 @@ export function addContentFileEntityPreviewBehavior(
                     () => spaceId,
                     () => emptyContentReferences,
                     () => {
-                        throw new UnimplementedError("Shouldn't need file attachment target");
+                        throw new UnimplementedError("Shouldn’t need file attachment target");
                     },
                 );
 

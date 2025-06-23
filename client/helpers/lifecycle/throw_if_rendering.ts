@@ -15,6 +15,6 @@ export function throwIfRendering() {
     // Maybe we should populate `reactDispatchersSeenDuringRender` from the root
     // component in our app? Or a context provider?
     if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists())) {
-        throw new InternalError("Can't call this function while React is rendering");
+        throw new InternalError("Can’t call this function while React is rendering");
     }
 }

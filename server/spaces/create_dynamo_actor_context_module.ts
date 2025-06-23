@@ -27,13 +27,13 @@ export async function createDynamoActorContextModule(
     spaceId: SpaceId,
 ): Promise<DynamoActorContextModule> {
     const authorizationHeader = requestHeaders.get("authorization");
-    if (!authorizationHeader) throw new UnauthenticatedError('Expected an "Authorization" header');
+    if (!authorizationHeader) throw new UnauthenticatedError("Expected an `Authorization` header");
 
     const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
 
     if (!authorizationHeaderMatch) {
         throw new InvalidArgumentError(
-            'Expected "Authorization" header to have "Bearer" authentication scheme',
+            "Expected `Authorization` header to have `Bearer` authentication scheme",
         );
     }
 
@@ -66,7 +66,7 @@ export async function createDynamoActorContextModule(
         }
         case "System": {
             if (spaceId !== authorizationHeaderPayload.spaceId) {
-                throw new PermissionDeniedError("System actor doesn't have access to space");
+                throw new PermissionDeniedError("System actor doesn’t have access to space");
             }
             return DynamoSystemActorContextModule.dangerouslyNew(
                 serviceName,

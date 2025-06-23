@@ -274,7 +274,7 @@ test("must be authorized to access space to upload", async () => {
     });
     expect(responseBody).toEqual({
         ok: false,
-        error: new PermissionDeniedError("Account doesn't have access to space"),
+        error: new PermissionDeniedError("Account doesn’t have access to space"),
     });
 });
 
@@ -294,7 +294,7 @@ test("must use POST method to upload route", async () => {
     });
     expect(responseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError('Must use "POST" method'),
+        error: new InvalidArgumentError("Must use `POST` method"),
     });
 });
 
@@ -315,7 +315,7 @@ test("must provide Content-Type header to upload route", async () => {
     });
     expect(responseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError('"Content-Type" header is required'),
+        error: new InvalidArgumentError("`Content-Type` header is required"),
     });
 });
 
@@ -340,7 +340,7 @@ test("must provide a valid Content-Type header to upload route", async () => {
     });
     expect(responseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError('Unsupported "Content-Type" header "application/example"'),
+        error: new InvalidArgumentError("Unsupported `Content-Type` header `application/example`"),
     });
 });
 
@@ -397,6 +397,8 @@ Content-Length: 33102\r\n\
 
     await socketClosePromise;
 
+    /* eslint-disable string-quotes */
+
     expect(
         socketText
             .replace(/^Date: .*?\r\n/m, "")
@@ -413,6 +415,8 @@ chunk\r\n\
 chunk\r\n\
 \r\n\
 `);
+
+    /* eslint-enable string-quotes */
 
     const match = assertExists(socketText.match(/,"file":\{"id":"([^"]*)"/m));
     const fileId = assertId<FileId>(match[1]!);
@@ -437,7 +441,7 @@ chunk\r\n\
     );
 });
 
-test("can't upload data with a Content-Length header that's too big", async () => {
+test("can’t upload data with a Content-Length header that’s too big", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -494,6 +498,8 @@ Content-Length: ${requestBody.length}\r\n\
         }
     }
 
+    /* eslint-disable string-quotes */
+
     expect(
         socketText
             .replace(/^Date: .*?\r\n/m, "")
@@ -506,17 +512,19 @@ Connection: close\r\n\
 Transfer-Encoding: chunked\r\n\
 \r\n\
 chunk\r\n\
-{"ok":false,"error":{"code":3,"message":"\\"Content-Length\\" of 2 GB is more than our maximum file size of 1 GB","name":"InvalidArgumentError","stack":"..."}}\r\n\
+{"ok":false,"error":{"code":3,"message":"\`Content-Length\` of 2 GB is more than our maximum file size of 1 GB","name":"InvalidArgumentError","stack":"..."}}\r\n\
 chunk\r\n\
 \r\n\
 `);
+
+    /* eslint-enable string-quotes */
 });
 
 // `http.createServer()` should truncate for us when we write more bytes than
 // what's in `Content-Length`. But we want to make sure this happens with a
 // test so we don't accidentally let attackers upload larger files then what
 // we allow.
-test("if more data is written than what's in Content-Length server truncates the content and only processes the truncated content", async () => {
+test("if more data is written than what’s in Content-Length server truncates the content and only processes the truncated content", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -652,6 +660,8 @@ Content-Length: 33102\r\n\
 
     await socketClosePromise;
 
+    /* eslint-disable string-quotes */
+
     expect(
         socketText
             .replace(/^Date: .*?\r\n/m, "")
@@ -662,9 +672,11 @@ HTTP/1.1 400 Bad Request\r\n\
 Connection: close\r\n\
 \r\n\
 `);
+
+    /* eslint-enable string-quotes */
 });
 
-test("can observe file while it's being uploaded", async () => {
+test("can observe file while it’s being uploaded", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -740,6 +752,8 @@ Content-Length: 33102\r\n\
 
     await socketClosePromise;
 
+    /* eslint-disable string-quotes */
+
     expect(
         socketText
             .replace(/^Date: .*?\r\n/m, "")
@@ -756,6 +770,8 @@ chunk\r\n\
 chunk\r\n\
 \r\n\
 `);
+
+    /* eslint-enable string-quotes */
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -777,7 +793,7 @@ chunk\r\n\
     );
 });
 
-test("can't process invalid image data", async () => {
+test("can’t process invalid image data", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -836,7 +852,7 @@ test("can't process invalid image data", async () => {
     );
 });
 
-test("can't process image with the wrong content type", async () => {
+test("can’t process image with the wrong content type", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1079,7 +1095,7 @@ test("can upload image with a provided id", async () => {
     );
 });
 
-test("can't upload image with the same provided id twice", async () => {
+test("can’t upload image with the same provided id twice", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 

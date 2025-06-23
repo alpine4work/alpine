@@ -133,6 +133,7 @@ export function SpaceLayoutWebMobileTabBar({
                 // To avoid a flash where the wrong tab is selected, we have a script that runs
                 // before initial render to add a class which will render the right tab as
                 // selected from `sessionStorage`.
+                /* eslint-disable string-quotes */
                 script={() =>
                     safe`var tabBar = document.currentScript.parentNode; var classNames = {${safeJoin(
                         Object.entries(spaceLayoutStyles.selectedClassNameByTab).map(
@@ -146,6 +147,7 @@ export function SpaceLayoutWebMobileTabBar({
                         space.id,
                     )}") || "").slice(1, -1)] || classNames.Home) + " " + tabBar.className`
                 }
+                /* eslint-enable string-quotes */
             />
             <SpaceLayoutWebMobileTabBarButton
                 tab="Home"

@@ -9,7 +9,7 @@ export class NoopEmailContextModule extends EmailContextModuleBase {
     protected async _send(): Promise<void> {
         if (process.env.NODE_ENV === "production")
             throw new DataLossError(
-                "Can not use `NoopEmailContextModule` in production since user's won't get their emails",
+                "Can not use `NoopEmailContextModule` in production since user’s won’t get their emails",
             );
     }
 

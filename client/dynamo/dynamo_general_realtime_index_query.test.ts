@@ -3116,7 +3116,7 @@ test("can load more at the end of a query that overlaps a bit with the previous 
     ]);
 });
 
-test("can load more at the end in a way that doesn't overlap with the last query", () => {
+test("can load more at the end in a way that doesn’t overlap with the last query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",
@@ -3423,7 +3423,7 @@ test("can load more at the start of a query that overlaps a bit with the previou
     ]);
 });
 
-test("can load more at the start in a way that doesn't overlap with the last query", () => {
+test("can load more at the start in a way that doesn’t overlap with the last query", () => {
     let query = DynamoGeneralRealtimeIndexQuery.new({
         readTime: new Date(),
         indexName: "Test",

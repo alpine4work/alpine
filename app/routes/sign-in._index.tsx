@@ -66,7 +66,7 @@ export async function action({request, context}: LoaderArgs) {
         const emailAddress = formData.get("emailAddress");
 
         if (typeof emailAddress !== "string")
-            throw new InvalidArgumentError('Expected property "emailAddress" in form data');
+            throw new InvalidArgumentError("Expected property `emailAddress` in form data");
 
         await regenerateOneTimePasswordSignIn(
             context,

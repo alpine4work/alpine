@@ -55,7 +55,7 @@ async function main(): Promise<{exitCode: number}> {
         if (!isProcessExitErrorWithCode(error, 1)) {
             throw error;
         } else {
-            process.stdout.write("Commit isn't in main branch.\n");
+            process.stdout.write("Commit isn’t in main branch.\n");
 
             return {exitCode: 1};
         }
@@ -123,7 +123,7 @@ async function main(): Promise<{exitCode: number}> {
             ]);
 
             process.stdout.write(
-                "Commit isn't deployed, but it's scheduled to be deployed later.\n",
+                "Commit isn’t deployed, but it’s scheduled to be deployed later.\n",
             );
 
             if (deploy.scheduledDeployment.nextDeployableTime !== null) {
@@ -179,7 +179,7 @@ async function main(): Promise<{exitCode: number}> {
         }
     }
 
-    process.stdout.write("Commit isn't deployed.\n");
+    process.stdout.write("Commit isn’t deployed.\n");
     return {exitCode: 1};
 }
 

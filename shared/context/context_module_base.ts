@@ -42,7 +42,7 @@ export class ContextModuleBase<
 
     protected get _context(): Context<Modules> {
         throw new InternalError(
-            "Can't access the context property until this context module is bound to a context object",
+            "Can’t access the context property until this context module is bound to a context object",
         );
     }
 

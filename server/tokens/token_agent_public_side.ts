@@ -253,7 +253,7 @@ export class TokenAgentPublicSide {
         const signature = url.searchParams.get("sig");
         const signatureParts = signature?.split(".", 3);
         if (signatureParts?.length !== 3)
-            throw new InvalidArgumentError('URL "sig" search param is invalid');
+            throw new InvalidArgumentError("URL `sig` search param is invalid");
 
         const originalUrl = new URL(url);
         originalUrl.searchParams.delete("exp");

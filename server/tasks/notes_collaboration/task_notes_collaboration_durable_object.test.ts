@@ -47,7 +47,7 @@ test("can connect to a task in a public collection", async () => {
     await connectForTest(context.action(session2), task.id);
 });
 
-test("can't connect to a task that doesn't exist", async () => {
+test("can’t connect to a task that doesn’t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -56,7 +56,7 @@ test("can't connect to a task that doesn't exist", async () => {
     );
 });
 
-test("can't connect to a task in a different space", async () => {
+test("can’t connect to a task in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -72,7 +72,7 @@ test("can't connect to a task in a different space", async () => {
     );
 });
 
-test("can't connect to a task in a private collection", async () => {
+test("can’t connect to a task in a private collection", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -86,7 +86,7 @@ test("can't connect to a task in a private collection", async () => {
     );
 });
 
-test("can't connect to a task in a different space after durable object has been initialized", async () => {
+test("can’t connect to a task in a different space after durable object has been initialized", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -104,7 +104,7 @@ test("can't connect to a task in a different space after durable object has been
     );
 });
 
-test("can't connect to a task in a private collection after durable object has been initialized", async () => {
+test("can’t connect to a task in a private collection after durable object has been initialized", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -120,7 +120,7 @@ test("can't connect to a task in a private collection after durable object has b
     );
 });
 
-test("can update a task's notes", async () => {
+test("can update a task’s notes", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -204,7 +204,7 @@ test("can update a task's notes", async () => {
     ]);
 });
 
-test("can update a task's notes with out-of-order updates", async () => {
+test("can update a task’s notes with out-of-order updates", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -288,7 +288,7 @@ test("can update a task's notes with out-of-order updates", async () => {
     ]);
 });
 
-test("can't update a task's notes with out-of-order updates if our durable object doesn't remember enough steps", async () => {
+test("can’t update a task’s notes with out-of-order updates if our durable object doesn’t remember enough steps", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -325,7 +325,7 @@ test("can't update a task's notes with out-of-order updates if our durable objec
     expect(connection2.takeEvents()).toEqual([]);
 });
 
-test("can update a task's notes when our durable object doesn't remember earlier steps", async () => {
+test("can update a task’s notes when our durable object doesn’t remember earlier steps", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -441,7 +441,7 @@ test("can backfill task notes steps our durable object remembers", async () => {
     expect(connection2.takeEvents()).toEqual([]);
 });
 
-test("can't backfill task notes steps our durable object doesn't remember", async () => {
+test("can’t backfill task notes steps our durable object doesn’t remember", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -518,7 +518,7 @@ test("can current task notes version", async () => {
     expect(connection2.takeEvents()).toEqual([]);
 });
 
-test("can backfill task note steps but can't update if you only have view access", async () => {
+test("can backfill task note steps but can’t update if you only have view access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();

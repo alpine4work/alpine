@@ -266,7 +266,7 @@ export async function approveAlphaAccessRequest(
 
     const {defaultSpaceId} = await getAlphaConfiguration(context);
     if (!defaultSpaceId)
-        throw new InternalError('Expected alpha configuration to include "defaultSpaceId"');
+        throw new InternalError("Expected alpha configuration to include `defaultSpaceId`");
 
     const requestItem = await AlphaAccessTable.getItemIfExists(context, {
         partitionType: "AlphaAccessRequests",

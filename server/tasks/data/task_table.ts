@@ -1303,7 +1303,7 @@ export function commitTaskActionTransaction(
         // In our local environment, before committing make sure task indexes exist.
         // That way:
         //
-        // 1. If there's an error creating task indexes it prevents actions from being
+        // 1. If there’s an error creating task indexes it prevents actions from being
         //    committed
         // 2. There are no timeout warnings when processing task actions after they're
         //    committed (since ensuring task indexes may take a while)
@@ -1320,7 +1320,7 @@ export function commitTaskActionTransaction(
             )
         ) {
             throw new FailedPreconditionError(
-                "Can only provide `updateAccessPolicyShareNotification` if there's an `UpdateAccessPolicy` action in the transaction",
+                "Can only provide `updateAccessPolicyShareNotification` if there’s an `UpdateAccessPolicy` action in the transaction",
             );
         }
 
@@ -1632,7 +1632,7 @@ class TaskActionTransactionCommitState {
 
                     assert(
                         forkedState._afterCommitActions.length === 0,
-                        "Can't register after commit callbacks for lease actions since we don't commit lease actions when creating the lease",
+                        "Can’t register after commit callbacks for lease actions since we don’t commit lease actions when creating the lease",
                     );
                 } catch (error) {
                     if (error instanceof PermissionDeniedError) {
@@ -1654,11 +1654,11 @@ class TaskActionTransactionCommitState {
 
                         assert(
                             testState._afterCommitActions.length === 0,
-                            "Can't register after commit callbacks for lease actions since we don't commit lease actions when creating the lease",
+                            "Can’t register after commit callbacks for lease actions since we don’t commit lease actions when creating the lease",
                         );
                     } catch (error) {
                         if (error instanceof PermissionDeniedError) {
-                            throw PermissionDeniedError.from(error, "Couldn't apply lease actions");
+                            throw PermissionDeniedError.from(error, "Couldn’t apply lease actions");
                         } else {
                             throw error;
                         }
@@ -1964,7 +1964,7 @@ class TaskActionTransactionCommitState {
                 break;
             case "DirectlyUpdateItem":
             case "DirectlyUpdateItemLockVersion":
-                throw new FailedPreconditionError("Can't update a task before it's created");
+                throw new FailedPreconditionError("Can’t update a task before it’s created");
             default:
                 throw exhaustive(transactionEntry.action);
         }
@@ -2138,7 +2138,7 @@ class TaskActionTransactionCommitState {
                 break;
             case "DirectlyUpdateItem":
             case "AtomicallyUpdateItemAttributes":
-                throw new FailedPreconditionError("Can't update a collection before it's created");
+                throw new FailedPreconditionError("Can’t update a collection before it’s created");
             default:
                 throw exhaustive(transactionEntry);
         }
@@ -2556,7 +2556,7 @@ async function actuallyCommitTaskActionTransaction(
 
                                         if (taskId === taskAction.parentTaskId) {
                                             throw new FailedPreconditionError(
-                                                "Updating task's `parentTaskId` would create a circular dependency",
+                                                "Updating task’s `parentTaskId` would create a circular dependency",
                                                 {
                                                     displayMessage:
                                                         circularTaskDependencyErrorDisplayMessage,
@@ -2599,7 +2599,7 @@ async function actuallyCommitTaskActionTransaction(
                                                 )
                                             ) {
                                                 throw new FailedPreconditionError(
-                                                    "Updating task's `parentTaskId` would create a circular dependency",
+                                                    "Updating task’s `parentTaskId` would create a circular dependency",
                                                     {
                                                         displayMessage:
                                                             circularTaskDependencyErrorDisplayMessage,
@@ -2758,7 +2758,7 @@ async function actuallyCommitTaskActionTransaction(
                                 }
 
                                 if (taskItem.parentTaskId.value === null) {
-                                    throw new FailedPreconditionError("Task doesn't have a parent");
+                                    throw new FailedPreconditionError("Task doesn’t have a parent");
                                 }
 
                                 const parentTaskItem = await state.getTaskItem(
@@ -2992,7 +2992,7 @@ async function actuallyCommitTaskActionTransaction(
                                     ))
                                 ) {
                                     throw new FailedPreconditionError(
-                                        "Can't assign a task to an account outside of the current space",
+                                        "Can’t assign a task to an account outside of the current space",
                                     );
                                 }
 
@@ -3038,13 +3038,13 @@ async function actuallyCommitTaskActionTransaction(
 
                                 if (taskItem.assigneeId.value !== state.getActorAccountId()) {
                                     throw new PermissionDeniedError(
-                                        "Can only update the task's assignee position if you are the task's assignee",
+                                        "Can only update the task’s assignee position if you are the task’s assignee",
                                     );
                                 }
 
                                 if (taskAction.accountId !== state.getActorAccountId()) {
                                     throw new PermissionDeniedError(
-                                        "Must use the actor `AccountId` when updating the task's assignee position",
+                                        "Must use the actor `AccountId` when updating the task’s assignee position",
                                     );
                                 }
                                 break;
@@ -3067,7 +3067,7 @@ async function actuallyCommitTaskActionTransaction(
                             case "UpdateNotepadPagePosition":
                             case "UpdateAssigneeActivePosition": {
                                 throw new InvalidArgumentError(
-                                    quote`Can't commit deprecated task action type ${action.taskAction.type}`,
+                                    quote`Can’t commit deprecated task action type ${action.taskAction.type}`,
                                 );
                             }
                             default:
@@ -3119,7 +3119,7 @@ async function actuallyCommitTaskActionTransaction(
                             ))
                         ) {
                             throw new InvalidArgumentError(
-                                'Must have the "Manage" access level on a collection you create',
+                                "Must have the `Manage` access level on a collection you create",
                             );
                         }
 
@@ -3362,7 +3362,7 @@ async function actuallyCommitTaskActionTransaction(
             }
             case "UpdateNotepadPage": {
                 throw new InvalidArgumentError(
-                    quote`Can't commit deprecated action type ${action.type}`,
+                    quote`Can’t commit deprecated action type ${action.type}`,
                 );
             }
             default:
@@ -3780,7 +3780,7 @@ export function duplicateTaskAndAllChildren(
                     if (childTask.type !== "Authorized") return;
                     if (childTask.task.getParent()?.taskId !== currentTaskId) return;
 
-                    // There's an edge case / race condition where we could produce a cycle. If so,
+                    // There’s an edge case / race condition where we could produce a cycle. If so,
                     // just ignore the child task and break the cycle.
                     // There is an incredibly small chance where  we would try to fetch the same
                     // task multiple times AFTER this check. We don't handle that here.
@@ -4245,7 +4245,7 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "System actor doesn't have access to task collection's space",
+                        "System actor doesn’t have access to task collection’s space",
                     ),
                 };
             }
@@ -4262,7 +4262,7 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "Impersonated account actor doesn't have access to task collection's space",
+                        "Impersonated account actor doesn’t have access to task collection’s space",
                     ),
                 };
             }
@@ -4300,7 +4300,7 @@ async function authorizeTaskCollectionItemAccessAllowingDeletedTasksIfPossibleFo
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        quote`Actor doesn't have ${expectedAccessLevel} access level to task collection`,
+                        quote`Actor doesn’t have ${expectedAccessLevel} access level to task collection`,
                         {
                             aggregateDedupeKey: collectionItem.collectionId,
                             displayMessage:
@@ -4647,7 +4647,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "System actor doesn't have access to task's space",
+                        "System actor doesn’t have access to task’s space",
                     ),
                 };
             }
@@ -4661,7 +4661,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "Impersonated account actor doesn't have access to task's space",
+                        "Impersonated account actor doesn’t have access to task’s space",
                     ),
                 };
             }
@@ -4762,7 +4762,7 @@ async function authorizeTaskItemAccessAllowingDeletedTasksIfPossibleForActor(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        quote`Actor doesn't have ${expectedAccessLevel} access level to task`,
+                        quote`Actor doesn’t have ${expectedAccessLevel} access level to task`,
                         {
                             aggregateDedupeKey: taskItem.taskId,
                             displayMessage:
@@ -5104,7 +5104,7 @@ export function updateTaskCommentContent(
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
         if (taskCommentItem.payload.clerical)
-            throw new FailedPreconditionError("Can't update clerical comment content");
+            throw new FailedPreconditionError("Can’t update clerical comment content");
 
         const contentUpdatedTime = new Date(
             Math.max(
@@ -5194,10 +5194,10 @@ export function deleteTaskComment(
             throw new PermissionDeniedError("Can only delete task comments you authored");
 
         if (taskCommentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can't delete comments with a non-content payload");
+            throw new FailedPreconditionError("Can’t delete comments with a non-content payload");
 
         if (taskCommentItem.payload.clerical)
-            throw new FailedPreconditionError("Can't delete clerical comments");
+            throw new FailedPreconditionError("Can’t delete clerical comments");
 
         const deletedTime = new Date(
             Math.max(
@@ -6519,7 +6519,7 @@ export async function getTaskNotesContent(
  * It's important that task note updating should be solely managed by the
  * `TaskNotesCollaborationService` Durable Object. If you get an incorrect
  * version error, we don't know what steps you're missing since we don't keep
- * track of old steps (unlike document content). There's no way to recover!
+ * track of old steps (unlike document content). There’s no way to recover!
  */
 export function updateTaskNotesContent(
     context: TaskSessionActionContext,
@@ -6597,7 +6597,7 @@ export function updateTaskNotesContent(
                 for (const step of steps) {
                     const stepResult = step.apply(content);
                     if (!stepResult.doc)
-                        throw new FailedPreconditionError("Couldn't apply step to content");
+                        throw new FailedPreconditionError("Couldn’t apply step to content");
 
                     assert(isTaskNotesContent(stepResult.doc));
                     content = stepResult.doc;
@@ -6621,7 +6621,7 @@ export function updateTaskNotesContent(
                 for (const step of steps) {
                     const stepResult = step.apply(content);
                     if (!stepResult.doc)
-                        throw new FailedPreconditionError("Couldn't apply step to content");
+                        throw new FailedPreconditionError("Couldn’t apply step to content");
 
                     assert(isTaskNotesContent(stepResult.doc));
                     content = stepResult.doc;
@@ -6635,7 +6635,7 @@ export function updateTaskNotesContent(
                 };
             }
 
-            // If a task's notes changed and there's a lease, invalidate the lease so the
+            // If a task's notes changed and there’s a lease, invalidate the lease so the
             // account who owns the lease can't see changes to a task they shouldn't have
             // access to.
             if (taskItem.validLeaseId === null) {

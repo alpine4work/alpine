@@ -54,7 +54,7 @@ function TaskRowCollectionsCellOverlay(
 ) {
     const portalElement = assertExists(
         useOverlayPortalElement(),
-        "Can't server render `<TaskRowCollectionsCellOverlay>`",
+        "Can’t server render `<TaskRowCollectionsCellOverlay>`",
     );
 
     const innerRef = useRef<HTMLDivElement>(null);

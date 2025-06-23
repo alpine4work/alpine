@@ -27,14 +27,14 @@ export class TestEmptyCloudflareR2Client implements CloudflareR2ClientBase {
     }
 
     public PutObject(): Promise<never> {
-        throw new InternalError("Can't update R2 with empty test client");
+        throw new InternalError("Can’t update R2 with empty test client");
     }
 
     public DeleteObject(): Promise<never> {
-        throw new InternalError("Can't update R2 with empty test client");
+        throw new InternalError("Can’t update R2 with empty test client");
     }
 
     public getGetObjectSignedUrl(): Promise<never> {
-        throw new InternalError("Can't sign R2 URL with empty test client");
+        throw new InternalError("Can’t sign R2 URL with empty test client");
     }
 }

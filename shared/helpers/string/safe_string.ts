@@ -157,6 +157,7 @@ export function safeFlatObjectString(
     for (const [key, value] of Object.entries(object)) {
         let safeValue;
         if (typeof value === "string") {
+            // eslint-disable-next-line string-quotes
             safeValue = safeJoin([safe`"`, safeObjectEntryString(value), safe`"`], safe``);
         } else if (typeof value === "number") {
             safeValue = safeNumber(value);
@@ -165,6 +166,7 @@ export function safeFlatObjectString(
         }
 
         const safeKey = safeObjectEntryString(key);
+        // eslint-disable-next-line string-quotes
         const entry = safeJoin([safe`"`, safeKey, safe`": `, safeValue], safe``);
         entries.push(entry);
     }

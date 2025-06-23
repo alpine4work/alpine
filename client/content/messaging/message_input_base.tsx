@@ -1547,6 +1547,7 @@ function MessageInputReplyingToMessage<
                                 minHeight: messageViewParentLineHeightPx[spacingScale],
                                 lineHeight: `${messageViewParentLineHeightPx[spacingScale]}px`,
                                 // Allow contextual alternate glyphs in regular text content.
+                                // eslint-disable-next-line string-quotes
                                 fontFeatureSettings: '"calt" on',
                                 // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                                 // except IE.

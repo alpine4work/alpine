@@ -49,7 +49,7 @@ export class ContentFileProcessorError
                 throw exhaustive(error);
         }
 
-        super("Couldn't process file", {
+        super("Couldn’t process file", {
             displayMessage,
             cause: error,
         });

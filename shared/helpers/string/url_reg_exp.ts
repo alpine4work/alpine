@@ -1,4 +1,4 @@
-/* eslint-disable no-useless-concat */
+/* eslint-disable no-useless-concat, string-quotes */
 
 /**
  * NOTE(calebmer, 2023-01-24): This file is adapted from the Android open

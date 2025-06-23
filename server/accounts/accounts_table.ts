@@ -515,7 +515,7 @@ export async function getAccountByIdAsAdmin(
     // Calling `getAccount(unknownAccountId)` should always fail with a not
     // found error.
     if (accountId === unknownAccountId)
-        throw new NotFoundError("Unknown account is treated as if it doesn't exist");
+        throw new NotFoundError("Unknown account is treated as if it doesn’t exist");
 
     const accountItem = await AccountsTable.getItem(context, {
         partitionType: "Account",
@@ -1320,7 +1320,7 @@ export async function deleteAccountAppleDeviceTokenIfExists(
         case "ImpersonatedAccount": {
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError(
-                    "Can't delete device token for a different account",
+                    "Can’t delete device token for a different account",
                 );
             }
             break;

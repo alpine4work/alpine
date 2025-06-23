@@ -13,7 +13,7 @@ import {cornersInIconSvg} from "~/client/icons/corners_in_icon_svg.js";
 import {cornersOutIconSvg} from "~/client/icons/corners_out_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {playIconSvg} from "~/client/icons/play_icon_svg.js";
-import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_icon_svg.js";
 import {
     contentFileVideoPlayerStyles,
     spinAnimationClassName,
@@ -327,7 +327,7 @@ export function addContentFileVideoPlayerBehavior(
                     } else {
                         document.exitFullscreen().catch(error => {
                             getReporter().logErrorWithoutDisplaying(
-                                "Couldn't exit video fullscreen",
+                                "Couldn’t exit video fullscreen",
                                 error,
                             );
                         });

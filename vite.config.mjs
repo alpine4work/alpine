@@ -6,9 +6,9 @@ export default defineConfig(({mode}) => {
     // https://vitejs.dev/guide/env-and-mode.html#node-env-and-modes
     if (process.env.NODE_ENV !== mode) {
         throw new Error(
-            `"NODE_ENV" environment variable (${JSON.stringify(
+            `\`NODE_ENV\` environment variable (${JSON.stringify(
                 process.env.NODE_ENV,
-            )}) does not equal Vite "mode" (${JSON.stringify(mode)})`,
+            )}) does not equal Vite \`mode\` (${JSON.stringify(mode)})`,
         );
     }
 

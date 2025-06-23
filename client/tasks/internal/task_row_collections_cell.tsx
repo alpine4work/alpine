@@ -414,6 +414,7 @@ function TaskRowCollectionsCell(
                         {displayCollections.length > previewDisplayCollections.length && (
                             <div
                                 className={extraCollectionsClassName}
+                                // eslint-disable-next-line string-quotes
                                 style={{fontFeatureSettings: '"calt"'}}
                             >
                                 {`+${displayCollections.length - 2}`}

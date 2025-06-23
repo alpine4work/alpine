@@ -172,7 +172,7 @@ try {
 
         if (!failed) {
             // eslint-disable-next-line no-console
-            console.error(new InternalError("Process could set it's uid back to root user"));
+            console.error(new InternalError("Process could set it’s uid back to root user"));
             process.exit(1);
         }
     }

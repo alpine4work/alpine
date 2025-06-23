@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import escapeHTML from "escape-html";
 
 export const fileAudioIconSvg = ({

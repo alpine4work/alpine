@@ -84,7 +84,7 @@ export function useShareState(
         // prevent invalid changes like this but it's nice to catch errors like this
         // early.
         if (isReadOnly || !props) {
-            throw new InternalError("Can't update access policy when share button is read only");
+            throw new InternalError("Can’t update access policy when share button is read only");
         }
 
         if (!currentAccount) return;
@@ -192,22 +192,22 @@ export function useShareState(
 
             switch (validationResult.reason) {
                 // Noop if we get here and the actor doesn't have manage access.
-                case "Can't update access policy unless actor has manage access": {
+                case "Can’t update access policy unless actor has manage access": {
                     return;
                 }
 
                 // It shouldn't be possible for the share overlay component to create one of
                 // these changes. So throw an internal error if we see one of these reasons.
-                case "Can't set new account grant manage generation to be less than or equal to our actor's manage generation":
-                case "Can't change account grant manage generation":
-                case "Can't set new default grant manage generation to be less than or equal to our actor's manage generation":
-                case "Can't change default grant manage generation": {
+                case "Can’t set new account grant manage generation to be less than or equal to our actor’s manage generation":
+                case "Can’t change account grant manage generation":
+                case "Can’t set new default grant manage generation to be less than or equal to our actor’s manage generation":
+                case "Can’t change default grant manage generation": {
                     throw new InternalError(
                         `Share overlay made an invalid change: ${validationResult.reason}`,
                     );
                 }
 
-                case "Can't revoke manage access from an account with a manage generation less than our actor": {
+                case "Can’t revoke manage access from an account with a manage generation less than our actor": {
                     title = `Can’t change ${
                         changedAccountName ? `${changedAccountName}’s` : "their"
                     } permissions`;
@@ -222,7 +222,7 @@ export function useShareState(
                     break;
                 }
 
-                case "Can't update access policy so that no one has manage access": {
+                case "Can’t update access policy so that no one has manage access": {
                     title = "Can’t remove everyone who can change permissions";
                     description = `If you ${changeDescription} then there won’t be anyone who can change permissions of the ${entityNoun} anymore. Try adding more people with “${props.accessLevelText.Manage}” access.`;
                     break;

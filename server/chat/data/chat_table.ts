@@ -1338,12 +1338,12 @@ async function authorizeChatAccessForAccountAndReturnItemsIfPossible(
     if (!actorChatAccountItem) {
         return {
             ok: false,
-            error: new PermissionDeniedError("Session actor account doesn't have access to chat"),
+            error: new PermissionDeniedError("Session actor account doesn’t have access to chat"),
         };
     }
 
     if (!chatAccountItem) {
-        return {ok: false, error: new PermissionDeniedError("Account doesn't have access to chat")};
+        return {ok: false, error: new PermissionDeniedError("Account doesn’t have access to chat")};
     }
 
     return {ok: true, value: {chatItem, chatAccountItem}};
@@ -1571,7 +1571,7 @@ async function createChatModelFromItems(
         case "ImpersonatedAccount": {
             const sessionAccountId = context.actor.getAccountId();
             if (!accounts.some(account => account.id === sessionAccountId))
-                throw new PermissionDeniedError("Account doesn't have access to chat");
+                throw new PermissionDeniedError("Account doesn’t have access to chat");
             break;
         }
         case "System":
@@ -1674,7 +1674,7 @@ export async function getChatAccountIds(
         case "ImpersonatedAccount": {
             const sessionAccountId = context.actor.getAccountId();
             if (!accountIds.some(accountId => accountId === sessionAccountId))
-                throw new PermissionDeniedError("Account doesn't have access to chat");
+                throw new PermissionDeniedError("Account doesn’t have access to chat");
             break;
         }
         case "System":
@@ -1813,7 +1813,7 @@ export function updateChatMessageContent(
             throw new FailedPreconditionError("Can not chat messages with a non-content payload");
 
         if (chatMessageItem.payload.clerical)
-            throw new FailedPreconditionError("Can't update clerical message content");
+            throw new FailedPreconditionError("Can’t update clerical message content");
 
         const contentUpdatedTime = new Date(
             Math.max(
@@ -1903,10 +1903,10 @@ export function deleteChatMessage(
             throw new PermissionDeniedError("Can only delete messages you authored");
 
         if (chatMessageItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can't delete messages with a non-content payload");
+            throw new FailedPreconditionError("Can’t delete messages with a non-content payload");
 
         if (chatMessageItem.payload.clerical)
-            throw new FailedPreconditionError("Can't delete clerical messages");
+            throw new FailedPreconditionError("Can’t delete clerical messages");
 
         const deletedTime = new Date(
             Math.max(

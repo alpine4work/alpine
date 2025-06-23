@@ -350,7 +350,7 @@ export class TaskDetailNotesContentEditorWebSocketClient {
 
                         this._getContext()
                             .tracer.getRoot()
-                            .logException("Couldn't update content after disconnect", error);
+                            .logException("Couldn’t update content after disconnect", error);
 
                         // Next time we send updates, we'll silently retry updating content if another
                         // `updateContent()` call hasn't happened in the meantime.

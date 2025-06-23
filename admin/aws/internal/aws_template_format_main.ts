@@ -39,7 +39,7 @@ async function main() {
                 )
                 .replace(
                     /^ {12}Analytics: v2:deflate64:.*/m,
-                    '            # Removed "Analytics" property',
+                    "            # Removed `Analytics` property",
                 );
 
             await fs.writeFile(

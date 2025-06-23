@@ -138,7 +138,7 @@ test("can make second column in a two column table smaller when table width is l
     });
 });
 
-test("can't make second column in a two column table smaller when table width is the same as block width", () => {
+test("can’t make second column in a two column table smaller when table width is the same as block width", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(697, {
             startX: 1043,
@@ -159,7 +159,7 @@ test("can't make second column in a two column table smaller when table width is
     });
 });
 
-test("can't make first column in a two column table smaller if it means the second column would be over the max width", () => {
+test("can’t make first column in a two column table smaller if it means the second column would be over the max width", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(431, {
             startX: 499,
@@ -572,7 +572,7 @@ test("can make second column in a two column table smaller when table width is l
     });
 });
 
-test("can't make second column in a two column table smaller when table width is the same as block width (without snapping)", () => {
+test("can’t make second column in a two column table smaller when table width is the same as block width (without snapping)", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(697, {
             startX: 1043,
@@ -597,7 +597,7 @@ test("can't make second column in a two column table smaller when table width is
     });
 });
 
-test("can't make first column in a two column table smaller if it means the second column would be over the max width (without snapping)", () => {
+test("can’t make first column in a two column table smaller if it means the second column would be over the max width (without snapping)", () => {
     expect(
         getContentTableColumnResizeDraggingStateNewColumnWidths(431, {
             startX: 499,

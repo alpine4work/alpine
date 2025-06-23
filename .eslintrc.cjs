@@ -123,6 +123,7 @@ module.exports = {
         "sort-imports-by-source": "warn",
         "no-internal-imports": "error",
         "no-commit-blockers": "warn",
+        "string-quotes": "warn",
 
         // TODO(calebmer): Write eslint rule that detects when you have `await`s that
         // could be parallelized with `Promise.all()`.
@@ -542,15 +543,23 @@ module.exports = {
                             ...baseNoRestrictedImports.paths,
                             {
                                 name: "~/client/styles/internal/styles.js",
-                                message: "Can't import style bundle from `.css.ts` file",
+                                message: "Can’t import style bundle from `.css.ts` file",
                             },
                             {
                                 name: "~/client/styles/styles.js",
-                                message: "Can't import style bundle from `.css.ts` file",
+                                message: "Can’t import style bundle from `.css.ts` file",
                             },
                         ],
                     },
                 ],
+            },
+        },
+        {
+            files: ["client/styles/**/*.css.ts"],
+            rules: {
+                // `.css.ts` files need to use quotes in strings a lot for CSS selectors and we
+                // don't really create UI strings in CSS files.
+                "string-quotes": "off",
             },
         },
     ],

@@ -953,7 +953,7 @@ class SpaceAccountsCache {
 
                     if (!account) {
                         throw new DataLossError(
-                            "Space account item exists but account item doesn't",
+                            "Space account item exists but account item doesn’t",
                         );
                     }
 
@@ -1179,7 +1179,7 @@ export async function authorizeSpaceAccess(
         }
         case "System": {
             if (context.actor.getSpaceId() !== spaceId) {
-                throw new PermissionDeniedError("System actor doesn't have access to space", {
+                throw new PermissionDeniedError("System actor doesn’t have access to space", {
                     aggregateDedupeKey: spaceId,
                 });
             }
@@ -1188,7 +1188,7 @@ export async function authorizeSpaceAccess(
         case "ImpersonatedAccount": {
             if (context.actor.getSpaceId() !== spaceId) {
                 throw new PermissionDeniedError(
-                    "Impersonated account actor doesn't have access to space",
+                    "Impersonated account actor doesn’t have access to space",
                     {aggregateDedupeKey: spaceId},
                 );
             }
@@ -1219,7 +1219,7 @@ export function createAuthorizeSpaceAccessPermissionDeniedError(
     spaceId: SpaceId,
     accountId: AccountId,
 ) {
-    return new PermissionDeniedError("Account doesn't have access to space", {
+    return new PermissionDeniedError("Account doesn’t have access to space", {
         aggregateDedupeKey: `${spaceId}:${accountId}`,
         displayMessage: spaceAccessPermissionDeniedErrorDisplayMessage,
     });
@@ -1275,7 +1275,7 @@ export async function authorizeSpaceAccessIfPossible(
                         // When this function is called, frequently we only check `ok`. So lazily
                         // create an error only when needed.
                         error ??= new PermissionDeniedError(
-                            "System actor doesn't have access to space",
+                            "System actor doesn’t have access to space",
                             {aggregateDedupeKey: spaceId},
                         );
                         return error;
@@ -1296,7 +1296,7 @@ export async function authorizeSpaceAccessIfPossible(
                         // When this function is called, frequently we only check `ok`. So lazily
                         // create an error only when needed.
                         error ??= new PermissionDeniedError(
-                            "Impersonated account actor doesn't have access to space",
+                            "Impersonated account actor doesn’t have access to space",
                             {aggregateDedupeKey: spaceId},
                         );
                         return error;
@@ -1355,7 +1355,7 @@ export async function authorizeOwnAccountAccess(
             // System actors can see devices for any account in their space.
             if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
                 throw new PermissionDeniedError(
-                    "Can't access account that's not in the system actor's space",
+                    "Can’t access account that’s not in the system actor’s space",
                 );
             }
             break;
@@ -1364,7 +1364,7 @@ export async function authorizeOwnAccountAccess(
         case "ImpersonatedAccount": {
             if (context.actor.getAccountId() !== accountId) {
                 throw new PermissionDeniedError(
-                    "Can't access account that's not the session actor's",
+                    "Can’t access account that’s not the session actor’s",
                 );
             }
             break;
@@ -1417,7 +1417,7 @@ export async function impersonateAccountAsSystemContext<
     // impersonate it.
     if (!(await isAccountMemberOfSpace(context, context.actor.getSpaceId(), accountId))) {
         throw new PermissionDeniedError(
-            "Can't impersonate account that's not a member of system actor's space",
+            "Can’t impersonate account that’s not a member of system actor’s space",
         );
     }
 
@@ -1680,7 +1680,7 @@ async function getAccountIfExistsWithoutAuthorization(
             // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
             // our account table.
             if (!account) {
-                throw new DataLossError("Space account item exists but account item doesn't");
+                throw new DataLossError("Space account item exists but account item doesn’t");
             }
 
             return createAccountModelFromItem(spaceAccountItem, account);
@@ -1725,7 +1725,7 @@ export async function getAccount(
     const account = await getAccountIfExists(context, spaceId, accountId, options);
 
     if (!account) {
-        throw new NotFoundError("Can't find account in space", {
+        throw new NotFoundError("Can’t find account in space", {
             displayMessage: errorDisplayMessage`This person doesn’t exist. Try searching “all people” to see who else is here.`,
         });
     }

@@ -248,7 +248,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                                                 throw ErrorSchema.deserialize(body.error);
                                             } else {
                                                 throw new UnknownError(
-                                                    "Couldn't apply task action transaction",
+                                                    "Couldn’t apply task action transaction",
                                                 );
                                             }
                                         }
@@ -464,7 +464,7 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         input: TaskRealtimeLoadQueriesInput,
     ): Promise<TaskRealtimeLoadQueriesOutput> {
         throw new UnimplementedError(
-            "`TestTaskContextModule.loadQueries()` can't be implemented in unit tests because we don't run `TaskRealtimeService` in unit tests",
+            "`TestTaskContextModule.loadQueries()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
         );
     }
 
@@ -475,7 +475,7 @@ export class TestTaskContextModule extends TaskContextModuleBase {
             }>,
     ): Promise<SchemaType<typeof TaskRealtimeGetTaskWithoutDependenciesOutputSchema>> {
         throw new UnimplementedError(
-            "`TestTaskContextModule.getTaskWithoutDependencies()` can't be implemented in unit tests because we don't run `TaskRealtimeService` in unit tests",
+            "`TestTaskContextModule.getTaskWithoutDependencies()` can’t be implemented in unit tests because we don’t run `TaskRealtimeService` in unit tests",
         );
     }
 }

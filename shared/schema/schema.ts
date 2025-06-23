@@ -1677,10 +1677,11 @@ export class ValueSchema<Value extends ValueSchemaValueBase> extends Schema<Valu
             }),
             serialize: () => serializedValue,
             deserialize: actualValue => {
-                if (!Object.is(actualValue, serializedValue))
+                if (!Object.is(actualValue, serializedValue)) {
                     throw new SchemaDeserializationError(
-                        `Expected value to be ${JSON.stringify(serializedValue)}`,
+                        quote`Expected value to be ${serializedValue}`,
                     );
+                }
                 return value;
             },
             validate: null,
@@ -1831,7 +1832,7 @@ export class UnionSchema<Value> extends Schema<Value> {
                     const typePropertySchema = schema.propertySchemaByKey.get(deserializedTypeKey);
                     assert(
                         typePropertySchema?.valueSchema instanceof ValueSchema,
-                        quote`Expected value schema for union variant\'s ${deserializedTypeKey} property`,
+                        quote`Expected value schema for union variant’s ${deserializedTypeKey} property`,
                     );
 
                     const actualType = typePropertySchema.valueSchema.value;
@@ -1847,7 +1848,7 @@ export class UnionSchema<Value> extends Schema<Value> {
                     );
                     assert(
                         actualType === type,
-                        quote`Expected value schema for union variant\'s ${deserializedTypeKey} property to be ${type}`,
+                        quote`Expected value schema for union variant’s ${deserializedTypeKey} property to be ${type}`,
                     );
                 }
 
@@ -3147,7 +3148,7 @@ class InterfaceSchemaInstanceBase {
 
         if (schema !== this._schema) {
             throw new InternalError(
-                "Can't deserialize `InterfaceSchemaInstance` with different schemas",
+                "Can’t deserialize `InterfaceSchemaInstance` with different schemas",
             );
         }
 

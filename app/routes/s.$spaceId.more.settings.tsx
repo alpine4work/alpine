@@ -16,7 +16,7 @@ export function meta() {
 
 export default function MobileSpaceSettingsRoute() {
     if (process.env.NODE_ENV === "production")
-        throw new UnimplementedError("Shouldn't be able to open settings in production");
+        throw new UnimplementedError("Shouldn’t be able to open settings in production");
 
     const platform = usePlatform();
     const {space} = useSpaceContextAndRequireSpaceAccess();
@@ -39,7 +39,7 @@ export default function MobileSpaceSettingsRoute() {
                     withBorderTop
                     icon={<BuildingsIcon />}
                     label="General"
-                    pressErrorTitle="Couldn't open general settings"
+                    pressErrorTitle="Couldn’t open general settings"
                     onPress={async () => {
                         await rootNavigate(`/s/${space.id}/settings/general`);
                     }}
@@ -47,7 +47,7 @@ export default function MobileSpaceSettingsRoute() {
                 <MobileSettingsRow
                     icon={<Users />}
                     label="People"
-                    pressErrorTitle="Couldn't open people settings"
+                    pressErrorTitle="Couldn’t open people settings"
                     onPress={async () => {
                         await rootNavigate(`/s/${space.id}/settings/people`);
                     }}

@@ -181,14 +181,14 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
         case "System": {
             // Allowing a system actor to load our app would be very dangerous! Since
             // system actors have read/write access to everything in the space.
-            throw new PermissionDeniedError("Can't load the application with a system actor");
+            throw new PermissionDeniedError("Can’t load the application with a system actor");
         }
 
         case "ImpersonatedAccount": {
             // Allowing a system actor to load our app would be dangerous! Since a system
             // actor can pretend to be any arbitrary account in the space.
             throw new PermissionDeniedError(
-                "Can't load the application with an impersonated account actor",
+                "Can’t load the application with an impersonated account actor",
             );
         }
 
@@ -475,13 +475,13 @@ export default function SpaceLayoutRoute() {
                             error => {
                                 context.tracer
                                     .getRoot()
-                                    .logException("Couldn't save iOS device token", error);
+                                    .logException("Couldn’t save iOS device token", error);
                             },
                         );
                     }
                 },
                 error => {
-                    context.tracer.getRoot().logException("Couldn't take iOS device tokens", error);
+                    context.tracer.getRoot().logException("Couldn’t take iOS device tokens", error);
                 },
             );
         };

@@ -35,7 +35,7 @@ import {Schema} from "~/shared/schema/schema.js";
 const feedEntryBlockMaxEntryCount = 10;
 
 const FeedCandidateEntrySchema = FeedEntrySchema.validation(
-    "Welcome feed entry isn't allowed as feed candidate entry",
+    "Welcome feed entry isn’t allowed as feed candidate entry",
     (entry): entry is Exclude<FeedEntry, {type: "Welcome"}> => entry.type !== "Welcome",
 );
 
@@ -346,7 +346,7 @@ export async function addFeedCandidateEntry(
     await authorizeSpaceAccess(context, spaceId);
 
     if (entry.type === "Welcome") {
-        throw new InvalidArgumentError("Can't add welcome feed entry as a feed candidate entry");
+        throw new InvalidArgumentError("Can’t add welcome feed entry as a feed candidate entry");
     }
 
     await context.dynamo.retryTransaction(async context => {
@@ -444,7 +444,7 @@ export async function addFeedAccountCandidateEntry(
 
     if (entry.type === "Welcome") {
         throw new InvalidArgumentError(
-            "Can't add welcome feed entry as a feed account candidate entry",
+            "Can’t add welcome feed entry as a feed account candidate entry",
         );
     }
 

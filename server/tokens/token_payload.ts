@@ -60,10 +60,10 @@ export const TokenPayloadSchema = Schema.object({
             }
 
             if (!payload.sid)
-                throw new InvalidArgumentError('Token payload is missing required "sid" claim');
+                throw new InvalidArgumentError("Token payload is missing required `sid` claim");
 
             if (!payload.aid)
-                throw new InvalidArgumentError('Token payload is missing required "aid" claim');
+                throw new InvalidArgumentError("Token payload is missing required `aid` claim");
 
             return {
                 type: "Session",

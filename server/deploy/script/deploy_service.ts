@@ -49,17 +49,17 @@ export async function run({
         cloudflareAccountId,
     } = options;
 
-    if (commitSha === undefined) throw new InvalidArgumentError('"commitSha" option is required');
+    if (commitSha === undefined) throw new InvalidArgumentError("`commitSha` option is required");
     if (workflowRunIdString === undefined || !/^[0-9]+$/.test(workflowRunIdString))
-        throw new InvalidArgumentError('"workflowRunId" integer option is required');
+        throw new InvalidArgumentError("`workflowRunId` integer option is required");
     if (workflowRunNumberString === undefined || !/^[0-9]+$/.test(workflowRunNumberString))
-        throw new InvalidArgumentError('"workflowRunNumber" integer option is required');
+        throw new InvalidArgumentError("`workflowRunNumber` integer option is required");
     if (workflowRunAttemptString === undefined || !/^[0-9]+$/.test(workflowRunAttemptString))
-        throw new InvalidArgumentError('"workflowRunAttempt" integer option is required');
+        throw new InvalidArgumentError("`workflowRunAttempt` integer option is required");
     if (cloudflareAccountId === undefined)
-        throw new InvalidArgumentError('"cloudflareAccountId" option is required');
+        throw new InvalidArgumentError("`cloudflareAccountId` option is required");
     if (cloudflareWorkersToken === undefined)
-        throw new InvalidArgumentError('"cloudflareWorkersToken" option is required');
+        throw new InvalidArgumentError("`cloudflareWorkersToken` option is required");
 
     const workflowRunId = parseInt(workflowRunIdString, 10);
     const workflowRunNumber = parseInt(workflowRunNumberString, 10);

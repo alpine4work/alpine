@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.js";
 

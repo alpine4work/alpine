@@ -16,6 +16,7 @@ type Command = (
 ) => boolean;
 
 function getPunctuation(
+    // eslint-disable-next-line string-quotes
     punctuation: "(" | "{" | "[" | '"' | "'",
     isInCodeBlock: boolean,
 ): {openingPunctuation: string; closingPunctuation: string} {
@@ -29,10 +30,12 @@ function getPunctuation(
                 return {openingPunctuation: "{", closingPunctuation: "}"};
             case "[":
                 return {openingPunctuation: "[", closingPunctuation: "]"};
+            /* eslint-disable string-quotes */
             case '"':
                 return {openingPunctuation: '"', closingPunctuation: '"'};
             case "'":
                 return {openingPunctuation: "'", closingPunctuation: "'"};
+            /* eslint-enable string-quotes */
             default:
                 throw exhaustive(punctuation);
         }
@@ -44,10 +47,12 @@ function getPunctuation(
                 return {openingPunctuation: "{", closingPunctuation: "}"};
             case "[":
                 return {openingPunctuation: "[", closingPunctuation: "]"};
+            /* eslint-disable string-quotes */
             case '"':
                 return {openingPunctuation: "“", closingPunctuation: "”"};
             case "'":
                 return {openingPunctuation: "‘", closingPunctuation: "’"};
+            /* eslint-enable string-quotes */
             default:
                 throw exhaustive(punctuation);
         }
@@ -57,6 +62,7 @@ function getPunctuation(
 let nextSelectionTrackerKey = 1;
 
 function wrapWithPunctuation(
+    // eslint-disable-next-line string-quotes
     punctuation: "(" | "{" | "[" | '"' | "'",
     {withoutAutoBalancing = false}: {withoutAutoBalancing?: boolean} = {},
 ): Command {
@@ -140,6 +146,7 @@ function wrapWithPunctuation(
  * selection moves outside of the punctuation we'll insert their closing
  * punctuation as normal.
  */
+// eslint-disable-next-line string-quotes
 function skipClosingPunctuation(punctuation: "(" | "{" | "[" | '"' | "'"): Command {
     return (state, dispatch) => {
         const {$from, $to} = state.selection;
@@ -177,6 +184,8 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
     keys.set("]", skipClosingPunctuation("["));
     keys.set("}", skipClosingPunctuation("{"));
 
+    /* eslint-disable string-quotes */
+
     // You open and close quotes with the same character. Chain the commands
     // together.
     keys.set('"', chainCommands(skipClosingPunctuation('"'), wrapWithPunctuation('"')));
@@ -191,6 +200,8 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
             withoutAutoBalancing: true,
         }),
     );
+
+    /* eslint-enable string-quotes */
 
     const backspaceCommand: Command = (state, dispatch) => {
         const {$from, $to} = state.selection;
@@ -207,6 +218,7 @@ export function addSharedContentEditorKeymapCommands(keys: Map<string, Command>)
             text === "()" ||
             text === "[]" ||
             text === "{}" ||
+            // eslint-disable-next-line string-quotes
             text === '""' ||
             text === "“”"
             // Since we don't auto-balance single quotes (to avoid confusing them with

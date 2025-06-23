@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import escapeHtml from "escape-html";
 import {FileDotted} from "phosphor-react";
 
@@ -10,7 +12,7 @@ import {FileDotted} from "phosphor-react";
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 FileDotted;
 
-export const fileDottedSvg = ({
+export const fileDottedIconSvg = ({
     className = "",
     weight = "regular",
 }: {className?: string; weight?: "light" | "bold" | "regular"} = {}) =>

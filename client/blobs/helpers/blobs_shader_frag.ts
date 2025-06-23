@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {glsl} from "~/client/helpers/gl/glsl.js";
 
 export const blobFactoryShaderFragSource = glsl`#version 300 es

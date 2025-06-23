@@ -260,7 +260,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                     for (const call of callBatch) {
                         if (!call.outputPromiseResolver.isSettled()) {
                             call.outputPromiseResolver.reject(
-                                new InternalError("Batch request didn't include output for call"),
+                                new InternalError("Batch request didn’t include output for call"),
                             );
                         }
                     }

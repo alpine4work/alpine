@@ -896,7 +896,7 @@ export async function createDocument(
         ))
     ) {
         throw new InvalidArgumentError(
-            'Account actor must have "Manage" access level on documents they create',
+            "Account actor must have `Manage` access level on documents they create",
         );
     }
 
@@ -1178,7 +1178,7 @@ async function authorizeDocumentItemAccessIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "System actor doesn't have access to document's space",
+                        "System actor doesn’t have access to document’s space",
                     ),
                 };
             }
@@ -1195,7 +1195,7 @@ async function authorizeDocumentItemAccessIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        "Impersonated account actor doesn't have access to document's space",
+                        "Impersonated account actor doesn’t have access to document’s space",
                     ),
                 };
             }
@@ -1234,7 +1234,7 @@ async function authorizeDocumentItemAccessIfPossible(
                 return {
                     ok: false,
                     error: new PermissionDeniedError(
-                        quote`Actor doesn't have ${expectedAccessLevel} access level to document`,
+                        quote`Actor doesn’t have ${expectedAccessLevel} access level to document`,
                         {
                             displayMessage:
                                 documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel[
@@ -2595,7 +2595,7 @@ export class DocumentContentCacheForUpdate {
 
                     if (entry.version > nullableAttributes.version) {
                         throw new InternalError(
-                            "We've cached document content that has a version number ahead of what's in the database",
+                            "We’ve cached document content that has a version number ahead of what’s in the database",
                         );
                     }
                 }
@@ -3171,7 +3171,7 @@ export async function updateDocumentContent(
 
         const internalDocument = await cache.getAndCacheDocument(context, documentId);
         if (!internalDocument)
-            throw new NotFoundError("Can not update document that doesn't exist");
+            throw new NotFoundError("Can not update document that doesn’t exist");
 
         let expectedAccessLevel: AccessLevel = "Edit";
 
@@ -3278,7 +3278,7 @@ export async function updateDocumentContent(
         // know this update intended to update the access policy.
         if (!intentionallyUpdateAccessPolicy && hasAccessPolicyChanged) {
             throw new PermissionDeniedError(
-                "Can't update the document's access policy unless `intentionallyUpdateAccessPolicy` is provided",
+                "Can’t update the document’s access policy unless `intentionallyUpdateAccessPolicy` is provided",
             );
         }
 
@@ -3291,7 +3291,7 @@ export async function updateDocumentContent(
             !isDeepEqual(intentionallyUpdateAccessPolicy.accessPolicy, newAccessPolicy)
         ) {
             throw new PermissionDeniedError(
-                "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
+                "The document’s new access policy doesn’t match `intentionallyUpdateAccessPolicy`",
             );
         }
 
@@ -3839,7 +3839,7 @@ export async function updateDocumentContent(
                             }),
                     );
                     if (!commentThreadItem)
-                        throw new NotFoundError("Couldn't find document comment thread");
+                        throw new NotFoundError("Couldn’t find document comment thread");
 
                     // If the comment thread is already resolved, then we don't want to remove the
                     // `ranges` in the resolution state. So leave the comment thread alone. We do
@@ -3895,7 +3895,7 @@ export async function updateDocumentContent(
                             }),
                     );
                     if (!commentThreadItem)
-                        throw new NotFoundError("Couldn't find document comment thread");
+                        throw new NotFoundError("Couldn’t find document comment thread");
 
                     if (commentThreadItem.resolutionState.type === "Unresolved") {
                         transaction.push(
@@ -5363,7 +5363,7 @@ export function updateDocumentCommentContent(
             throw new FailedPreconditionError("Can not update comments with a non-content payload");
 
         if (commentItem.payload.clerical)
-            throw new FailedPreconditionError("Can't update clerical comment content");
+            throw new FailedPreconditionError("Can’t update clerical comment content");
 
         const contentUpdatedTime = new Date(
             Math.max(
@@ -5478,10 +5478,10 @@ export function deleteDocumentComment(
             throw new PermissionDeniedError("Can only delete comments you authored");
 
         if (commentItem.payload.type !== "Content")
-            throw new FailedPreconditionError("Can't delete comments with a non-content payload");
+            throw new FailedPreconditionError("Can’t delete comments with a non-content payload");
 
         if (commentItem.payload.clerical)
-            throw new FailedPreconditionError("Can't delete clerical comments");
+            throw new FailedPreconditionError("Can’t delete clerical comments");
 
         const deletedTime = new Date(
             Math.max(
@@ -5640,7 +5640,7 @@ export async function getDocumentCommentThreadAndInitialComments(
     const {commentThread, initialComments, initialOtherReferencedComments} =
         await getDocumentCommentThreadAndInitialCommentsIfExists(context, input);
 
-    if (!commentThread) throw new NotFoundError("Couldn't find document comment thread");
+    if (!commentThread) throw new NotFoundError("Couldn’t find document comment thread");
 
     return {commentThread, initialComments, initialOtherReferencedComments};
 }

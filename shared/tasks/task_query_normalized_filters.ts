@@ -152,7 +152,7 @@ const TaskQueryCollectionsNormalizedFilterSchema = Schema.array(
             for (const term of filterClause.keys()) {
                 if (term !== "IsEmpty" && !isId(term)) {
                     throw new SchemaDeserializationError(
-                        'Expected map keys to either be a `TaskCollectionId` or the string "IsEmpty"',
+                        "Expected map keys to either be a `TaskCollectionId` or the string `IsEmpty`",
                     );
                 }
             }
@@ -263,7 +263,7 @@ const TaskQueryAccountNormalizedFilterAccountIdsSchema = Schema.set(Schema.strin
         for (const accountId of accountIds) {
             if (accountId !== "MissingAccount" && !isId(accountId)) {
                 throw new SchemaDeserializationError(
-                    'Expected set values to either be an `AccountId` or the string "MissingAccount"',
+                    "Expected set values to either be an `AccountId` or the string `MissingAccount`",
                 );
             }
         }

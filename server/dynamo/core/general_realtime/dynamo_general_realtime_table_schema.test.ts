@@ -142,7 +142,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -164,7 +164,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -465,7 +465,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -487,7 +487,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -598,7 +598,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -619,7 +619,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -780,7 +780,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -802,7 +802,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -904,7 +904,7 @@ test("can delete and undelete items", async () => {
             ),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -929,7 +929,7 @@ test("can delete and undelete items", async () => {
             ),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -1123,7 +1123,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -1145,7 +1145,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -1363,7 +1363,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -1385,7 +1385,7 @@ test("can delete and undelete items", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -1771,7 +1771,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -1793,7 +1793,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -2084,7 +2084,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -2106,7 +2106,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -2214,7 +2214,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -2232,7 +2232,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -2384,7 +2384,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -2406,7 +2406,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -2504,7 +2504,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ),
         ).toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -2525,7 +2525,7 @@ test("can delete and undelete items (with transactions)", async () => {
             ),
         ).toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -2704,7 +2704,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -2726,7 +2726,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -2937,7 +2937,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionA", sort range type: "SortRangeA1")',
+                "Deleted items are disabled (partition type: `PartitionA`, sort range type: `SortRangeA1`)",
             ),
         );
 
@@ -2959,7 +2959,7 @@ test("can delete and undelete items (with transactions)", async () => {
             }),
         ).rejects.toThrow(
             new InternalError(
-                'Deleted items are disabled (partition type: "PartitionB", sort range type: "SortRangeB1")',
+                "Deleted items are disabled (partition type: `PartitionB`, sort range type: `SortRangeB1`)",
             ),
         );
 
@@ -3210,7 +3210,7 @@ test("can delete and undelete items (with transactions)", async () => {
     }
 });
 
-test("can update a property that's in an index's partition key and a put event will show up in the old query's backfill", async () => {
+test("can update a property that’s in an index’s partition key and a put event will show up in the old query’s backfill", async () => {
     import.meta.jest.useFakeTimers();
 
     try {
@@ -3641,7 +3641,7 @@ test("can update a property that's in an index's partition key and a put event w
     }
 });
 
-test("can delete an item with a property in an index's partition key that can be updated and a delete event will show up in the old query's backfill", async () => {
+test("can delete an item with a property in an index’s partition key that can be updated and a delete event will show up in the old query’s backfill", async () => {
     import.meta.jest.useFakeTimers();
 
     try {
@@ -3985,7 +3985,7 @@ test("can delete an item with a property in an index's partition key that can be
     }
 });
 
-test("can update a property that's in an index's partition key and a put event will show up in the old query's backfill (with transactions)", async () => {
+test("can update a property that’s in an index’s partition key and a put event will show up in the old query’s backfill (with transactions)", async () => {
     import.meta.jest.useFakeTimers();
 
     try {
@@ -4421,7 +4421,7 @@ test("can update a property that's in an index's partition key and a put event w
     }
 });
 
-test("can delete an item with a property in an index's partition key that can be updated and a delete event will show up in the old query's backfill (with transactions)", async () => {
+test("can delete an item with a property in an index’s partition key that can be updated and a delete event will show up in the old query’s backfill (with transactions)", async () => {
     import.meta.jest.useFakeTimers();
 
     try {

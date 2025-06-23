@@ -243,7 +243,7 @@ test("creating a post will create a feed candidate", async () => {
     ]);
 });
 
-test("private channels don't add feed candidates until made public", async () => {
+test("private channels don’t add feed candidates until made public", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -726,7 +726,7 @@ test("making a public document adds a feed candidate entry fifteen minutes later
     ]);
 });
 
-test("private task collections don't add feed candidates until made public fifteen minutes later", async () => {
+test("private task collections don’t add feed candidates until made public fifteen minutes later", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -934,7 +934,7 @@ test("private task collections don't add feed candidates until made public fifte
     );
 });
 
-test("private task collections don't add feed candidates until made public immediately if there are many tasks", async () => {
+test("private task collections don’t add feed candidates until made public immediately if there are many tasks", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -2564,7 +2564,7 @@ test("get and update feed gets new entries every call", async () => {
     });
 });
 
-test("won't add entries to feed account doesn't have access to", async () => {
+test("won’t add entries to feed account doesn’t have access to", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
 

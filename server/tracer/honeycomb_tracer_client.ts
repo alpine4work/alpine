@@ -184,7 +184,7 @@ export class HoneycombTracerClient {
 
         if (response.status !== 201) {
             throw new UnknownError(
-                `Couldn't create Honeycomb marker${
+                `Couldn’t create Honeycomb marker${
                     isObject(body) && typeof body.error === "string" ? `: ${body.error}` : ""
                 } (status code: ${response.status})`,
             );

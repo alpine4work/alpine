@@ -182,6 +182,7 @@ export function PostContentView({
         // need to apply our scroll after that.
         scheduleMicrotask(() => {
             const fileElement = contentContainerElement.querySelector(
+                // eslint-disable-next-line string-quotes
                 `[data-pos="${fileNodePos}"]`,
             );
             if (!fileElement) return;
@@ -486,8 +487,8 @@ function PostContentViewFooter({
                     onPress={() => {
                         reporter.displayError(
                             "Can’t like post",
-                            new UnimplementedError("Liking posts hasn't been implemented yet", {
-                                displayMessage: errorDisplayMessage`Liking posts hasn't been implemented yet.`,
+                            new UnimplementedError("Liking posts hasn’t been implemented yet", {
+                                displayMessage: errorDisplayMessage`Liking posts hasn’t been implemented yet.`,
                             }),
                         );
                     }}

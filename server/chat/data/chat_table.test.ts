@@ -399,7 +399,7 @@ test("can send message to self", async () => {
     });
 });
 
-test("can not get messages in a chat you don't have access to", async () => {
+test("can not get messages in a chat you don’t have access to", async () => {
     const scenario = await createScenario();
 
     const message1 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
@@ -423,7 +423,7 @@ test("can not get messages in a chat you don't have access to", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 
     const message2 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
@@ -448,7 +448,7 @@ test("can not get messages in a chat you don't have access to", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 
     const message3 = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
         spaceId: scenario.spaceA.id,
@@ -470,7 +470,7 @@ test("can not get messages in a chat you don't have access to", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 });
 
 test("can reply to message by sending to account", async () => {
@@ -555,7 +555,7 @@ test("can reply to message by sending to account", async () => {
     });
 });
 
-test("can't send messages to an account that doesn't exist", async () => {
+test("can’t send messages to an account that doesn’t exist", async () => {
     const scenario = await createScenario();
 
     await expect(
@@ -565,10 +565,10 @@ test("can't send messages to an account that doesn't exist", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new NotFoundError("Can't find account in space"));
+    ).rejects.toThrow(new NotFoundError("Can’t find account in space"));
 });
 
-test("can't send messages to accounts in a different space", async () => {
+test("can’t send messages to accounts in a different space", async () => {
     const scenario = await createScenario();
 
     await expect(
@@ -578,7 +578,7 @@ test("can't send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new NotFoundError("Can't find account in space"));
+    ).rejects.toThrow(new NotFoundError("Can’t find account in space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionA1), {
@@ -587,7 +587,7 @@ test("can't send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
@@ -596,7 +596,7 @@ test("can't send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new NotFoundError("Can't find account in space"));
+    ).rejects.toThrow(new NotFoundError("Can’t find account in space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
@@ -605,7 +605,7 @@ test("can't send messages to accounts in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
 });
 
 test("can not send messages to self in a different space", async () => {
@@ -618,7 +618,7 @@ test("can not send messages to self in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
 
     await expect(
         sendChatMessageToAccounts(context.action(scenario.sessionB1), {
@@ -627,7 +627,7 @@ test("can not send messages to self in a different space", async () => {
             parentMessageIndex: null,
             content: content1,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
 });
 
 test("can send message to account in multiple spaces", async () => {
@@ -984,7 +984,7 @@ test("anyone the message was sent to can read the message", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 
     await expect(
         getChatMessagesFromStart(context.action(scenario.sessionX3), {
@@ -993,7 +993,7 @@ test("anyone the message was sent to can read the message", async () => {
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 });
 
 test("can reply to a message sent to multiple accounts", async () => {
@@ -1581,7 +1581,7 @@ test("can send message to self (when a chat already has the optimistic id)", asy
     });
 });
 
-test("can not get messages in a chat you don't have access to (when a chat already has the optimistic id)", async () => {
+test("can not get messages in a chat you don’t have access to (when a chat already has the optimistic id)", async () => {
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
@@ -1614,7 +1614,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
         id: getOptimisticChatId(scenario.spaceA.id, [
@@ -1648,7 +1648,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
         id: getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
@@ -1676,7 +1676,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 });
 
 test("can reply to message by sending to account (when a chat already has the optimistic id)", async () => {
@@ -2193,7 +2193,7 @@ test("anyone the message was sent to can read the message (when a chat already h
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 
     await expect(
         getChatMessagesFromStart(context.action(scenario.sessionX3), {
@@ -2202,7 +2202,7 @@ test("anyone the message was sent to can read the message (when a chat already h
             afterMessageIndex: null,
             beforeMessageIndex: null,
         }),
-    ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to chat"));
+    ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to chat"));
 });
 
 test("can reply to a message sent to multiple accounts (when a chat already has the optimistic id)", async () => {
@@ -3291,7 +3291,7 @@ test("can get chats shared between an account and other accounts", async () => {
     ).toEqual(sortSharedChats([]));
 });
 
-test("can not get chat you don't have access to", async () => {
+test("can not get chat you don’t have access to", async () => {
     const scenario = await createScenario();
 
     const message = await sendChatMessageToAccounts(context.action(scenario.sessionA1), {
@@ -3497,7 +3497,7 @@ test("can not authorize which accounts are in the chat if session does not have 
             message.chatId,
             scenario.sessionX3.account.id,
         ),
-    ).rejects.toThrow("Session actor account doesn't have access to chat");
+    ).rejects.toThrow("Session actor account doesn’t have access to chat");
 
     await expect(
         authorizeChatAccessForAccount(
@@ -3505,7 +3505,7 @@ test("can not authorize which accounts are in the chat if session does not have 
             message.chatId,
             scenario.sessionB1.account.id,
         ),
-    ).rejects.toThrow("Session actor account doesn't have access to chat");
+    ).rejects.toThrow("Session actor account doesn’t have access to chat");
 });
 
 test("correctly authorizes which accounts are in the chat as system", async () => {
@@ -3668,14 +3668,14 @@ test("only authorizes chat access for accounts in a chat", async () => {
             context.impersonatedAccountAction(space.id, session3.account.id),
             chat.id,
         ),
-    ).rejects.toThrow("Account doesn't have access to chat");
+    ).rejects.toThrow("Account doesn’t have access to chat");
 
     await expect(
         authorizeChatAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             chat.id,
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
 
     expect((await authorizeChatAccessIfPossible(session1.action(), chat.id)).ok).toBe(true);
 
@@ -3765,7 +3765,7 @@ test("only authorizes chat access for accounts in a chat", async () => {
             chat.id,
             session1.account.id,
         ),
-    ).rejects.toThrow("Session actor account doesn't have access to chat");
+    ).rejects.toThrow("Session actor account doesn’t have access to chat");
 
     await expect(
         authorizeChatAccessForAccount(
@@ -3773,7 +3773,7 @@ test("only authorizes chat access for accounts in a chat", async () => {
             chat.id,
             session1.account.id,
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
 
     await expect(
         authorizeChatAccessForAccount(
@@ -3781,7 +3781,7 @@ test("only authorizes chat access for accounts in a chat", async () => {
             chat.id,
             session2.account.id,
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to space");
 });
 
 test("authorizing chat access as session actor is cached", async () => {
@@ -4122,43 +4122,43 @@ test("will send share notification messages separately to each account", async (
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     const entity1Id: FileEntityId = `Document:${generateId<DocumentId>()}`;
 
@@ -4205,35 +4205,35 @@ test("will send share notification messages separately to each account", async (
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     const entity2Id: FileEntityId = `Document:${generateId<DocumentId>()}`;
 
@@ -4280,11 +4280,11 @@ test("will send share notification messages separately to each account", async (
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
@@ -4318,19 +4318,19 @@ test("will send share notification messages separately to each account", async (
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 });
 
 test("processing send share notification message job is idempotent", async () => {
@@ -4345,43 +4345,43 @@ test("processing send share notification message job is idempotent", async () =>
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     const jobId = generateId();
     const entityId: FileEntityId = `Document:${generateId<DocumentId>()}`;
@@ -4429,35 +4429,35 @@ test("processing send share notification message job is idempotent", async () =>
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await processSendShareNotificationJob(space.systemAction(), {
         jobId,
@@ -4502,35 +4502,35 @@ test("processing send share notification message job is idempotent", async () =>
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 0}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session2.action(), {chatId: chat2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And2And3.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 
     await expect(
         getChatMessagePayload(session1.action(), {chatId: chat1And4.id, messageIndex: 1}),
-    ).rejects.toThrow('Item not found (partition type: "Chat", sort range type: "Messages")');
+    ).rejects.toThrow("Item not found (partition type: `Chat`, sort range type: `Messages`)");
 });
 
 testMessagingImplementation<ChatId>(context, {

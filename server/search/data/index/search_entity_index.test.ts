@@ -632,7 +632,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
 
     const {newInvertedSteps} = await document.type(
         session,
-        " Add enough content that we'll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
+        " Add enough content that we’ll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
     );
 
     await runAllTimersAndWaitForTestTasks();
@@ -664,7 +664,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
             },
         }),
     ).toEqual({
-        hits: [{id: expect.any(String), score: 0, fields: {textHash: [673655517]}}],
+        hits: [{id: expect.any(String), score: 0, fields: {textHash: [-1995329297]}}],
     });
 
     await document.update(session, newInvertedSteps);
@@ -763,7 +763,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
 
     const {newInvertedSteps} = await document.type(
         session,
-        " Add enough content that we'll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
+        " Add enough content that we’ll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
     );
 
     // Race 5 job processors...
@@ -815,7 +815,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
             },
         }),
     ).toEqual({
-        hits: [{id: expect.any(String), score: 0, fields: {textHash: [673655517]}}],
+        hits: [{id: expect.any(String), score: 0, fields: {textHash: [-1995329297]}}],
     });
 
     await document.update(session, newInvertedSteps);
@@ -934,9 +934,9 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
             })),
     ).toEqual({
         hits: [
-            {id: expect.any(String), score: 0, fields: {textHash: [-1956194618]}},
-            {id: expect.any(String), score: 0, fields: {textHash: [-1331049584]}},
-            {id: expect.any(String), score: 0, fields: {textHash: [-391193625]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [-550977725]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [-547555059]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [1468629499]}},
         ],
     });
 
@@ -979,9 +979,9 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
             })),
     ).toEqual({
         hits: [
-            {id: expect.any(String), score: 0, fields: {textHash: [-1331049584]}},
-            {id: expect.any(String), score: 0, fields: {textHash: [-391193625]}},
-            {id: expect.any(String), score: 0, fields: {textHash: [2125688697]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [-550977725]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [-547555059]}},
+            {id: expect.any(String), score: 0, fields: {textHash: [530046731]}},
         ],
     });
 });
@@ -1041,9 +1041,9 @@ test("returns the right chunk when searching for embeddings", async () => {
 
 YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim. The trio were early employees of PayPal, which left them enriched after the company was bought by eBay. Hurley had studied design at the Indiana University of Pennsylvania, and Chen and Karim studied computer science together at the University of Illinois Urbana-Champaign.
 
-According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen's apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party "was probably very strengthened by marketing ideas around creating a story that was very digestible".
+According to a story that has often been repeated in the media, Hurley and Chen developed the idea for YouTube during the early months of 2005, after they had experienced difficulty sharing videos that had been shot at a dinner party at Chen’s apartment in San Francisco. Karim did not attend the party and denied that it had occurred, but Chen remarked that the idea that YouTube was founded after a dinner party “was probably very strengthened by marketing ideas around creating a story that was very digestible”.
 
-YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube's early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled "Me at the zoo", it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.`,
+YouTube began as a venture capital–funded technology startup. Between November 2005 and April 2006, the company raised money from various investors, with Sequoia Capital and Artis Capital Management being the largest two. YouTube’s early headquarters were situated above a pizzeria and a Japanese restaurant in San Mateo, California. In February 2005, the company activated www.youtube.com. The first video was uploaded on April 23, 2005. Titled “Me at the zoo”, it shows co-founder Jawed Karim at the San Diego Zoo and can still be viewed on the site. In May, the company launched a public beta and by November, a Nike ad featuring Ronaldinho became the first video to reach one million total views. The site launched officially on December 15, 2005, by which time the site was receiving 8 million views a day. Clips at the time were limited to 100 megabytes, as little as 30 seconds of footage.`,
                 ],
             },
         },
@@ -1455,7 +1455,7 @@ test("contractions stay when analyzing text", async () => {
             .analyze(
                 SearchEntityKeywordIndex,
                 opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
-                "Grossman commented on his non-conservative play style in a 2017 interview stating, \"Coach Spurrier instilled in me, don't check down if the big play's there. So that’s kind of how I was born. I always wanted to shoot a three-pointer in basketball, hit a home run in baseball. I don't know why, that's just, like, who I am.\" During Week 12 of the 2006 season, Grossman threw a game-ending interception while attempting a deep pass to Rashied Davis.",
+                "Grossman commented on his non-conservative play style in a 2017 interview stating, ”Coach Spurrier instilled in me, don’t check down if the big play’s there. So that’s kind of how I was born. I always wanted to shoot a three-pointer in basketball, hit a home run in baseball. I don’t know why, that’s just, like, who I am.” During Week 12 of the 2006 season, Grossman threw a game-ending interception while attempting a deep pass to Rashied Davis.",
             )
             .then(tokens => tokens.map(({token}) => token)),
     ).toEqual([
@@ -2266,7 +2266,7 @@ test("searches with natural language parsing works", async () => {
     expect(
         await searchByKeywords(session1.action(), {
             spaceId: space.id,
-            queryText: "sara's documents about trains",
+            queryText: "sara’s documents about trains",
             limit: 100,
             timeZone: defaultTimeZone,
             currentTime: new Date(),
@@ -2320,7 +2320,7 @@ test("searches with natural language parsing works", async () => {
     expect(
         await searchByKeywords(session1.action(), {
             spaceId: space.id,
-            queryText: "sara's documents",
+            queryText: "sara’s documents",
             limit: 100,
             timeZone: defaultTimeZone,
             currentTime: new Date(),
@@ -2382,7 +2382,7 @@ test("searches with natural language parsing works", async () => {
     expect(
         await searchByKeywords(session1.action(), {
             spaceId: space.id,
-            queryText: "johns's documents",
+            queryText: "johns’s documents",
             limit: 100,
             timeZone: defaultTimeZone,
             currentTime: new Date(),
@@ -2662,7 +2662,7 @@ test("search by affinity can include the task personal view in favorites", async
     });
 });
 
-test("search by affinity can include the task personal view in favorites even if it doesn't have affinity points", async () => {
+test("search by affinity can include the task personal view in favorites even if it doesn’t have affinity points", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -3821,7 +3821,7 @@ test(
     "prefix matches and typo matches on search entity titles are allowed",
     async () => {
         const names = [
-            "Old Man's War",
+            "Old Man’s War",
             "The Lock Artist",
             "HTML5",
             "Thank You Jeeves",
@@ -3980,17 +3980,17 @@ test(
                 "Test Mxyz",
                 "Test Mabc",
                 "Monster 1959",
-                "Old Man's War",
+                "Old Man’s War",
             ]);
             expect(await testSearch("test ma")).toEqual([
                 "Test Mabc",
-                "Old Man's War",
+                "Old Man’s War",
                 "Test Mxyz",
             ]);
             expect(await testSearch("test mab")).toEqual([
                 "Test Mabc",
                 "Test Mxyz",
-                "Old Man's War",
+                "Old Man’s War",
             ]);
             expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
             expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
@@ -3998,7 +3998,7 @@ test(
                 "Test Mxyz",
                 "Test Mabc",
                 "Monster 1959",
-                "Old Man's War",
+                "Old Man’s War",
             ]);
 
             // Testing typos

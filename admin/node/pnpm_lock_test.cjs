@@ -5,7 +5,7 @@ const {join: joinPath} = require("path");
 const Yaml = require("yaml");
 
 const runfilesPath = process.env.RUNFILES;
-if (!runfilesPath) throw new Error('Expected "RUNFILES" environment variable to exist');
+if (!runfilesPath) throw new Error("Expected `RUNFILES` environment variable to exist");
 
 // Duplicate packages we can't easily get rid of go in this map. Please add a
 // comment explaining why there are duplicate packages.
@@ -349,8 +349,8 @@ async function main() {
 
         // eslint-disable-next-line no-console
         console.log(
-            `Package "${packageName}" has multiple versions: ${packageVersions
-                .map(packageVersion => `"${packageVersion}"`)
+            `Package \`${packageName}\` has multiple versions: ${packageVersions
+                .map(packageVersion => `\`${packageVersion}\``)
                 .join(", ")}`,
         );
     }
@@ -362,7 +362,7 @@ async function main() {
 
         // eslint-disable-next-line no-console
         console.log(
-            `Matching duplicate versions weren't found for package "${packageName}" that allows duplicate versions`,
+            `Matching duplicate versions weren’t found for package \`${packageName}\` that allows duplicate versions`,
         );
     }
 
@@ -373,7 +373,7 @@ async function main() {
 
         // eslint-disable-next-line no-console
         console.log(
-            'Should only ever have one version of "sharp", duplicate versions will cause issues with native module loading',
+            "Should only ever have one version of `sharp`, duplicate versions will cause issues with native module loading",
         );
     }
 
@@ -382,15 +382,15 @@ async function main() {
         console.log("");
         // eslint-disable-next-line no-console
         console.log(
-            'Hint: Try running "pnpm dedupe" and "pnpm prune" to remove older dependencies if',
+            "Hint: Try running `pnpm dedupe` and `pnpm prune` to remove older dependencies if",
         );
         // eslint-disable-next-line no-console
         console.log(
-            "a newer version can be used. If you can't easily remove duplicates then you may",
+            "a newer version can be used. If you can’t easily remove duplicates then you may",
         );
         // eslint-disable-next-line no-console
         console.log(
-            'add allowed duplicate package versions to "allowedDuplicatePackageVersionsByName".',
+            "add allowed duplicate package versions to `allowedDuplicatePackageVersionsByName`.",
         );
     }
 
@@ -399,10 +399,10 @@ async function main() {
         console.log("");
         // eslint-disable-next-line no-console
         console.log(
-            'Hint: Update or remove any packages from "allowedDuplicatePackageVersionsByName"',
+            "Hint: Update or remove any packages from `allowedDuplicatePackageVersionsByName`",
         );
         // eslint-disable-next-line no-console
-        console.log("that have different duplicate versions than what's in that map.");
+        console.log("that have different duplicate versions than what’s in that map.");
     }
 
     return {exitCode};

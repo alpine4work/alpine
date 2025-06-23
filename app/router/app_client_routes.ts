@@ -576,9 +576,9 @@ function makeLazyDataRouteSelfUpdating(route: DataRouteObject) {
                 if (isPropertyStaticallyDefined) {
                     // eslint-disable-next-line no-console
                     console.warn(
-                        `Route "${route.id}" has a static property "${lazyRouteProperty}" ` +
+                        `Route \`${route.id}\` has a static property \`${lazyRouteProperty}\` ` +
                             `defined but its lazy function is also returning a value for this property. ` +
-                            `The lazy route property "${lazyRouteProperty}" will be ignored.`,
+                            `The lazy route property \`${lazyRouteProperty}\` will be ignored.`,
                     );
                 }
 

@@ -287,7 +287,7 @@ function FeedSearchAffinityView({
                     // Silently fail. This doesn't affect anything the user sees so we don't need
                     // to report the error to the user.
                     reporter.logErrorWithoutDisplaying(
-                        "Couldn't mark search result select affinity interaction",
+                        "Couldn’t mark search result select affinity interaction",
                         error,
                     );
                 });

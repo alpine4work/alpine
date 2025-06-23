@@ -811,7 +811,7 @@ export class JobQueueConsumer<
                 const jobQueueName = jobQueueNameByType[messageBody.job.type];
                 if (jobQueueName !== this._queueName) {
                     throw new InternalError(
-                        quote`Job ${messageBody.job.type} is in the wrong queue, the job should be in the queue ${jobQueueName} but we're consuming the queue ${this._queueName}`,
+                        quote`Job ${messageBody.job.type} is in the wrong queue, the job should be in the queue ${jobQueueName} but we’re consuming the queue ${this._queueName}`,
                     );
                 }
 
@@ -854,7 +854,7 @@ export class JobQueueConsumer<
                 const jobQueueName = "Default";
                 if (jobQueueName !== this._queueName) {
                     throw new InternalError(
-                        quote`Job ${messageBody.job.type} is in the wrong queue, the job should be in the queue ${jobQueueName} but we're consuming the queue ${this._queueName}`,
+                        quote`Job ${messageBody.job.type} is in the wrong queue, the job should be in the queue ${jobQueueName} but we’re consuming the queue ${this._queueName}`,
                     );
                 }
 

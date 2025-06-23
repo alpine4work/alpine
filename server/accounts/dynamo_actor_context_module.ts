@@ -193,7 +193,7 @@ export class DynamoSessionActorContextModule
      */
     public getTokenPayload(): TokenPayload {
         if (this._session.id === "Impersonated") {
-            throw new InternalError("Can't get token payload for impersonated session");
+            throw new InternalError("Can’t get token payload for impersonated session");
         }
 
         return {
@@ -224,7 +224,7 @@ export class DynamoSessionActorContextModule
      */
     public getSessionId(): SessionId {
         if (this._session.id === "Impersonated") {
-            throw new InternalError("Can't get `SessionId` for impersonated session");
+            throw new InternalError("Can’t get `SessionId` for impersonated session");
         }
 
         return this._session.id;
@@ -440,7 +440,7 @@ export class DynamoImpersonatedAccountActorContextModule
     public getTokenPayload(): TokenPayload {
         // NOTE(calebmer): We don't need cross-service communication for impersonated
         // actors right now but may need the capability in the future.
-        throw new InternalError("Can't create token for impersonated account actor");
+        throw new InternalError("Can’t create token for impersonated account actor");
     }
 
     public authorizeSession<Modules extends {actor: ActorContextModuleBase}>(

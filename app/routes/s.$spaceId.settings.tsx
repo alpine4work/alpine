@@ -107,7 +107,7 @@ function SettingsNavigationItem({
 
 export default function SettingsLayout() {
     if (process.env.NODE_ENV === "production")
-        throw new UnimplementedError("Shouldn't be able to open settings in production");
+        throw new UnimplementedError("Shouldn’t be able to open settings in production");
 
     const platform = usePlatform();
 

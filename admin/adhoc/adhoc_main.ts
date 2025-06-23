@@ -25,13 +25,13 @@ async function main() {
         // @ts-ignore: If there's no `adhoc_local.js` file (e.g. in CI) don't error.
         adhocModule = await import("./adhoc_local.js");
     } catch (error) {
-        throw InternalError.from(error, 'Could not import "adhoc_local.ts" file');
+        throw InternalError.from(error, "Could not import `adhoc_local.ts` file");
     }
 
     const {run} = adhocModule;
 
     if (typeof run !== "function")
-        throw new InternalError('Could not find `run()` function in "adhoc_local.ts" file');
+        throw new InternalError("Could not find `run()` function in `adhoc_local.ts` file");
 
     await run();
 }

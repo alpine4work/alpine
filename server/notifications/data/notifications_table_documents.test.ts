@@ -1268,7 +1268,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("if an account is removed from a space their inbox won't update anymore", async () => {
+        test("if an account is removed from a space their inbox won’t update anymore", async () => {
             const space = await TestSpace.create(context);
 
             const session1 = await space.createSession({hasInternalAccess: true});
@@ -1752,7 +1752,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("won't send new notification if account loses access to document", async () => {
+        test("won’t send new notification if account loses access to document", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1870,7 +1870,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("won't send notification when mentioned if account doesn't have access to document", async () => {
+        test("won’t send notification when mentioned if account doesn’t have access to document", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -1963,7 +1963,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("won't send notification when comment thread is created if account doesn't have access to own document", async () => {
+        test("won’t send notification when comment thread is created if account doesn’t have access to own document", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -2015,7 +2015,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).toEqual([]);
         });
 
-        test("won't send notification when comment thread is created if account doesn't have access to own document (but will send notification if mentioned when access is granted back)", async () => {
+        test("won’t send notification when comment thread is created if account doesn’t have access to own document (but will send notification if mentioned when access is granted back)", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 

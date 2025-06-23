@@ -86,9 +86,9 @@ export async function action({request, context, params}: LoaderArgs) {
         const oneTimePassword = formData.get("oneTimePassword");
 
         if (typeof emailAddress !== "string")
-            throw new InvalidArgumentError('Expected property "emailAddress" in params');
+            throw new InvalidArgumentError("Expected property `emailAddress` in params");
         if (typeof oneTimePassword !== "string")
-            throw new InvalidArgumentError('Expected property "oneTimePassword" in form data');
+            throw new InvalidArgumentError("Expected property `oneTimePassword` in form data");
 
         const {sessionId, sessionAccountId} = await attemptOneTimePasswordSignIn(
             context,

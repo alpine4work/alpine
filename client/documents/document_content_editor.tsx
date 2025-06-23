@@ -971,8 +971,8 @@ export function DocumentContentEditor({
 
             if (!data) {
                 reporter.logErrorWithoutDisplaying(
-                    "Selected document comment thread couldn't be opened",
-                    new InternalError("Couldn't find document comment thread"),
+                    "Selected document comment thread couldn’t be opened",
+                    new InternalError("Couldn’t find document comment thread"),
                 );
 
                 // Comment thread not found so cancel the transition.
@@ -1250,6 +1250,7 @@ export function DocumentContentEditor({
     const handleCommentThreadSnippetPress = useEvent((commentThreadId: DocumentCommentThreadId) => {
         const editorContainerElement = assertExists(editorContainerRef.current);
         const firstCommentMarkElement = editorContainerElement.querySelector(
+            // eslint-disable-next-line string-quotes
             `[data-comment="${commentThreadId}"]`,
         );
         if (!firstCommentMarkElement) return;
@@ -1288,6 +1289,7 @@ export function DocumentContentEditor({
             const editorContainerElement = assertExists(editorContainerRef.current);
 
             const commentMarkElements = editorContainerElement.querySelectorAll(
+                // eslint-disable-next-line string-quotes
                 `[data-comment="${commentThreadId}"]`,
             );
 
@@ -1383,6 +1385,7 @@ export function DocumentContentEditor({
                 }
                 case "CommentThread": {
                     const firstCommentMarkElement = editorContainerElement.querySelector(
+                        // eslint-disable-next-line string-quotes
                         `[data-comment="${initialScroll.commentThreadId}"]`,
                     );
                     if (firstCommentMarkElement) {
@@ -2290,8 +2293,8 @@ function DocumentContentEditorSidebar({
 
         if (!initialDataResult.isPending && !initialDataResult.value) {
             reporter.logErrorWithoutDisplaying(
-                "Selected document comment thread couldn't be opened",
-                new InternalError("Couldn't find document comment thread"),
+                "Selected document comment thread couldn’t be opened",
+                new InternalError("Couldn’t find document comment thread"),
             );
 
             onClose();

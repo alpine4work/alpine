@@ -27,7 +27,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
         icon: <Gear />,
         size: "lg",
         label: "Settings",
-        pressErrorTitle: "Couldn't open settings",
+        pressErrorTitle: "Couldn’t open settings",
         onPress: async () => {
             await rootNavigate(`/s/${space.id}/settings/general`);
         },
@@ -37,7 +37,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
         icon: <Users />,
         size: "lg",
         label: "People",
-        pressErrorTitle: "Couldn't open people settings",
+        pressErrorTitle: "Couldn’t open people settings",
         onPress: async () => {
             await rootNavigate(`/s/${space.id}/settings/people`);
         },
@@ -97,7 +97,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                                             )}
                                         </Box>
                                     ),
-                                    pressErrorTitle: "Couldn't switch to space",
+                                    pressErrorTitle: "Couldn’t switch to space",
                                     onPress: async () => {
                                         if (otherSpace.id === space.id) return;
                                         if (otherSpace.alphaAccessDefaultChannelId) {

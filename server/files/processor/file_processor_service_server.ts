@@ -193,18 +193,18 @@ async function handleInternalMiniflareGetObject(
     },
 ): Promise<Response> {
     if (process.env.NODE_ENV === "production")
-        throw new InvalidArgumentError("Can't use Miniflare in production");
+        throw new InvalidArgumentError("Can’t use Miniflare in production");
 
     // Double check to make sure we can only use this route with Miniflare.
     assert(processContext.r2.isMiniflare());
 
     const expirationTimeString = url.searchParams.get("exp");
     if (!expirationTimeString)
-        throw new InvalidArgumentError('Missing required "exp" URL search param');
+        throw new InvalidArgumentError("Missing required `exp` URL search param");
 
     if (!isDateString(expirationTimeString))
         throw new InvalidArgumentError(
-            '"exp" URL search param is not formatted as an ISO 8601 date',
+            "`exp` URL search param is not formatted as an ISO 8601 date",
         );
 
     const expirationTime = deserializeDateString(expirationTimeString);

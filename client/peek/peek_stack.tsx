@@ -458,7 +458,7 @@ function PeekStackContextProvider(
                 dispatch({type: "Restore", stack});
             },
             error => {
-                reporter.logErrorWithoutDisplaying("Couldn't restore peek stack", error);
+                reporter.logErrorWithoutDisplaying("Couldn’t restore peek stack", error);
             },
         );
     }, [createPeekRouter, peekRoutes, location.key, navigationType, state, reporter]);

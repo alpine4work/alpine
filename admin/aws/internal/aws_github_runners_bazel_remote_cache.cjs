@@ -112,7 +112,7 @@ async function main() {
 
     const server = http.createServer((req1, res1) => {
         try {
-            if (!req1.url.startsWith("/")) throw new Error('Expected path to start with "/"');
+            if (!req1.url.startsWith("/")) throw new Error("Expected path to start with `/`");
 
             const req2Headers = {...req1.headers};
 

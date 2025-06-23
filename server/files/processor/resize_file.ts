@@ -148,15 +148,15 @@ export async function resizeFile(
     context.actor.authorizeSystem();
 
     const widthString = url.searchParams.get("width");
-    if (!widthString) throw new InvalidArgumentError('Missing required "width" URL search param');
+    if (!widthString) throw new InvalidArgumentError("Missing required `width` URL search param");
 
     const width = parseInt(widthString, 10);
     if (!/^\d+$/.test(widthString) || !Number.isInteger(width) || width <= 0)
-        throw new InvalidArgumentError('"width" URL search param must be a positive integer');
+        throw new InvalidArgumentError("`width` URL search param must be a positive integer");
 
     const variant = url.searchParams.get("variant");
     if (variant !== null && variant !== "preview" && variant !== "alternative") {
-        throw new InvalidArgumentError(`Search param "variant" is not a valid file variant`);
+        throw new InvalidArgumentError(`Search param \`variant\` is not a valid file variant`);
     }
 
     parentSpan.addData({common: {width}});
@@ -196,30 +196,30 @@ export async function resizeFile(
             }
 
             if (fileData.preview.content === undefined) {
-                throw new FailedPreconditionError("File preview variant doesn't exist");
+                throw new FailedPreconditionError("File preview variant doesn’t exist");
             }
 
             if (typeof fileData.preview.content === "string") {
                 throw new FailedPreconditionError(
-                    quote`File preview variant isn't accessible because image preview is in ${fileData.preview.content} state`,
+                    quote`File preview variant isn’t accessible because image preview is in ${fileData.preview.content} state`,
                 );
             }
 
             contentType = fileData.preview.content.contentType;
         } else if (variant === "alternative") {
             if (fileData.alternative === null) {
-                throw new FailedPreconditionError("File alternative variant doesn't exist");
+                throw new FailedPreconditionError("File alternative variant doesn’t exist");
             }
 
             if (fileData.alternative.isProcessing) {
                 throw new FailedPreconditionError(
-                    "File alternative variant isn't accessible because it's processing",
+                    "File alternative variant isn’t accessible because it’s processing",
                 );
             }
 
             if (!fileData.alternative.ok) {
                 throw new FailedPreconditionError(
-                    "File alternative variant isn't accessible because it failed to process",
+                    "File alternative variant isn’t accessible because it failed to process",
                 );
             }
 
@@ -227,7 +227,7 @@ export async function resizeFile(
             // alternative is backed by image preview content.
             if (fileData.alternative.isImagePreviewContent) {
                 throw new FailedPreconditionError(
-                    'File alternative is stored as the file\'s image preview content, you must use a variant of "preview" instead',
+                    "File alternative is stored as the file’s image preview content, you must use a variant of `preview` instead",
                 );
             }
 
@@ -297,6 +297,8 @@ export async function resizeFile(
                     // We position the cropped image as if `object-position: center top` is set.
                     //
                     // https://ffmpeg.org/ffmpeg-filters.html#crop
+                    //
+                    // eslint-disable-next-line string-quotes
                     `crop='h=min(ih,iw/${minFilePreviewAspectRatio})':'w=min(iw,ih*${maxFilePreviewAspectRatio})':y=0:x=iw/2-ow/2`,
                     // Actually perform the resize! Some notes:
                     //
@@ -304,6 +306,8 @@ export async function resizeFile(
                     // - Avoid upscaling with the `min()` expression
                     //
                     // https://trac.ffmpeg.org/wiki/Scaling
+                    //
+                    // eslint-disable-next-line string-quotes
                     `scale='min(${width},iw)':-1`,
                 ].join(",");
 

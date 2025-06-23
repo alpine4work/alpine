@@ -327,7 +327,7 @@ test("will schedule a new job after 5-minute window", async () => {
     expect(takeJobIfExists()).toEqual(null);
 });
 
-test("shouldn't schedule job when previous job already processed the entity update", async () => {
+test("shouldn’t schedule job when previous job already processed the entity update", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const entityId = generateSearchEntityId();
@@ -373,7 +373,7 @@ test("shouldn't schedule job when previous job already processed the entity upda
     expect(takeJobIfExists()).toEqual(null);
 });
 
-test("shouldn't schedule job when previous job already processed the entity update and failed", async () => {
+test("shouldn’t schedule job when previous job already processed the entity update and failed", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const entityId = generateSearchEntityId();
@@ -429,7 +429,7 @@ test("shouldn't schedule job when previous job already processed the entity upda
     expect(takeJobIfExists()).toEqual(null);
 });
 
-test("shouldn't schedule job when active job is processing the entity update", async () => {
+test("shouldn’t schedule job when active job is processing the entity update", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const entityId = generateSearchEntityId();
@@ -560,7 +560,7 @@ test("should schedule a job looking to read a near past entity update", async ()
     expect(takeJobIfExists()).toEqual(null);
 });
 
-test("shouldn't schedule a job looking to read a far future entity update", async () => {
+test("shouldn’t schedule a job looking to read a far future entity update", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const entityId = generateSearchEntityId();
@@ -925,7 +925,7 @@ test("reschedules a job that runs just enough time after the previous job", asyn
     expect(takeJobIfExists()).toEqual(null);
 });
 
-test("keeps rescheduling new jobs if there's an existing long running job", async () => {
+test("keeps rescheduling new jobs if there’s an existing long running job", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const entityId = generateSearchEntityId();
@@ -1067,7 +1067,7 @@ test("keeps rescheduling new jobs if there's an existing long running job", asyn
     expect(takeJobIfExists()).toEqual(null);
 });
 
-test("keeps rescheduling new jobs if there's an existing long running job (with error)", async () => {
+test("keeps rescheduling new jobs if there’s an existing long running job (with error)", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const entityId = generateSearchEntityId();
@@ -1221,7 +1221,7 @@ test("keeps rescheduling new jobs if there's an existing long running job (with 
     expect(takeJobIfExists()).toEqual(null);
 });
 
-test("keeps rescheduling new jobs if there's an existing long running job (with simulated crash)", async () => {
+test("keeps rescheduling new jobs if there’s an existing long running job (with simulated crash)", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const entityId = generateSearchEntityId();

@@ -241,7 +241,7 @@ export function createDurableObject<
 
                     if (!authorizationHeaderMatch) {
                         throw new InvalidArgumentError(
-                            'Expected "Authorization" header to have "Bearer" authentication scheme',
+                            "Expected `Authorization` header to have `Bearer` authentication scheme",
                         );
                     }
 

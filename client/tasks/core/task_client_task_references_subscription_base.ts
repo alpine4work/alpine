@@ -125,7 +125,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
             assert(
                 !previousTaskById.has(taskId),
-                "Subscription can't add task that's already referenced with `_onReferencedTaskAdd()`",
+                "Subscription can’t add task that’s already referenced with `_onReferencedTaskAdd()`",
             );
 
             previousTaskById.set(taskId, newTaskEntry);
@@ -192,7 +192,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
 
             assert(
                 previousTaskById.get(taskId) === oldTaskEntry,
-                "Subscription can't remove task that is not referenced with `_onReferencedTaskRemove()`",
+                "Subscription can’t remove task that is not referenced with `_onReferencedTaskRemove()`",
             );
 
             previousTaskById.delete(taskId);

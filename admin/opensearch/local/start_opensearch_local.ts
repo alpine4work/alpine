@@ -163,6 +163,8 @@ Expected path: ${actualHomeChildPath}
         resolvedHomePath = resolvedHomePathParts.join("/");
     }
 
+    /* eslint-disable string-quotes */
+
     // Includes the permissions OpenSearch needs to bootstrap. Once OpenSearch has
     // bootstrapped it'll extend this security policy with its own
     // `security.policy` file ([source][1]) and `plugin-security.policy` files
@@ -188,6 +190,8 @@ grant {
 };
 `,
     );
+
+    /* eslint-enable string-quotes */
 
     const subprocess = spawn(
         opensearchLocalBinPath,
@@ -289,7 +293,7 @@ grant {
         if (typeof exitCode === "number") {
             errorPromiseResolver.reject(
                 new UnknownError(
-                    `Process exited with code ${exitCode} ("opensearch")${stderrMessage}`,
+                    `Process exited with code ${exitCode} (\`opensearch\`)${stderrMessage}`,
                     {cause: {exitCode}},
                 ),
             );
@@ -297,7 +301,7 @@ grant {
             const signalMessage = signal !== null ? quote(signal) : "null";
             errorPromiseResolver.reject(
                 new UnknownError(
-                    `Process exited from signal ${signalMessage} ("opensearch")${stderrMessage}`,
+                    `Process exited from signal ${signalMessage} (\`opensearch\`)${stderrMessage}`,
                 ),
             );
         }

@@ -263,7 +263,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
             const chunkString = chunk.toString();
 
             const oneTimePasswordMatch = chunkString.match(
-                /The one time password for "([^"]+)" is "([^"]+)"/,
+                /The one time password for `([^`]+)` is `([^`]+)`/,
             );
             if (oneTimePasswordMatch) {
                 oneTimePasswords.push({

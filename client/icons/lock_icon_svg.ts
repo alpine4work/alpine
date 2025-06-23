@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import escapeHtml from "escape-html";
 import {Lock} from "phosphor-react";
 

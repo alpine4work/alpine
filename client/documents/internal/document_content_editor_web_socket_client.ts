@@ -539,7 +539,7 @@ export class DocumentContentEditorWebSocketClient {
 
                             this._getContext()
                                 .tracer.getRoot()
-                                .logException("Couldn't update content after disconnect", error);
+                                .logException("Couldn’t update content after disconnect", error);
 
                             // Next time we send updates, we'll silently retry updating content if another
                             // `updateContent()` call hasn't happened in the meantime.
@@ -589,7 +589,7 @@ export class DocumentContentEditorWebSocketClient {
                     .catch(error => {
                         this._getContext()
                             .tracer.getRoot()
-                            .logException("Couldn't update our presence state", error);
+                            .logException("Couldn’t update our presence state", error);
 
                         // Next time we send updates, we'll silently retry sending our presence state
                         // if another `updateOurPresenceState()` call hasn't happened in the meantime.
@@ -624,7 +624,7 @@ export class DocumentContentEditorWebSocketClient {
                             .catch(error => {
                                 this._getContext()
                                     .tracer.getRoot()
-                                    .logException("Couldn't update our presence state", error);
+                                    .logException("Couldn’t update our presence state", error);
 
                                 // Next time we send updates, we'll silently retry sending our presence state
                                 // if another `updateOurPresenceState()` call hasn't happened in the meantime.

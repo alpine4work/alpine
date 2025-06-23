@@ -57,11 +57,11 @@ const crawlPromise = new Lazy(async () => {
 
     assert(
         getConstructedDynamoTableSchemaCount() === 0,
-        'Some "DynamoTableSchema"s have already been constructed so won\'t be captured in our recording',
+        "Some `DynamoTableSchema`s have already been constructed so won’t be captured in our recording",
     );
     assert(
         getConstructedOpensearchIndexCount() === 0,
-        'Some "OpensearchIndex"s have already been constructed so won\'t be captured in our recording',
+        "Some `OpensearchIndex`s have already been constructed so won’t be captured in our recording",
     );
 
     const [
@@ -82,7 +82,7 @@ const crawlPromise = new Lazy(async () => {
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports a "DynamoTableSchema" as ${moduleExportName}, DynamoDB table schemas should be private to the module where it was defined`,
+                                )} exports a \`DynamoTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the module where it was defined`,
                             );
                         }
 
@@ -91,7 +91,7 @@ const crawlPromise = new Lazy(async () => {
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports a "DynamoGeneralRealtimeTableSchema" as ${moduleExportName}, DynamoDB table schemas should be private to the module where it was defined`,
+                                )} exports a \`DynamoGeneralRealtimeTableSchema\` as ${moduleExportName}, DynamoDB table schemas should be private to the module where it was defined`,
                             );
                         }
 
@@ -100,7 +100,7 @@ const crawlPromise = new Lazy(async () => {
                                 quote`Module ${relative(
                                     runfilesRepoPath,
                                     path,
-                                )} exports an "OpensearchIndex" as ${moduleExportName}, OpenSearch indexes should be private to the module where it was defined`,
+                                )} exports an \`OpensearchIndex\` as ${moduleExportName}, OpenSearch indexes should be private to the module where it was defined`,
                             );
                         }
                     }

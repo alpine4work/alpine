@@ -286,7 +286,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't create task in space you don't have access to", async () => {
+    test("can’t create task in space you don’t have access to", async () => {
         await expect(
             commitTaskActionTransaction(context.action(session1), otherSpace.id, [
                 {
@@ -303,7 +303,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't create a task twice", async () => {
+    test("can’t create a task twice", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -335,7 +335,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't create a task with the wrong account as the creator", async () => {
+    test("can’t create a task with the wrong account as the creator", async () => {
         await expect(
             commitTaskActionTransaction(context.action(session1), space.id, [
                 {
@@ -380,7 +380,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't delete a task that doesn't exist", async () => {
+    test("can’t delete a task that doesn’t exist", async () => {
         const taskId = generateId<TaskId>();
 
         await expect(
@@ -397,7 +397,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't delete a task twice", async () => {
+    test("can’t delete a task twice", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -435,10 +435,10 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+        ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     });
 
-    test("can't delete a task with the same time as task creation", async () => {
+    test("can’t delete a task with the same time as task creation", async () => {
         const taskId = generateId<TaskId>();
 
         const createdTime = clock.now();
@@ -470,7 +470,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't delete a task with a time earlier than task creation", async () => {
+    test("can’t delete a task with a time earlier than task creation", async () => {
         const taskId = generateId<TaskId>();
 
         const deletedTime = clock.now();
@@ -502,7 +502,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't delete a task with an unreasonable time", async () => {
+    test("can’t delete a task with an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -532,7 +532,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't delete a task that's not yours", async () => {
+    test("can’t delete a task that’s not yours", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -562,7 +562,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can delete a task that's in a collection you specifically can edit", async () => {
+    test("can delete a task that’s in a collection you specifically can edit", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -619,7 +619,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't delete a task that's only in a collection you specifically can view", async () => {
+    test("can’t delete a task that’s only in a collection you specifically can view", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -678,7 +678,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can delete a task that's in a collection you can edit by default", async () => {
+    test("can delete a task that’s in a collection you can edit by default", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session2), space.id, [
@@ -693,7 +693,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't delete a task that's only in a collection you can view by default", async () => {
+    test("can’t delete a task that’s only in a collection you can view by default", async () => {
         const {taskId} = await createPublicTask(session1, space.id, "View");
 
         await expect(
@@ -710,7 +710,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't delete a task that's only in a collection space accounts can edit by default if you're from a different space", async () => {
+    test("can’t delete a task that’s only in a collection space accounts can edit by default if you’re from a different space", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await expect(
@@ -766,7 +766,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can undelete a task twice if there's another delete", async () => {
+    test("can undelete a task twice if there’s another delete", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -827,7 +827,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can undelete a task twice if there's another delete in one transaction", async () => {
+    test("can undelete a task twice if there’s another delete in one transaction", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -876,7 +876,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't undelete a task twice", async () => {
+    test("can’t undelete a task twice", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -928,7 +928,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't a task that doesn't exist", async () => {
+    test("can’t a task that doesn’t exist", async () => {
         const taskId = generateId<TaskId>();
 
         await expect(
@@ -945,7 +945,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't undelete a task with the same time as the deletion time", async () => {
+    test("can’t undelete a task with the same time as the deletion time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -988,7 +988,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't undelete a task with a time before the deletion time", async () => {
+    test("can’t undelete a task with a time before the deletion time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1031,7 +1031,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't undelete a task with an unreasonable time", async () => {
+    test("can’t undelete a task with an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1072,7 +1072,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't undelete a task that isn't yours", async () => {
+    test("can’t undelete a task that isn’t yours", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1113,7 +1113,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't undelete a task in a collection you don't have edit access to", async () => {
+    test("can’t undelete a task in a collection you don’t have edit access to", async () => {
         const {taskId} = await createPublicTask(session1, space.id, "View");
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1167,7 +1167,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a task's title", async () => {
+    test("can update a task’s title", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1220,7 +1220,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a task's title in any order", async () => {
+    test("can update a task’s title in any order", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1273,7 +1273,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update a task title for a task that doesn't exist", async () => {
+    test("can’t update a task title for a task that doesn’t exist", async () => {
         const taskId = generateId<TaskId>();
 
         await expect(
@@ -1291,7 +1291,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't update a deleted task's title", async () => {
+    test("can’t update a deleted task’s title", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1330,10 +1330,10 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+        ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     });
 
-    test("can't update a task title that's not yours", async () => {
+    test("can’t update a task title that’s not yours", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -1364,7 +1364,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can update a task's title that's in a collection you can edit", async () => {
+    test("can update a task’s title that’s in a collection you can edit", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1422,7 +1422,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update a task's title that's only in a collection you specifically can view", async () => {
+    test("can’t update a task’s title that’s only in a collection you specifically can view", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1530,7 +1530,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't add a task you don't have access to to a collection", async () => {
+    test("can’t add a task you don’t have access to to a collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1583,7 +1583,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't add a task to a collection you don't have access to", async () => {
+    test("can’t add a task to a collection you don’t have access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1636,7 +1636,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can add a task that's not yours to a collection", async () => {
+    test("can add a task that’s not yours to a collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
         const collectionId2 = generateId<TaskCollectionId>();
@@ -1716,7 +1716,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't add a task to a collection you don't have edit access to", async () => {
+    test("can’t add a task to a collection you don’t have edit access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
         const collectionId2 = generateId<TaskCollectionId>();
@@ -1809,7 +1809,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't add a task to a collection with an unreasonable update time", async () => {
+    test("can’t add a task to a collection with an unreasonable update time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1916,7 +1916,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't delete a task from a collection with an unreasonable time", async () => {
+    test("can’t delete a task from a collection with an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -1975,7 +1975,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't delete a task from a collection you don't have access to", async () => {
+    test("can’t delete a task from a collection you don’t have access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -2034,7 +2034,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't delete a task from a collection you don't have edit access to", async () => {
+    test("can’t delete a task from a collection you don’t have edit access to", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -2176,7 +2176,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't create a collection with no creator", async () => {
+    test("can’t create a collection with no creator", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2202,7 +2202,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't create a collection with the wrong creator", async () => {
+    test("can’t create a collection with the wrong creator", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2228,7 +2228,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't create a collection twice", async () => {
+    test("can’t create a collection twice", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2274,7 +2274,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't create a collection with the wrong account in access policy", async () => {
+    test("can’t create a collection with the wrong account in access policy", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2299,12 +2299,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new InvalidArgumentError(
-                'Must have the "Manage" access level on a collection you create',
+                "Must have the `Manage` access level on a collection you create",
             ),
         );
     });
 
-    test("can't create a collection with an unreasonable created time", async () => {
+    test("can’t create a collection with an unreasonable created time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2330,7 +2330,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't create a collection without our account as a manager", async () => {
+    test("can’t create a collection without our account as a manager", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2389,7 +2389,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't delete a collection that doesn't exist", async () => {
+    test("can’t delete a collection that doesn’t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2406,7 +2406,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't delete a collection twice", async () => {
+    test("can’t delete a collection twice", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2454,7 +2454,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't delete a collection with the created time", async () => {
+    test("can’t delete a collection with the created time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         const createdTime = clock.now();
@@ -2493,7 +2493,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't delete a collection with a time before the created time", async () => {
+    test("can’t delete a collection with a time before the created time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         const deletedTime = clock.now();
@@ -2532,7 +2532,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't delete a collection with an unreasonable deleted time", async () => {
+    test("can’t delete a collection with an unreasonable deleted time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2569,7 +2569,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't delete a collection you don't have access to", async () => {
+    test("can’t delete a collection you don’t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2606,7 +2606,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't delete a collection you only have access to as an editor", async () => {
+    test("can’t delete a collection you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2726,7 +2726,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't undelete a collection that doesn't exist", async () => {
+    test("can’t undelete a collection that doesn’t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -2743,7 +2743,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can undelete a collection twice if there's another delete", async () => {
+    test("can undelete a collection twice if there’s another delete", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2811,7 +2811,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can undelete a collection twice if there's another delete in one transaction", async () => {
+    test("can undelete a collection twice if there’s another delete in one transaction", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2867,7 +2867,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't undelete a collection twice", async () => {
+    test("can’t undelete a collection twice", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2926,7 +2926,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't undelete a collection with the deleted time", async () => {
+    test("can’t undelete a collection with the deleted time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2976,7 +2976,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't undelete a collection a time before the deleted time", async () => {
+    test("can’t undelete a collection a time before the deleted time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3026,7 +3026,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't undelete a collection with an unreasonable time", async () => {
+    test("can’t undelete a collection with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3074,7 +3074,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't undelete a collection you don't have access to", async () => {
+    test("can’t undelete a collection you don’t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3119,7 +3119,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't undelete a collection you only have access to as an editor", async () => {
+    test("can’t undelete a collection you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3209,7 +3209,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a collection's name", async () => {
+    test("can update a collection’s name", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3245,7 +3245,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update a collection name for a collection that doesn't exist", async () => {
+    test("can’t update a collection name for a collection that doesn’t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -3263,7 +3263,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't update a deleted collection's name", async () => {
+    test("can’t update a deleted collection’s name", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3312,7 +3312,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't update a collection name that's not yours", async () => {
+    test("can’t update a collection name that’s not yours", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3350,7 +3350,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update a collection name with an unreasonable time", async () => {
+    test("can’t update a collection name with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3388,7 +3388,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't update a collection name you don't have access to", async () => {
+    test("can’t update a collection name you don’t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3426,7 +3426,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update a collection name you only have access to as an editor", async () => {
+    test("can’t update a collection name you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3502,7 +3502,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a collection's color", async () => {
+    test("can update a collection’s color", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3538,7 +3538,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update a collection color for a collection that doesn't exist", async () => {
+    test("can’t update a collection color for a collection that doesn’t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -3556,7 +3556,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't update a deleted collection's color", async () => {
+    test("can’t update a deleted collection’s color", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3605,7 +3605,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't update a collection color that's not yours", async () => {
+    test("can’t update a collection color that’s not yours", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3643,7 +3643,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update a collection color with an unreasonable time", async () => {
+    test("can’t update a collection color with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3681,7 +3681,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't update a collection color you don't have access to", async () => {
+    test("can’t update a collection color you don’t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3719,7 +3719,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update a collection color you only have access to as an editor", async () => {
+    test("can’t update a collection color you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3795,7 +3795,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can update a collection's access policy", async () => {
+    test("can update a collection’s access policy", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3838,7 +3838,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update a collection access policy for a collection that doesn't exist", async () => {
+    test("can’t update a collection access policy for a collection that doesn’t exist", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await expect(
@@ -3863,7 +3863,7 @@ describe("old style", () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    test("can't update a deleted collection's access policy", async () => {
+    test("can’t update a deleted collection’s access policy", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3919,7 +3919,7 @@ describe("old style", () => {
         ).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't update a collection access policy that's not yours", async () => {
+    test("can’t update a collection access policy that’s not yours", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -3964,7 +3964,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update a collection access policy with an unreasonable time", async () => {
+    test("can’t update a collection access policy with an unreasonable time", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4009,7 +4009,7 @@ describe("old style", () => {
         ).rejects.toThrow(InvalidArgumentError);
     });
 
-    test("can't update a collection access policy you don't have access to", async () => {
+    test("can’t update a collection access policy you don’t have access to", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4054,7 +4054,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update a collection access policy you only have access to as an editor", async () => {
+    test("can’t update a collection access policy you only have access to as an editor", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4144,7 +4144,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update a collection access policy with no manage grants", async () => {
+    test("can’t update a collection access policy with no manage grants", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4187,7 +4187,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow("Can't update access policy so that no one has manage access");
+        ).rejects.toThrow("Can’t update access policy so that no one has manage access");
 
         await expect(
             commitTaskActionTransaction(context.action(session2), space.id, [
@@ -4205,7 +4205,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow("Can't update access policy so that no one has manage access");
+        ).rejects.toThrow("Can’t update access policy so that no one has manage access");
 
         await commitTaskActionTransaction(context.action(session2), space.id, [
             {
@@ -4288,7 +4288,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't create task twice race condition", async () => {
+    test("can’t create task twice race condition", async () => {
         const taskId = generateId<TaskId>();
 
         const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
@@ -4328,7 +4328,7 @@ describe("old style", () => {
         await expect(commit1Promise).rejects.toThrow(FailedPreconditionError);
     });
 
-    test("can't create collection twice race condition", async () => {
+    test("can’t create collection twice race condition", async () => {
         const collectionId = generateId<TaskCollectionId>();
 
         const pausePromise = commitTaskActionTransactionBeforeExecuteTestCheckpoint.pauseForTest(
@@ -4606,7 +4606,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task due date with unreasonable updated time", async () => {
+    test("can’t update task due date with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4666,7 +4666,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update priority with unreasonable updated time", async () => {
+    test("can’t update priority with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -4740,7 +4740,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task parent with unreasonable update time", async () => {
+    test("can’t update task parent with unreasonable update time", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -4946,7 +4946,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task parent and parent position with unreasonable time at the same time", async () => {
+    test("can’t update task parent and parent position with unreasonable time at the same time", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -4995,7 +4995,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
     });
 
-    test("can't update task parent on a task that doesn't exist", async () => {
+    test("can’t update task parent on a task that doesn’t exist", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5027,7 +5027,7 @@ describe("old style", () => {
         ).rejects.toThrow(new NotFoundError("Task not found"));
     });
 
-    test("can't update task parent with a task that doesn't exist", async () => {
+    test("can’t update task parent with a task that doesn’t exist", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5059,7 +5059,7 @@ describe("old style", () => {
         ).rejects.toThrow(new NotFoundError("Parent task not found"));
     });
 
-    test("can't update task parent to deleted task", async () => {
+    test("can’t update task parent to deleted task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5115,7 +5115,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Parent task is deleted"));
     });
 
-    test("can't update task parent where grandparent is a deleted task", async () => {
+    test("can’t update task parent where grandparent is a deleted task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -5183,7 +5183,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task parent on a task you don't have edit access to", async () => {
+    test("can’t update task parent on a task you don’t have edit access to", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5228,7 +5228,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update task parent to a task you don't have edit access to", async () => {
+    test("can’t update task parent to a task you don’t have edit access to", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -5273,7 +5273,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update task parent to a task you have view but not edit access to", async () => {
+    test("can’t update task parent to a task you have view but not edit access to", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -5803,7 +5803,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("child tasks don't inherit the permissions of their deleted parent task", async () => {
+    test("child tasks don’t inherit the permissions of their deleted parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -5926,7 +5926,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("child tasks don't inherit the permissions of their deleted parent task multiple levels up", async () => {
+    test("child tasks don’t inherit the permissions of their deleted parent task multiple levels up", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -6424,7 +6424,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("child tasks can't create a circular dependency", async () => {
+    test("child tasks can’t create a circular dependency", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -6558,12 +6558,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (2 tasks)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (2 tasks)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -6668,12 +6668,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (3 tasks)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (3 tasks)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -6814,12 +6814,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 1)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 1)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7032,12 +7032,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 2)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 2)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7250,12 +7250,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 3)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 3)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7468,12 +7468,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 4)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 4)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7686,12 +7686,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (5 tasks, scenario 5)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (5 tasks, scenario 5)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -7904,12 +7904,12 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
 
-    test("child tasks can't create a circular dependency even in race conditions (9 tasks)", async () => {
+    test("child tasks can’t create a circular dependency even in race conditions (9 tasks)", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -8278,7 +8278,7 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
@@ -8391,7 +8391,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
 
@@ -8542,7 +8542,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
 
@@ -8622,7 +8622,7 @@ describe("old style", () => {
         );
     });
 
-    test("can't create a circular dependency with undelete even in race conditions", async () => {
+    test("can’t create a circular dependency with undelete even in race conditions", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -8857,7 +8857,7 @@ describe("old style", () => {
 
         await expect(commitPromise).rejects.toThrow(
             new FailedPreconditionError(
-                "Updating task's `parentTaskId` would create a circular dependency",
+                "Updating task’s `parentTaskId` would create a circular dependency",
             ),
         );
     });
@@ -9077,7 +9077,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can remove the parent of a child task when you don't have access to the parent task", async () => {
+    test("can remove the parent of a child task when you don’t have access to the parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
@@ -9202,7 +9202,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can change the parent of a child task when you don't have access to the parent task", async () => {
+    test("can change the parent of a child task when you don’t have access to the parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const taskId3 = generateId<TaskId>();
@@ -9348,7 +9348,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can delete a child task when you don't have access to the parent task", async () => {
+    test("can delete a child task when you don’t have access to the parent task", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId1 = generateId<TaskCollectionId>();
@@ -9472,7 +9472,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task parent order key when there is no parent", async () => {
+    test("can’t update task parent order key when there is no parent", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9500,7 +9500,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new FailedPreconditionError("Task doesn't have a parent"));
+        ).rejects.toThrow(new FailedPreconditionError("Task doesn’t have a parent"));
     });
 
     test("can update task parent order key", async () => {
@@ -9552,7 +9552,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task parent order key with unreasonable updated time", async () => {
+    test("can’t update task parent order key with unreasonable updated time", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -9603,7 +9603,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can't update task parent order key when parent is deleted", async () => {
+    test("can’t update task parent order key when parent is deleted", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -9665,7 +9665,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Parent task is deleted"));
     });
 
-    test("can't update task parent order key when you don't have edit access to parent", async () => {
+    test("can’t update task parent order key when you don’t have edit access to parent", async () => {
         const taskId1 = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9722,7 +9722,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task parent order key if order time is unreasonable", async () => {
+    test("can’t update task parent order key if order time is unreasonable", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
 
@@ -9821,7 +9821,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task status with unreasonable updated time", async () => {
+    test("can’t update task status with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9856,7 +9856,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can't update task status with unreasonable closed time", async () => {
+    test("can’t update task status with unreasonable closed time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9891,7 +9891,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action `closedTime` is too far in the future"));
     });
 
-    test("can't update task status with a closer other than your account", async () => {
+    test("can’t update task status with a closer other than your account", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -9978,7 +9978,7 @@ describe("old style", () => {
         );
     });
 
-    test("can't update task status and assignee status if assignee status has an unreasonable time", async () => {
+    test("can’t update task status and assignee status if assignee status has an unreasonable time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10085,7 +10085,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task assignee with unreasonable updated time", async () => {
+    test("can’t update task assignee with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10120,7 +10120,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can't update task assignee with unreasonable assigned time", async () => {
+    test("can’t update task assignee with unreasonable assigned time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10157,7 +10157,7 @@ describe("old style", () => {
         );
     });
 
-    test("can't update task assignee with an assigner other than your account", async () => {
+    test("can’t update task assignee with an assigner other than your account", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10194,7 +10194,7 @@ describe("old style", () => {
         );
     });
 
-    test("can't update task assignee with an assignee outside the current space", async () => {
+    test("can’t update task assignee with an assignee outside the current space", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10228,7 +10228,7 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new FailedPreconditionError(
-                "Can't assign a task to an account outside of the current space",
+                "Can’t assign a task to an account outside of the current space",
             ),
         );
     });
@@ -10307,7 +10307,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task assignee status with unreasonable updated time", async () => {
+    test("can’t update task assignee status with unreasonable updated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10357,7 +10357,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can't update task assignee status with unreasonable activated time", async () => {
+    test("can’t update task assignee status with unreasonable activated time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10470,7 +10470,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task assignee position when another account is assigned", async () => {
+    test("can’t update task assignee position when another account is assigned", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10519,12 +10519,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task's assignee position if you are the task's assignee",
+                "Can only update the task’s assignee position if you are the task’s assignee",
             ),
         );
     });
 
-    test("can't update task assignee position when no account is assigned", async () => {
+    test("can’t update task assignee position when no account is assigned", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10557,12 +10557,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Can only update the task's assignee position if you are the task's assignee",
+                "Can only update the task’s assignee position if you are the task’s assignee",
             ),
         );
     });
 
-    test("can't update task assignee position with an account id other than your own", async () => {
+    test("can’t update task assignee position with an account id other than your own", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10611,12 +10611,12 @@ describe("old style", () => {
             ]),
         ).rejects.toThrow(
             new PermissionDeniedError(
-                "Must use the actor `AccountId` when updating the task's assignee position",
+                "Must use the actor `AccountId` when updating the task’s assignee position",
             ),
         );
     });
 
-    test("can't update task assignee position with unreasonable order time", async () => {
+    test("can’t update task assignee position with unreasonable order time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10704,7 +10704,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task assignee and assignee status with unreasonable time at the same time", async () => {
+    test("can’t update task assignee and assignee status with unreasonable time at the same time", async () => {
         const taskId = generateId<TaskId>();
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10803,7 +10803,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update task position with an unreasonable update time", async () => {
+    test("can’t update task position with an unreasonable update time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -10863,7 +10863,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action time too far in the future"));
     });
 
-    test("can't update task position with an unreasonable order time", async () => {
+    test("can’t update task position with an unreasonable order time", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -10926,7 +10926,7 @@ describe("old style", () => {
         ).rejects.toThrow(new InvalidArgumentError("Action `orderTime` is too far in the future"));
     });
 
-    test("can't update task position with a task that doesn't exist", async () => {
+    test("can’t update task position with a task that doesn’t exist", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -10986,7 +10986,7 @@ describe("old style", () => {
         ).rejects.toThrow(new NotFoundError("Task not found"));
     });
 
-    test("can't update task position with a task that's not in the collection", async () => {
+    test("can’t update task position with a task that’s not in the collection", async () => {
         const taskId1 = generateId<TaskId>();
         const taskId2 = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
@@ -11057,7 +11057,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Task is not in collection"));
     });
 
-    test("can't update task position with a task that was removed from the collection", async () => {
+    test("can’t update task position with a task that was removed from the collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -11129,7 +11129,7 @@ describe("old style", () => {
         ).rejects.toThrow(new FailedPreconditionError("Task is not in collection"));
     });
 
-    test("can't update task position when you don't have access to the collection", async () => {
+    test("can’t update task position when you don’t have access to the collection", async () => {
         const taskId = generateId<TaskId>();
         const collectionId = generateId<TaskCollectionId>();
 
@@ -11201,7 +11201,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update task position when you only have view access to the collection", async () => {
+    test("can’t update task position when you only have view access to the collection", async () => {
         const {taskId, collectionId} = await createPublicTask(session1, space.id, "View");
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
@@ -11232,7 +11232,7 @@ describe("old style", () => {
         ).rejects.toThrow(PermissionDeniedError);
     });
 
-    test("can't update a task's title with an account in a different space", async () => {
+    test("can’t update a task’s title with an account in a different space", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await expect(
@@ -11247,10 +11247,10 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
     });
 
-    test("can't update a task's title in the context of the wrong space", async () => {
+    test("can’t update a task’s title in the context of the wrong space", async () => {
         const {taskId} = await createPublicTask(session1, space.id);
 
         await expect(
@@ -11280,7 +11280,7 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't update a collection's name with an account in a different space", async () => {
+    test("can’t update a collection’s name with an account in a different space", async () => {
         const {collectionId} = await createPublicTask(session1, space.id, "Manage");
 
         await expect(
@@ -11295,10 +11295,10 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(new PermissionDeniedError("Account doesn't have access to space"));
+        ).rejects.toThrow(new PermissionDeniedError("Account doesn’t have access to space"));
     });
 
-    test("can't update a collection's name in the context of the wrong space", async () => {
+    test("can’t update a collection’s name in the context of the wrong space", async () => {
         const {collectionId} = await createPublicTask(session1, space.id, "Manage");
 
         await expect(
@@ -12535,7 +12535,7 @@ describe("old style", () => {
     });
 });
 
-test("can't update task in a deleted public collection", async () => {
+test("can’t update task in a deleted public collection", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([
@@ -12562,7 +12562,7 @@ test("can't update task in a deleted public collection", async () => {
     await task.updatePriority(session2, "Medium");
 });
 
-test("can't add task to a deleted public collection", async () => {
+test("can’t add task to a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const collection = await TestTaskCollection.create(session);
@@ -12584,7 +12584,7 @@ test("can't add task to a deleted public collection", async () => {
     await task3.addCollection(session, collection);
 });
 
-test("can't remove task from a deleted public collection", async () => {
+test("can’t remove task from a deleted public collection", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const collection = await TestTaskCollection.create(session);
@@ -12602,7 +12602,7 @@ test("can't remove task from a deleted public collection", async () => {
     await task.removeCollection(session, collection);
 });
 
-test("can't update collection name in a deleted public collection", async () => {
+test("can’t update collection name in a deleted public collection", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([
@@ -12647,7 +12647,7 @@ test("task assignee can update the task", async () => {
     await expect(task.updatePriority(session2, "Medium")).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can't authorize query with no filters", async () => {
+test("can’t authorize query with no filters", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -12685,7 +12685,7 @@ test("authorizes a query with creator filter", async () => {
     });
 });
 
-test("can't authorize a query with creator filter if account access was removed", async () => {
+test("can’t authorize a query with creator filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({hasInternalAccess: true});
     const session = await space.createSession();
@@ -12722,7 +12722,7 @@ test("can't authorize a query with creator filter if account access was removed"
                 {type: "Creator", operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]}},
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
@@ -12737,10 +12737,10 @@ test("can't authorize a query with creator filter if account access was removed"
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 });
 
-test("doesn't authorize a query that only excludes creator in filter", async () => {
+test("doesn’t authorize a query that only excludes creator in filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -12780,7 +12780,7 @@ test("doesn't authorize a query that only excludes creator in filter", async () 
     );
 });
 
-test("can't authorize a query with other accounts in creator filter", async () => {
+test("can’t authorize a query with other accounts in creator filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -12830,7 +12830,7 @@ test("can't authorize a query with other accounts in creator filter", async () =
     );
 });
 
-test("can't authorize a query with missing creator filter", async () => {
+test("can’t authorize a query with missing creator filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -12920,7 +12920,7 @@ test("authorizes a query with assignee filter", async () => {
     });
 });
 
-test("can't authorize a query with assignee filter if account access was removed", async () => {
+test("can’t authorize a query with assignee filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({hasInternalAccess: true});
     const session = await space.createSession();
@@ -12960,7 +12960,7 @@ test("can't authorize a query with assignee filter if account access was removed
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
@@ -12975,10 +12975,10 @@ test("can't authorize a query with assignee filter if account access was removed
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 });
 
-test("doesn't authorize a query that only excludes assignee in filter", async () => {
+test("doesn’t authorize a query that only excludes assignee in filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -13018,7 +13018,7 @@ test("doesn't authorize a query that only excludes assignee in filter", async ()
     );
 });
 
-test("can't authorize a query with other accounts in assignee filter", async () => {
+test("can’t authorize a query with other accounts in assignee filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const otherSession = await space.createSession();
@@ -13068,7 +13068,7 @@ test("can't authorize a query with other accounts in assignee filter", async () 
     );
 });
 
-test("can't authorize a query with missing assignee filter", async () => {
+test("can’t authorize a query with missing assignee filter", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -13154,7 +13154,7 @@ test("can authorize a query with a collection you have access to", async () => {
     });
 });
 
-test("can't authorize a query with a collection in a different space", async () => {
+test("can’t authorize a query with a collection in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -13175,7 +13175,7 @@ test("can't authorize a query with a collection in a different space", async () 
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await space.addAccount(session2);
 
@@ -13208,7 +13208,7 @@ test("can't authorize a query with a collection in a different space", async () 
     });
 });
 
-test("can't authorize a query with a collection you don't have access to", async () => {
+test("can’t authorize a query with a collection you don’t have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13228,11 +13228,11 @@ test("can't authorize a query with a collection you don't have access to", async
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
+        new PermissionDeniedError("Actor doesn’t have `View` access level to task collection"),
     );
 });
 
-test("can't authorize an excludes all of query with a collection you have access to", async () => {
+test("can’t authorize an excludes all of query with a collection you have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13259,7 +13259,7 @@ test("can't authorize an excludes all of query with a collection you have access
     );
 });
 
-test("can't authorize an is empty collection query", async () => {
+test("can’t authorize an is empty collection query", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -13307,7 +13307,7 @@ test("can authorize a query with one of three collections you have access to", a
     });
 });
 
-test("can't authorize a query with one of two collections you have access to and one you don't", async () => {
+test("can’t authorize a query with one of two collections you have access to and one you don’t", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13331,7 +13331,7 @@ test("can't authorize a query with one of two collections you have access to and
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
+        new PermissionDeniedError("Actor doesn’t have `View` access level to task collection"),
     );
 });
 
@@ -13360,7 +13360,7 @@ test("can authorize a query with all of three collections you have access to", a
     });
 });
 
-test("can't authorize a query with all of two collections you have access to and one you don't", async () => {
+test("can’t authorize a query with all of two collections you have access to and one you don’t", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13384,11 +13384,11 @@ test("can't authorize a query with all of two collections you have access to and
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
+        new PermissionDeniedError("Actor doesn’t have `View` access level to task collection"),
     );
 });
 
-test("can't authorize a query with excludes all of three collections you have access to", async () => {
+test("can’t authorize a query with excludes all of three collections you have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13419,7 +13419,7 @@ test("can't authorize a query with excludes all of three collections you have ac
     );
 });
 
-test("can't authorize a query with excludes all of two collections you have access to and one you don't", async () => {
+test("can’t authorize a query with excludes all of two collections you have access to and one you don’t", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13443,11 +13443,11 @@ test("can't authorize a query with excludes all of two collections you have acce
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
+        new PermissionDeniedError("Actor doesn’t have `View` access level to task collection"),
     );
 });
 
-test("can authorize a query when filtering by a collection you don't have access to that's ignored by boolean logic", async () => {
+test("can authorize a query when filtering by a collection you don’t have access to that’s ignored by boolean logic", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13518,11 +13518,11 @@ test("can authorize a query when filtering by a collection you don't have access
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
+        new PermissionDeniedError("Actor doesn’t have `View` access level to task collection"),
     );
 });
 
-test("can't authorize is empty collection filter with an accessible collection filter", async () => {
+test("can’t authorize is empty collection filter with an accessible collection filter", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13670,7 +13670,7 @@ test("can authorize a query with a parent filter for a task you have access to",
     });
 });
 
-test("can't authorize a query with a parent filter in a different space", async () => {
+test("can’t authorize a query with a parent filter in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();
@@ -13691,7 +13691,7 @@ test("can't authorize a query with a parent filter in a different space", async 
                 },
             },
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await space.addAccount(session2);
 
@@ -13718,7 +13718,7 @@ test("can't authorize a query with a parent filter in a different space", async 
     });
 });
 
-test("can't authorize a query with a parent filter for a task you don't have access to", async () => {
+test("can’t authorize a query with a parent filter for a task you don’t have access to", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13737,7 +13737,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "View" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level to task"));
 });
 
 test("can authorize a query with a parent filter for a task you have access to transitively", async () => {
@@ -13763,7 +13763,7 @@ test("can authorize a query with a parent filter for a task you have access to t
     });
 });
 
-test("can't authorize a query with a parent filter for a task you don't have access to transitively", async () => {
+test("can’t authorize a query with a parent filter for a task you don’t have access to transitively", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -13784,7 +13784,7 @@ test("can't authorize a query with a parent filter for a task you don't have acc
                 },
             },
         }),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "View" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `View` access level to task"));
 });
 
 test("can authorize a query with a parent filter for a deleted task", async () => {
@@ -13921,7 +13921,7 @@ test("must be allowed to access collection to sort by collection position", asyn
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
+        new PermissionDeniedError("Actor doesn’t have `View` access level to task collection"),
     );
 });
 
@@ -13951,7 +13951,7 @@ test("collection must be in the right space to sort by collection position", asy
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await space.addAccount(session2);
 
@@ -14045,7 +14045,7 @@ test("must be allowed to access collection to sort by collection position with c
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError('Actor doesn\'t have "View" access level to task collection'),
+        new PermissionDeniedError("Actor doesn’t have `View` access level to task collection"),
     );
 });
 
@@ -14163,7 +14163,7 @@ test("must filter by assignee to sort by assignee position", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 });
 
 test("must have space access to filter by creator", async () => {
@@ -14276,7 +14276,7 @@ test("must have space access to filter by creator", async () => {
                 ],
             },
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         testAuthorizeTaskQueryAccess(session1.action(), {
@@ -14320,7 +14320,7 @@ test("must have space access to filter by creator", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14342,7 +14342,7 @@ test("must have space access to filter by creator", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14414,7 +14414,7 @@ test("must have space access to filter by creator", async () => {
                 ],
             },
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 });
 
 test("must have space access to filter by assigner", async () => {
@@ -14543,7 +14543,7 @@ test("must have space access to filter by assigner", async () => {
                 ],
             },
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         testAuthorizeTaskQueryAccess(session1.action(), {
@@ -14587,7 +14587,7 @@ test("must have space access to filter by assigner", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14609,7 +14609,7 @@ test("must have space access to filter by assigner", async () => {
                 },
             ],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14681,7 +14681,7 @@ test("must have space access to filter by assigner", async () => {
                 ],
             },
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 });
 
 test("must have space access to sort by creator", async () => {
@@ -14788,7 +14788,7 @@ test("must have space access to sort by creator", async () => {
             ],
             sorts: [{type: "Creator"}],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14804,7 +14804,7 @@ test("must have space access to sort by creator", async () => {
             ],
             sorts: [{type: "Creator"}],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14927,7 +14927,7 @@ test("must have space access to sort by assigner", async () => {
             ],
             sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(otherSession.action(), {
@@ -14943,7 +14943,7 @@ test("must have space access to sort by assigner", async () => {
             ],
             sorts: [{type: "Assigner", direction: "Ascending", missing: "Last"}],
         }),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
 
     await expect(
         testAuthorizeTaskQueryAccess(context.anonymousAction(), {
@@ -14962,7 +14962,7 @@ test("must have space access to sort by assigner", async () => {
     ).rejects.toThrow("Unauthenticated session");
 });
 
-test("can't set task as own parent", async () => {
+test("can’t set task as own parent", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -14970,7 +14970,7 @@ test("can't set task as own parent", async () => {
 
     await expect(task.updateParentTask(session, task)).rejects.toThrow(
         new FailedPreconditionError(
-            "Updating task's `parentTaskId` would create a circular dependency",
+            "Updating task’s `parentTaskId` would create a circular dependency",
         ),
     );
 });
@@ -15000,7 +15000,7 @@ test("can delete a task and all its children when it has no children", async () 
     expect((await task.getItem()).deletedTime).toEqual(actionTime);
 });
 
-test("can't delete a task and all its children when the task doesn't exist", async () => {
+test("can’t delete a task and all its children when the task doesn’t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15011,7 +15011,7 @@ test("can't delete a task and all its children when the task doesn't exist", asy
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can't delete a task and all its children when you don't have access to the task", async () => {
+test("can’t delete a task and all its children when you don’t have access to the task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -15249,7 +15249,7 @@ test("can delete a task and all its children", async () => {
     expect((await task10.getItem()).deletedTime).toEqual(null);
 });
 
-test("can handle race conditions when deleting a task and all of it's children", async () => {
+test("can handle race conditions when deleting a task and all of it’s children", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15364,7 +15364,7 @@ test("can handle race conditions when deleting a task and all of it's children",
     expect((await task5.getItem()).deletedTime).toEqual(null);
 });
 
-test("can handle race conditions when deleting a task with parent and all of it's children", async () => {
+test("can handle race conditions when deleting a task with parent and all of it’s children", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15917,7 +15917,7 @@ test("gets notes for task without notes", async () => {
     );
 });
 
-test("can't get notes for task that doesn't exist", async () => {
+test("can’t get notes for task that doesn’t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -15930,7 +15930,7 @@ test("can't get notes for task that doesn't exist", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can't get notes for task in the wrong space", async () => {
+test("can’t get notes for task in the wrong space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -15978,7 +15978,7 @@ test("can get notes for task in public collection", async () => {
     );
 });
 
-test("can't get notes for task in private collection", async () => {
+test("can’t get notes for task in private collection", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -16020,7 +16020,7 @@ test("gets notes as system action", async () => {
     );
 });
 
-test("can't get notes as the wrong system action", async () => {
+test("can’t get notes as the wrong system action", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -16036,7 +16036,7 @@ test("can't get notes as the wrong system action", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can't get notes as an anonymous actor", async () => {
+test("can’t get notes as an anonymous actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16107,7 +16107,7 @@ test("can update task notes", async () => {
     );
 });
 
-test("can't update task notes that don't exist", async () => {
+test("can’t update task notes that don’t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16121,7 +16121,7 @@ test("can't update task notes that don't exist", async () => {
     ).rejects.toThrow(NotFoundError);
 });
 
-test("can't update task notes in a different space", async () => {
+test("can’t update task notes in a different space", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -16196,7 +16196,7 @@ test("can update task notes in a public collection", async () => {
     });
 });
 
-test("can't update task notes in a private collection", async () => {
+test("can’t update task notes in a private collection", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -16233,7 +16233,7 @@ test("can't update task notes in a private collection", async () => {
     });
 });
 
-test("can't update task notes with the wrong version", async () => {
+test("can’t update task notes with the wrong version", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16283,7 +16283,7 @@ test("can't update task notes with the wrong version", async () => {
     });
 });
 
-test("can't update task notes with the wrong version when notes are not initialized", async () => {
+test("can’t update task notes with the wrong version when notes are not initialized", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16317,7 +16317,7 @@ test("can't update task notes with the wrong version when notes are not initiali
     });
 });
 
-test("commits an update name action when the account's name updates", async () => {
+test("commits an update name action when the account’s name updates", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -16393,7 +16393,7 @@ test("commits an update name action when the account's name updates", async () =
     ]);
 });
 
-test("doesn't an update name action when the account is in no spaces", async () => {
+test("doesn’t an update name action when the account is in no spaces", async () => {
     const space = await TestSpace.create(context);
     const session = await TestSession.create(await TestAccount.create(context));
 
@@ -16428,7 +16428,7 @@ test("doesn't an update name action when the account is in no spaces", async () 
     ).toEqual([]);
 });
 
-test("commits an update name action when the account's name updates to every space the account is in during race condition 1", async () => {
+test("commits an update name action when the account’s name updates to every space the account is in during race condition 1", async () => {
     const space = await TestSpace.create(context);
     const session = await TestSession.create(await TestAccount.create(context));
 
@@ -16482,7 +16482,7 @@ test("commits an update name action when the account's name updates to every spa
     ]);
 });
 
-test("commits an update name action when the account's name updates to every space the account is in during race condition 2", async () => {
+test("commits an update name action when the account’s name updates to every space the account is in during race condition 2", async () => {
     const [space1, space2] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -17674,7 +17674,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
             task1.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
     expect(
         (
             await authorizeTaskAccessIfPossible(
@@ -17746,7 +17746,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
             task1.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
     expect(
         (
             await authorizeTaskAccessIfPossible(
@@ -17821,7 +17821,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
             task1.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
     expect(
         (
             await authorizeTaskAccessIfPossible(
@@ -17940,7 +17940,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     );
 });
 
-test("account can remove access from itself but can't grant it back with an invalid lease", async () => {
+test("account can remove access from itself but can’t grant it back with an invalid lease", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18041,7 +18041,7 @@ test("account can remove access from itself but can't grant it back with an inva
             ],
             {leaseId: generateId<TaskActionTransactionLeaseId>()},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level to task"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18051,7 +18051,7 @@ test("account can remove access from itself but can't grant it back with an inva
     );
 });
 
-test("account can remove access from itself but can't use another account's lease", async () => {
+test("account can remove access from itself but can’t use another account’s lease", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18153,7 +18153,7 @@ test("account can remove access from itself but can't use another account's leas
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level to task"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18163,7 +18163,7 @@ test("account can remove access from itself but can't use another account's leas
     );
 });
 
-test("account can remove access from itself but can't grant itself access back with an incompatible action", async () => {
+test("account can remove access from itself but can’t grant itself access back with an incompatible action", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18302,7 +18302,7 @@ test("account can remove access from itself but can't grant itself access back w
     );
 });
 
-test("account can remove access from itself but can't grant itself access back with an expired lease", async () => {
+test("account can remove access from itself but can’t grant itself access back with an expired lease", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18407,7 +18407,7 @@ test("account can remove access from itself but can't grant itself access back w
                 {leaseId},
             ),
         ).rejects.toThrow(
-            new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'),
+            new PermissionDeniedError("Actor doesn’t have `Edit` access level to task"),
         );
 
         await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
@@ -18421,7 +18421,7 @@ test("account can remove access from itself but can't grant itself access back w
     }
 });
 
-test("won't create lease if committed action doesn't remove access", async () => {
+test("won’t create lease if committed action doesn’t remove access", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18539,7 +18539,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level to task"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -18549,7 +18549,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
     );
 });
 
-test("can't create lease with actions you aren't allowed to commit", async () => {
+test("can’t create lease with actions you aren’t allowed to commit", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18621,8 +18621,8 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
         ),
     ).rejects.toThrow(
         new PermissionDeniedError(
-            "Couldn't apply lease actions: Actor doesn't have \"Edit\" access level to task",
-            {cause: new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task')},
+            "Couldn’t apply lease actions: Actor doesn’t have `Edit` access level to task",
+            {cause: new PermissionDeniedError("Actor doesn’t have `Edit` access level to task")},
         ),
     );
 
@@ -18632,7 +18632,7 @@ test("can't create lease with actions you aren't allowed to commit", async () =>
     );
 });
 
-test("account can't remove access from itself then grant it back with lease that has actions in different order", async () => {
+test("account can’t remove access from itself then grant it back with lease that has actions in different order", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -18900,7 +18900,7 @@ test("account can't remove access from itself then grant it back with lease that
     );
 });
 
-test("account can remove access from itself but can't grant it back if another user has updated the task", async () => {
+test("account can remove access from itself but can’t grant it back if another user has updated the task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -19003,7 +19003,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level to task"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -19013,7 +19013,7 @@ test("account can remove access from itself but can't grant it back if another u
     );
 });
 
-test("account can remove access from itself but can't grant it back if another user has deleted the task", async () => {
+test("account can remove access from itself but can’t grant it back if another user has deleted the task", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -19116,7 +19116,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level to task"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -19126,7 +19126,7 @@ test("account can remove access from itself but can't grant it back if another u
     );
 });
 
-test("account can remove access from itself but can't grant it back if another user has updated notes", async () => {
+test("account can remove access from itself but can’t grant it back if another user has updated notes", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -19234,7 +19234,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError('Actor doesn\'t have "Edit" access level to task'));
+    ).rejects.toThrow(new PermissionDeniedError("Actor doesn’t have `Edit` access level to task"));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
@@ -19290,7 +19290,7 @@ test("counts notes step count contributions for each account", async () => {
         ]),
     );
 
-    await task.typeNotes(session2, " I'm going to need to get more creative with test data.");
+    await task.typeNotes(session2, " I’m going to need to get more creative with test data.");
 
     expect(
         await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
@@ -21093,7 +21093,7 @@ test("can authorize task collections in various states as various actors", async
     await expect(authorize(session2.action(), publicCollection.id, "View")).resolves.not.toThrow();
     await expect(authorize(session3.action(), publicCollection.id, "View")).resolves.not.toThrow();
     await expect(authorize(otherSession.action(), publicCollection.id, "View")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(authorize(context.anonymousAction(), publicCollection.id, "View")).rejects.toThrow(
         "Unauthenticated session",
@@ -21102,7 +21102,7 @@ test("can authorize task collections in various states as various actors", async
         authorize(space.systemAction(), publicCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(authorize(otherSpace.systemAction(), publicCollection.id, "View")).rejects.toThrow(
-        "System actor doesn't have access to task collection's space",
+        "System actor doesn’t have access to task collection’s space",
     );
     await expect(
         authorize(
@@ -21131,7 +21131,7 @@ test("can authorize task collections in various states as various actors", async
             publicCollection.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), publicCollection.id, "Comment"),
@@ -21143,7 +21143,7 @@ test("can authorize task collections in various states as various actors", async
         authorize(session3.action(), publicCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(authorize(otherSession.action(), publicCollection.id, "Comment")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(
         authorize(context.anonymousAction(), publicCollection.id, "Comment"),
@@ -21153,7 +21153,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), publicCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21181,13 +21181,13 @@ test("can authorize task collections in various states as various actors", async
             publicCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(authorize(session1.action(), publicCollection.id, "Edit")).resolves.not.toThrow();
     await expect(authorize(session2.action(), publicCollection.id, "Edit")).resolves.not.toThrow();
     await expect(authorize(session3.action(), publicCollection.id, "Edit")).resolves.not.toThrow();
     await expect(authorize(otherSession.action(), publicCollection.id, "Edit")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(authorize(context.anonymousAction(), publicCollection.id, "Edit")).rejects.toThrow(
         "Unauthenticated session",
@@ -21196,7 +21196,7 @@ test("can authorize task collections in various states as various actors", async
         authorize(space.systemAction(), publicCollection.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(authorize(otherSpace.systemAction(), publicCollection.id, "Edit")).rejects.toThrow(
-        "System actor doesn't have access to task collection's space",
+        "System actor doesn’t have access to task collection’s space",
     );
     await expect(
         authorize(
@@ -21225,7 +21225,7 @@ test("can authorize task collections in various states as various actors", async
             publicCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), publicDeletedCollection.id, "View"),
@@ -21238,7 +21238,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSession.action(), publicDeletedCollection.id, "View"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), publicDeletedCollection.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21247,7 +21247,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), publicDeletedCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21275,37 +21275,37 @@ test("can authorize task collections in various states as various actors", async
             publicDeletedCollection.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(session2.action(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(session3.action(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(otherSession.action(), publicDeletedCollection.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorize(space.systemAction(), publicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(otherSpace.systemAction(), publicDeletedCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21313,7 +21313,7 @@ test("can authorize task collections in various states as various actors", async
             "Comment",
         ),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(
@@ -21322,7 +21322,7 @@ test("can authorize task collections in various states as various actors", async
             "Comment",
         ),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(
@@ -21331,7 +21331,7 @@ test("can authorize task collections in various states as various actors", async
             "Comment",
         ),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(
@@ -21339,65 +21339,65 @@ test("can authorize task collections in various states as various actors", async
             publicDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(authorize(session1.action(), publicDeletedCollection.id, "Edit")).rejects.toThrow(
-        'Can only view deleted task collection, access level "Edit" is not allowed',
+        "Can only view deleted task collection, access level `Edit` is not allowed",
     );
     await expect(authorize(session2.action(), publicDeletedCollection.id, "Edit")).rejects.toThrow(
-        'Can only view deleted task collection, access level "Edit" is not allowed',
+        "Can only view deleted task collection, access level `Edit` is not allowed",
     );
     await expect(authorize(session3.action(), publicDeletedCollection.id, "Edit")).rejects.toThrow(
-        'Can only view deleted task collection, access level "Edit" is not allowed',
+        "Can only view deleted task collection, access level `Edit` is not allowed",
     );
     await expect(
         authorize(otherSession.action(), publicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), publicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorize(space.systemAction(), publicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(otherSpace.systemAction(), publicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(authorize(session1.action(), privateCollection.id, "View")).resolves.not.toThrow();
     await expect(authorize(session2.action(), privateCollection.id, "View")).resolves.not.toThrow();
     await expect(authorize(session3.action(), privateCollection.id, "View")).rejects.toThrow(
-        'Actor doesn\'t have "View" access level to task collection',
+        "Actor doesn’t have `View` access level to task collection",
     );
     await expect(authorize(otherSession.action(), privateCollection.id, "View")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(
         authorize(context.anonymousAction(), privateCollection.id, "View"),
@@ -21407,7 +21407,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), privateCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21428,14 +21428,14 @@ test("can authorize task collections in various states as various actors", async
             privateCollection.id,
             "View",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `View` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateCollection.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), privateCollection.id, "Comment"),
@@ -21444,10 +21444,10 @@ test("can authorize task collections in various states as various actors", async
         authorize(session2.action(), privateCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(authorize(session3.action(), privateCollection.id, "Comment")).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to task collection',
+        "Actor doesn’t have `Comment` access level to task collection",
     );
     await expect(authorize(otherSession.action(), privateCollection.id, "Comment")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(
         authorize(context.anonymousAction(), privateCollection.id, "Comment"),
@@ -21457,7 +21457,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), privateCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21478,24 +21478,24 @@ test("can authorize task collections in various states as various actors", async
             privateCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(authorize(session1.action(), privateCollection.id, "Edit")).resolves.not.toThrow();
     await expect(authorize(session2.action(), privateCollection.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task collection',
+        "Actor doesn’t have `Edit` access level to task collection",
     );
     await expect(authorize(session3.action(), privateCollection.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task collection',
+        "Actor doesn’t have `Edit` access level to task collection",
     );
     await expect(authorize(otherSession.action(), privateCollection.id, "Edit")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(
         authorize(context.anonymousAction(), privateCollection.id, "Edit"),
@@ -21505,7 +21505,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), privateCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21519,21 +21519,21 @@ test("can authorize task collections in various states as various actors", async
             privateCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), privateDeletedCollection.id, "View"),
@@ -21542,11 +21542,11 @@ test("can authorize task collections in various states as various actors", async
         authorize(session2.action(), privateDeletedCollection.id, "View"),
     ).resolves.not.toThrow();
     await expect(authorize(session3.action(), privateDeletedCollection.id, "View")).rejects.toThrow(
-        'Actor doesn\'t have "View" access level to task collection',
+        "Actor doesn’t have `View` access level to task collection",
     );
     await expect(
         authorize(otherSession.action(), privateDeletedCollection.id, "View"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), privateDeletedCollection.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21555,7 +21555,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), privateDeletedCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21576,42 +21576,42 @@ test("can authorize task collections in various states as various actors", async
             privateDeletedCollection.id,
             "View",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "View" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `View` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedCollection.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(session2.action(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(session3.action(), privateDeletedCollection.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(otherSession.action(), privateDeletedCollection.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorize(space.systemAction(), privateDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(otherSpace.systemAction(), privateDeletedCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21619,7 +21619,7 @@ test("can authorize task collections in various states as various actors", async
             "Comment",
         ),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(
@@ -21628,7 +21628,7 @@ test("can authorize task collections in various states as various actors", async
             "Comment",
         ),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(
@@ -21636,64 +21636,64 @@ test("can authorize task collections in various states as various actors", async
             privateDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(authorize(session1.action(), privateDeletedCollection.id, "Edit")).rejects.toThrow(
-        'Can only view deleted task collection, access level "Edit" is not allowed',
+        "Can only view deleted task collection, access level `Edit` is not allowed",
     );
     await expect(authorize(session2.action(), privateDeletedCollection.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task collection',
+        "Actor doesn’t have `Edit` access level to task collection",
     );
     await expect(authorize(session3.action(), privateDeletedCollection.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task collection',
+        "Actor doesn’t have `Edit` access level to task collection",
     );
     await expect(
         authorize(otherSession.action(), privateDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), privateDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorize(space.systemAction(), privateDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(otherSpace.systemAction(), privateDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), urlPublicCollection.id, "View"),
@@ -21715,7 +21715,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), urlPublicCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21743,20 +21743,20 @@ test("can authorize task collections in various states as various actors", async
             urlPublicCollection.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), urlPublicCollection.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(authorize(session2.action(), urlPublicCollection.id, "Comment")).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to task collection',
+        "Actor doesn’t have `Comment` access level to task collection",
     );
     await expect(authorize(session3.action(), urlPublicCollection.id, "Comment")).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to task collection',
+        "Actor doesn’t have `Comment` access level to task collection",
     );
     await expect(
         authorize(otherSession.action(), urlPublicCollection.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), urlPublicCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -21765,7 +21765,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), urlPublicCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21779,33 +21779,33 @@ test("can authorize task collections in various states as various actors", async
             urlPublicCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), urlPublicCollection.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(authorize(session2.action(), urlPublicCollection.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task collection',
+        "Actor doesn’t have `Edit` access level to task collection",
     );
     await expect(authorize(session3.action(), urlPublicCollection.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task collection',
+        "Actor doesn’t have `Edit` access level to task collection",
     );
     await expect(authorize(otherSession.action(), urlPublicCollection.id, "Edit")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(
         authorize(context.anonymousAction(), urlPublicCollection.id, "Edit"),
@@ -21815,7 +21815,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), urlPublicCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21829,21 +21829,21 @@ test("can authorize task collections in various states as various actors", async
             urlPublicCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), urlPublicDeletedCollection.id, "View"),
@@ -21865,7 +21865,7 @@ test("can authorize task collections in various states as various actors", async
     ).resolves.not.toThrow();
     await expect(
         authorize(otherSpace.systemAction(), urlPublicDeletedCollection.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21893,33 +21893,33 @@ test("can authorize task collections in various states as various actors", async
             urlPublicDeletedCollection.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(session2.action(), urlPublicDeletedCollection.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(session3.action(), urlPublicDeletedCollection.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(otherSession.action(), urlPublicDeletedCollection.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorize(space.systemAction(), urlPublicDeletedCollection.id, "Comment"),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(otherSpace.systemAction(), urlPublicDeletedCollection.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -21927,7 +21927,7 @@ test("can authorize task collections in various states as various actors", async
             "Comment",
         ),
     ).rejects.toThrow(
-        'Can only view deleted task collection, access level "Comment" is not allowed',
+        "Can only view deleted task collection, access level `Comment` is not allowed",
     );
     await expect(
         authorize(
@@ -21935,71 +21935,71 @@ test("can authorize task collections in various states as various actors", async
             urlPublicDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 
     await expect(
         authorize(session1.action(), urlPublicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(session2.action(), urlPublicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(session3.action(), urlPublicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(otherSession.action(), urlPublicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorize(context.anonymousAction(), urlPublicDeletedCollection.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorize(space.systemAction(), urlPublicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(otherSpace.systemAction(), urlPublicDeletedCollection.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task collection's space");
+    ).rejects.toThrow("System actor doesn’t have access to task collection’s space");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task collection, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task collection, access level `Edit` is not allowed");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task collection');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task collection");
     await expect(
         authorize(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedCollection.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task collection's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task collection’s space");
 });
 
 test("can authorize tasks in various states as various actors", async () => {
@@ -22069,7 +22069,7 @@ test("can authorize tasks in various states as various actors", async () => {
         authorizeTaskAccess(session3.action(), publicTask.id, "View"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "View")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicTask.id, "View"),
@@ -22079,7 +22079,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22107,7 +22107,7 @@ test("can authorize tasks in various states as various actors", async () => {
             publicTask.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), publicTask.id, "Comment"),
@@ -22120,7 +22120,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSession.action(), publicTask.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22129,7 +22129,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22157,7 +22157,7 @@ test("can authorize tasks in various states as various actors", async () => {
             publicTask.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), publicTask.id, "Edit"),
@@ -22169,7 +22169,7 @@ test("can authorize tasks in various states as various actors", async () => {
         authorizeTaskAccess(session3.action(), publicTask.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(otherSession.action(), publicTask.id, "Edit")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicTask.id, "Edit"),
@@ -22179,7 +22179,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), publicTask.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22207,7 +22207,7 @@ test("can authorize tasks in various states as various actors", async () => {
             publicTask.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), publicDeletedTask.id, "View"),
@@ -22220,7 +22220,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "View"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22229,7 +22229,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22257,107 +22257,107 @@ test("can authorize tasks in various states as various actors", async () => {
             publicDeletedTask.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), publicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(session2.action(), publicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(session3.action(), publicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), publicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(session2.action(), publicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(session3.action(), publicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(otherSession.action(), publicDeletedTask.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), publicDeletedTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorizeTaskAccess(space.systemAction(), publicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), publicDeletedTask.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), privateTask.id, "View"),
@@ -22366,11 +22366,11 @@ test("can authorize tasks in various states as various actors", async () => {
         authorizeTaskAccess(session2.action(), privateTask.id, "View"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(session3.action(), privateTask.id, "View")).rejects.toThrow(
-        'Actor doesn\'t have "View" access level to task',
+        "Actor doesn’t have `View` access level to task",
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), privateTask.id, "View"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateTask.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22379,7 +22379,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22400,14 +22400,14 @@ test("can authorize tasks in various states as various actors", async () => {
             privateTask.id,
             "View",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "View" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `View` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateTask.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), privateTask.id, "Comment"),
@@ -22416,11 +22416,11 @@ test("can authorize tasks in various states as various actors", async () => {
         authorizeTaskAccess(session2.action(), privateTask.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(session3.action(), privateTask.id, "Comment")).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to task',
+        "Actor doesn’t have `Comment` access level to task",
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), privateTask.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22429,7 +22429,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22450,27 +22450,27 @@ test("can authorize tasks in various states as various actors", async () => {
             privateTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateTask.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), privateTask.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(session2.action(), privateTask.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task',
+        "Actor doesn’t have `Edit` access level to task",
     );
     await expect(authorizeTaskAccess(session3.action(), privateTask.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task',
+        "Actor doesn’t have `Edit` access level to task",
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), privateTask.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22479,7 +22479,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), privateTask.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22493,21 +22493,21 @@ test("can authorize tasks in various states as various actors", async () => {
             privateTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateTask.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), privateDeletedTask.id, "View"),
@@ -22517,10 +22517,10 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(session3.action(), privateDeletedTask.id, "View"),
-    ).rejects.toThrow('Actor doesn\'t have "View" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `View` access level to task");
     await expect(
         authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "View"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "View"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22529,7 +22529,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22550,114 +22550,114 @@ test("can authorize tasks in various states as various actors", async () => {
             privateDeletedTask.id,
             "View",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "View" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `View` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedTask.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), privateDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(session2.action(), privateDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(session3.action(), privateDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), privateDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(session2.action(), privateDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(session3.action(), privateDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(otherSession.action(), privateDeletedTask.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), privateDeletedTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorizeTaskAccess(space.systemAction(), privateDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), privateDeletedTask.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), urlPublicTask.id, "View"),
@@ -22679,7 +22679,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22707,20 +22707,20 @@ test("can authorize tasks in various states as various actors", async () => {
             urlPublicTask.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), urlPublicTask.id, "Comment"),
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(session2.action(), urlPublicTask.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(session3.action(), urlPublicTask.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22729,7 +22729,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22743,34 +22743,34 @@ test("can authorize tasks in various states as various actors", async () => {
             urlPublicTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicTask.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), urlPublicTask.id, "Edit"),
     ).resolves.not.toThrow();
     await expect(authorizeTaskAccess(session2.action(), urlPublicTask.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task',
+        "Actor doesn’t have `Edit` access level to task",
     );
     await expect(authorizeTaskAccess(session3.action(), urlPublicTask.id, "Edit")).rejects.toThrow(
-        'Actor doesn\'t have "Edit" access level to task',
+        "Actor doesn’t have `Edit` access level to task",
     );
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicTask.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
@@ -22779,7 +22779,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), urlPublicTask.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22793,21 +22793,21 @@ test("can authorize tasks in various states as various actors", async () => {
             urlPublicTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicTask.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "View"),
@@ -22829,7 +22829,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).resolves.not.toThrow();
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "View"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
@@ -22857,107 +22857,107 @@ test("can authorize tasks in various states as various actors", async () => {
             urlPublicDeletedTask.id,
             "View",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Comment"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Comment"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "Comment"),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "Comment"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Comment" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Comment` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Comment",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     await expect(
         authorizeTaskAccess(session1.action(), urlPublicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(session2.action(), urlPublicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(session3.action(), urlPublicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(otherSession.action(), urlPublicDeletedTask.id, "Edit"),
-    ).rejects.toThrow("Account doesn't have access to space");
+    ).rejects.toThrow("Account doesn’t have access to space");
     await expect(
         authorizeTaskAccess(context.anonymousAction(), urlPublicDeletedTask.id, "Edit"),
     ).rejects.toThrow("Unauthenticated session");
     await expect(
         authorizeTaskAccess(space.systemAction(), urlPublicDeletedTask.id, "Edit"),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(otherSpace.systemAction(), urlPublicDeletedTask.id, "Edit"),
-    ).rejects.toThrow("System actor doesn't have access to task's space");
+    ).rejects.toThrow("System actor doesn’t have access to task’s space");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Can only view deleted task, access level "Edit" is not allowed');
+    ).rejects.toThrow("Can only view deleted task, access level `Edit` is not allowed");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Edit" access level to task');
+    ).rejects.toThrow("Actor doesn’t have `Edit` access level to task");
     await expect(
         authorizeTaskAccess(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Edit",
         ),
-    ).rejects.toThrow("Impersonated account actor doesn't have access to task's space");
+    ).rejects.toThrow("Impersonated account actor doesn’t have access to task’s space");
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), publicTask.id, "View").then(
@@ -24236,7 +24236,7 @@ test("can authorize tasks in various states as various actors", async () => {
     ).toEqual(false);
 });
 
-test("account has access to tasks they create and tasks they're assigned until they're removed from the space", async () => {
+test("account has access to tasks they create and tasks they’re assigned until they’re removed from the space", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({hasInternalAccess: true});
     const [session1, session2] = await space.createSessions(2);
@@ -24292,27 +24292,27 @@ test("account has access to tasks they create and tasks they're assigned until t
     });
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "View")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "View")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Comment")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Comment")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).rejects.toThrow(
-        "Account doesn't have access to space",
+        "Account doesn’t have access to space",
     );
 
     expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View")).ok).toEqual(
@@ -24340,7 +24340,7 @@ test("account has access to tasks they create and tasks they're assigned until t
     );
 });
 
-test("can't revoke access from a collection manager that invited you", async () => {
+test("can’t revoke access from a collection manager that invited you", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2, session3a, session3b] = await space.createSessions(4);
 
@@ -24351,11 +24351,11 @@ test("can't revoke access from a collection manager that invited you", async () 
     await collection.access.grant(session2, session3b);
 
     await expect(collection.access.revoke(session3a, session2)).rejects.toThrow(
-        "Can't revoke manage access from an account with a manage generation less than our actor",
+        "Can’t revoke manage access from an account with a manage generation less than our actor",
     );
 
     await expect(collection.access.revoke(session3a, session1)).rejects.toThrow(
-        "Can't revoke manage access from an account with a manage generation less than our actor",
+        "Can’t revoke manage access from an account with a manage generation less than our actor",
     );
 
     await collection.access.revoke(session3a, session3b);
@@ -24407,7 +24407,7 @@ test("can only send share notifications when committing an update access policy 
             },
         ),
     ).rejects.toThrow(
-        "Can only provide `updateAccessPolicyShareNotification` if there's an `UpdateAccessPolicy` action in the transaction",
+        "Can only provide `updateAccessPolicyShareNotification` if there’s an `UpdateAccessPolicy` action in the transaction",
     );
 
     expect((await collection.getItem()).name.value).toEqual("Test Collection 1");
@@ -24440,7 +24440,7 @@ test("can only send share notifications when committing an update access policy 
             },
         ),
     ).rejects.toThrow(
-        "Can only provide `updateAccessPolicyShareNotification` if there's an `UpdateAccessPolicy` action in the transaction",
+        "Can only provide `updateAccessPolicyShareNotification` if there’s an `UpdateAccessPolicy` action in the transaction",
     );
 
     expect((await collection.getItem()).name.value).toEqual("Test Collection 1");

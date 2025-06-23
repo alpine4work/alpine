@@ -450,7 +450,7 @@ test("can clone into subclass and the type for other contexts will reflect that"
     }>();
 });
 
-test("can't construct a context with a module that's already been bound", () => {
+test("can’t construct a context with a module that’s already been bound", () => {
     const contextModule = new TestContextModule();
 
     const context1 = Context.new({
@@ -468,7 +468,7 @@ test("can't construct a context with a module that's already been bound", () => 
     });
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -512,7 +512,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => parentContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: `withSync()`)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: `withSync()`)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -556,7 +556,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => parentContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: `Context.with()`)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: `Context.with()`)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -597,7 +597,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => parentContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: intermediate non-action scoped context)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: intermediate non-action scoped context)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();
@@ -646,7 +646,7 @@ test("race condition: context is destroyed correctly when `waitUntil()` adds a p
     expect(() => intermediateContext.process).toThrow("Context was destroyed");
 });
 
-test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context's action finishes but before parent context's action finishes (variant: fully resolve inside action)", async () => {
+test("race condition: context is destroyed correctly when `waitUntil()` adds a promise after child context’s action finishes but before parent context’s action finishes (variant: fully resolve inside action)", async () => {
     const promiseWaiter = new PromiseWaiter();
 
     const promiseResolver1 = createPromiseResolver();

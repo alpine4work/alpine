@@ -673,7 +673,7 @@ async function resolveDeployItemDispatchedDeploymentResult(
 
             if (!workflowRun) {
                 if (attemptCount >= 20) {
-                    throw new NotFoundError("Couldn't find workflow run for dispatch");
+                    throw new NotFoundError("Couldn’t find workflow run for dispatch");
                 } else {
                     await wait(500);
                     continue;
@@ -746,7 +746,7 @@ export async function prepareDeploy(
         mainCompareResult.data.status !== "behind"
     ) {
         throw new FailedPreconditionError(
-            quote`Commit ${commitSha} is not present in "main" branch (compare status: ${mainCompareResult.data.status})`,
+            quote`Commit ${commitSha} is not present in \`main\` branch (compare status: ${mainCompareResult.data.status})`,
         );
     }
 
@@ -798,7 +798,7 @@ export async function prepareDeploy(
             workflowRunResult.data.conclusion !== "failure"
         ) {
             throw new FailedPreconditionError(
-                quote`Can't deploy while there's an ongoing deploy workflow run (id: ${deployItem.ongoingDeployment.workflowRunId}, status: ${workflowRunResult.status})`,
+                quote`Can’t deploy while there’s an ongoing deploy workflow run (id: ${deployItem.ongoingDeployment.workflowRunId}, status: ${workflowRunResult.status})`,
             );
         }
     }

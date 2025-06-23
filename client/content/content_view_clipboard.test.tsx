@@ -1,4 +1,4 @@
-/* eslint-disable testing-library/no-node-access */
+/* eslint-disable testing-library/no-node-access, string-quotes */
 
 import {render} from "@testing-library/react";
 import {ContentView} from "~/client/content/content_view.js";

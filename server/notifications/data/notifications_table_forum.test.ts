@@ -100,7 +100,7 @@ async function getPostContentTextSnippet(post: TestPost) {
     return printContentSingleLineTextSnippet((await post.get()).content);
 }
 
-test("won't create two inbox entries if inbox is observed between serial event processing", async () => {
+test("won’t create two inbox entries if inbox is observed between serial event processing", async () => {
     processingType = "TwiceSerially";
 
     const scenario = await createNotificationsScenario(context);
@@ -3332,7 +3332,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("can not observe inbox in a space you don't have access to", async () => {
+        test("can not observe inbox in a space you don’t have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
             await expect(
@@ -5530,7 +5530,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("can not archive or unarchive inbox entries in a space you don't have access to", async () => {
+        test("can not archive or unarchive inbox entries in a space you don’t have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
@@ -5919,7 +5919,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("can not get inbox in a space you don't have access to", async () => {
+        test("can not get inbox in a space you don’t have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
             await expect(
@@ -11037,7 +11037,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("can not get inbox entry posts for a space you don't have access to", async () => {
+        test("can not get inbox entry posts for a space you don’t have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session2);
@@ -11659,7 +11659,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).rejects.toThrow(NotFoundError);
         });
 
-        test("account can't backfill in a space it can't access", async () => {
+        test("account can’t backfill in a space it can’t access", async () => {
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
@@ -11721,7 +11721,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ).rejects.toThrow(PermissionDeniedError);
         });
 
-        test("won't backfill events that happened far in the past", async () => {
+        test("won’t backfill events that happened far in the past", async () => {
             const scenario = await createNotificationsScenario(context);
 
             const channel = await TestChannel.create(scenario.session1);
@@ -12165,7 +12165,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("if an account is removed from a space their inbox won't update anymore", async () => {
+        test("if an account is removed from a space their inbox won’t update anymore", async () => {
             const space = await TestSpace.create(context);
 
             const session1 = await space.createSession({hasInternalAccess: true});
@@ -12334,7 +12334,7 @@ for (const [currentProcessingType, processingMultiple] of [
             });
         });
 
-        test("will send account mentioned in post a notification even if they're not subscribed", async () => {
+        test("will send account mentioned in post a notification even if they’re not subscribed", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
 
@@ -12429,7 +12429,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("won't send account mentioned in post a notification if they don't have access", async () => {
+        test("won’t send account mentioned in post a notification if they don’t have access", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2, session3, session4] = await space.createSessions(4);
 

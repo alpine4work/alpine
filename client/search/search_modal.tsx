@@ -197,7 +197,7 @@ export function SearchModal({
                 // Silently fail. This doesn't affect anything the user sees so we don't need
                 // to report the error to the user.
                 reporter.logErrorWithoutDisplaying(
-                    "Couldn't mark search result select affinity interaction",
+                    "Couldn’t mark search result select affinity interaction",
                     error,
                 );
             });
@@ -610,6 +610,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 style={{
                     // Render contextual alternate glyphs. User text may be rendered here. Helpful
                     // for consistency if the user types anything like 2x2 or an @ mention.
+                    // eslint-disable-next-line string-quotes
                     fontFeatureSettings: '"calt" on',
                 }}
                 // Chrome complains if `<input>` doesn't have an `id` or `name`.

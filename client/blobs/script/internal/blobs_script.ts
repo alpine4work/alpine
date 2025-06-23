@@ -32,6 +32,7 @@ function drawBlob(blobCanvasId: string, settings: BlobsSettings | true) {
     );
     const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
 
+    // eslint-disable-next-line string-quotes
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
 
     const blobs = generateBlobsForContent({

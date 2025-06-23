@@ -303,7 +303,7 @@ function serializeProsemirrorNode(
             ({html, contentHtml} = nodeRenderer(node, pos - 1));
         } else {
             const toDOM = node.type.spec.toDOM;
-            assert(toDOM, `Could not find renderer for node type "${node.type.name}"`);
+            assert(toDOM, `Could not find renderer for node type \`${node.type.name}\``);
             ({html, contentHtml} = renderProsemirrorDomOutputSpec(toDOM(node)));
         }
 

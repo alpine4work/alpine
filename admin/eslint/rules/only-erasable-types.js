@@ -5,8 +5,8 @@ module.exports = {
         schema: [],
         messages: {
             onlyErasableTypes:
-                'Only types that are erased at runtime may go in a "types" directory.',
-            mustUseTypeImport: 'Imports outside of a "types" directory must be type imports.',
+                "Only types that are erased at runtime may go in a `types` directory.",
+            mustUseTypeImport: "Imports outside of a `types` directory must be type imports.",
         },
     },
 

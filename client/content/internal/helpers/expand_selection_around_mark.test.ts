@@ -661,7 +661,7 @@ test("expands selection around link with formatting and text around it", () => {
     }
 });
 
-test("selection doesn't expand to link if some text is not formatted with link", () => {
+test("selection doesn’t expand to link if some text is not formatted with link", () => {
     const doc = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
             schema.text("foo", [schema.marks.link.create({url: "https://alpine.inc"})]),
@@ -694,7 +694,7 @@ test("selection doesn't expand to link if some text is not formatted with link",
     });
 });
 
-test("selection doesn't contract to link if some text in the middle is formatted with link", () => {
+test("selection doesn’t contract to link if some text in the middle is formatted with link", () => {
     const doc = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
             schema.text("foo", []),
@@ -751,7 +751,7 @@ test("selection doesn't contract to link if some text in the middle is formatted
     ).toEqual(undefined);
 });
 
-test("selection doesn't choose to expand to link when ambiguous", () => {
+test("selection doesn’t choose to expand to link when ambiguous", () => {
     const doc = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
             schema.text("foo", [schema.marks.link.create({url: "https://alpine.inc/a"})]),

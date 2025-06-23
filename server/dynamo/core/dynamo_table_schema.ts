@@ -1050,7 +1050,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         )) {
             if (!attributeSchema.binary) {
                 throw new UnimplementedError(
-                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                 );
             }
             totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
@@ -1067,7 +1067,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         )) {
             if (!attributeSchema.binary) {
                 throw new UnimplementedError(
-                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                 );
             }
             totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
@@ -1129,7 +1129,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const deserializedKey = this.deserializeOpaqueItemKey(opaqueString);
             assert(
                 isDeepEqual(pickObject(key, Object.keys(deserializedKey)), deserializedKey),
-                "Couldn't deserialize opaque item key",
+                "Couldn’t deserialize opaque item key",
             );
         }
 
@@ -1166,7 +1166,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const deserializedKey = this.deserializeOpaqueItemKey(opaqueKeyString);
             assert(
                 isDeepEqual(pickObject(key, Object.keys(deserializedKey)), deserializedKey),
-                "Couldn't deserialize opaque item key",
+                "Couldn’t deserialize opaque item key",
             );
         }
 
@@ -1213,7 +1213,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const deserializedKey = this.deserializeOpaqueItemKey(opaqueKeyString);
             assert(
                 isDeepEqual(pickObject(key, Object.keys(deserializedKey)), deserializedKey),
-                "Couldn't deserialize opaque item key",
+                "Couldn’t deserialize opaque item key",
             );
         }
 
@@ -1285,7 +1285,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             )) {
                 if (!attributeSchema.binary) {
                     throw new UnimplementedError(
-                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                     );
                 }
 
@@ -1317,7 +1317,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             )) {
                 if (!attributeSchema.binary) {
                     throw new UnimplementedError(
-                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                     );
                 }
 
@@ -1327,7 +1327,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 key[attributeKey] = value;
             }
 
-            assert(bytesIndex === bytes.length, "String has more bytes that weren't used");
+            assert(bytesIndex === bytes.length, "String has more bytes that weren’t used");
 
             return key;
         } catch (error) {
@@ -1360,7 +1360,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         )) {
             if (!attributeSchema.binary) {
                 throw new UnimplementedError(
-                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                 );
             }
             totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
@@ -1410,7 +1410,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         )) {
             if (!attributeSchema.binary) {
                 throw new UnimplementedError(
-                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                 );
             }
             totalByteCount += attributeSchema.binary.getByteCount(key[attributeKey]);
@@ -1578,7 +1578,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         if (!item) {
             throw new NotFoundError(
-                `Item not found (partition type: "${key.partitionType}", sort range type: "${key.sortRangeType}")`,
+                `Item not found (partition type: \`${key.partitionType}\`, sort range type: \`${key.sortRangeType}\`)`,
             );
         }
 
@@ -1743,7 +1743,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
         if (!item) {
             throw new NotFoundError(
-                `Item not found (partition type: "${key.partitionType}", sort range type: "${key.sortRangeType}")`,
+                `Item not found (partition type: \`${key.partitionType}\`, sort range type: \`${key.sortRangeType}\`)`,
             );
         }
 
@@ -2004,7 +2004,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     // spreading the old object) then we override the change.
                     //
                     // An undefined lock version is the same as a lock version of 0. Except we
-                    // can't set to 0 because our conditional update looks for a lock version that
+                    // can’t set to 0 because our conditional update looks for a lock version that
                     // does not exist for version 0.
                     updateLockVersion: !item
                         ? undefined
@@ -3504,7 +3504,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *   use `addExpensiveFullIndex()` if you want an `ALL` attribute projection.
      *   Be careful since an `ALL` attribute projection doubles storage costs for
      *   items in the index! We don't support an `INCLUDE` attribute projection for
-     *   now because it means we couldn't overload multiple logical indexes onto
+     *   now because it means we couldn’t overload multiple logical indexes onto
      *   one physical index.
      *
      * - You can index any property on an item as long as it can be serialized with
@@ -4034,7 +4034,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             const targetItemTypeSet = new Set<string>();
             const targetPartitionTypeSet = new Set<string>();
 
-            // Can't reuse a physical index with a different projection.
+            // Can’t reuse a physical index with a different projection.
             if (targetIndexDescription.projection !== projection) continue;
 
             let targetCanReusePartitionKey = true;
@@ -4069,7 +4069,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        // Create a new physical index if we couldn't overload an existing
+        // Create a new physical index if we couldn’t overload an existing
         // physical index.
         if (addedToIndexNumber === null) {
             addedToIndexNumber = this._initializationState.indexDescriptions.length + 1;
@@ -4309,7 +4309,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         )) {
             if (!attributeSchema.binary) {
                 throw new UnimplementedError(
-                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                 );
             }
             totalByteCount += attributeSchema.binary.getByteCount(partitionKey[attributeKey]);
@@ -4343,7 +4343,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     pickObject(partitionKey, Object.keys(deserializedKey)),
                     deserializedKey,
                 ),
-                "Couldn't deserialize opaque item key",
+                "Couldn’t deserialize opaque item key",
             );
         }
 
@@ -4367,7 +4367,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             )) {
                 if (!attributeSchema.binary) {
                     throw new UnimplementedError(
-                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                     );
                 }
 
@@ -4377,7 +4377,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 partitionKey[attributeKey] = value;
             }
 
-            assert(bytesIndex === bytes.length, "String has more bytes that weren't used");
+            assert(bytesIndex === bytes.length, "String has more bytes that weren’t used");
 
             return partitionKey;
         } catch (error) {
@@ -4420,7 +4420,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         )) {
             if (!attributeSchema.binary) {
                 throw new UnimplementedError(
-                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                 );
             }
             const attributeValue = item[attributeKey];
@@ -4445,7 +4445,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ) {
                 if (!attributeSchema.binary) {
                     throw new UnimplementedError(
-                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                     );
                 }
                 totalByteCount += attributeSchema.binary.getByteCount(item[attributeKey]);
@@ -4469,7 +4469,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             ) {
                 if (!attributeSchema.binary) {
                     throw new UnimplementedError(
-                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                     );
                 }
                 totalByteCount += attributeSchema.binary.getByteCount(item[attributeKey]);
@@ -4552,7 +4552,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             );
             assert(
                 isDeepEqual(pickObject(item, Object.keys(deserializedKey)), deserializedKey),
-                "Couldn't deserialize opaque index cursor",
+                "Couldn’t deserialize opaque index cursor",
             );
         }
 
@@ -4582,7 +4582,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             )) {
                 if (!attributeSchema.binary) {
                     throw new UnimplementedError(
-                        quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                        quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                     );
                 }
 
@@ -4619,7 +4619,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 ) {
                     if (!attributeSchema.binary) {
                         throw new UnimplementedError(
-                            quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                            quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                         );
                     }
 
@@ -4660,7 +4660,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 ) {
                     if (!attributeSchema.binary) {
                         throw new UnimplementedError(
-                            quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                            quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                         );
                     }
 
@@ -4671,7 +4671,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 }
             }
 
-            assert(bytesIndex === bytes.length, "String has more bytes that weren't used");
+            assert(bytesIndex === bytes.length, "String has more bytes that weren’t used");
 
             return key;
         } catch (error) {
@@ -4691,7 +4691,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         )) {
             if (!attributeSchema.binary) {
                 throw new UnimplementedError(
-                    quote`Can't use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
+                    quote`Can’t use opaque keys unless all item key attributes support binary encoding, ${attributeKey} does not support binary encoding`,
                 );
             }
             const attributeValue = item[attributeKey];
@@ -4746,7 +4746,7 @@ let constructedDynamoTableSchemaCount = 0;
  * `recordConstructedDynamoTableSchemas()` to make sure you've recorded all
  * constructed DynamoDB table schemas.
  *
- * We can't add every DynamoDB table schemas ever constructed to an array since
+ * We can’t add every DynamoDB table schemas ever constructed to an array since
  * the array would grow indefinitely in our Vite dev server which re-evaluates
  * modules whenever they update.
  */
@@ -4856,10 +4856,10 @@ export type DynamoTableSchemaIndexConfigOptions<
      * expected item type.
      *
      * We apply the filter at serialization time so it can only depend on the item.
-     * It can't depend on external state such as the current time since if that
+     * It can’t depend on external state such as the current time since if that
      * state changes we won't re-filter the item.
      *
-     * Since this is a function we can't do backwards compatibility checking on it!
+     * Since this is a function we can’t do backwards compatibility checking on it!
      * You'll have to be careful about backwards compatibility when updating this
      * function implementation yourself. Remember since this runs at serialization
      * time, if you change the implementation then existing items in the database
@@ -5366,7 +5366,7 @@ function checkDynamoTableSchemaDescriptionBackwardsCompatibility(
                             ?.sortRangeByType[nextIndexOverloadItemType.sortRangeType]
                     ) {
                         throw new InvalidArgumentError(
-                            quote`Index overload ${nextIndexOverloadName} can't be added to existing items with partition type ${nextIndexOverloadItemType.partitionType} and sort range type ${nextIndexOverloadItemType.sortRangeType}`,
+                            quote`Index overload ${nextIndexOverloadName} can’t be added to existing items with partition type ${nextIndexOverloadItemType.partitionType} and sort range type ${nextIndexOverloadItemType.sortRangeType}`,
                         );
                     }
                 }
@@ -5444,7 +5444,7 @@ function checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
 ): void {
     if (lastDescription.projection !== nextDescription.projection) {
         throw new InvalidArgumentError(
-            `Can't change index attribute projection from \`${lastDescription.projection}\` to \`${nextDescription.projection}\``,
+            `Can’t change index attribute projection from \`${lastDescription.projection}\` to \`${nextDescription.projection}\``,
         );
     }
 
@@ -5453,7 +5453,7 @@ function checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
         (nextDescription.partitionKeyBehavior?.type ?? "Separate")
     ) {
         throw new InvalidArgumentError(
-            `Can't change index partition key from \`${
+            `Can’t change index partition key from \`${
                 lastDescription.partitionKeyBehavior?.type ?? "Separate"
             }\` to \`${nextDescription.partitionKeyBehavior?.type ?? "Separate"}\``,
         );

@@ -272,7 +272,7 @@ test("can perform a multipart upload", async () => {
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -291,7 +291,7 @@ test("can perform a multipart upload", async () => {
     const putMultipartUploadPart2Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -310,7 +310,7 @@ test("can perform a multipart upload", async () => {
     const putMultipartUploadPart3Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -430,7 +430,7 @@ test("can perform a multipart upload where parts are uploaded in parallel", asyn
             const putMultipartUploadPart1Response = await fetch(
                 `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
                 {
-                    method: "PUT",
+                    method: `PUT`,
                     headers: {
                         connection: "close",
                         cookie: await sessionCookie(session),
@@ -453,7 +453,7 @@ test("can perform a multipart upload where parts are uploaded in parallel", asyn
             const putMultipartUploadPart2Response = await fetch(
                 `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
                 {
-                    method: "PUT",
+                    method: `PUT`,
                     headers: {
                         connection: "close",
                         cookie: await sessionCookie(session),
@@ -476,7 +476,7 @@ test("can perform a multipart upload where parts are uploaded in parallel", asyn
             const putMultipartUploadPart3Response = await fetch(
                 `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
                 {
-                    method: "PUT",
+                    method: `PUT`,
                     headers: {
                         connection: "close",
                         cookie: await sessionCookie(session),
@@ -595,7 +595,7 @@ test("can perform a multipart upload where parts are out of order", async () => 
     const putMultipartUploadPart2Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -614,7 +614,7 @@ test("can perform a multipart upload where parts are out of order", async () => 
     const putMultipartUploadPart3Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -633,7 +633,7 @@ test("can perform a multipart upload where parts are out of order", async () => 
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -707,7 +707,7 @@ test("can perform a multipart upload where parts are out of order", async () => 
     expect(Buffer.from(actualData).compare(Buffer.from(expectedData))).toBe(0);
 });
 
-test("can't perform a multipart upload with an invalid content type", async () => {
+test("can’t perform a multipart upload with an invalid content type", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -738,12 +738,12 @@ test("can't perform a multipart upload with an invalid content type", async () =
     expect(createMultipartUploadResponseBody).toEqual({
         ok: false,
         error: new InvalidArgumentError(
-            'Unsupported "Content-Type" option "application/does-not-exist"',
+            "Unsupported `Content-Type` option `application/does-not-exist`",
         ),
     });
 });
 
-test("can't perform a multipart upload with a content length of 0", async () => {
+test("can’t perform a multipart upload with a content length of 0", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -773,11 +773,11 @@ test("can't perform a multipart upload with a content length of 0", async () => 
 
     expect(createMultipartUploadResponseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError('Can\'t upload file with "Content-Length" of 0 B'),
+        error: new InvalidArgumentError("Can’t upload file with `Content-Length` of 0 B"),
     });
 });
 
-test("can't perform a multipart upload with a content length larger than our max length", async () => {
+test("can’t perform a multipart upload with a content length larger than our max length", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -808,12 +808,12 @@ test("can't perform a multipart upload with a content length larger than our max
     expect(createMultipartUploadResponseBody).toEqual({
         ok: false,
         error: new InvalidArgumentError(
-            '"Content-Length" of 2 GB is more than our maximum file size of 1 GB',
+            "`Content-Length` of 2 GB is more than our maximum file size of 1 GB",
         ),
     });
 });
 
-test("can't perform a multipart upload with a space actor", async () => {
+test("can’t perform a multipart upload with a space actor", async () => {
     const space = await TestSpace.create(context);
 
     const createMultipartUploadResponse = await fetch(
@@ -846,7 +846,7 @@ test("can't perform a multipart upload with a space actor", async () => {
     });
 });
 
-test("can't put a multipart upload part with POST method", async () => {
+test("can’t put a multipart upload part with POST method", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -903,11 +903,11 @@ test("can't put a multipart upload part with POST method", async () => {
 
     expect(putMultipartUploadPart1ResponseBody).toEqual({
         ok: false,
-        error: new PermissionDeniedError('Must use "PUT" method'),
+        error: new PermissionDeniedError("Must use `PUT` method"),
     });
 });
 
-test("can't put a multipart upload part without upload search param", async () => {
+test("can’t put a multipart upload part without upload search param", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -947,7 +947,7 @@ test("can't put a multipart upload part without upload search param", async () =
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -964,11 +964,11 @@ test("can't put a multipart upload part without upload search param", async () =
 
     expect(putMultipartUploadPart1ResponseBody).toEqual({
         ok: false,
-        error: new InvalidArgumentError('"upload" search param is required'),
+        error: new InvalidArgumentError("`upload` search param is required"),
     });
 });
 
-test("can't put a multipart upload part with non-integer part number", async () => {
+test("can’t put a multipart upload part with non-integer part number", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1008,7 +1008,7 @@ test("can't put a multipart upload part with non-integer part number", async () 
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/abc?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1029,7 +1029,7 @@ test("can't put a multipart upload part with non-integer part number", async () 
     });
 });
 
-test("can't put a multipart upload part with size larger than our max upload part size", async () => {
+test("can’t put a multipart upload part with size larger than our max upload part size", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1069,7 +1069,7 @@ test("can't put a multipart upload part with size larger than our max upload par
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1087,12 +1087,12 @@ test("can't put a multipart upload part with size larger than our max upload par
     expect(putMultipartUploadPart1ResponseBody).toEqual({
         ok: false,
         error: new InvalidArgumentError(
-            '"Content-Length" of 200 MB is more than our maximum file multipart upload size of 100 MB',
+            "`Content-Length` of 200 MB is more than our maximum file multipart upload size of 100 MB",
         ),
     });
 });
 
-test("can't put a multipart upload part with space actor", async () => {
+test("can’t put a multipart upload part with space actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1132,7 +1132,7 @@ test("can't put a multipart upload part with space actor", async () => {
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(space),
@@ -1153,7 +1153,7 @@ test("can't put a multipart upload part with space actor", async () => {
     });
 });
 
-test("can't put a multipart upload part with greater part number than the file allows", async () => {
+test("can’t put a multipart upload part with greater part number than the file allows", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1193,7 +1193,7 @@ test("can't put a multipart upload part with greater part number than the file a
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/4?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1214,7 +1214,7 @@ test("can't put a multipart upload part with greater part number than the file a
     });
 });
 
-test("can't complete a multipart upload without the upload search param", async () => {
+test("can’t complete a multipart upload without the upload search param", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1254,7 +1254,7 @@ test("can't complete a multipart upload without the upload search param", async 
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1273,7 +1273,7 @@ test("can't complete a multipart upload without the upload search param", async 
     const putMultipartUploadPart2Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1292,7 +1292,7 @@ test("can't complete a multipart upload without the upload search param", async 
     const putMultipartUploadPart3Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1335,11 +1335,11 @@ test("can't complete a multipart upload without the upload search param", async 
 
     expect(completeMultipartUploadResponseBody).toEqual({
         ok: false,
-        error: new PermissionDeniedError('"upload" search param is required'),
+        error: new PermissionDeniedError("`upload` search param is required"),
     });
 });
 
-test("can't complete a multipart upload with system actor", async () => {
+test("can’t complete a multipart upload with system actor", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1379,7 +1379,7 @@ test("can't complete a multipart upload with system actor", async () => {
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1398,7 +1398,7 @@ test("can't complete a multipart upload with system actor", async () => {
     const putMultipartUploadPart2Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1417,7 +1417,7 @@ test("can't complete a multipart upload with system actor", async () => {
     const putMultipartUploadPart3Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1464,7 +1464,7 @@ test("can't complete a multipart upload with system actor", async () => {
     });
 });
 
-test("can't complete a multipart upload with missing parts", async () => {
+test("can’t complete a multipart upload with missing parts", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1504,7 +1504,7 @@ test("can't complete a multipart upload with missing parts", async () => {
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1523,7 +1523,7 @@ test("can't complete a multipart upload with missing parts", async () => {
     const putMultipartUploadPart2Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1542,7 +1542,7 @@ test("can't complete a multipart upload with missing parts", async () => {
     const putMultipartUploadPart3Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1590,7 +1590,7 @@ test("can't complete a multipart upload with missing parts", async () => {
     });
 });
 
-test("can't complete a multipart upload when the object is larger than what was declared", async () => {
+test("can’t complete a multipart upload when the object is larger than what was declared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1630,7 +1630,7 @@ test("can't complete a multipart upload when the object is larger than what was 
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1649,7 +1649,7 @@ test("can't complete a multipart upload when the object is larger than what was 
     const putMultipartUploadPart2Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1668,7 +1668,7 @@ test("can't complete a multipart upload when the object is larger than what was 
     const putMultipartUploadPart3Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1717,7 +1717,7 @@ test("can't complete a multipart upload when the object is larger than what was 
     });
 });
 
-test("can't complete a multipart upload when the object is smaller than what was declared", async () => {
+test("can’t complete a multipart upload when the object is smaller than what was declared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1757,7 +1757,7 @@ test("can't complete a multipart upload when the object is smaller than what was
     const putMultipartUploadPart1Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/1?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1776,7 +1776,7 @@ test("can't complete a multipart upload when the object is smaller than what was
     const putMultipartUploadPart2Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/2?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),
@@ -1795,7 +1795,7 @@ test("can't complete a multipart upload when the object is smaller than what was
     const putMultipartUploadPart3Response = await fetch(
         `http://localhost:${port}/${space.id}/multipart-upload/${fileId}/part/3?upload=${uploadId}`,
         {
-            method: "PUT",
+            method: `PUT`,
             headers: {
                 connection: "close",
                 cookie: await sessionCookie(session),

@@ -26,7 +26,7 @@ async function tapNewMessage(page: Page) {
     await expect(page.getByRole("button", {name: "Send message"})).toBeDisabled();
 }
 
-test("document file entity that doesn't exist", async ({page, context: browserContext}) => {
+test("document file entity that doesn’t exist", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -56,7 +56,7 @@ test("document file entity that doesn't exist", async ({page, context: browserCo
     await expect(page.getByText("Private document")).toBeHidden();
 });
 
-test("document file entity we don't have access to", async ({page, context: browserContext}) => {
+test("document file entity we don’t have access to", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -120,7 +120,7 @@ test("document file entity", async ({page, context: browserContext}) => {
     await expect(page.getByText("Private document")).toBeHidden();
 });
 
-test("task collection file entity that doesn't exist", async ({page, context: browserContext}) => {
+test("task collection file entity that doesn’t exist", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -150,7 +150,7 @@ test("task collection file entity that doesn't exist", async ({page, context: br
     await expect(page.getByText("Private task collection")).toBeHidden();
 });
 
-test("task collection file entity we don't have access to", async ({
+test("task collection file entity we don’t have access to", async ({
     page,
     context: browserContext,
 }) => {
@@ -217,7 +217,7 @@ test("task collection file entity", async ({page, context: browserContext}) => {
     await expect(page.getByText("Private task collection")).toBeHidden();
 });
 
-test("channel file entity that doesn't exist", async ({page, context: browserContext}) => {
+test("channel file entity that doesn’t exist", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -247,7 +247,7 @@ test("channel file entity that doesn't exist", async ({page, context: browserCon
     await expect(page.getByText("Private channel")).toBeHidden();
 });
 
-test("channel file entity we don't have access to", async ({page, context: browserContext}) => {
+test("channel file entity we don’t have access to", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -543,6 +543,7 @@ test("can paste `<iframe>` HTML to add file entity to document", async ({
                     types: ["text/html"],
                     getData: (type: string) => {
                         if (type !== "text/html") return null;
+                        // eslint-disable-next-line string-quotes
                         return `<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`;
                     },
                 },
@@ -661,6 +662,7 @@ test("can paste `<iframe>` HTML to add file entity to chat", async ({
                     types: ["text/html"],
                     getData: (type: string) => {
                         if (type !== "text/html") return null;
+                        // eslint-disable-next-line string-quotes
                         return `<iframe src="${url1}"></iframe><iframe src="${url2}"></iframe>`;
                     },
                 },

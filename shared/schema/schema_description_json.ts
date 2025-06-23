@@ -118,7 +118,7 @@ export function deserializeSchemaDescriptionFromJsonSafeValue(value: JsonValue):
                 const actualNewValue = newValueByReferenceId.get(value.reuseReferenceId);
                 if (actualNewValue === undefined) {
                     throw new InvalidArgumentError(
-                        quote`Reference schema's \`reuseReferenceId\` property (${value.reuseReferenceId}) should refer to a schema with a matching \`referenceId\` earlier in the tree (traversing depth first)`,
+                        quote`Reference schema’s \`reuseReferenceId\` property (${value.reuseReferenceId}) should refer to a schema with a matching \`referenceId\` earlier in the tree (traversing depth first)`,
                     );
                 }
 

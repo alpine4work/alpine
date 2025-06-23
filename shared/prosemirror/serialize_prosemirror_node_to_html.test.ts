@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {DOMSerializer, Node, Schema} from "prosemirror-model";
 import {marks as basicMarks, nodes as basicNodes} from "prosemirror-schema-basic";
 import {assert} from "~/shared/helpers/control/assert.js";

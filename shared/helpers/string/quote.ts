@@ -31,7 +31,18 @@ export function quote(
     for (let i = 0; i < templateStrings.length; i++) {
         if (i !== 0) {
             const value = values[i - 1];
-            string += JSON.stringify(value === undefined ? null : value);
+
+            let quotedString = JSON.stringify(value === undefined ? null : value);
+
+            // Quote a string with backticks instead of straight quotes. We'd rather use
+            // backticks than curl quotes (given our lint rule disallows the use of
+            // straight quotes elsewhere in strings).
+            if (typeof value === "string") {
+                quotedString = quotedString.replaceAll("`", "\\`");
+                quotedString = `\`${quotedString.slice(1, -1)}\``;
+            }
+
+            string += quotedString;
         }
         string += templateStrings[i];
     }

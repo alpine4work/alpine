@@ -46,7 +46,7 @@ const fileAttachmentTargetByType: {
 };
 
 for (const [type, target] of Object.entries(fileAttachmentTargetByType)) {
-    test(`can serialize attachment target type "${type}" to base64 string and back`, () => {
+    test(`can serialize attachment target type \`${type}\` to base64 string and back`, () => {
         expect(target.type).toEqual(type);
 
         const targetString = serializeFileAttachmentTargetString(target);

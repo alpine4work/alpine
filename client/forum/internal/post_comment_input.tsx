@@ -332,7 +332,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                     .startTypingInCommentInput({})
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
-                            "Couldn't update typing indicator",
+                            "Couldn’t update typing indicator",
                             error,
                         ),
                     );
@@ -345,7 +345,7 @@ function PostCommentEnabledInput(props: ComponentProps<typeof PostCommentInput>)
                     .stopTypingInCommentInput({})
                     .catch(error =>
                         reporter.logErrorWithoutDisplaying(
-                            "Couldn't update typing indicator",
+                            "Couldn’t update typing indicator",
                             error,
                         ),
                     );

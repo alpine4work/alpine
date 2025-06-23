@@ -81,6 +81,7 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                                     // - Because we are using a string context we can also append the order key.
                                     //   Otherwise we'd need two sort contexts, one for the `orderTime` number and one
                                     //   for the `orderKey` string.
+                                    // eslint-disable-next-line string-quotes
                                     source: `for (def position : doc["collections.positions"]) { if (position.startsWith(params.collectionId)) { return position.substring(params.collectionId.length() + 1); } } return "${missingValue}";`,
                                     params: {collectionId: sort.collectionId},
                                 },

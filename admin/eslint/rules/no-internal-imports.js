@@ -9,7 +9,7 @@ module.exports = {
         schema: [],
         messages: {
             noInternalImport:
-                'Can only import a module in an "internal" directory from within the directory or the parent directory.',
+                "Can only import a module in an `internal` directory from within the directory or the parent directory.",
         },
     },
 

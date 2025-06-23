@@ -464,7 +464,7 @@ test("changed multiple adjacent values", () => {
     ]);
 });
 
-test("changed single value when there's a duplicate adjacent value", () => {
+test("changed single value when there’s a duplicate adjacent value", () => {
     expect(symmetricDiffIterable([1, 1], [2, 1])).toEqual([
         {type: "Added", value: 2},
         {type: null, value: 1},
@@ -526,7 +526,7 @@ test("changed single value when there's a duplicate adjacent value", () => {
     ]);
 });
 
-test("changed single value when there's a duplicate non-adjacent value", () => {
+test("changed single value when there’s a duplicate non-adjacent value", () => {
     expect(symmetricDiffIterable([1, 0, 1], [2, 0, 1])).toEqual([
         {type: "Deleted", value: 1},
         {type: "Added", value: 2},
@@ -1066,7 +1066,7 @@ test("shuffled values with duplicates", () => {
     ]);
 });
 
-test("shuffled values that don't converge in a small lookahead range", () => {
+test("shuffled values that don’t converge in a small lookahead range", () => {
     expect(symmetricDiffIterable([1, 2, 3, 4, 5, 6, 7, 8, 9], [6, 7, 9, 8, 1, 2, 3, 4, 5])).toEqual(
         [
             {type: "Deleted", value: 1},

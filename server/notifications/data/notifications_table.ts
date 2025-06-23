@@ -1553,7 +1553,7 @@ export async function getInboxEntries(
 
         assert(
             (inboxItem?.entryCount ?? 0) === result.items.length,
-            "Expected inbox item's `entryCount` to have the correct number of non-archived inbox entries",
+            "Expected inbox item’s `entryCount` to have the correct number of non-archived inbox entries",
         );
 
         assert(
@@ -1563,7 +1563,7 @@ export async function getInboxEntries(
                         loudNotificationCount + item.model.loudNotificationCount,
                     0,
                 ),
-            "Expected inbox item's `loudNotificationCount` to be the sum of all non-archived inbox entry loud notification counts",
+            "Expected inbox item’s `loudNotificationCount` to be the sum of all non-archived inbox entry loud notification counts",
         );
     }
 
@@ -1839,7 +1839,7 @@ async function archiveInboxEntryItemKey(
 
             assert(
                 inboxItem,
-                "Can't have inbox entry item without corresponding inbox attributes item",
+                "Can’t have inbox entry item without corresponding inbox attributes item",
             );
 
             // If the inbox entry item is already archived, do nothing.
@@ -1963,7 +1963,7 @@ async function unarchiveInboxEntryItemKey(
 
         assert(
             inboxItem,
-            "Can't have inbox entry item without corresponding inbox attributes item",
+            "Can’t have inbox entry item without corresponding inbox attributes item",
         );
 
         // If the inbox entry item is already unarchived, do nothing.

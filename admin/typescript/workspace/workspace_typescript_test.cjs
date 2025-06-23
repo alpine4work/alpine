@@ -9,11 +9,11 @@ const eslintConfig = require("../../../.eslintrc.cjs");
 const workspacePath = process.cwd();
 
 const runfilesPath = process.env.RUNFILES;
-if (!process.env.RUNFILES) throw new Error('Expected "RUNFILES" environment variable');
+if (!process.env.RUNFILES) throw new Error("Expected `RUNFILES` environment variable");
 
 const execrootPath = process.env.JS_BINARY__EXECROOT;
 if (!process.env.JS_BINARY__EXECROOT)
-    throw new Error('Expected "JS_BINARY__EXECROOT" environment variable');
+    throw new Error("Expected `JS_BINARY__EXECROOT` environment variable");
 
 const eslintTypeCheckingRuleIds = new Set(
     Object.keys(typescriptEslint.configs["disable-type-checked"].rules),
@@ -31,7 +31,7 @@ if (
 
 async function main() {
     const configPath = ts.findConfigFile(workspacePath, ts.sys.fileExists, "tsconfig.json");
-    if (!configPath) throw new Error('Couldn\'t find "tsconfig.json" file');
+    if (!configPath) throw new Error("Couldn’t find `tsconfig.json` file");
     const {config} = ts.readConfigFile(configPath, ts.sys.readFile);
 
     const {

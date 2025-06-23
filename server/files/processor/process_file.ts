@@ -162,7 +162,7 @@ export async function processFile(
 
                           if (!contentType || contentLength === undefined) {
                               throw new InternalError(
-                                  'Missing "Content-Type" or "Content-Length" header',
+                                  "Missing `Content-Type` or `Content-Length` header",
                               );
                           }
 
@@ -262,7 +262,7 @@ export async function processFile(
 
                       if (!contentType || contentLength === undefined) {
                           throw new InternalError(
-                              'Missing "Content-Type" or "Content-Length" header',
+                              "Missing `Content-Type` or `Content-Length` header",
                           );
                       }
 

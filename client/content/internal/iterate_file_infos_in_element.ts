@@ -133,7 +133,7 @@ export function* iterateFileInfosInElement(
                     scheduleUncaughtError(
                         InvalidArgumentError.from(
                             error,
-                            'Couldn\'t parse "data-cy-attached" attribute',
+                            "Couldn’t parse `data-cy-attached` attribute",
                         ),
                     );
                 }

@@ -59,7 +59,7 @@ export function forceRevalidateSearchByAffinity(
                 if (process.env.NODE_ENV !== "production" && !hasConditionPassed) {
                     // eslint-disable-next-line no-console
                     console.warn(
-                        "`forceRevalidateSearchByAffinity()`'s condition should eventually return true to avoid calling `searchByAffinity()` multiple times unnecessarily.",
+                        "`forceRevalidateSearchByAffinity()`’s condition should eventually return true to avoid calling `searchByAffinity()` multiple times unnecessarily.",
                     );
                 }
             } finally {

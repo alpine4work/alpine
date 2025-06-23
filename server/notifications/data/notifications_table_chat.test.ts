@@ -1163,7 +1163,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("account can not see mention in chat they don't have access to", async () => {
+        test("account can not see mention in chat they don’t have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
             const chat1 = await TestChat.get(
@@ -2195,7 +2195,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("can not observe inbox in a space you don't have access to", async () => {
+        test("can not observe inbox in a space you don’t have access to", async () => {
             const scenario = await createNotificationsScenario(context);
 
             await expect(
@@ -4813,7 +4813,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("clerical message with empty content doesn't increment loud notification count", async () => {
+        test("clerical message with empty content doesn’t increment loud notification count", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 
@@ -4865,7 +4865,7 @@ for (const [currentProcessingType, processingMultiple] of [
             ]);
         });
 
-        test("clerical message with content doesn't increment loud notification count", async () => {
+        test("clerical message with content doesn’t increment loud notification count", async () => {
             const space = await TestSpace.create(context);
             const [session1, session2] = await space.createSessions(2);
 

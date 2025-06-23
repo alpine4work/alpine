@@ -391,7 +391,7 @@ test("can toggle document sharing on/off with share dialog account grant", async
 });
 
 for (const accessLevel of [...allAccessLevels].reverse()) {
-    test(`can interact with document with access level "${accessLevel}"`, async ({
+    test(`can interact with document with access level \`${accessLevel}\``, async ({
         context: browserContext,
         page,
         viewport,
@@ -1412,7 +1412,7 @@ test("account that used to be a member of space but was removed can see document
     await browserContext1.close();
 });
 
-test("can't change permission level of account who invited you", async ({
+test("can’t change permission level of account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -1482,7 +1482,7 @@ test("can't change permission level of account who invited you", async ({
     ).toBeVisible();
 });
 
-test("can't change permission level of account who invited the account who invited you", async ({
+test("can’t change permission level of account who invited the account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -1625,7 +1625,7 @@ test("will be warned before lowering your own permission level", async ({
     await expect(page.getByRole("img", {name: "Error icon"})).toBeHidden();
 });
 
-test("will be prevented from lowering your own permission level if you're the last manager", async ({
+test("will be prevented from lowering your own permission level if you’re the last manager", async ({
     context: browserContext,
     page,
 }) => {

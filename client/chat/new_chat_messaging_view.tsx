@@ -75,13 +75,13 @@ function NewChatMessagingView(
             withAttachFileBeforeCreateMessage={true}
             getMessagesFromStart={useEvent(input => {
                 if (!selectedChat) {
-                    throw new InternalError("Can not load messages when we don't know the chat");
+                    throw new InternalError("Can not load messages when we don’t know the chat");
                 }
                 return getChatMessagesFromStart(context, {...input, chatId: selectedChat.chat.id});
             })}
             getMessagesFromEnd={useEvent(input => {
                 if (!selectedChat) {
-                    throw new InternalError("Can not load messages when we don't know the chat");
+                    throw new InternalError("Can not load messages when we don’t know the chat");
                 }
                 return getChatMessagesFromEnd(context, {...input, chatId: selectedChat.chat.id});
             })}
@@ -118,7 +118,7 @@ function NewChatMessagingView(
                     // Therefore to have a message index we need a chat.
                     if (!selectedChat) {
                         throw new InternalError(
-                            "Should not be able to copy link of chat message when we don't know the chat",
+                            "Should not be able to copy link of chat message when we don’t know the chat",
                         );
                     }
                     return new URL(

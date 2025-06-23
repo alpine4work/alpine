@@ -48,7 +48,7 @@ const libreofficeExecutablePath = new Lazy(async () => {
         }
         default: {
             throw new InternalError(
-                quote`Haven't implemented finding LibreOffice executable on platform ${process.platform}`,
+                quote`Haven’t implemented finding LibreOffice executable on platform ${process.platform}`,
             );
         }
     }
@@ -65,7 +65,7 @@ const libreofficeExecutablePath = new Lazy(async () => {
     }
 
     throw new InternalError(
-        "Couldn't find LibreOffice executable. For features that require LibreOffice to " +
+        "Couldn’t find LibreOffice executable. For features that require LibreOffice to " +
             "work (e.g. converting Microsoft Word documents to PDF) you need to install " +
             "LibreOffice on the machine running `FileProcessorService`: " +
             "https://www.libreoffice.org/download/download-libreoffice",
@@ -132,6 +132,7 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                     // Output the Excel sheet onto a single page. See:
                     // https://ask.libreoffice.org/t/libreoffice-xls-to-pdf-conversion-breaks-single-page-content-into-multiple-pages-on-ubuntu-18-04/49104/2
                     outputFilter =
+                        // eslint-disable-next-line string-quotes
                         'calc_pdf_Export:{"SinglePageSheets":{"type":"boolean","value":"true"}}';
 
                     // Spreadsheets are an infinite canvas and aren't typically restricted by any

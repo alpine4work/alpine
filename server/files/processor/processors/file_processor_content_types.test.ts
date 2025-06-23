@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     FileProcessorContentTypeTestCase,

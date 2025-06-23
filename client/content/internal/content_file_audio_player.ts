@@ -7,7 +7,7 @@ import {
 import {Reporter} from "~/client/design/reporter.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {fileAudioIconSvg} from "~/client/icons/file_audio_icon_svg.js";
-import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_icon_svg.js";
 import {
     contentFileAudioPlayerStyles,
     spinAnimationClassName,
@@ -54,6 +54,8 @@ const {
         viewboxHeight,
         barWidth: round3(barWidth),
         minBarHeight: round3(minBarHeight),
+        /* eslint-disable string-quotes */
+
         // We add 1 around the viewbox since we were sometimes getting rendering
         // artifacts in Chrome near the edge of the viewbox during an animation. Adding the
         // padding seems to fix it.
@@ -69,6 +71,8 @@ ${createArrayWithLength(barCount, index => {
     return `<rect width="${width}" height="${height}" x="${x}" y="${y}" rx="${radius}" ry="${radius}" />`;
 }).join("")}\
 </svg>`,
+
+        /* eslint-enable string-quotes */
     };
 })();
 

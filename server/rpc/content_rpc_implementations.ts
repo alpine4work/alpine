@@ -8,7 +8,7 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, {spaceId, referencedIds}) => {
             if (referencedIds.fileIds.size > 0) {
-                throw new InvalidArgumentError("Can't get content references for `fileIds`");
+                throw new InvalidArgumentError("Can’t get content references for `fileIds`");
             }
 
             const references = await getContentReferences(

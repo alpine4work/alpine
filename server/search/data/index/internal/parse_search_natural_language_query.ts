@@ -1622,6 +1622,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
 function stemEnglishPossessive(text: string): string {
     if (
         text.length >= 2 &&
+        // eslint-disable-next-line string-quotes
         (text[text.length - 2] === "'" ||
             text[text.length - 2] === "\u2019" ||
             text[text.length - 2] === "\uFF07") &&

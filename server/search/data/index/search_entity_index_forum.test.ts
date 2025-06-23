@@ -64,7 +64,7 @@ test(
     "can search channels by name",
     async () => {
         const names = [
-            "Old Man's War",
+            "Old Man’s War",
             "The Lock Artist",
             "HTML5",
             "Thank You Jeeves",
@@ -219,17 +219,17 @@ test(
                 "Test Mxyz",
                 "Test Mabc",
                 "Monster 1959",
-                "Old Man's War",
+                "Old Man’s War",
             ]);
             expect(await testSearch("test ma")).toEqual([
                 "Test Mabc",
                 "Test Mxyz",
-                "Old Man's War",
+                "Old Man’s War",
             ]);
             expect(await testSearch("test mab")).toEqual([
                 "Test Mabc",
                 "Test Mxyz",
-                "Old Man's War",
+                "Old Man’s War",
             ]);
             expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
             expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
@@ -237,7 +237,7 @@ test(
                 "Test Mxyz",
                 "Test Mabc",
                 "Monster 1959",
-                "Old Man's War",
+                "Old Man’s War",
             ]);
 
             // Testing typos
@@ -601,16 +601,16 @@ test("channel access policies are enforced in search", async () => {
     await channel5.access.grant(session1, session3);
 
     await expect(channel6.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don't currently support `urlGrant`s",
+        "Channels don’t currently support `urlGrant`s",
     );
 
     await expect(channel7.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don't currently support `urlGrant`s",
+        "Channels don’t currently support `urlGrant`s",
     );
     await channel7.access.grant(session6, session5);
 
     await expect(channel8.access.grantUrl(session6)).rejects.toThrow(
-        "Channels don't currently support `urlGrant`s",
+        "Channels don’t currently support `urlGrant`s",
     );
     await channel8.access.grantDefault(session6);
 
@@ -1082,12 +1082,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(false);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(false);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(false);
@@ -1101,12 +1101,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(false);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(false);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1120,12 +1120,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(false);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(false);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1139,12 +1139,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(false);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(false);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1163,12 +1163,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(false);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(false);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1182,12 +1182,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(true);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(true);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1201,12 +1201,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(true);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(true);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1226,12 +1226,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(true);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(true);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1245,12 +1245,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(true);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(true);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1270,12 +1270,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(false);
-    expect(await hasChannel("ddddd's channels")).toEqual(true);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(false);
+    expect(await hasChannel("ddddd’s channels")).toEqual(true);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);
@@ -1289,12 +1289,12 @@ test("changes channel contributors as posts/comments are made", async () => {
     await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await hasChannel("aaaaa's channels")).toEqual(true);
-    expect(await hasChannel("bbbbb's channels")).toEqual(false);
-    expect(await hasChannel("ccccc's channels")).toEqual(true);
-    expect(await hasChannel("ddddd's channels")).toEqual(true);
-    expect(await hasChannel("eeeee's channels")).toEqual(false);
-    expect(await hasChannel("fffff's channels")).toEqual(false);
+    expect(await hasChannel("aaaaa’s channels")).toEqual(true);
+    expect(await hasChannel("bbbbb’s channels")).toEqual(false);
+    expect(await hasChannel("ccccc’s channels")).toEqual(true);
+    expect(await hasChannel("ddddd’s channels")).toEqual(true);
+    expect(await hasChannel("eeeee’s channels")).toEqual(false);
+    expect(await hasChannel("fffff’s channels")).toEqual(false);
 
     expect(await hasChannel("channels updated by aaaaa")).toEqual(true);
     expect(await hasChannel("channels updated by bbbbb")).toEqual(true);

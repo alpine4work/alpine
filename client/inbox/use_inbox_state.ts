@@ -196,7 +196,7 @@ export function useInboxState(props: {
                     //
                     // It's also nice that we create an RPC batch with the backfill request.
                     observeInbox(context, {spaceId: space.id}).catch(error => {
-                        reporter.logErrorWithoutDisplaying("Couldn't observe inbox", error);
+                        reporter.logErrorWithoutDisplaying("Couldn’t observe inbox", error);
                     });
 
                     const {backfillEntriesResult} = await backfillInboxEntries(context, {

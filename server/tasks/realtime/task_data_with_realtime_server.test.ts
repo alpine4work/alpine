@@ -228,7 +228,7 @@ test("cannot duplicate a task without permission", async () => {
             testClock.nowLogical(),
             defaultTimeZone,
         ),
-    ).rejects.toThrow(/Actor doesn't have "Edit" access level to task/);
+    ).rejects.toThrow(/Actor doesn’t have `Edit` access level to task/);
 
     // Verify that the owner can still duplicate the task
     const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(

@@ -106,6 +106,7 @@ test("expanding task from peek opens task detail view", async ({page, context: b
     await page.getByRole("menuitem", {name: "Task view"}).click();
 
     await expect(page.getByTestId("PeekStack")).toBeVisible();
+    // eslint-disable-next-line string-quotes
     await page.locator('button:right-of(:text("CreatorisT1me"))').first().click();
 
     await page
@@ -238,7 +239,7 @@ test("comments will be hidden if task is opened with `?comments=show` search par
     await expect(page.getByText("Test task comment")).toBeHidden();
 });
 
-test("if comments were open on a task then if the user navigates back to the task they'll be opened again", async ({
+test("if comments were open on a task then if the user navigates back to the task they’ll be opened again", async ({
     page,
     context: browserContext,
 }) => {

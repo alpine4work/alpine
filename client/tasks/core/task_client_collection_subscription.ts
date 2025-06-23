@@ -77,7 +77,7 @@ export class TaskClientCollectionSubscription {
      * we will clean up this subscription and all its data.
      */
     public retain() {
-        assert(this._referenceCount > 0, "Can't retain a released subscription");
+        assert(this._referenceCount > 0, "Can’t retain a released subscription");
 
         this._referenceCount++;
     }

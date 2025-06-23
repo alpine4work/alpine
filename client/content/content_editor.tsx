@@ -785,7 +785,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                 setCover: unimplementedDispatchCommand,
                 openMobileKeyboardToolbarCommentInputIfPossible: () => {
                     throw new UnimplementedError(
-                        "Opening the content editor's mobile keyboard toolbar comment input on initial render is not implemented",
+                        "Opening the content editor’s mobile keyboard toolbar comment input on initial render is not implemented",
                     );
                 },
                 _getInternalView: () => {

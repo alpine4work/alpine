@@ -85,7 +85,7 @@ export function layoutContentFileParent(
     const files = node.content.content.map(childNode => {
         if (childNode.type.name !== "file") {
             throw new InternalError(
-                quote`Expected file parent node to only have "file" node children but instead found a "${childNode.type.name}" child`,
+                quote`Expected file parent node to only have \`file\` node children but instead found a ${childNode.type.name} child`,
             );
         }
 

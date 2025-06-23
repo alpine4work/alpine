@@ -98,7 +98,7 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
 
     public insertBefore(newNode: HtmlGenerator, referenceNode: HtmlGenerator) {
         const index = this._children.indexOf(referenceNode);
-        assert(index !== -1, "Couldn't find reference node");
+        assert(index !== -1, "Couldn’t find reference node");
         this._children.splice(index, 0, newNode);
     }
 
@@ -210,6 +210,7 @@ export class HtmlElementGenerator extends HtmlContainerGenerator {
         let html = `<${this.tagName}`;
 
         for (const [attributeName, attributeValue] of this._attributes) {
+            // eslint-disable-next-line string-quotes
             html += ` ${attributeName}="${escapeHtml(attributeValue)}"`;
         }
 

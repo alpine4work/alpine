@@ -105,7 +105,7 @@ test("sets status, assigneeStatus, and assigneeId for ifOpenActive with currentA
     });
 });
 
-test("doesn't set assigneeId for ifOpenActive without currentAccountId", () => {
+test("doesn’t set assigneeId for ifOpenActive without currentAccountId", () => {
     const evaluationContext: TaskQueryEvaluationContext = {
         currentAccountId: null,
         currentDate: new CalendarDate(2023, 1, 1),
@@ -552,7 +552,7 @@ test("keeps assigneeId if it already matches OneOf filter", () => {
     });
 });
 
-test("sets assigneeId from OneOf filter when it doesn't match", () => {
+test("sets assigneeId from OneOf filter when it doesn’t match", () => {
     const assigneeId = generateId<AccountId>();
     const evaluationContext: TaskQueryEvaluationContext = {
         currentAccountId: null,

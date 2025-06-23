@@ -268,7 +268,7 @@ export function ContentView<Content extends ContentWithReferences>({
 }: ContentViewProps<Content>) {
     assert(
         !content.doc.type.schema.nodes.file || fileAttachmentTarget,
-        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn't provided",
+        "ProseMirror schema supports files but `fileAttachmentTarget` prop isn’t provided",
     );
 
     const rootNavigate = useRootNavigate();
@@ -1489,7 +1489,8 @@ export function ContentView<Content extends ContentWithReferences>({
                     dangerouslySetInnerHTML={{
                         __html:
                             typeof window === "undefined"
-                                ? `(window.__contentViewCodeBlockDecorationsById || (window.__contentViewCodeBlockDecorationsById = {}))["${id}"] = ${JSON.stringify(
+                                ? // eslint-disable-next-line string-quotes
+                                  `(window.__contentViewCodeBlockDecorationsById || (window.__contentViewCodeBlockDecorationsById = {}))["${id}"] = ${JSON.stringify(
                                       ContentViewCodeBlockDecorationsSchema.serialize(
                                           codeBlockDecorations,
                                       ),

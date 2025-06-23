@@ -768,6 +768,8 @@ export function initializeScrollbar(
             const scrollbarThumbMarginPx = scrollbarThumbMarginRem * remPx;
             const scrollbarThumbInteractiveMarginRemPx = scrollbarThumbInteractiveMarginRem * remPx;
 
+            /* eslint-disable string-quotes */
+
             // We're drawing the following shape except the knobs at the top/bottom are
             // rounded instead of square..
             //
@@ -860,6 +862,8 @@ export function initializeScrollbar(
                 //   ╚═╝
                 "Z",
             ].join(" ")}")`;
+
+            /* eslint-enable string-quotes */
         }
     };
 
@@ -1275,7 +1279,8 @@ export function installScrollbarAuditorInDev() {
         // initialization.
         // eslint-disable-next-line no-console
         console.warn(
-            'Element is scrollable but doesn\'t have our custom scrollbar. Either setup our custom scrollbar with `useScrollbar()` or explicitly disable scrollbars with `data-scrollbar="false"`.',
+            // eslint-disable-next-line string-quotes
+            'Element is scrollable but doesn’t have our custom scrollbar. Either setup our custom scrollbar with `useScrollbar()` or explicitly disable scrollbars with `data-scrollbar="false"`.',
             element,
         );
     }

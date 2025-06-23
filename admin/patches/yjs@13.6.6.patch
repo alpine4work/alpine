@@ -99,7 +99,7 @@ index 98ce1b0517b33156d8b39b3634d2d6fd5e22975c..a228d42e5e1e5ccbb08f49aeca134c7e
 +          }
 +
 +          if (!isEqual) {
-+            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++            throw new Error(`Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
 +          }
 +        }
 +
@@ -263,7 +263,7 @@ index abf5ea55c9c42e7a3548591b82b43ec2f0171236..795ad6b27c701d0721b512e8592d5746
 +          }
 +
 +          if (!isEqual) {
-+            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++            throw new Error(`Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
 +          }
 +        }
 +
@@ -483,7 +483,7 @@ index 83e1b91fa11440464487fb64aadc64afb5c25b60..26ed8e95a135c54872db625fa2c7cdbe
 +          }
 +
 +          if (!isEqual) {
-+            throw new Error(`Conflicting item, the item we're trying to integrate has an ID matching an existing item but the item we're trying to integrate's content doesn't match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
++            throw new Error(`Conflicting item, the item we’re trying to integrate has an ID matching an existing item but the item we’re trying to integrate’s content doesn’t match the existing item (ID client: ${stackHead.id.client}, ID clock: ${stackHead.id.clock})`);
 +          }
 +        }
 +

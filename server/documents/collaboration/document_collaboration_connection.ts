@@ -138,7 +138,7 @@ export class DocumentCollaborationConnection {
 
     private _authorizeCommentAccess() {
         if (this.withoutComments) {
-            throw new PermissionDeniedError("Can't see document comments", {
+            throw new PermissionDeniedError("Can’t see document comments", {
                 displayMessage:
                     documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Comment,
             });
@@ -300,7 +300,7 @@ export class DocumentCollaborationConnection {
 
         updateContent: (context, input) => {
             if (this.withoutComments) {
-                throw new PermissionDeniedError("Can't update document", {
+                throw new PermissionDeniedError("Can’t update document", {
                     displayMessage:
                         documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.Edit,
                 });
@@ -356,7 +356,7 @@ export class DocumentCollaborationConnection {
 
                     if (!isVersionValid)
                         throw new FailedPreconditionError(
-                            "Presence state version is outside the document's version range",
+                            "Presence state version is outside the document’s version range",
                         );
 
                     const oldContent = await this._contentManager.getContentAtVersion(
@@ -844,7 +844,7 @@ export class DocumentCollaborationConnection {
                     this._contentManager.getOptimisticCommentThreadIfExists(commentThreadId);
                 if (optimisticCommentThread) {
                     return context.tracer.withSpan(
-                        "Comment thread hasn't persisted so returning optimistic backfill",
+                        "Comment thread hasn’t persisted so returning optimistic backfill",
                         async context => {
                             const {commentThread, comment} = await this._getOptimisticCommentThread(
                                 context,

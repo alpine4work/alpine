@@ -375,7 +375,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
         await expect(page.getByRole("button", {name: "Send comment"})).toBeDisabled();
     }
 
-    test(`can interact with private channel with access level "${accessLevel}"`, async ({
+    test(`can interact with private channel with access level \`${accessLevel}\``, async ({
         context: browserContext,
         page,
         isMobile,
@@ -921,7 +921,7 @@ test("can switch own account access level between manage and view in realtime", 
     await expect(page.getByLabel("New comment")).toBeHidden();
 });
 
-test("can't change permission level of account who invited you", async ({
+test("can’t change permission level of account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -992,7 +992,7 @@ test("can't change permission level of account who invited you", async ({
     ).toBeVisible();
 });
 
-test("can't change permission level of account who invited the account who invited you", async ({
+test("can’t change permission level of account who invited the account who invited you", async ({
     context: browserContext,
     page,
 }) => {
@@ -1136,7 +1136,7 @@ test("will be warned before lowering your own permission level", async ({
     await expect(page.getByRole("img", {name: "Error icon"})).toBeHidden();
 });
 
-test("will be prevented from lowering your own permission level if you're the last manager", async ({
+test("will be prevented from lowering your own permission level if you’re the last manager", async ({
     context: browserContext,
     page,
 }) => {

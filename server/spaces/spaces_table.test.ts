@@ -436,7 +436,7 @@ test("can remove account from space as admin", async () => {
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 });
 
-test("can't remove account from space as non-admin", async () => {
+test("can’t remove account from space as non-admin", async () => {
     const [space, otherSpace] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -502,7 +502,7 @@ test("can't remove account from space as non-admin", async () => {
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 });
 
-test("can't remove account from space that doesn't exist as admin", async () => {
+test("can’t remove account from space that doesn’t exist as admin", async () => {
     const [space, otherSpace] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -568,7 +568,7 @@ test("can't remove account from space that doesn't exist as admin", async () => 
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 });
 
-test("can't remove account that doesn't exist from space as admin", async () => {
+test("can’t remove account that doesn’t exist from space as admin", async () => {
     const [space, otherSpace] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -634,7 +634,7 @@ test("can't remove account that doesn't exist from space as admin", async () => 
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 });
 
-test("can't remove account from space that account is not a member of as admin", async () => {
+test("can’t remove account from space that account is not a member of as admin", async () => {
     const [space, otherSpace] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -700,7 +700,7 @@ test("can't remove account from space that account is not a member of as admin",
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 });
 
-test("can't remove account from space if it's already been removed as admin", async () => {
+test("can’t remove account from space if it’s already been removed as admin", async () => {
     const [space, otherSpace] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -780,7 +780,7 @@ test("can't remove account from space if it's already been removed as admin", as
     expect(await isMember(otherSpace, otherSession)).toEqual(true);
 });
 
-test("removing an account from a space updates the account's space ids", async () => {
+test("removing an account from a space updates the account’s space ids", async () => {
     const [space, otherSpace] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -2060,7 +2060,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
     );
 });
 
-test("can get an account's registered apple devices", async () => {
+test("can get an account’s registered apple devices", async () => {
     const [space1, space2] = await runAllPromises([
         TestSpace.create(context),
         TestSpace.create(context),
@@ -2299,7 +2299,7 @@ test("can get an account's registered apple devices", async () => {
     ).rejects.toThrow(UnauthenticatedError);
 });
 
-test("can delete an account's registered apple devices", async () => {
+test("can delete an account’s registered apple devices", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2] = await runAllPromises([
@@ -2489,7 +2489,7 @@ test("can delete an account's registered apple devices", async () => {
     );
 });
 
-test("can't authorize space access for anonymous actor", async () => {
+test("can’t authorize space access for anonymous actor", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();
@@ -2562,7 +2562,7 @@ test("can't authorize space access for anonymous actor", async () => {
     });
 });
 
-test("can't authorize space access for impersonated actor", async () => {
+test("can’t authorize space access for impersonated actor", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session = await space.createSession();

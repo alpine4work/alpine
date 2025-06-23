@@ -886,7 +886,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const itemType = `${item.partitionType}#${item.sortRangeType}`;
@@ -977,7 +977,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.createItemIfNoneExists(context, item);
@@ -1016,7 +1016,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const itemType = `${item.partitionType}#${item.sortRangeType}`;
@@ -1255,12 +1255,12 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
-                `Deleted items are disabled (partition type: "${item.partitionType}", sort range type: "${item.sortRangeType}")`,
+                `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
             );
         }
 
@@ -1366,12 +1366,12 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         if (!this._features?.deleteItem?.[itemKey.partitionType]?.[itemKey.sortRangeType]) {
             throw new InternalError(
-                `Deleted items are disabled (partition type: "${itemKey.partitionType}", sort range type: "${itemKey.sortRangeType}")`,
+                `Deleted items are disabled (partition type: \`${itemKey.partitionType}\`, sort range type: \`${itemKey.sortRangeType}\`)`,
             );
         }
 
@@ -1421,12 +1421,12 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
-                `Deleted items are disabled (partition type: "${item.partitionType}", sort range type: "${item.sortRangeType}")`,
+                `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
             );
         }
 
@@ -1629,7 +1629,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const itemType = `${item.partitionType}#${item.sortRangeType}`;
@@ -1749,7 +1749,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const itemType = `${item.partitionType}#${item.sortRangeType}`;
@@ -1854,12 +1854,12 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
-                `Deleted items are disabled (partition type: "${item.partitionType}", sort range type: "${item.sortRangeType}")`,
+                `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
             );
         }
 
@@ -1951,12 +1951,12 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         if (!this._features?.deleteItem?.[item.partitionType]?.[item.sortRangeType]) {
             throw new InternalError(
-                `Deleted items are disabled (partition type: "${item.partitionType}", sort range type: "${item.sortRangeType}")`,
+                `Deleted items are disabled (partition type: \`${item.partitionType}\`, sort range type: \`${item.sortRangeType}\`)`,
             );
         }
 
@@ -2029,7 +2029,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.transactionConditionCheck(itemKey, condition);
@@ -2045,7 +2045,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.transactionDoesNotExistConditionCheck(itemKey);
@@ -2071,7 +2071,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const itemType = `${item.partitionType}#${item.sortRangeType}`;
@@ -2137,7 +2137,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.transactionCreateOrReplaceItem(item, options);
@@ -2167,7 +2167,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.transactionDirectlyUpdateItemAttribute(
@@ -2199,7 +2199,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             item.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 item.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.transactionDeleteItem(item);
@@ -2219,7 +2219,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.getItemIfExists(context, itemKey, options);
@@ -2239,7 +2239,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.getItem(context, itemKey, options);
@@ -2264,7 +2264,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.getPartialItemIfExists(context, itemKey, options);
@@ -2288,7 +2288,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.getPartialItem(context, itemKey, options);
@@ -2309,7 +2309,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const item = await this._table.getItemIfExists(context, itemKey, options);
@@ -2335,7 +2335,7 @@ export class DynamoGeneralRealtimeTableSchema<
         assert(
             itemKey.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 itemKey.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const item = await this._table.getItem(context, itemKey, options);
@@ -2398,7 +2398,7 @@ export class DynamoGeneralRealtimeTableSchema<
                 dynamoGeneralRealtimePrivateRealtimePartitionName &&
                 options.partitionKey.partitionType !==
                     dynamoGeneralRealtimePrivateGraveyardPartitionName,
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         return this._table.query(context, options);
@@ -2407,7 +2407,7 @@ export class DynamoGeneralRealtimeTableSchema<
     public getRealtimeQueryPartitionKey(partitionKey: Types["PartitionKey"]) {
         if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
             throw new InternalError(
-                `Realtime queries are disabled (partition type: "${partitionKey.partitionType}")`,
+                `Realtime queries are disabled (partition type: \`${partitionKey.partitionType}\`)`,
             );
         }
 
@@ -2463,7 +2463,7 @@ export class DynamoGeneralRealtimeTableSchema<
     > {
         if (!this._features?.realtimeQuery?.[partitionKey.partitionType]) {
             throw new InternalError(
-                `Realtime queries are disabled (partition type: "${partitionKey.partitionType}")`,
+                `Realtime queries are disabled (partition type: \`${partitionKey.partitionType}\`)`,
             );
         }
 
@@ -2696,7 +2696,7 @@ export class DynamoGeneralRealtimeTableSchema<
                     itemType.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                     itemType.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
             ),
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const Index = this._table.addExpensiveFullIndex<
@@ -3014,7 +3014,7 @@ export class DynamoGeneralRealtimeTableSchema<
                     itemType.partitionType !== dynamoGeneralRealtimePrivateRealtimePartitionName &&
                     itemType.partitionType !== dynamoGeneralRealtimePrivateGraveyardPartitionName,
             ),
-            "Can't access private realtime partition",
+            "Can’t access private realtime partition",
         );
 
         const Index = this._table.addIndex<

@@ -26,6 +26,7 @@ test("key attributes can be a reasonable set of ASCII characters", () => {
         "$",
         "%",
         "&",
+        // eslint-disable-next-line string-quotes
         "'",
         "(",
         ")",
@@ -173,6 +174,7 @@ test("can serialize and deserialize label strings in the right order", () => {
         "foo~bar",
         "foo$bar",
         "caleb.meredith@example.com",
+        // eslint-disable-next-line string-quotes
         'So called "cats"',
     ];
 

@@ -477,7 +477,7 @@ function createActorContextModule(
 
         if (sessionCookiePayload && authorizationHeader) {
             throw new InvalidArgumentError(
-                'Can\'t provide both an "Authorization" header and a session cookie',
+                "Can’t provide both an `Authorization` header and a session cookie",
             );
         }
 
@@ -504,7 +504,7 @@ function createActorContextModule(
 
             if (!authorizationHeaderMatch) {
                 throw new InvalidArgumentError(
-                    'Expected "Authorization" header to have "Bearer" authentication scheme',
+                    "Expected `Authorization` header to have `Bearer` authentication scheme",
                 );
             }
 

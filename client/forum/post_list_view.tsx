@@ -380,7 +380,7 @@ function PostListView(
     //   of a feed of posts. Opening in a new route with a post-specific header
     //   lets the user stay focused.
     if (platform === "mobile" && !isPostView) {
-        assert(!posts.hasOpenPostComments(), "Posts can't have open comments on mobile");
+        assert(!posts.hasOpenPostComments(), "Posts can’t have open comments on mobile");
     }
 
     const availablePostWidth = useMemo(() => {
@@ -671,7 +671,7 @@ function PostListView(
         messageNoun: "comment",
         onUpdateMessageContent: async ({roomKey, messageIndex, content}) => {
             const procedures = proceduresByPostIdRef.current.get(roomKey);
-            if (!procedures) throw new InternalError("Post comment input isn't mounted");
+            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
 
             await procedures.updateCommentContent({
                 commentIndex: messageIndex,
@@ -680,7 +680,7 @@ function PostListView(
         },
         onDeleteMessage: async ({roomKey, messageIndex}) => {
             const procedures = proceduresByPostIdRef.current.get(roomKey);
-            if (!procedures) throw new InternalError("Post comment input isn't mounted");
+            if (!procedures) throw new InternalError("Post comment input isn’t mounted");
 
             await procedures.deleteComment({
                 commentIndex: messageIndex,
@@ -1287,7 +1287,7 @@ function PostListView(
                                                     proceduresByPostIdRef.current.get(item.post.id);
                                                 if (!procedures)
                                                     throw new InternalError(
-                                                        "Post comment input isn't mounted",
+                                                        "Post comment input isn’t mounted",
                                                     );
 
                                                 await procedures.deleteComment({
@@ -1481,7 +1481,7 @@ function PostListView(
                             onDeletePostComment={async postCommentIndex => {
                                 const procedures = proceduresByPostIdRef.current.get(item.post.id);
                                 if (!procedures)
-                                    throw new InternalError("Post comment input isn't mounted");
+                                    throw new InternalError("Post comment input isn’t mounted");
 
                                 await procedures.deleteComment({
                                     commentIndex: postCommentIndex,
@@ -2040,7 +2040,7 @@ function PostListView(
                                         lastPostContentItem.post.id,
                                     );
                                     if (!procedures)
-                                        throw new InternalError("Post comment input isn't mounted");
+                                        throw new InternalError("Post comment input isn’t mounted");
 
                                     await procedures.deleteComment({
                                         commentIndex: postCommentIndex,

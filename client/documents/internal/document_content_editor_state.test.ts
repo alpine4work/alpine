@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {Fragment, Slice} from "prosemirror-model";
 import {Selection, TextSelection, Transaction} from "prosemirror-state";
 import {ReplaceStep} from "prosemirror-transform";

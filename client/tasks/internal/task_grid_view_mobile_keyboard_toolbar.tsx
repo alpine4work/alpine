@@ -163,7 +163,7 @@ export function TaskGridViewMobileKeyboardToolbarContainer({
         // covers! So you can still interact with the keyboard toolbar even if an
         // `<Overlay isBlocking={true}>` overlay is visible.
         useOverlayBlockingPortalElement(),
-        "Can't server render `<TaskGridViewMobileKeyboardToolbarContainer>`",
+        "Can’t server render `<TaskGridViewMobileKeyboardToolbarContainer>`",
     );
 
     const toolbarRef = useRef<HTMLDivElement>(null);

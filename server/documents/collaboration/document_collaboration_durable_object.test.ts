@@ -2310,7 +2310,7 @@ test("if comment thread is persisting we will wait to create messages but respon
     ]);
 });
 
-test("if comment thread update message hasn't been processed we will wait to respond to backfill requests", async () => {
+test("if comment thread update message hasn’t been processed we will wait to respond to backfill requests", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -3867,7 +3867,7 @@ test("will cleanup comment thread marks if from a different document", async () 
     ]);
 });
 
-test("can add comment thread marks back to document after they've been removed", async () => {
+test("can add comment thread marks back to document after they’ve been removed", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -4498,7 +4498,7 @@ test("can connect and backfill as a viewer", async () => {
     });
 });
 
-test("can't connect as a viewer and ask for comments", async () => {
+test("can’t connect as a viewer and ask for comments", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -4523,7 +4523,7 @@ test("can't connect as a viewer and ask for comments", async () => {
             document.id,
             {withoutComments: false},
         ),
-    ).rejects.toThrow('Actor doesn\'t have "Comment" access level to document');
+    ).rejects.toThrow("Actor doesn’t have `Comment` access level to document");
 
     expect(
         await connection1.procedures.backfill({
@@ -4631,7 +4631,7 @@ test("can connect and backfill as a viewer when there are remembered steps", asy
     unpause();
 });
 
-test("can't update content as a viewer", async () => {
+test("can’t update content as a viewer", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -4690,7 +4690,7 @@ test("can't update content as a viewer", async () => {
             intentionallyUpdateAccessPolicy: null,
             updateOurPresenceState: {state: null},
         }),
-    ).rejects.toThrow("Can't update document");
+    ).rejects.toThrow("Can’t update document");
 
     await expect(
         connection2.procedures.updateContent({
@@ -4701,7 +4701,7 @@ test("can't update content as a viewer", async () => {
             intentionallyUpdateAccessPolicy: null,
             updateOurPresenceState: {state: null},
         }),
-    ).rejects.toThrow("Can't update document");
+    ).rejects.toThrow("Can’t update document");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -4709,7 +4709,7 @@ test("can't update content as a viewer", async () => {
     expect(connection2.takeEvents()).toEqual([]);
 });
 
-test("can't call comment procedures as viewer", async () => {
+test("can’t call comment procedures as viewer", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -4740,7 +4740,7 @@ test("can't call comment procedures as viewer", async () => {
             clientLastCommentChangeTime: null,
             newCommentLimit: 100,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.backfillComments({
         commentThreadId: commentThread.id,
@@ -4756,7 +4756,7 @@ test("can't call comment procedures as viewer", async () => {
             content: createSimpleMessageContent("foo"),
             fileIds: [],
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.createComment({
         commentThreadId: commentThread.id,
@@ -4771,7 +4771,7 @@ test("can't call comment procedures as viewer", async () => {
             commentIndex: 0,
             content: createSimpleMessageContent("foo2"),
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.updateCommentContent({
         commentThreadId: commentThread.id,
@@ -4784,7 +4784,7 @@ test("can't call comment procedures as viewer", async () => {
             commentThreadId: commentThread.id,
             commentIndex: 0,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.deleteComment({
         commentThreadId: commentThread.id,
@@ -4795,7 +4795,7 @@ test("can't call comment procedures as viewer", async () => {
         connection2.procedures.startTypingInCommentInput({
             commentThreadId: commentThread.id,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.startTypingInCommentInput({
         commentThreadId: commentThread.id,
@@ -4805,7 +4805,7 @@ test("can't call comment procedures as viewer", async () => {
         connection2.procedures.stopTypingInCommentInput({
             commentThreadId: commentThread.id,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.stopTypingInCommentInput({
         commentThreadId: commentThread.id,
@@ -4816,7 +4816,7 @@ test("can't call comment procedures as viewer", async () => {
             commentThreadId: commentThread.id,
             limit: 100,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.getCommentThreadAndInitialCommentsIfExists({
         commentThreadId: commentThread.id,
@@ -4830,7 +4830,7 @@ test("can't call comment procedures as viewer", async () => {
             afterCommentIndex: null,
             beforeCommentIndex: null,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.getCommentsFromStart({
         commentThreadId: commentThread.id,
@@ -4846,7 +4846,7 @@ test("can't call comment procedures as viewer", async () => {
             afterCommentIndex: null,
             beforeCommentIndex: null,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.getCommentsFromEnd({
         commentThreadId: commentThread.id,
@@ -4859,7 +4859,7 @@ test("can't call comment procedures as viewer", async () => {
         connection2.procedures.resolveCommentThread({
             commentThreadId: commentThread.id,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.resolveCommentThread({
         commentThreadId: commentThread.id,
@@ -4871,7 +4871,7 @@ test("can't call comment procedures as viewer", async () => {
         connection2.procedures.unresolveCommentThread({
             commentThreadId: commentThread.id,
         }),
-    ).rejects.toThrow("Can't see document comments");
+    ).rejects.toThrow("Can’t see document comments");
 
     await connection1.procedures.unresolveCommentThread({
         commentThreadId: commentThread.id,
@@ -5438,7 +5438,7 @@ test("can update access policy", async () => {
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to document',
+        "Actor doesn’t have `Comment` access level to document",
     );
 
     const accessPolicy1: AccessPolicy = {
@@ -5478,7 +5478,7 @@ test("can update access policy", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     await expect(connection2a.authorize()).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to document',
+        "Actor doesn’t have `Comment` access level to document",
     );
 
     expect(connection2a.getCloseError()).toBeInstanceOf(PermissionDeniedError);
@@ -5498,7 +5498,7 @@ test("can update access policy", async () => {
     const {unpause: unpause1} = await pausePromise1;
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to document',
+        "Actor doesn’t have `Comment` access level to document",
     );
 
     await connection1.procedures.updateContent({
@@ -5514,7 +5514,7 @@ test("can update access policy", async () => {
     await ProcessContextModule.waitForTestTasks();
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to document',
+        "Actor doesn’t have `Comment` access level to document",
     );
 
     const pausePromise2 =
@@ -5532,7 +5532,7 @@ test("can update access policy", async () => {
     const {unpause: unpause2} = await pausePromise2;
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to document',
+        "Actor doesn’t have `Comment` access level to document",
     );
 
     await connection1.procedures.updateContent({
@@ -5550,7 +5550,7 @@ test("can update access policy", async () => {
     await connectForTest(context.action(session2), document.id);
 });
 
-test("can't update access policy unintentionally", async () => {
+test("can’t update access policy unintentionally", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -5567,7 +5567,7 @@ test("can't update access policy unintentionally", async () => {
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to document',
+        "Actor doesn’t have `Comment` access level to document",
     );
 
     const accessPolicy2: AccessPolicy = {
@@ -5595,7 +5595,7 @@ test("can't update access policy unintentionally", async () => {
         {
             type: "Error",
             error: new InternalError(
-                "Can't update the document's access policy unless `intentionallyUpdateAccessPolicy` is provided",
+                "Can’t update the document’s access policy unless `intentionallyUpdateAccessPolicy` is provided",
             ),
         },
         {
@@ -5613,11 +5613,11 @@ test("can't update access policy unintentionally", async () => {
     expect(connection1.isClosed()).toEqual(true);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "View" access level to document',
+        "Actor doesn’t have `View` access level to document",
     );
 });
 
-test("can't update access policy with the wrong intentional policy", async () => {
+test("can’t update access policy with the wrong intentional policy", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
 
@@ -5634,7 +5634,7 @@ test("can't update access policy with the wrong intentional policy", async () =>
     const connection1 = await connectForTest(context.action(session1), document.id);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "Comment" access level to document',
+        "Actor doesn’t have `Comment` access level to document",
     );
 
     const accessPolicy2a: AccessPolicy = {
@@ -5668,7 +5668,7 @@ test("can't update access policy with the wrong intentional policy", async () =>
         {
             type: "Error",
             error: new InternalError(
-                "The document's new access policy doesn't match `intentionallyUpdateAccessPolicy`",
+                "The document’s new access policy doesn’t match `intentionallyUpdateAccessPolicy`",
             ),
         },
         {
@@ -5686,7 +5686,7 @@ test("can't update access policy with the wrong intentional policy", async () =>
     expect(connection1.isClosed()).toEqual(true);
 
     await expect(connectForTest(context.action(session2), document.id)).rejects.toThrow(
-        'Actor doesn\'t have "View" access level to document',
+        "Actor doesn’t have `View` access level to document",
     );
 });
 

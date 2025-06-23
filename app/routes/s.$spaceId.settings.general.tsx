@@ -18,7 +18,7 @@ import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
 
 export default function GeneralSettings() {
     if (process.env.NODE_ENV === "production")
-        throw new UnimplementedError("Shouldn't be able to open general settings in production");
+        throw new UnimplementedError("Shouldn’t be able to open general settings in production");
 
     const context = useAppContext();
     const {space: originalSpace, updateSpace} = useSpaceContextAndRequireSpaceAccess();
@@ -124,6 +124,8 @@ export default function GeneralSettings() {
                                 // Allow contextual alternate glyphs in regular text content.
                                 //
                                 // Particularly the "x" in "256x256".
+                                //
+                                // eslint-disable-next-line string-quotes
                                 fontFeatureSettings: '"calt" on',
                             }}
                         >

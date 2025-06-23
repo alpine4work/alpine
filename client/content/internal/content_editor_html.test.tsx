@@ -299,7 +299,7 @@ const inlineTestCases: Array<{
     {
         name: "link (XSS vulnerability)",
         disableClipboardTests: true,
-        build: () => schema.mark("link", {url: "javascript:alert('XSS')"}), // eslint-disable-line no-script-url
+        build: () => schema.mark("link", {url: "javascript:alert('XSS')"}), // eslint-disable-line no-script-url, string-quotes
     },
 ];
 
@@ -693,6 +693,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
             );
         });
 
+        // eslint-disable-next-line string-quotes
         expect(pasteEditor.state.doc.toString()).toEqual('doc(paragraph("test"), paragraph)');
         expect(pasteEditor.state.selection.anchor).toEqual(3);
         expect(pasteEditor.state.selection.head).toEqual(3);
@@ -751,6 +752,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
             await waitMacrotask();
         });
 
+        // eslint-disable-next-line string-quotes
         expect(pasteEditor.state.doc.toString()).not.toEqual('doc(paragraph("test"), paragraph)');
         expect(pasteEditor.state.doc.toString()).toMatch(/^doc\(paragraph\("test"\),/);
 
@@ -941,7 +943,7 @@ test("link with a non-HTTP scheme is blocked", () => {
                     schema.node("paragraph", {}, [
                         schema.text("Test", [
                             schema.mark("link", {
-                                // eslint-disable-next-line no-script-url
+                                // eslint-disable-next-line no-script-url, string-quotes
                                 url: "javascript:alert('XSS')",
                             }),
                         ]),

@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {Writable as WritableStream} from "stream";
 import {
     resetWriteWithStdioPrefixForTest,

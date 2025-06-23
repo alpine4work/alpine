@@ -115,12 +115,16 @@ function BlobsArtComponent({
     // This must then translate to the same ID on the client.
     const canvasId = getBlobsCanvasId(settings);
 
+    /* eslint-disable string-quotes */
+
     // The canvas is rendered on the server, but we can't draw to it via this component.
     // Instead, we copy the commands ran in generateBlobsForContent and drawBlobFactoryToCanvas
     // in the server-side script. See the draw_ssr package.
     const generateBlobs = safe`__drawBlobs('${safeIdentifierString(
         canvasId,
     )}', ${safeFlatObjectString(settings)})`;
+
+    /* eslint-enable string-quotes */
 
     const serverSideRenderingScripts = (
         <>

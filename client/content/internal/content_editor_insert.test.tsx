@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {act, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";
 import {Node as ProsemirrorNode} from "prosemirror-model";

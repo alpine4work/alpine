@@ -13,7 +13,7 @@ import {Reporter} from "~/client/design/reporter.js";
 import {bellIconSvg} from "~/client/icons/bell_icon_svg.js";
 import {bellRingingIconSvg} from "~/client/icons/bell_ringing_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
-import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_svg.js";
+import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_icon_svg.js";
 import {
     channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleColor,

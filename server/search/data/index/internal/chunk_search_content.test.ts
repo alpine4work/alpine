@@ -335,7 +335,7 @@ test("discovers heading structure", async () => {
                 ]),
                 schema.node("paragraph", {}, [
                     schema.text(
-                        "Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn't as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.",
+                        "Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn’t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.",
                     ),
                 ]),
                 schema.node("heading", {level: 2}, [
@@ -349,7 +349,7 @@ test("discovers heading structure", async () => {
                 schema.node("divider", {}, []),
                 schema.node("paragraph", {}, [
                     schema.text(
-                        "To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies' efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.",
+                        "To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies’ efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.",
                     ),
                 ]),
             ]),
@@ -363,7 +363,7 @@ test("discovers heading structure", async () => {
 
 The urgent need for renewable energy arises from the escalating environmental issues caused by conventional energy sources. Fossil fuels, the primary energy source for centuries, emit greenhouse gases, contributing significantly to climate change. Renewable energy, derived from natural resources like sunlight, wind, and water, offers a cleaner alternative, reducing carbon emissions and mitigating environmental degradation. Embracing renewables aligns with global initiatives to combat climate change, preserving ecosystems and safeguarding the planet for future generations.
 
-Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn't as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.
+Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn’t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.
 
 ### Advantages and Challenges of Renewable Energy Adoption
 
@@ -371,7 +371,7 @@ The adoption of renewable energy brings forth numerous advantages, from reducing
 
 ---
 
-To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies' efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.`,
+To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies’ efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.`,
         isGroup: true,
         tokenCount: 431,
         context: {sectionHeading: null},
@@ -443,7 +443,7 @@ To realize a sustainable future, a collective effort is necessary. Governments, 
                                 tokenCount: 16,
                             },
                             {
-                                text: "Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn't as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources.",
+                                text: "Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn’t as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources.",
                                 tokenCount: 37,
                             },
                             {
@@ -540,7 +540,7 @@ To realize a sustainable future, a collective effort is necessary. Governments, 
                                 tokenCount: 24,
                             },
                             {
-                                text: "Industries can invest in research and development to enhance renewable technologies' efficiency and affordability.",
+                                text: "Industries can invest in research and development to enhance renewable technologies’ efficiency and affordability.",
                                 tokenCount: 17,
                             },
                             {
@@ -655,7 +655,7 @@ test("discovers bullet list structure", async () => {
                     ]),
                     schema.node("paragraph", {}, [
                         schema.text(
-                            "Here's a second paragraph in the list item to make sure that works.",
+                            "Here’s a second paragraph in the list item to make sure that works.",
                         ),
                     ]),
                 ]),
@@ -691,7 +691,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
 - Supporting Local Communities: Sustainable agriculture encourages local food production and distribution, supporting local economies and communities.
 - Food Security: Diverse and sustainable farming methods contribute to food security, ensuring a more resilient food system.
 
-  Here's a second paragraph in the list item to make sure that works.
+  Here’s a second paragraph in the list item to make sure that works.
 - Knowledge Sharing: Sustainable farming practices involve education and knowledge sharing within communities, empowering farmers with valuable skills.`,
         isGroup: true,
         tokenCount: 330,
@@ -962,7 +962,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                 tokenCount: 23,
                             },
                             {
-                                text: "\n\n  Here's a second paragraph in the list item to make sure that works.",
+                                text: "\n\n  Here’s a second paragraph in the list item to make sure that works.",
                                 tokenCount: 16,
                             },
                         ],
@@ -3017,14 +3017,14 @@ test("escapes markdown characters", async () => {
                 schema.node("paragraph", {}, [
                     schema.text("This is backticks surrounding text: `code?`"),
                 ]),
-                schema.node("paragraph", {}, [schema.text("Here's a math expression: 2 + 4 > 5")]),
-                schema.node("paragraph", {}, [schema.text("Here's some braces: [INTERNAL]")]),
+                schema.node("paragraph", {}, [schema.text("Here’s a math expression: 2 + 4 > 5")]),
+                schema.node("paragraph", {}, [schema.text("Here’s some braces: [INTERNAL]")]),
                 schema.node("paragraph", {}, [
-                    schema.text("Here's some braces that look like a checkbox: [x]"),
+                    schema.text("Here’s some braces that look like a checkbox: [x]"),
                 ]),
                 schema.node("paragraph", {}, [
                     schema.text(
-                        "Here's some braces that look like a link: [Google](https://google.com)",
+                        "Here’s some braces that look like a link: [Google](https://google.com)",
                     ),
                 ]),
                 schema.node("paragraph", {}, [
@@ -3087,13 +3087,13 @@ This is multiple backticks: \\\`\\\`\\\`
 
 This is backticks surrounding text: \\\`code?\\\`
 
-Here's a math expression: 2 + 4 > 5
+Here’s a math expression: 2 + 4 > 5
 
-Here's some braces: [INTERNAL]
+Here’s some braces: [INTERNAL]
 
-Here's some braces that look like a checkbox: [x]
+Here’s some braces that look like a checkbox: [x]
 
-Here's some braces that look like a link: [Google\\](https://google.com)
+Here’s some braces that look like a link: [Google\\](https://google.com)
 
 [x] this checked checkbox starts the line
 
@@ -3243,7 +3243,7 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 isGroup: false,
                 tokenCount: 12,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "Here's a math expression: 2 + 4 > 5", tokenCount: 12}],
+                sentenceChunks: [{text: "Here’s a math expression: 2 + 4 > 5", tokenCount: 12}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -3251,7 +3251,7 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 isGroup: false,
                 tokenCount: 10,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "Here's some braces: [INTERNAL]", tokenCount: 10}],
+                sentenceChunks: [{text: "Here’s some braces: [INTERNAL]", tokenCount: 10}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -3260,7 +3260,7 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 tokenCount: 16,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "Here's some braces that look like a checkbox: [x]", tokenCount: 16},
+                    {text: "Here’s some braces that look like a checkbox: [x]", tokenCount: 16},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -3271,7 +3271,7 @@ This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, th
                 context: {sectionHeading: null},
                 sentenceChunks: [
                     {
-                        text: "Here's some braces that look like a link: [Google\\](https://google.com)",
+                        text: "Here’s some braces that look like a link: [Google\\](https://google.com)",
                         tokenCount: 25,
                     },
                 ],
@@ -3527,7 +3527,7 @@ test("correctly chunks document content", async () => {
                                     },
                                     {
                                         type: "text",
-                                        text: " Bringing a project to completion shouldn't involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.",
+                                        text: " Bringing a project to completion shouldn’t involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.",
                                     },
                                 ],
                             },
@@ -4257,7 +4257,7 @@ People can build great things when they work together. We aim to improve the pro
 
 Cyberworlds will streamline work collaboration by bringing together the top productivity tools (chat, documents, tasks, video conferencing, calendaring, email, sheets, slides) into one deeply integrated product. Some things we believe:
 
-- **Our tools are fragmented.** Bringing a project to completion shouldn't involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.
+- **Our tools are fragmented.** Bringing a project to completion shouldn’t involve jumping between tools and losing track of where things are happening. Instead it should feel like a continuous experience from idea to execution.
 - **Conversations are core to collaboration.** We plan to unify conversations across the product experience. Never lose track of what’s happening and pick up the conversation where you left off.
 - **All-in-one is the new norm.** Work collaboration tools are being commoditized and the value proposition is increasingly moving to the integration of features. Enterprise buyers don’t want to pay for tools that do the same thing. By shipping a bundle we build a defensible enterprise business.
 - **Quality is hard to find.** Growth hacks, design drift, lack of conviction, and tech debt have taken a toll on the user experience of existing products. Users are frustrated and want something better. Today, buyers are facing tough decisions between best-in-class products and a bundle—we plan to build a best-in-class product bundle.

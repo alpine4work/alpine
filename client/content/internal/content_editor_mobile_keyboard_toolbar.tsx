@@ -79,7 +79,7 @@ export function ContentEditorMobileKeyboardToolbar({
 
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
-        "Can't server render `<ContentEditorMobileKeyboardToolbar>`",
+        "Can’t server render `<ContentEditorMobileKeyboardToolbar>`",
     );
 
     const toolbarRef = useRef<HTMLDivElement>(null);

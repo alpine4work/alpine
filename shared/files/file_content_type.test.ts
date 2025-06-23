@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {
     canonicalizeFileContentTypeIfExists,
     fileContentTypeByCodeBlockLanguageId,

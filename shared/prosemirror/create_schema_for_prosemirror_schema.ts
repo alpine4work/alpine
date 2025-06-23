@@ -281,7 +281,7 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
 
                 if (!node.type.validContent(node.content)) {
                     throw new SchemaDeserializationError(
-                        `Invalid content for node "${node.type.name}"`,
+                        quote`Invalid content for node ${node.type.name}`,
                     );
                 }
 
@@ -292,9 +292,9 @@ export function createSchemaForProsemirrorSchema(schema: ProsemirrorSchema) {
 
                 if (!node.type.validContent(node.content)) {
                     throw new InvalidArgumentError(
-                        `Invalid content for node "${node.type.name}", expected content to match "${
-                            node.type.spec.content ?? ""
-                        }"`,
+                        quote`Invalid content for node ${
+                            node.type.name
+                        }, expected content to match ${node.type.spec.content ?? ""}`,
                     );
                 }
 

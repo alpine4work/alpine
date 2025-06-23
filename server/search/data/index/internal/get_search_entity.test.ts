@@ -274,7 +274,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
         });
     },
     Chat: () => {
-        test("can't get 1:1 chat search entity", async () => {
+        test("can’t get 1:1 chat search entity", async () => {
             const space = await TestSpace.create(context);
             const session1 = await space.createSession({name: "Caleb Meredith"});
             const session2 = await space.createSession({name: "Josh Meredith"});

@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {createContentCodeBlockNodeInput} from "~/shared/content/code/create_content_code_block_node_input.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";

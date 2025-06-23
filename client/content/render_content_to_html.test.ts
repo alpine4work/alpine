@@ -1,3 +1,5 @@
+/* eslint-disable string-quotes */
+
 import {CalendarDate} from "@internationalized/date";
 import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {getFileClientStore} from "~/client/content/file_client_store_context.js";

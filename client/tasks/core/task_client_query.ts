@@ -465,7 +465,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
             assert(
                 !taskOrderIds.has(taskId),
-                "A task may not appear in a query's task order more than once",
+                "A task may not appear in a query’s task order more than once",
             );
             taskOrderIds.add(taskId);
 
@@ -486,7 +486,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             taskOrderIds.size > 0 ||
                 (this._referencedTaskEntryStoreById.size === 0 &&
                     this._referencedCollectionEntryStoreById.size === 0),
-            "If client query has no loaded tasks then it shouldn't have referenced tasks or referenced collections either",
+            "If client query has no loaded tasks then it shouldn’t have referenced tasks or referenced collections either",
         );
 
         for (const taskEntryStore of this._loadedTaskEntryStoreById.values()) {
@@ -497,14 +497,14 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             if (parentTaskId) {
                 assert(
                     this._referencedTaskEntryStoreById.has(parentTaskId),
-                    "Client query should keep track of loaded tasks' parent tasks",
+                    "Client query should keep track of loaded tasks’ parent tasks",
                 );
             }
 
             for (const {collectionId} of task.getCollections().getArray()) {
                 assert(
                     this._referencedCollectionEntryStoreById.has(collectionId),
-                    "Client query should keep track of loaded tasks' collections",
+                    "Client query should keep track of loaded tasks’ collections",
                 );
             }
         }
@@ -526,7 +526,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
      * up this query and all its data.
      */
     public retain() {
-        assert(this._referenceCount > 0, "Can't retain a released query");
+        assert(this._referenceCount > 0, "Can’t retain a released query");
 
         this._referenceCount++;
     }
@@ -923,7 +923,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
             assert(
                 !previousTaskById.has(taskId),
-                "Query can't add task that's already referenced with `_onLoadedTaskAdd()`",
+                "Query can’t add task that’s already referenced with `_onLoadedTaskAdd()`",
             );
 
             previousTaskById.set(taskId, newTaskEntry);
@@ -972,7 +972,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
             assert(
                 previousTaskById.get(taskId) === oldTaskEntry,
-                "Query can't remove task that is not referenced with `_onLoadedTaskRemove()`",
+                "Query can’t remove task that is not referenced with `_onLoadedTaskRemove()`",
             );
 
             previousTaskById.delete(taskId);

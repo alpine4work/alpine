@@ -5,8 +5,8 @@ module.exports = {
         schema: [],
         fixable: "code",
         messages: {
-            sortImports: 'Imports should be sorted alphabetically with "~/" imports at the end.',
-            absoluteImport: 'Instead of a relative imports use an absolute import with "~/".',
+            sortImports: "Imports should be sorted alphabetically with `~/` imports at the end.",
+            absoluteImport: "Instead of a relative imports use an absolute import with `~/`.",
             lineAfterSideEffects:
                 "There must be a line between imports only for side-effects and other imports.",
         },

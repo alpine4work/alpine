@@ -63,11 +63,11 @@ export async function action({request, context}: LoaderArgs) {
         const message = formData.get("message");
 
         if (typeof name !== "string")
-            throw new InvalidArgumentError('Expected property "name" in form data');
+            throw new InvalidArgumentError("Expected property `name` in form data");
         if (typeof emailAddress !== "string")
-            throw new InvalidArgumentError('Expected property "emailAddress" in form data');
+            throw new InvalidArgumentError("Expected property `emailAddress` in form data");
         if (typeof message !== "string")
-            throw new InvalidArgumentError('Expected property "message" in form data');
+            throw new InvalidArgumentError("Expected property `message` in form data");
 
         // NOTE(calebmer, 2022-01-16): I get automated spam bot submissions to this
         // form every couple hours from a bot with the name "CryptoBob". There are more

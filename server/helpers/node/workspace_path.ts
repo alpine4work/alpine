@@ -21,7 +21,7 @@ let workspacePath: string | null = null;
 export function getWorkspacePath() {
     workspacePath ??= assertExists(
         process.env.BUILD_WORKSPACE_DIRECTORY,
-        "Can't get the workspace path when running in a Bazel sandbox",
+        "Can’t get the workspace path when running in a Bazel sandbox",
     );
     return workspacePath;
 }

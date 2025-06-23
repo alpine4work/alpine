@@ -43,7 +43,7 @@ testSharedHooks.afterEach(async () => {
 export function afterTestEnds(callback: () => MaybePromise<void>) {
     if (!isTestRunning) {
         throw new InternalError(
-            "Can't register callback for after test ends when no test is running",
+            "Can’t register callback for after test ends when no test is running",
         );
     }
 

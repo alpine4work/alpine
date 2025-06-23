@@ -303,7 +303,7 @@ test("multiple incorrect password logins will lock the account", async () => {
     ).rejects.toThrow(new PermissionDeniedError("Account email address is locked"));
 });
 
-test("multiple incorrect password logins will lock the account and even a correct password won't work", async () => {
+test("multiple incorrect password logins will lock the account and even a correct password won’t work", async () => {
     const account = await createTestAccount();
 
     const oneTimePasswordLoginEmails = await captureOneTimePasswordSignInEmailsForTest(async () => {
@@ -835,7 +835,7 @@ test("can get accounts in the same space as us", async () => {
     ).toEqual(session3.account.initialName);
 });
 
-test("can not get accounts that don't exist", async () => {
+test("can not get accounts that don’t exist", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -861,7 +861,7 @@ test("can not get accounts in a different space than us", async () => {
     ).toEqual(null);
 });
 
-test("can not get accounts through a space we don't have access to", async () => {
+test("can not get accounts through a space we don’t have access to", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const space1Session1 = await space1.createSession();
@@ -884,7 +884,7 @@ test("can not get accounts through a space we don't have access to", async () =>
     ).rejects.toThrow(PermissionDeniedError);
 });
 
-test("can not get accounts through a space we don't have access to even if we have access to the accounts through a different space", async () => {
+test("can not get accounts through a space we don’t have access to even if we have access to the accounts through a different space", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
     const [space1Session1, space1Session2, space1Session3] = await space1.createSessions(3);
@@ -1039,7 +1039,7 @@ test("can get any account by email address as admin", async () => {
     ).resolves.toEqual(await session3.account.get());
 });
 
-test("can't login with apple reviewer's password", async () => {
+test("can’t login with apple reviewer’s password", async () => {
     const account = await createTestAccount();
 
     expect(await getAccountEmailAddressItemUpdateLockVersionForExpect(account)).toEqual(undefined);

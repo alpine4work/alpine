@@ -48,6 +48,7 @@ export function SearchEntityViewTitle({
                 textOverflow: "ellipsis",
                 // Render contextual alternate glyphs. Particularly important that we render
                 // the right "@" for mentions.
+                // eslint-disable-next-line string-quotes
                 fontFeatureSettings: '"calt" on',
             }}
         >

@@ -31,7 +31,7 @@ export async function fetchFile(
 ): Promise<Response> {
     try {
         if (request.method !== "GET" && request.method !== "HEAD") {
-            throw new InvalidArgumentError('Only "GET" and "HEAD" HTTP requests are supported');
+            throw new InvalidArgumentError("Only `GET` and `HEAD` HTTP requests are supported");
         }
 
         const fileProcessorServiceUrl = env.FILE_PROCESSOR_SERVICE_URL;
@@ -50,14 +50,14 @@ export async function fetchFile(
         const width = widthString !== null ? parseInt(widthString, 10) : null;
         if (width !== null && !isFilePreviewImageResizeWidth(width)) {
             throw new InvalidArgumentError(
-                `Search param "width" is not a valid resize width, the nearest valid resize width is ${getFilePreviewImageResizeWidth(
+                `Search param \`width\` is not a valid resize width, the nearest valid resize width is ${getFilePreviewImageResizeWidth(
                     width,
                 )}`,
             );
         }
 
         if (variant !== null && variant !== "preview" && variant !== "alternative") {
-            throw new InvalidArgumentError(`Search param "variant" is not a valid file variant`);
+            throw new InvalidArgumentError(`Search param \`variant\` is not a valid file variant`);
         }
 
         // Make sure the user is allowed to access this file by verifying the signed

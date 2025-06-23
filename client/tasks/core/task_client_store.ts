@@ -732,7 +732,7 @@ export class TaskClientStoreInternal {
     public getTaskAssigneeAccountStore(task: TaskModel): Store<AccountModelData> | null {
         assert(
             this._taskEntryStoreById.get(task.id)?.store.getSnapshot().task === task,
-            "Can't get the assignee account for a `TaskModel` that's not the latest task in our store",
+            "Can’t get the assignee account for a `TaskModel` that’s not the latest task in our store",
         );
 
         const assignee = task.getAssignee();
@@ -795,7 +795,7 @@ export class TaskClientStoreInternal {
                     // toast.)
                     display: false,
                     error: new DeadlineExceededError(
-                        "Received actions for a task that wasn't loaded",
+                        "Received actions for a task that wasn’t loaded",
                     ),
                 });
             }
@@ -2209,7 +2209,7 @@ export class TaskClientStoreInternal {
                                     action,
                                     getActionReferencedSortableAccount: () => {
                                         throw new InternalError(
-                                            "`UpdateTitle` task action doesn't reference any accounts",
+                                            "`UpdateTitle` task action doesn’t reference any accounts",
                                         );
                                     },
                                 })),
@@ -2231,7 +2231,7 @@ export class TaskClientStoreInternal {
                                     action,
                                     getActionReferencedSortableAccount: () => {
                                         throw new InternalError(
-                                            "`UpdateTitle` task action doesn't reference any accounts",
+                                            "`UpdateTitle` task action doesn’t reference any accounts",
                                         );
                                     },
                                 })),
@@ -2852,7 +2852,7 @@ export class TaskClientStoreInternal {
                 case "UpdateAccountName":
                 case "UpdateNotepadPage": {
                     throw new InternalError(
-                        quote`Can't optimistically apply ${action.type} action`,
+                        quote`Can’t optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3285,7 +3285,7 @@ export class TaskClientStoreInternal {
                 case "UpdateAccountName":
                 case "UpdateNotepadPage": {
                     throw new InternalError(
-                        quote`Can't optimistically apply ${action.type} action`,
+                        quote`Can’t optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -3747,7 +3747,7 @@ export class TaskClientStoreInternal {
                 case "UpdateAccountName":
                 case "UpdateNotepadPage": {
                     throw new InternalError(
-                        quote`Can't optimistically apply ${action.type} action`,
+                        quote`Can’t optimistically apply ${action.type} action`,
                     );
                 }
                 default:
@@ -4123,7 +4123,7 @@ export class TaskClientStoreInternal {
                 // somewhere in the UI.
                 if (!accountStore) {
                     throw new InternalError(
-                        "Couldn't find `AccountId` referenced by `TaskModel` in `AccountClientStore`",
+                        "Couldn’t find `AccountId` referenced by `TaskModel` in `AccountClientStore`",
                     );
                 }
 

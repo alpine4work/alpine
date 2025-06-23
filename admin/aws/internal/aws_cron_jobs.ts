@@ -50,9 +50,10 @@ class MaintenanceJobRuleTargetInput extends RuleTargetInput {
         // There may be a way to escape the characters used by AWS for variable
         // interpolation but avoid the problem for now by disallowing these characters
         // in `jobString`.
-        assert(!/[<>]/.test(jobString), 'Maintenance job description must not contain "<" or ">"');
+        assert(!/[<>]/.test(jobString), "Maintenance job description must not contain `<` or `>`");
 
         return {
+            // eslint-disable-next-line string-quotes
             inputTemplate: `{"type":"Maintenance","sendTime":"<aws.events.event.ingestion-time>","delaySeconds":0,"job":${jobString},"tracerContext":null}`,
             inputPathsMap: {},
         };

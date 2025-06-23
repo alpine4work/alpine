@@ -259,7 +259,7 @@ const ContextImplementation = class Context {
         for (const [key, actualModule] of Object.entries(modules)) {
             assert(
                 !Object.getOwnPropertyDescriptor(actualModule, "_context"),
-                "Can't construct a context with a module that has been bound to a different context",
+                "Can’t construct a context with a module that has been bound to a different context",
             );
 
             // Create a clone of the context module and set the context module as the

@@ -172,7 +172,7 @@ export class DynamoClient {
     /**
      * Put a single item into DynamoDB. Corresponds to the [`PutItem`][1] command.
      *
-     * Our DynamoDB class doesn't know which attributes in an item correspond to
+     * Our DynamoDB class doesn’t know which attributes in an item correspond to
      * the key, so we need the caller to give us the `key` object for the item
      * separately.
      *
@@ -764,7 +764,7 @@ export class DynamoClient {
             // This feels like a silly limitation in DynamoDB.
             if (sortKey.isStartExclusive || sortKey.isEndExclusive)
                 throw new InternalError(
-                    "Dynamo doesn't support exclusive sort keys in query when you have both a start and end sort key",
+                    "Dynamo doesn’t support exclusive sort keys in query when you have both a start and end sort key",
                 );
         } else {
             if (sortKey?.startValue !== undefined) {
@@ -1362,7 +1362,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
             const tableBatch = batch.tableBatches.get(tableName);
             assert(
                 tableBatch,
-                '"BatchGetItem" output contains a response for a table we didn\'t request',
+                "`BatchGetItem` output contains a response for a table we didn’t request",
             );
 
             for (const _item of items) {
@@ -1379,7 +1379,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                 const keyBatch = tableBatch.keyBatches.get(keyString);
                 assert(
                     keyBatch,
-                    '"BatchGetItem" output contains a response for an item we didn\'t request',
+                    "`BatchGetItem` output contains a response for an item we didn’t request",
                 );
 
                 for (const {promiseResolver} of keyBatch.promiseResolvers) {
@@ -1414,7 +1414,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                 const tableBatch = batch.tableBatches.get(tableName);
                 assert(
                     tableBatch,
-                    '"BatchGetItem" output contains a response for a table we didn\'t request',
+                    "`BatchGetItem` output contains a response for a table we didn’t request",
                 );
 
                 if (unprocessedKeys && unprocessedKeys?.length > 1) {
@@ -1435,7 +1435,7 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
                         const keyBatch = tableBatch.keyBatches.get(keyString);
                         assert(
                             keyBatch,
-                            '"BatchGetItem" output contains a response for an item we didn\'t request',
+                            "`BatchGetItem` output contains a response for an item we didn’t request",
                         );
 
                         tableBatch.keyBatches.delete(keyString);
@@ -1768,7 +1768,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                 const tableBatch = batch.tableBatches.get(tableName);
                 assert(
                     tableBatch,
-                    '"BatchWriteItem" output contains a response for a table we didn\'t request',
+                    "`BatchWriteItem` output contains a response for a table we didn’t request",
                 );
 
                 const unprocessedTableBatch = getOrSetDefaultMapValue(
@@ -1797,7 +1797,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                         key = fromDynamoAttributeValueObject(unprocessedItem.DeleteRequest.Key);
                     } else {
                         throw new InternalError(
-                            'Unrecognized unprocessed item in "BatchWriteItem" output',
+                            "Unrecognized unprocessed item in `BatchWriteItem` output",
                         );
                     }
 
@@ -1805,7 +1805,7 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
                     const keyBatch = tableBatch.keyBatches.get(keyString);
                     assert(
                         keyBatch,
-                        '"BatchWriteItem" output contains a response for an item we didn\'t request',
+                        "`BatchWriteItem` output contains a response for an item we didn’t request",
                     );
 
                     tableBatch.keyBatches.delete(keyString);

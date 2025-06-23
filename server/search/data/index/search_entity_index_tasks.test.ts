@@ -1907,7 +1907,7 @@ test("can get affinitive collections for an account", async () => {
 
 test("effective task collection name fuzzy searching", async () => {
     const bookNames = [
-        "Old Man's War",
+        "Old Man’s War",
         "The Lock Artist",
         "HTML5",
         "Thank You Jeeves",
@@ -2042,17 +2042,17 @@ test("effective task collection name fuzzy searching", async () => {
         "Test Mxyz",
         "Test Mabc",
         "Monster 1959",
-        "Old Man's War",
+        "Old Man’s War",
     ]);
-    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man's War", "Test Mxyz"]);
-    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man's War", "Test Mxyz"]);
+    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
+    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
     expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
     expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
     expect(await testSearch("tes m")).toEqual([
         "Test Mxyz",
         "Test Mabc",
         "Monster 1959",
-        "Old Man's War",
+        "Old Man’s War",
     ]);
 
     // Testing typos
@@ -2112,7 +2112,7 @@ test("effective task collection name fuzzy searching", async () => {
     ]);
 });
 
-test("excludes collections account doesn't have access to when searching", async () => {
+test("excludes collections account doesn’t have access to when searching", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
     const session1 = await space.createSession();

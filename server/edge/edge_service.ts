@@ -92,6 +92,7 @@ async function handleFetch(
     // [1]: https://en.wikipedia.org/wiki/Network_Time_Protocol
     // [2]: https://developers.cloudflare.com/workers/learning/security-model/
     if (url.pathname === "/api/time") {
+        // eslint-disable-next-line string-quotes
         return new Response(`{"startTime":${startTime},"endTime":${Date.now()}}`, {
             status: 200,
             headers: {"content-type": "application/json"},
@@ -601,7 +602,7 @@ async function actuallyHandleFetch(
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // this endpoint of `TaskRealtimeService`.
                 if (request.headers.has("upgrade"))
-                    throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
 
                 if (request.method !== "POST") {
                     throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
@@ -682,7 +683,7 @@ async function actuallyHandleFetch(
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // `FileProcessorService`. All WebSocket connection routes are enumerated above.
                 if (request.headers.has("upgrade"))
-                    throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
 
                 const createContext = ({sessionId, accountId}: SessionTokenPayload) =>
                     Context.new({
@@ -762,7 +763,7 @@ async function actuallyHandleFetch(
                 // Can't forward a request to upgrade to a WebSocket connection to
                 // `FileProcessorService`. All WebSocket connection routes are enumerated above.
                 if (request.headers.has("upgrade"))
-                    throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
 
                 return fetchFile(executionContext, env, tokenAgent, request, url, span, route);
             }
@@ -795,11 +796,11 @@ async function actuallyHandleFetch(
             // works. We'll improve it later.
             case "FileCorsProxy": {
                 if (request.headers.has("upgrade")) {
-                    throw new InvalidArgumentError("Can't upgrade to WebSocket connection");
+                    throw new InvalidArgumentError("Can’t upgrade to WebSocket connection");
                 }
 
                 if (request.method !== "GET") {
-                    throw new InvalidArgumentError('Only "GET" HTTP requests are supported');
+                    throw new InvalidArgumentError("Only `GET` HTTP requests are supported");
                 }
 
                 let proxyUrl: URL;
@@ -860,7 +861,7 @@ async function actuallyHandleFetch(
     // Can't forward a request to upgrade to a WebSocket connection to
     // `AppService`. All WebSocket connection routes are enumerated above.
     if (request.headers.has("upgrade")) {
-        return new Response("400 Bad Request: Can't upgrade to WebSocket connection", {
+        return new Response("400 Bad Request: Can’t upgrade to WebSocket connection", {
             status: 400,
             headers: {"content-type": "text/plain"},
         });
@@ -908,6 +909,7 @@ async function actuallyHandleFetch(
 
         newResponse.headers.append(
             "server-timing",
+            // eslint-disable-next-line string-quotes
             `edge;dur=${durationMs};desc="Edge server wait (start time: ${startTimeString})"`,
         );
 

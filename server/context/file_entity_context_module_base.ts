@@ -36,7 +36,7 @@ export class TestFileEntityContextModule extends FileEntityContextModuleBase {
 
     public override getIfPossible(): never {
         throw new UnimplementedError(
-            "`TestFileEntityContextModule.getIfPossible()` can't be implemented in unit tests because we want to limit unit test dependencies to just what we need",
+            "`TestFileEntityContextModule.getIfPossible()` can’t be implemented in unit tests because we want to limit unit test dependencies to just what we need",
         );
     }
 

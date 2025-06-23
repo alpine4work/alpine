@@ -118,10 +118,14 @@ export function renderContentToHtmlStore(
         withPosAttribute,
         placeholder,
     }).map(fragmentHtmlGenerator => {
+        /* eslint-disable string-quotes */
+
         return `<div class="${classNames(
             contentStyles.docClassName,
             routeLayout === "narrow" ? contentStyles.narrowRouteLayoutDocClassName : undefined,
         )}">${fragmentHtmlGenerator.generateHtml()}</div>`;
+
+        /* eslint-enable string-quotes */
     });
 }
 

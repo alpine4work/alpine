@@ -71,7 +71,7 @@ export type OnNavigateFunction = (
 
 function unsupportedNavigateForTest(): never {
     throw new UnimplementedError(
-        "Can't navigate in Jest unit tests without a `<Router>` component and a `<RootNavigationContextProvider>` component",
+        "Can’t navigate in Jest unit tests without a `<Router>` component and a `<RootNavigationContextProvider>` component",
     );
 }
 

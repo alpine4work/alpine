@@ -79,7 +79,7 @@ export async function validateEmailAddress(
     );
 
     if (body.Status !== 0 || body.Answer.length === 0) {
-        throw new InvalidArgumentError("Couldn't find MX DNS records for email domain", {
+        throw new InvalidArgumentError("Couldn’t find MX DNS records for email domain", {
             displayMessage: errorDisplayMessage`The domain “${domain}” does not accept emails. Try providing a different email address where you can receive emails.`,
         });
     }

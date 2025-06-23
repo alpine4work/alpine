@@ -295,7 +295,7 @@ export async function processFileWebUnsafeVideo(
 
                         if (!previewSizePromiseResolver.isSettled()) {
                             throw new InternalError(
-                                `Couldn't find video duration and width/height from FFmpeg stderr\n\nstderr:\n${previewContentStderr.trim()}`,
+                                `Couldn’t find video duration and width/height from FFmpeg stderr\n\nstderr:\n${previewContentStderr.trim()}`,
                             );
                         }
                     },
@@ -380,7 +380,7 @@ export async function processFileWebUnsafeVideo(
                             .match(/time=(\d\d:\d\d:\d\d(?:\.\d+)?).*$/);
                         if (!match) {
                             throw new InternalError(
-                                `Couldn't parse video duration from FFmpeg stderr\n\nstderr:\n${alternativeStderr.trim()}`,
+                                `Couldn’t parse video duration from FFmpeg stderr\n\nstderr:\n${alternativeStderr.trim()}`,
                             );
                         }
 
@@ -407,17 +407,17 @@ export async function processFileWebUnsafeVideo(
             // yet reject with an error as a safety mechanism.
             if (!previewSizePromiseResolver.isSettled()) {
                 previewSizePromiseResolver.reject(
-                    new InternalError("Promise resolver wasn't resolved"),
+                    new InternalError("Promise resolver wasn’t resolved"),
                 );
             }
             if (!previewContentPromiseResolver.isSettled()) {
                 previewContentPromiseResolver.reject(
-                    new InternalError("Promise resolver wasn't resolved"),
+                    new InternalError("Promise resolver wasn’t resolved"),
                 );
             }
             if (!previewVideoDurationPromiseResolver.isSettled()) {
                 previewVideoDurationPromiseResolver.reject(
-                    new InternalError("Promise resolver wasn't resolved"),
+                    new InternalError("Promise resolver wasn’t resolved"),
                 );
             }
             return alternative;

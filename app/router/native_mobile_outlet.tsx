@@ -107,7 +107,7 @@ export function NativeMobileOutlet({
                 navigate: async () => {
                     tracer.logException(
                         "Inert route activity",
-                        new InternalError("Can't navigate in an inert route"),
+                        new InternalError("Can’t navigate in an inert route"),
                     );
                 },
                 fetch: () => {
@@ -118,7 +118,7 @@ export function NativeMobileOutlet({
                     // but we could add in the future.
                     tracer.logException(
                         "Inert route activity",
-                        new InternalError("Can't fetch in an inert route"),
+                        new InternalError("Can’t fetch in an inert route"),
                     );
                 },
                 revalidate: () => {
@@ -128,7 +128,7 @@ export function NativeMobileOutlet({
                     // in the future.
                     tracer.logException(
                         "Inert route activity",
-                        new InternalError("Can't revalidate in an inert route"),
+                        new InternalError("Can’t revalidate in an inert route"),
                     );
                 },
                 createHref: currentRouter.createHref.bind(currentRouter),
@@ -146,26 +146,26 @@ export function NativeMobileOutlet({
 
                     tracer.logException(
                         "Inert route activity",
-                        new InternalError("Can't delete fetcher in an inert route"),
+                        new InternalError("Can’t delete fetcher in an inert route"),
                     );
                 },
                 getBlocker: () => {
                     tracer.logException(
                         "Inert route activity",
-                        new InternalError("Can't get blocker in an inert route"),
+                        new InternalError("Can’t get blocker in an inert route"),
                     );
                     return IDLE_BLOCKER;
                 },
                 deleteBlocker: () => {
                     tracer.logException(
                         "Inert route activity",
-                        new InternalError("Can't delete blocker in an inert route"),
+                        new InternalError("Can’t delete blocker in an inert route"),
                     );
                 },
                 _internalSetRoutes: () => {
                     tracer.logException(
                         "Inert route activity",
-                        new InternalError("Can't call `_internalSetRoutes` in an inert route"),
+                        new InternalError("Can’t call `_internalSetRoutes` in an inert route"),
                     );
                 },
                 _internalFetchControllers: new Map(),
@@ -174,7 +174,7 @@ export function NativeMobileOutlet({
                     tracer.logException(
                         "Inert route activity",
                         new InternalError(
-                            "Can't call `unstable_unsafelyRestoreNavigation` in an inert route",
+                            "Can’t call `unstable_unsafelyRestoreNavigation` in an inert route",
                         ),
                     );
                 },

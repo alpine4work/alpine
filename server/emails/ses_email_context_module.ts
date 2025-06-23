@@ -51,6 +51,7 @@ export class SesEmailContextModule extends EmailContextModuleBase {
             });
 
             const output = await executeSesSendEmailCommand(span, this._url, this._signer, {
+                // eslint-disable-next-line string-quotes
                 Source: `"${fromEmailAddressName}" <${actualFromEmailAddress}>`,
                 Destination: {ToAddresses: [toEmailAddress]},
                 Message: {

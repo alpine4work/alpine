@@ -447,7 +447,7 @@ export async function startUploadingFile(
     await attachTargetAuthorizer?.authorizeTargetAccess(context, spaceId, "Edit");
 
     if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
-        throw new PermissionDeniedError('Only "EdgeService" can upload files');
+        throw new PermissionDeniedError("Only `EdgeService` can upload files");
     }
 
     if (!(0 < contentLength && contentLength <= maxFileContentLength)) {
@@ -614,7 +614,7 @@ export async function finishUploadingAndStartProcessingFile(
     },
 ): Promise<FileModel> {
     if (!import.meta.jest && context.actor.serviceName !== "EdgeService") {
-        throw new PermissionDeniedError('Only "EdgeService" can upload files');
+        throw new PermissionDeniedError("Only `EdgeService` can upload files");
     }
 
     if (withoutProcessJobForTest) {
@@ -736,24 +736,24 @@ export class FileUploader {
         switch (context.actor.type) {
             case "Session": {
                 if (this.uploaderId !== context.actor.getAccountId()) {
-                    throw new PermissionDeniedError("Account is not the file's uploader account");
+                    throw new PermissionDeniedError("Account is not the file’s uploader account");
                 }
                 break;
             }
             case "System": {
                 if (this.spaceId !== context.actor.getSpaceId()) {
-                    throw new PermissionDeniedError("System actor is not for the file's space");
+                    throw new PermissionDeniedError("System actor is not for the file’s space");
                 }
                 break;
             }
             case "ImpersonatedAccount": {
                 if (this.spaceId !== context.actor.getSpaceId()) {
                     throw new PermissionDeniedError(
-                        "Impersonated account actor is not for the file's space",
+                        "Impersonated account actor is not for the file’s space",
                     );
                 }
                 if (this.uploaderId !== context.actor.getAccountId()) {
-                    throw new PermissionDeniedError("Account is not the file's uploader account");
+                    throw new PermissionDeniedError("Account is not the file’s uploader account");
                 }
                 break;
             }
@@ -794,7 +794,7 @@ export class FileUploader {
                         // there's no non-null `alternative` in the file as a precaution.
                         if (alternative === null) return item;
 
-                        throw new InternalError("File doesn't have an alternative");
+                        throw new InternalError("File doesn’t have an alternative");
                     }
 
                     // Noop if we've already finished processing the alternative. This makes the
@@ -847,10 +847,10 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
                     if (item.preview.type !== "Image") {
-                        throw new InternalError("File doesn't have an image preview");
+                        throw new InternalError("File doesn’t have an image preview");
                     }
 
                     // Noop if we've already finished processing the preview. This makes the
@@ -861,7 +861,7 @@ export class FileUploader {
                         alsoPreviewVideoDuration !== undefined &&
                         item.preview.videoDuration === undefined
                     ) {
-                        throw new InternalError("File doesn't have a image preview video duration");
+                        throw new InternalError("File doesn’t have a image preview video duration");
                     }
 
                     const newItem: FileItem = {
@@ -951,10 +951,10 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
                     if (item.preview.type !== "Image") {
-                        throw new InternalError("File doesn't have an image preview");
+                        throw new InternalError("File doesn’t have an image preview");
                     }
 
                     // Noop if we've already finished processing the preview. This makes the
@@ -1023,16 +1023,16 @@ export class FileUploader {
                 },
                 (item): FileItem => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
                     if (item.preview.type !== "Image") {
-                        throw new InternalError("File doesn't have an image preview");
+                        throw new InternalError("File doesn’t have an image preview");
                     }
                     if (item.preview.content === undefined) {
-                        throw new InternalError("File doesn't have image preview content");
+                        throw new InternalError("File doesn’t have image preview content");
                     }
                     if (isAlternative && !item.alternative) {
-                        throw new InternalError("File doesn't have an alternative");
+                        throw new InternalError("File doesn’t have an alternative");
                     }
 
                     const newItem: FileItem = {
@@ -1110,10 +1110,10 @@ export class FileUploader {
 
         return this._item.withLock(async itemRef => {
             if (!itemRef.current.preview) {
-                throw new InternalError("File doesn't have a preview");
+                throw new InternalError("File doesn’t have a preview");
             }
             if (itemRef.current.preview.type !== "Image") {
-                throw new InternalError("File doesn't have an image preview");
+                throw new InternalError("File doesn’t have an image preview");
             }
 
             itemRef.current = await FilesTable.updateItem(
@@ -1126,10 +1126,10 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
                     if (item.preview.type !== "Image") {
-                        throw new InternalError("File doesn't have an image preview");
+                        throw new InternalError("File doesn’t have an image preview");
                     }
 
                     // Noop if we've already finished processing the preview. This makes the
@@ -1137,7 +1137,7 @@ export class FileUploader {
                     if (!item.preview.isProcessing) return item;
 
                     if (item.preview.videoDuration === undefined) {
-                        throw new InternalError("File doesn't have a image preview video duration");
+                        throw new InternalError("File doesn’t have a image preview video duration");
                     }
 
                     // Noop if we've already finished processing the preview. This makes the
@@ -1195,10 +1195,10 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
                     if (item.preview.type !== "Audio") {
-                        throw new InternalError("File doesn't have an audio preview");
+                        throw new InternalError("File doesn’t have an audio preview");
                     }
 
                     // Noop if we've already finished processing the preview. This makes the
@@ -1251,10 +1251,10 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
                     if (item.preview.type !== "Audio") {
-                        throw new InternalError("File doesn't have an audio preview");
+                        throw new InternalError("File doesn’t have an audio preview");
                     }
 
                     // Noop if we've already finished processing the preview. This makes the
@@ -1309,10 +1309,10 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
                     if (item.preview.type !== "Code") {
-                        throw new InternalError("File doesn't have a code preview");
+                        throw new InternalError("File doesn’t have a code preview");
                     }
 
                     // Noop if we've already finished processing the preview. This makes the
@@ -1352,7 +1352,7 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.alternative) {
-                        throw new InternalError("File doesn't have an alternative");
+                        throw new InternalError("File doesn’t have an alternative");
                     }
 
                     // Noop if we've already finished processing the alternative. This makes the
@@ -1390,7 +1390,7 @@ export class FileUploader {
                 },
                 item => {
                     if (!item.preview) {
-                        throw new InternalError("File doesn't have a preview");
+                        throw new InternalError("File doesn’t have a preview");
                     }
 
                     switch (item.preview.type) {
@@ -1519,7 +1519,7 @@ async function getFileItemIfExistsAsUploader(
         }
         case "Session": {
             if (item.uploaderId !== context.actor.getAccountId()) {
-                throw new PermissionDeniedError("Account didn't upload file");
+                throw new PermissionDeniedError("Account didn’t upload file");
             }
             break;
         }
@@ -1527,7 +1527,7 @@ async function getFileItemIfExistsAsUploader(
             await authorizeSpaceAccess(context, spaceId);
 
             if (item.uploaderId !== context.actor.getAccountId()) {
-                throw new PermissionDeniedError("Account didn't upload file");
+                throw new PermissionDeniedError("Account didn’t upload file");
             }
             break;
         }
@@ -1805,7 +1805,7 @@ export async function getFileIfExistsFromAttachment(
     // If the file doesn't exist we're ok returning null instead of throwing a not
     // attached error.
     if (!targetItem) {
-        throw new PermissionDeniedError("File isn't attached to target");
+        throw new PermissionDeniedError("File isn’t attached to target");
     }
 
     return createFileModelFromItem(item);

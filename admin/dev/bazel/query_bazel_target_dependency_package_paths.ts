@@ -15,6 +15,7 @@ export function queryBazelTargetDependencyPackagePaths(target: string): Promise<
     return bazelExecutableMutex.withLock(async () => {
         const queryResult = await runProcess(
             bazelExecutablePath,
+            // eslint-disable-next-line string-quotes
             ["query", `filter("^//", deps(${target}))`, "--output=package"],
             {
                 // Inherit `process.env` when running Bazel...

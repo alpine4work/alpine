@@ -206,7 +206,7 @@ export function processFileWebSafeAudio(
                 const match = stderr.trimEnd().match(/time=(\d\d:\d\d:\d\d(?:\.\d+)?).*$/);
                 if (!match) {
                     throw new InternalError(
-                        `Couldn't parse audio duration from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
+                        `Couldn’t parse audio duration from FFmpeg stderr\n\nstdout:\n${stdout.trim()}\n\nstderr:\n${stderr.trim()}`,
                     );
                 }
 
@@ -220,7 +220,7 @@ export function processFileWebSafeAudio(
             // yet reject with an error as a safety mechanism.
             if (!audioPreviewMetadataPromiseResolver.isSettled()) {
                 audioPreviewMetadataPromiseResolver.reject(
-                    new InternalError("Promise resolver wasn't resolved"),
+                    new InternalError("Promise resolver wasn’t resolved"),
                 );
             }
 

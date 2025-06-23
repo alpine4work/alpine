@@ -275,8 +275,8 @@ export function insertContentTableCells(
         const to = map.positionAt(row, Math.min(right, map.width), table);
 
         // Ensure from and to positions are valid
-        assert(from !== null, "Invalid 'from' position");
-        assert(to !== null, "Invalid 'to' position");
+        assert(from !== null, "Invalid `from` position");
+        assert(to !== null, "Invalid `to` position");
 
         transaction.replace(
             transaction.mapping.slice(mapFrom).map(from + tableStart),

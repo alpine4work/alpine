@@ -1,4 +1,4 @@
-/* eslint-disable jest-dom/prefer-to-have-text-content, testing-library/no-node-access */
+/* eslint-disable jest-dom/prefer-to-have-text-content, testing-library/no-node-access, string-quotes */
 
 import {fireEvent, render, screen} from "@testing-library/react";
 import {closeHistory} from "prosemirror-history";

@@ -38,7 +38,7 @@ export function ContentEditorMobileCommentInputBottomBar({
 }) {
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
-        "Can't server render `<ContentEditorMobileCommentInputBottomBar>`",
+        "Can’t server render `<ContentEditorMobileCommentInputBottomBar>`",
     );
 
     const {currentAccount} = useSpaceContext();

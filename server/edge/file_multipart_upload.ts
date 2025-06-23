@@ -70,7 +70,7 @@ export async function createFileMultipartUpload(
     {spaceId}: {spaceId: SpaceId},
 ): Promise<Response> {
     try {
-        if (request.method !== "POST") throw new InvalidArgumentError('Must use "POST" method');
+        if (request.method !== "POST") throw new InvalidArgumentError("Must use `POST` method");
 
         const requestBody = CreateFileMultipartUploadRequestSchema.deserialize(
             await request.json(),
@@ -80,7 +80,7 @@ export async function createFileMultipartUpload(
 
         if (contentType === null) {
             throw new InvalidArgumentError(
-                quote`Unsupported "Content-Type" option ${requestBody.contentType}`,
+                quote`Unsupported \`Content-Type\` option ${requestBody.contentType}`,
             );
         }
 
@@ -88,7 +88,7 @@ export async function createFileMultipartUpload(
         // `EdgeService`.
         if (requestBody.contentLength <= 0) {
             throw new InvalidArgumentError(
-                `Can't upload file with "Content-Length" of ${prettyBytes(
+                `Can’t upload file with \`Content-Length\` of ${prettyBytes(
                     requestBody.contentLength,
                 )}`,
             );
@@ -96,7 +96,7 @@ export async function createFileMultipartUpload(
 
         if (requestBody.contentLength > maxFileContentLength) {
             throw new InvalidArgumentError(
-                `"Content-Length" of ${prettyBytes(
+                `\`Content-Length\` of ${prettyBytes(
                     requestBody.contentLength,
                 )} is more than our maximum file size of ${prettyBytes(maxFileContentLength)}`,
             );
@@ -206,11 +206,11 @@ export async function putFileMultipartUploadPart(
     },
 ): Promise<Response> {
     try {
-        if (request.method !== "PUT") throw new InvalidArgumentError('Must use "PUT" method');
+        if (request.method !== "PUT") throw new InvalidArgumentError("Must use `PUT` method");
 
         const uploadId = url.searchParams.get("upload");
         if (uploadId === null) {
-            throw new InvalidArgumentError('"upload" search param is required');
+            throw new InvalidArgumentError("`upload` search param is required");
         }
 
         const partNumber = parseInt(partNumberString, 10);
@@ -224,19 +224,19 @@ export async function putFileMultipartUploadPart(
 
         const contentLengthString = request.headers.get("content-length");
         if (contentLengthString === null) {
-            throw new InvalidArgumentError('"Content-Length" header is required');
+            throw new InvalidArgumentError("`Content-Length` header is required");
         }
 
         const contentLength = parseInt(contentLengthString, 10);
         if (isNaN(contentLength) || !/^\d+$/.test(contentLengthString)) {
-            throw new InvalidArgumentError('"Content-Length" header must be an integer');
+            throw new InvalidArgumentError("`Content-Length` header must be an integer");
         }
 
         // If `Content-Length` is 0 there's probably a bug somewhere and data isn't reaching
         // `EdgeService`.
         if (contentLength <= 0) {
             throw new InvalidArgumentError(
-                `Can't upload file with "Content-Length" of ${prettyBytes(contentLength)}`,
+                `Can’t upload file with \`Content-Length\` of ${prettyBytes(contentLength)}`,
             );
         }
 
@@ -246,7 +246,7 @@ export async function putFileMultipartUploadPart(
         // files bigger than 1 GB.
         if (contentLength > maxFileMultipartUploadPartContentLength) {
             throw new InvalidArgumentError(
-                `"Content-Length" of ${prettyBytes(
+                `\`Content-Length\` of ${prettyBytes(
                     contentLength,
                 )} is more than our maximum file multipart upload size of ${prettyBytes(
                     maxFileMultipartUploadPartContentLength,
@@ -369,11 +369,11 @@ export async function completeFileMultipartUpload(
     },
 ) {
     try {
-        if (request.method !== "POST") throw new InvalidArgumentError('Must use "POST" method');
+        if (request.method !== "POST") throw new InvalidArgumentError("Must use `POST` method");
 
         const uploadId = url.searchParams.get("upload");
         if (uploadId === null) {
-            throw new InvalidArgumentError('"upload" search param is required');
+            throw new InvalidArgumentError("`upload` search param is required");
         }
 
         const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);

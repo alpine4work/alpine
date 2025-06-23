@@ -95,7 +95,7 @@ test("can edit a post comment", async ({page, context: browserContext, isMobile}
     await expect(page.getByText("Test post comment content 2")).toBeVisible();
 });
 
-test("can't edit or delete a post comment that's not yours", async ({
+test("can’t edit or delete a post comment that’s not yours", async ({
     page,
     context: browserContext,
     isMobile,

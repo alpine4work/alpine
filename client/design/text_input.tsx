@@ -218,6 +218,7 @@ export const TextInputWithoutLabel = forwardRef(function TextInputWithoutLabel(
                 })}
                 style={{
                     // Allow contextual alternate glyphs in regular text content.
+                    // eslint-disable-next-line string-quotes
                     fontFeatureSettings: inputType === "text" ? '"calt" on' : '"calt" off',
                 }}
                 id={id}

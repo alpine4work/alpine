@@ -38,35 +38,35 @@ export async function uploadFile(
     {spaceId}: {spaceId: SpaceId},
 ): Promise<Response> {
     try {
-        if (request.method !== "POST") throw new InvalidArgumentError('Must use "POST" method');
+        if (request.method !== "POST") throw new InvalidArgumentError("Must use `POST` method");
 
         const originalContentType = request.headers.get("content-type");
         if (originalContentType === null)
-            throw new InvalidArgumentError('"Content-Type" header is required');
+            throw new InvalidArgumentError("`Content-Type` header is required");
 
         const contentType = canonicalizeFileContentTypeIfExists(originalContentType);
 
         if (contentType === null) {
             throw new InvalidArgumentError(
-                quote`Unsupported "Content-Type" header ${originalContentType}`,
+                quote`Unsupported \`Content-Type\` header ${originalContentType}`,
             );
         }
 
         const contentLengthString = request.headers.get("content-length");
         if (contentLengthString === null) {
-            throw new InvalidArgumentError('"Content-Length" header is required');
+            throw new InvalidArgumentError("`Content-Length` header is required");
         }
 
         const contentLength = parseInt(contentLengthString, 10);
         if (isNaN(contentLength) || !/^\d+$/.test(contentLengthString)) {
-            throw new InvalidArgumentError('"Content-Length" header must be an integer');
+            throw new InvalidArgumentError("`Content-Length` header must be an integer");
         }
 
         // If `Content-Length` is 0 there's probably a bug somewhere and data isn't reaching
         // `EdgeService`.
         if (contentLength <= 0) {
             throw new InvalidArgumentError(
-                `Can't upload file with "Content-Length" of ${prettyBytes(contentLength)}`,
+                `Can’t upload file with \`Content-Length\` of ${prettyBytes(contentLength)}`,
             );
         }
 
@@ -76,7 +76,7 @@ export async function uploadFile(
         // files bigger than 1 GB.
         if (contentLength > maxFileContentLength) {
             throw new InvalidArgumentError(
-                `"Content-Length" of ${prettyBytes(
+                `\`Content-Length\` of ${prettyBytes(
                     contentLength,
                 )} is more than our maximum file size of ${prettyBytes(maxFileContentLength)}`,
             );
@@ -84,7 +84,7 @@ export async function uploadFile(
 
         const providedFileId = url.searchParams.get("id");
         if (providedFileId !== null && !isId<FileId>(providedFileId)) {
-            throw new InvalidArgumentError('Search param "id" must be a valid `FileId`');
+            throw new InvalidArgumentError("Search param `id` must be a valid `FileId`");
         }
 
         const attachTargetString = url.searchParams.get("target");
