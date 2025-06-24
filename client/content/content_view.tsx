@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
-import {EditorView, serializeForClipboard} from "prosemirror-view";
+import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
 import {
     CSSProperties,
     Memo,

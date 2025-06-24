@@ -405,7 +405,7 @@ export function createContentEditorTableNodeView({
                         // TODO: Replace with better icons when table header design is implemented
                         icon: <RowsPlusTopIcon />,
                         onPress: () => {
-                            toggleContentTableHeaderRow(getPos())(view.state, view.dispatch);
+                            toggleContentTableHeaderRow(getPos()!)(view.state, view.dispatch);
                         },
                     },
                     {
@@ -416,7 +416,7 @@ export function createContentEditorTableNodeView({
                         // TODO: Replace with better icons when table header design is implemented
                         icon: <RowsPlusTopIcon />,
                         onPress: () => {
-                            toggleContentTableHeaderColumn(getPos())(view.state, view.dispatch);
+                            toggleContentTableHeaderColumn(getPos()!)(view.state, view.dispatch);
                         },
                     },
                 ],

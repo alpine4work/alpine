@@ -28,7 +28,7 @@ import {
     DecorationSet,
     DirectEditorProps,
     EditorView,
-    scrollRectIntoView,
+    __scrollRectIntoView as scrollRectIntoView,
 } from "prosemirror-view";
 import {
     FocusEvent,

@@ -57,7 +57,7 @@ export function createContentEditorCheckListItemNodeViewConstructor({
                 checkboxDom.classList.remove(contentStyles.checkListItemCheckboxPressedClassName);
 
                 view.dispatch(
-                    view.state.tr.setNodeMarkup(getPos(), null, {
+                    view.state.tr.setNodeMarkup(getPos()!, null, {
                         ...node.attrs,
                         checked: !node.attrs.checked,
                     }),

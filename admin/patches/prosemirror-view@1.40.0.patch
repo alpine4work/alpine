@@ -1,12 +1,12 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..6acde02965e8c2f8bec49d1e5aee306dcbd5e54d 100644
+index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..1afda242121afb636b2a69b99819b79f7e01742e 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
-@@ -181,8 +181,32 @@ function scrollRectIntoView(view, rect, startDOM) {
+@@ -216,8 +216,32 @@ function scrollRectIntoView(view, rect, startDOM) {
      var bounding = atTop ? windowRect(doc) : clientRect(elt);
      var moveX = 0,
-         moveY = 0;
--    if (rect.top < bounding.top + getSide(scrollThreshold, "top")) moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom")) moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
+       moveY = 0;
+-    if (rect.top < bounding.top + getSide(scrollThreshold, "top")) moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom")) moveY = rect.bottom - rect.top > bounding.bottom - bounding.top ? rect.top + getSide(scrollMargin, "top") - bounding.top : rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
 -    if (rect.left < bounding.left + getSide(scrollThreshold, "left")) moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"));else if (rect.right > bounding.right - getSide(scrollThreshold, "right")) moveX = rect.right - bounding.right + getSide(scrollMargin, "right");
 +    // NOTE(calebmer): Oddly, the implementation of `scrollRectIntoView()` tries to
 +    // scroll elements even when they're not scrollable! Check if the element is
@@ -19,46 +19,26 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..6acde02965e8c2f8bec49d1e5aee306d
 +    var overflowX = eltStyle.overflowX;
 +    var overflowY = eltStyle.overflowY;
 +    if (overflowY === "auto" || overflowY === "scroll") {
-+      if (rect.top < bounding.top + getSide(scrollThreshold, "top")) moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom")) moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
++      if (rect.top < bounding.top + getSide(scrollThreshold, "top")) moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom")) moveY = rect.bottom - rect.top > bounding.bottom - bounding.top ? rect.top + getSide(scrollMargin, "top") - bounding.top : rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
 +
 +      if (moveY) {
-+        moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop)
-+        moveY = Math.max(moveY, -elt.scrollTop)
++        moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop);
++        moveY = Math.max(moveY, -elt.scrollTop);
 +      }
 +    }
 +    if (overflowX === "auto" || overflowX === "scroll") {
 +      if (rect.left < bounding.left + getSide(scrollThreshold, "left")) moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"));else if (rect.right > bounding.right - getSide(scrollThreshold, "right")) moveX = rect.right - bounding.right + getSide(scrollMargin, "right");
 +
 +      if (moveX) {
-+        moveX = Math.min(moveX, elt.scrollWidth - elt.clientWidth - elt.scrollLeft)
-+        moveX = Math.max(moveX, -elt.scrollLeft)
++        moveX = Math.min(moveX, elt.scrollWidth - elt.clientWidth - elt.scrollLeft);
++        moveX = Math.max(moveX, -elt.scrollLeft);
 +      }
 +    }
- 
      if (moveX || moveY) {
        if (atTop) {
-@@ -203,7 +227,7 @@ function scrollRectIntoView(view, rect, startDOM) {
-       }
-     }
- 
--    if (atTop) break;
-+    if (atTop || /^(fixed|sticky)$/.test(getComputedStyle(parent).position)) break;
-   }
- }
- 
-@@ -2887,6 +2911,10 @@ function captureKeyDown(view, event) {
- }
- 
- function serializeForClipboard(view, slice) {
-+  // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
-+  // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
-+  view.someProp("transformCopied", f => { slice = f(slice) });
-+
-   var context = [],
-       content = slice.content,
-       openStart = slice.openStart,
-@@ -2967,6 +2995,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
-       html = f(html);
+         doc.defaultView.scrollBy(moveX, moveY);
+@@ -2703,6 +2727,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+       html = f(html, view);
      });
      dom = readHTML(html);
 +    // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
@@ -69,10 +49,10 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..6acde02965e8c2f8bec49d1e5aee306d
 +    });
      if (webkit) restoreReplacedSpaces(dom);
    }
- 
-@@ -3847,7 +3881,9 @@ editHandlers.drop = function (view, _event) {
-   var move = !!(dragging && !event[dragCopyModifier]);
- 
+   var contextNode = dom && dom.querySelector("[data-pm-slice]");
+@@ -3499,7 +3529,9 @@ editHandlers.drop = function (view, _event) {
+   }
+   var move = !!(dragging && dragMoves(view, event));
    if (view.someProp("handleDrop", function (f) {
 -    return f(view, event, slice || prosemirrorModel.Slice.empty, move);
 +    // NOTE(calebmer): Add the `$mouse` position ProseMirror wants to drop the
@@ -81,12 +61,12 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..6acde02965e8c2f8bec49d1e5aee306d
    })) {
      event.preventDefault();
      return;
-@@ -3888,9 +3924,33 @@ handlers.focus = function (view) {
+@@ -3538,9 +3570,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
 -    setTimeout(function () {
--      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection())) selectionToDOM(view);
+-      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange())) selectionToDOM(view);
 -    }, 20);
 +
 +    if (view.shouldUseDOMSelectionOnFocus) {
@@ -112,21 +92,21 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..6acde02965e8c2f8bec49d1e5aee306d
 +      selectionToDOM(view);
 +
 +      setTimeout(function () {
-+        if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection())) selectionToDOM(view);
++        if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange())) selectionToDOM(view);
 +      }, 20);
 +    }
    }
  };
- 
-@@ -4710,6 +4770,7 @@ var DOMObserver = function () {
+ handlers.blur = function (view, _event) {
+@@ -4209,6 +4265,7 @@ var DOMObserver = function () {
      this.currentSelection = new SelectionState();
      this.onCharData = null;
      this.suppressingSelectionUpdates = false;
 +    this.selectionEntered = false;
+     this.lastChangedTextNode = null;
      this.observer = window.MutationObserver && new window.MutationObserver(function (mutations) {
-       for (var i = 0; i < mutations.length; i++) {
-         _this11.queue.push(mutations[i]);
-@@ -4813,7 +4874,13 @@ var DOMObserver = function () {
+       for (var i = 0; i < mutations.length; i++) _this11.queue.push(mutations[i]);
+@@ -4295,13 +4352,25 @@ var DOMObserver = function () {
    }, {
      key: "onSelectionChange",
      value: function onSelectionChange() {
@@ -134,63 +114,47 @@ index 6f4e0fcfa3f07ec49e8dc392fe9a1d0e5c3adefd..6acde02965e8c2f8bec49d1e5aee306d
 +      if (!hasFocusAndSelection(this.view)) {
 +        if (this.selectionEntered) {
 +          this.selectionEntered = false;
-+          this.view.someProp("handleSelectionLeave", f => f(this));
++          var _this = this;
++          this.view.someProp("handleSelectionLeave", function (f) { f(_this.view) });
 +        }
 +        return;
 +      }
        if (this.suppressingSelectionUpdates) return selectionToDOM(this.view);
- 
        if (ie && ie_version <= 11 && !this.view.state.selection.empty) {
-@@ -4822,6 +4889,11 @@ var DOMObserver = function () {
+         var sel = this.view.domSelectionRange();
+         if (sel.focusNode && isEquivalentPosition(sel.focusNode, sel.focusOffset, sel.anchorNode, sel.anchorOffset)) return this.flushSoon();
        }
- 
        this.flush();
-+
 +      if (!this.selectionEntered) {
 +        this.selectionEntered = true;
-+        this.view.someProp("handleSelectionEnter", f => f(this));
++        var _this = this;
++        this.view.someProp("handleSelectionEnter", function (f) { f(_this.view) });
 +      }
      }
    }, {
      key: "setCurSelection",
-@@ -5392,6 +5464,8 @@ var EditorView = function () {
+@@ -4889,6 +4958,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
 +
 +    this.shouldUseDOMSelectionOnFocus = props.shouldUseDOMSelectionOnFocus || false;
    }
- 
    _createClass(EditorView, [{
-@@ -5792,3 +5866,9 @@ exports.EditorView = EditorView;
+     key: "composing",
+@@ -5284,3 +5355,7 @@ exports.DecorationSet = DecorationSet;
+ exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
- exports.__serializeForClipboard = __serializeForClipboard;
-+
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
-+exports.serializeForClipboard = serializeForClipboard;
-+exports.parseFromClipboard = parseFromClipboard;
++exports.__serializeForClipboard = _serializeForClipboard;
 +// NOTE(calebmer): Exported so we can build our own scroll into view logic.
-+exports.scrollRectIntoView = scrollRectIntoView;
-\ No newline at end of file
++exports.__scrollRectIntoView = scrollRectIntoView;
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index 52ee8840c754562f9ae4d9891f61682035b092e7..9c6cb2d4b493b9f78ae76ccf8a0a9c94d91492d8 100644
+index 31d9a81fcd5b095612450b892805122f000909c4..adc6d8039ca6882e762392ed60f30daaa0691267 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -543,7 +543,11 @@ declare class EditorView {
-     This method is bound to the view instance, so that it can be
-     easily passed around.
-     */
--    dispatch(tr: Transaction): void;
-+    // NOTE(calebmer): Adding `this: void` allows us to pass around
-+    // `view.dispatch` like `doSomething(view.dispatch)` without
-+    // `@typescript-eslint/unbound-method` warnings. It's safe since `EditorView`
-+    // binds `this` in the constructor.
-+    dispatch(this: void, tr: Transaction): void;
- }
- /**
- The type of function [provided](https://prosemirror.net/docs/ref/#view.ViewProps.nodeViews) to
-@@ -649,7 +653,7 @@ interface EditorProps<P = any> {
+@@ -703,7 +703,7 @@ interface EditorProps<P = any> {
      true if this drop moves from the current selection (which should
      thus be deleted).
      */
@@ -199,7 +163,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..9c6cb2d4b493b9f78ae76ccf8a0a9c94
      /**
      Called when the view, after updating its state, tries to scroll
      the selection into view. A handler function may return false to
-@@ -657,6 +661,13 @@ interface EditorProps<P = any> {
+@@ -711,6 +711,13 @@ interface EditorProps<P = any> {
      handlers or the default behavior should be tried.
      */
      handleScrollToSelection?: (this: P, view: EditorView) => boolean;
@@ -211,12 +175,12 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..9c6cb2d4b493b9f78ae76ccf8a0a9c94
 +    handleSelectionEnter?: (this: P, view: EditorView) => boolean;
 +    handleSelectionLeave?: (this: P, view: EditorView) => boolean;
      /**
-     Can be used to override the way a selection is created when
-     reading a DOM selection between the given anchor and head.
-@@ -674,6 +685,10 @@ interface EditorProps<P = any> {
+     Determines whether an in-editor drag event should copy or move
+     the selection. When not given, the event's `altKey` property is
+@@ -734,6 +741,10 @@ interface EditorProps<P = any> {
      for example to clean it up.
      */
-     transformPastedHTML?: (this: P, html: string) => string;
+     transformPastedHTML?: (this: P, html: string, view: EditorView) => string;
 +    // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
 +    // it is to transform pasted HTML elements. Since if you have to transform an
 +    // HTML string you need to perform your own HTML parsing.
@@ -224,17 +188,7 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..9c6cb2d4b493b9f78ae76ccf8a0a9c94
      /**
      The [parser](https://prosemirror.net/docs/ref/#model.DOMParser) to use when reading content from
      the clipboard. When not given, the value of the
-@@ -700,6 +715,9 @@ interface EditorProps<P = any> {
-     before it is applied to the document.
-     */
-     transformPasted?: (this: P, slice: Slice) => Slice;
-+    // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
-+    // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
-+    transformCopied?: (this: P, slice: Slice) => Slice
-     /**
-     Allows you to pass custom rendering and behavior logic for
-     nodes. Should map node names to constructor functions that
-@@ -831,6 +849,31 @@ interface DirectEditorProps extends EditorProps {
+@@ -898,6 +909,31 @@ interface DirectEditorProps extends EditorProps {
      the view instance as its `this` binding.
      */
      dispatchTransaction?: (tr: Transaction) => void;
@@ -245,14 +199,14 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..9c6cb2d4b493b9f78ae76ccf8a0a9c94
 +    shouldUseDOMSelectionOnFocus?: boolean;
  }
  
- export { DOMEventMap, Decoration, DecorationAttrs, DecorationSet, DecorationSource, DirectEditorProps, EditorProps, EditorView, MarkViewConstructor, NodeView, NodeViewConstructor };
+ export { type DOMEventMap, Decoration, type DecorationAttrs, DecorationSet, type DecorationSource, type DirectEditorProps, type EditorProps, EditorView, type MarkView, type MarkViewConstructor, type NodeView, type NodeViewConstructor, type ViewMutationRecord };
 +
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
-+export function serializeForClipboard(view: EditorView, slice: Slice): {
++export function __serializeForClipboard(view: EditorView, slice: Slice): {
 +    dom: HTMLDivElement;
 +    text: string;
 +};
-+export function parseFromClipboard(
++export function __parseFromClipboard(
 +    view: EditorView,
 +    text: string,
 +    html: string | null,
@@ -261,24 +215,25 @@ index 52ee8840c754562f9ae4d9891f61682035b092e7..9c6cb2d4b493b9f78ae76ccf8a0a9c94
 +): Slice | null;
 +
 +// NOTE(calebmer): Exported so we can build our own scroll into view logic.
-+export function scrollRectIntoView(
++export function __scrollRectIntoView(
 +    view: EditorView,
 +    rect: {left: number, right: number, top: number, bottom: number},
 +    startDOM: DOMNode,
 +): void;
-\ No newline at end of file
 diff --git a/dist/index.js b/dist/index.js
-index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e9ced8330 100644
+index 2358e14a51b18a7050f17eb4c045c4e2422a4360..9ef98abb5851f44c764e8730c48af7a256eb5a57 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -141,14 +141,36 @@ function scrollRectIntoView(view, rect, startDOM) {
+@@ -220,16 +220,38 @@ function scrollRectIntoView(view, rect, startDOM) {
          let atTop = elt == doc.body;
          let bounding = atTop ? windowRect(doc) : clientRect(elt);
          let moveX = 0, moveY = 0;
 -        if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
 -            moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));
 -        else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
--            moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
+-            moveY = rect.bottom - rect.top > bounding.bottom - bounding.top
+-                ? rect.top + getSide(scrollMargin, "top") - bounding.top
+-                : rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
 -        if (rect.left < bounding.left + getSide(scrollThreshold, "left"))
 -            moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"));
 -        else if (rect.right > bounding.right - getSide(scrollThreshold, "right"))
@@ -295,11 +250,13 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
 +            if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
 +                moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"));
 +            else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
-+                moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
++                moveY = rect.bottom - rect.top > bounding.bottom - bounding.top
++                    ? rect.top + getSide(scrollMargin, "top") - bounding.top
++                    : rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom");
 +
 +            if (moveY) {
-+                moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop)
-+                moveY = Math.max(moveY, -elt.scrollTop)
++                moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop);
++                moveY = Math.max(moveY, -elt.scrollTop);
 +            }
 +        }
 +        if (overflowX === "auto" || overflowX === "scroll") {
@@ -309,36 +266,16 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
 +                moveX = rect.right - bounding.right + getSide(scrollMargin, "right");
 +
 +            if (moveX) {
-+                moveX = Math.min(moveX, elt.scrollWidth - elt.clientWidth - elt.scrollLeft)
-+                moveX = Math.max(moveX, -elt.scrollLeft)
++                moveX = Math.min(moveX, elt.scrollWidth - elt.clientWidth - elt.scrollLeft);
++                moveX = Math.max(moveX, -elt.scrollLeft);
 +            }
 +        }
          if (moveX || moveY) {
              if (atTop) {
                  doc.defaultView.scrollBy(moveX, moveY);
-@@ -163,7 +185,7 @@ function scrollRectIntoView(view, rect, startDOM) {
-                 rect = { left: rect.left - dX, top: rect.top - dY, right: rect.right - dX, bottom: rect.bottom - dY };
-             }
-         }
--        if (atTop)
-+        if (atTop || /^(fixed|sticky)$/.test(getComputedStyle(parent).position))
-             break;
-     }
- }
-@@ -2532,6 +2554,10 @@ function captureKeyDown(view, event) {
- }
- 
- function serializeForClipboard(view, slice) {
-+    // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
-+    // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
-+    view.someProp("transformCopied", f => { slice = f(slice) });
-+
-     let context = [], { content, openStart, openEnd } = slice;
-     while (openStart > 1 && openEnd > 1 && content.childCount == 1 && content.firstChild.childCount == 1) {
-         openStart--;
-@@ -2589,6 +2615,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2844,6 +2866,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
      else {
-         view.someProp("transformPastedHTML", f => { html = f(html); });
+         view.someProp("transformPastedHTML", f => { html = f(html, view); });
          dom = readHTML(html);
 +        // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
 +        // it is to transform pasted HTML elements. Since if you have to transform an
@@ -347,10 +284,10 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
          if (webkit)
              restoreReplacedSpaces(dom);
      }
-@@ -3418,7 +3448,9 @@ editHandlers.drop = (view, _event) => {
-         slice = parseFromClipboard(view, event.dataTransfer.getData(brokenClipboardAPI ? "Text" : "text/plain"), brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse);
+@@ -3749,7 +3775,9 @@ editHandlers.drop = (view, _event) => {
+         slice = parseFromClipboard(view, getText(event.dataTransfer), brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse);
      }
-     let move = !!(dragging && !event[dragCopyModifier]);
+     let move = !!(dragging && dragMoves(view, event));
 -    if (view.someProp("handleDrop", f => f(view, event, slice || Slice.empty, move))) {
 +    // NOTE(calebmer): Add the `$mouse` position ProseMirror wants to drop the
 +    // slice on.
@@ -358,12 +295,12 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
          event.preventDefault();
          return;
      }
-@@ -3460,10 +3492,34 @@ handlers.focus = view => {
+@@ -3796,10 +3824,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
 -        setTimeout(() => {
--            if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
+-            if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange()))
 -                selectionToDOM(view);
 -        }, 20);
 +
@@ -373,9 +310,9 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
 +            // of restoring the selection from state.
 +            let newSel = selectionFromDOM(view);
 +            if (newSel && !view.state.selection.eq(newSel)) {
-+              view.dispatch(view.state.tr.setSelection(newSel));
++                view.dispatch(view.state.tr.setSelection(newSel));
 +            }
-+        } else {      
++        } else {
 +            // NOTE(calebmer): When focus is returned to the view, always serialize our
 +            // selection from state back to the DOM. Otherwise we're seeing Chrome
 +            // sometimes reset the selection.
@@ -390,22 +327,22 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
 +            selectionToDOM(view);
 +
 +            setTimeout(() => {
-+                if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
++                if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange()))
 +                    selectionToDOM(view);
 +            }, 20);
 +        }
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4218,6 +4274,7 @@ class DOMObserver {
+@@ -4563,6 +4615,7 @@ class DOMObserver {
          this.currentSelection = new SelectionState;
          this.onCharData = null;
          this.suppressingSelectionUpdates = false;
 +        this.selectionEntered = false;
+         this.lastChangedTextNode = null;
          this.observer = window.MutationObserver &&
              new window.MutationObserver(mutations => {
-                 for (let i = 0; i < mutations.length; i++)
-@@ -4285,8 +4342,13 @@ class DOMObserver {
+@@ -4631,8 +4684,13 @@ class DOMObserver {
          setTimeout(() => this.suppressingSelectionUpdates = false, 50);
      }
      onSelectionChange() {
@@ -413,25 +350,25 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
 +        if (!hasFocusAndSelection(this.view)) {
 +            if (this.selectionEntered) {
 +                this.selectionEntered = false;
-+                this.view.someProp("handleSelectionLeave", f => f(this));
++                this.view.someProp("handleSelectionLeave", f => f(this.view));
 +            }
              return;
 +        }
          if (this.suppressingSelectionUpdates)
              return selectionToDOM(this.view);
          // Deletions on IE11 fire their events in the wrong order, giving
-@@ -4299,6 +4361,10 @@ class DOMObserver {
+@@ -4645,6 +4703,10 @@ class DOMObserver {
                  return this.flushSoon();
          }
          this.flush();
 +        if (!this.selectionEntered) {
 +            this.selectionEntered = true;
-+            this.view.someProp("handleSelectionEnter", f => f(this));
++            this.view.someProp("handleSelectionEnter", f => f(this.view));
 +        }
      }
      setCurSelection() {
-         this.currentSelection.set(this.view.domSelection());
-@@ -4879,6 +4945,8 @@ class EditorView {
+         this.currentSelection.set(this.view.domSelectionRange());
+@@ -5319,6 +5381,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -440,34 +377,22 @@ index bb65a77310b75d96a0f548d5fc2e36ff54fc8d3a..499b40ca7484ef7a382ca6ef425c762e
      }
      /**
      Holds `true` when a
-@@ -5304,3 +5372,8 @@ function checkStateComponent(plugin) {
+@@ -5820,3 +5884,8 @@ function checkStateComponent(plugin) {
  }
  
- export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard, __serializeForClipboard };
+ export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard };
 +
 +// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
-+export { serializeForClipboard, parseFromClipboard };
++export { serializeForClipboard as __serializeForClipboard };
 +// NOTE(calebmer): Exported so we can build our own scroll into view logic.
-+export { scrollRectIntoView };
-\ No newline at end of file
++export { scrollRectIntoView as __scrollRectIntoView };
 diff --git a/src/clipboard.ts b/src/clipboard.ts
-index 2f0f8f415b999bffd29c3164d80cd970f4f4f209..008b771bef87f67e709d8be757056974a18c66d3 100644
+index 6f4d867829ac818e25368a4cd87b1864f9fd51e7..715f6aeb4eddedf57bf2f626b5f0c5dbc0efe13e 100644
 --- a/src/clipboard.ts
 +++ b/src/clipboard.ts
-@@ -3,6 +3,10 @@ import * as browser from "./browser"
- import {EditorView} from "./index"
- 
- export function serializeForClipboard(view: EditorView, slice: Slice) {
-+  // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
-+  // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
-+  view.someProp("transformCopied", f => { slice = f(slice!) })
-+
-   let context = [], {content, openStart, openEnd} = slice
-   while (openStart > 1 && openEnd > 1 && content.childCount == 1 && content.firstChild!.childCount == 1) {
-     openStart--
-@@ -61,6 +65,10 @@ export function parseFromClipboard(view: EditorView, text: string, html: string
+@@ -63,6 +63,10 @@ export function parseFromClipboard(view: EditorView, text: string, html: string
    } else {
-     view.someProp("transformPastedHTML", f => { html = f(html!) })
+     view.someProp("transformPastedHTML", f => { html = f(html!, view) })
      dom = readHTML(html!)
 +    // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
 +    // it is to transform pasted HTML elements. Since if you have to transform an
@@ -477,17 +402,19 @@ index 2f0f8f415b999bffd29c3164d80cd970f4f4f209..008b771bef87f67e709d8be757056974
    }
  
 diff --git a/src/domcoords.ts b/src/domcoords.ts
-index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a11d10deb 100644
+index 6fe7518c0a1622f40bbc5c486d0b1bcfe49abf78..814f0ab9dcc8965a4411536042e171b3b7333aec 100644
 --- a/src/domcoords.ts
 +++ b/src/domcoords.ts
-@@ -35,14 +35,36 @@ export function scrollRectIntoView(view: EditorView, rect: Rect, startDOM: Node)
+@@ -39,16 +39,38 @@ export function scrollRectIntoView(view: EditorView, rect: Rect, startDOM: Node)
      let atTop = elt == doc.body
      let bounding = atTop ? windowRect(doc) : clientRect(elt as HTMLElement)
      let moveX = 0, moveY = 0
 -    if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
 -      moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"))
 -    else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
--      moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom")
+-      moveY = rect.bottom - rect.top > bounding.bottom - bounding.top
+-        ? rect.top + getSide(scrollMargin, "top") - bounding.top
+-        : rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom")
 -    if (rect.left < bounding.left + getSide(scrollThreshold, "left"))
 -      moveX = -(bounding.left - rect.left + getSide(scrollMargin, "left"))
 -    else if (rect.right > bounding.right - getSide(scrollThreshold, "right"))
@@ -504,7 +431,9 @@ index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a
 +      if (rect.top < bounding.top + getSide(scrollThreshold, "top"))
 +        moveY = -(bounding.top - rect.top + getSide(scrollMargin, "top"))
 +      else if (rect.bottom > bounding.bottom - getSide(scrollThreshold, "bottom"))
-+        moveY = rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom")
++        moveY = rect.bottom - rect.top > bounding.bottom - bounding.top
++          ? rect.top + getSide(scrollMargin, "top") - bounding.top
++          : rect.bottom - bounding.bottom + getSide(scrollMargin, "bottom")
 +
 +      if (moveY) {
 +        moveY = Math.min(moveY, elt.scrollHeight - elt.clientHeight - elt.scrollTop)
@@ -525,17 +454,8 @@ index 4b8e0f3291116e3f1c0e3136a13c0d6626de42f3..3cb6ef9dbc24da546b8c8317c0005a0a
      if (moveX || moveY) {
        if (atTop) {
          doc.defaultView!.scrollBy(moveX, moveY)
-@@ -54,7 +76,7 @@ export function scrollRectIntoView(view: EditorView, rect: Rect, startDOM: Node)
-         rect = {left: rect.left - dX, top: rect.top - dY, right: rect.right - dX, bottom: rect.bottom - dY}
-       }
-     }
--    if (atTop) break
-+    if (atTop || /^(fixed|sticky)$/.test(getComputedStyle(parent as HTMLElement).position)) break
-   }
- }
- 
 diff --git a/src/domobserver.ts b/src/domobserver.ts
-index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..2616c1df549bf81e175d8b6aee07b868ddb0c7e9 100644
+index c39068024015af3a2254a474fc554fb01e6c5fd1..df32c378967e70251e5abc8f9df7faff9787fb12 100644
 --- a/src/domobserver.ts
 +++ b/src/domobserver.ts
 @@ -43,6 +43,7 @@ export class DOMObserver {
@@ -543,10 +463,10 @@ index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..2616c1df549bf81e175d8b6aee07b868
    onCharData: ((e: Event) => void) | null = null
    suppressingSelectionUpdates = false
 +  selectionEntered = false
+   lastChangedTextNode: Text | null = null
  
    constructor(
-     readonly view: EditorView,
-@@ -121,7 +122,13 @@ export class DOMObserver {
+@@ -122,7 +123,13 @@ export class DOMObserver {
    }
  
    onSelectionChange() {
@@ -554,41 +474,42 @@ index 77da09098cecde7b3cf5c34ca7a532fa21e5a22c..2616c1df549bf81e175d8b6aee07b868
 +    if (!hasFocusAndSelection(this.view)) {
 +      if (this.selectionEntered) {
 +        this.selectionEntered = false
-+        this.view.someProp("handleSelectionLeave", f => f(this))
++        this.view.someProp("handleSelectionLeave", f => f(this.view))
 +      }
 +      return
 +    }
      if (this.suppressingSelectionUpdates) return selectionToDOM(this.view)
      // Deletions on IE11 fire their events in the wrong order, giving
      // us a selection change event before the DOM changes are
-@@ -133,6 +140,10 @@ export class DOMObserver {
+@@ -134,6 +141,10 @@ export class DOMObserver {
          return this.flushSoon()
      }
      this.flush()
 +    if (!this.selectionEntered) {
 +      this.selectionEntered = true
-+      this.view.someProp("handleSelectionEnter", f => f(this))
++      this.view.someProp("handleSelectionEnter", f => f(this.view))
 +    }
    }
  
    setCurSelection() {
 diff --git a/src/index.ts b/src/index.ts
-index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55510c8ac9 100644
+index 129fb095cfae40f672108621afd3e257f9acd9a7..2b55f91b041c9bd0ead92b64c7330319a7341d59 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -25,6 +25,11 @@ export const __parseFromClipboard = parseFromClipboard
+@@ -21,8 +21,12 @@ import {serializeForClipboard, parseFromClipboard} from "./clipboard"
+ import {endComposition} from "./input"
+ /// @internal
+ export const __parseFromClipboard = parseFromClipboard
++// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
++export const __serializeForClipboard = serializeForClipboard
  /// @internal
  export const __endComposition = endComposition
- 
-+// NOTE(calebmer): Exported so we can build our own write to clipboard logic.
-+export {serializeForClipboard, parseFromClipboard};
 +// NOTE(calebmer): Exported so we can build our own scroll into view logic.
-+export {scrollRectIntoView};
-+
++export const __scrollRectIntoView = scrollRectIntoView
+ 
  /// An editor view manages the DOM structure that represents an
  /// editable document. Its state and behavior are determined by its
- /// [props](#view.DirectEditorProps).
-@@ -57,6 +62,8 @@ export class EditorView {
+@@ -57,6 +61,8 @@ export class EditorView {
    /// [space is eaten issue](https://github.com/ProseMirror/prosemirror/issues/651)
    /// @internal
    requiresGeckoHackNode: boolean = false
@@ -597,7 +518,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55
  
    /// The view's current [state](#state.EditorState).
    public state: EditorState
-@@ -90,6 +97,8 @@ export class EditorView {
+@@ -90,6 +96,8 @@ export class EditorView {
      this.domObserver.start()
      initInput(this)
      this.updatePluginViews()
@@ -606,7 +527,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55
    }
  
    /// An editable DOM node containing the document. (You probably
-@@ -592,7 +601,7 @@ export interface EditorProps<P = any> {
+@@ -668,7 +676,7 @@ export interface EditorProps<P = any> {
    /// Called when something is dropped on the editor. `moved` will be
    /// true if this drop moves from the current selection (which should
    /// thus be deleted).
@@ -615,7 +536,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55
  
    /// Called when the view, after updating its state, tries to scroll
    /// the selection into view. A handler function may return false to
-@@ -600,6 +609,14 @@ export interface EditorProps<P = any> {
+@@ -676,6 +684,14 @@ export interface EditorProps<P = any> {
    /// handlers or the default behavior should be tried.
    handleScrollToSelection?: (this: P, view: EditorView) => boolean
  
@@ -627,12 +548,12 @@ index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55
 +  handleSelectionEnter?: (this: P, view: EditorView) => boolean
 +  handleSelectionLeave?: (this: P, view: EditorView) => boolean
 +
-   /// Can be used to override the way a selection is created when
-   /// reading a DOM selection between the given anchor and head.
-   createSelectionBetween?: (this: P, view: EditorView, anchor: ResolvedPos, head: ResolvedPos) => Selection | null
-@@ -614,6 +631,11 @@ export interface EditorProps<P = any> {
+   /// Determines whether an in-editor drag event should copy or move
+   /// the selection. When not given, the event's `altKey` property is
+   /// used on macOS, `ctrlKey` on other platforms.
+@@ -695,6 +711,11 @@ export interface EditorProps<P = any> {
    /// for example to clean it up.
-   transformPastedHTML?: (this: P, html: string) => string
+   transformPastedHTML?: (this: P, html: string, view: EditorView) => string
  
 +  // NOTE(calebmer): It's often more useful to transform pasted DOM elements then
 +  // it is to transform pasted HTML elements. Since if you have to transform an
@@ -642,18 +563,7 @@ index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55
    /// The [parser](#model.DOMParser) to use when reading content from
    /// the clipboard. When not given, the value of the
    /// [`domParser`](#view.EditorProps.domParser) prop is used.
-@@ -636,6 +658,10 @@ export interface EditorProps<P = any> {
-   /// before it is applied to the document.
-   transformPasted?: (this: P, slice: Slice) => Slice
- 
-+  // NOTE(calebmer): Backport `transformCopied` hook that was added in 1.28.0.
-+  // https://github.com/ProseMirror/prosemirror-view/commit/6ade8448a10b3076b845fa0d460ee9c8f85c2731
-+  transformCopied?: (this: P, slice: Slice) => Slice
-+
-   /// Allows you to pass custom rendering and behavior logic for
-   /// nodes. Should map node names to constructor functions that
-   /// produce a [`NodeView`](#view.NodeView) object implementing the
-@@ -734,4 +760,9 @@ export interface DirectEditorProps extends EditorProps {
+@@ -821,4 +842,9 @@ export interface DirectEditorProps extends EditorProps {
    /// [applied](#state.EditorState.apply). The callback will be bound to have
    /// the view instance as its `this` binding.
    dispatchTransaction?: (tr: Transaction) => void
@@ -664,13 +574,13 @@ index f28002967d6ff175430efdd8c2389924211c35ce..baf0cf7c29b2b83c5a1ba3e3702ecc55
 +  shouldUseDOMSelectionOnFocus?: boolean
  }
 diff --git a/src/input.ts b/src/input.ts
-index d5d66205262a462451dc19cb9213dab20e2ce02a..dccb0f74883db6f804b2b23f7c25cf062a508e2f 100644
+index 9041d229811b9da43db4a597899dd602342a6cbd..279ad8d180d80a78e873b4475f77685a7ed33ce4 100644
 --- a/src/input.ts
 +++ b/src/input.ts
-@@ -672,7 +672,9 @@ editHandlers.drop = (view, _event) => {
+@@ -724,7 +724,9 @@ editHandlers.drop = (view, _event) => {
                                 brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse)
    }
-   let move = !!(dragging && !event[dragCopyModifier])
+   let move = !!(dragging && dragMoves(view, event))
 -  if (view.someProp("handleDrop", f => f(view, event, slice || Slice.empty, move))) {
 +  // NOTE(calebmer): Add the `$mouse` position ProseMirror wants to drop the
 +  // slice on.
@@ -678,12 +588,12 @@ index d5d66205262a462451dc19cb9213dab20e2ce02a..dccb0f74883db6f804b2b23f7c25cf06
      event.preventDefault()
      return
    }
-@@ -714,10 +716,34 @@ handlers.focus = view => {
+@@ -770,10 +772,34 @@ handlers.focus = view => {
      view.dom.classList.add("ProseMirror-focused")
      view.domObserver.start()
      view.focused = true
 -    setTimeout(() => {
--      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
+-      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange()))
 -        selectionToDOM(view)
 -    }, 20)
 +
@@ -710,7 +620,7 @@ index d5d66205262a462451dc19cb9213dab20e2ce02a..dccb0f74883db6f804b2b23f7c25cf06
 +      selectionToDOM(view)
 +
 +      setTimeout(() => {
-+        if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelection()))
++        if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange()))
 +          selectionToDOM(view)
 +      }, 20)
 +    }

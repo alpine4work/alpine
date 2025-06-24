@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
-import {EditorView, serializeForClipboard} from "prosemirror-view";
+import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
 import {Memo, useContext, useMemo, useRef, useState} from "react";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";

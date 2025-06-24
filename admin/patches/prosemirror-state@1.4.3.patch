@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..33c76906d70c99d16216884149c7ae702351d873 100644
+index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..2d3c7374040a99f2ace46dc6cfe056dd59468ce1 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -386,6 +386,39 @@ var NodeSelection = function (_Selection2) {
@@ -19,22 +19,22 @@ index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..33c76906d70c99d16216884149c7ae70
 +      // `tr.deleteSelection()` is called at a framework level in `prosemirror-view`.
 +      // Not just in keymap backspace/delete handlers.
 +      if (
-+          !content.size &&
-+          this.node.type.name === "file" &&
-+          (this.$anchor.parent.type.name === "fileRow" ||
-+              this.$anchor.parent.type.name === "fileFloat" ||
-+              this.$anchor.parent.type.name === "fileRowTable") &&
-+          this.$anchor.parent.childCount === 1
++        !content.size &&
++        this.node.type.name === "file" &&
++        (this.$anchor.parent.type.name === "fileRow" ||
++          this.$anchor.parent.type.name === "fileFloat" ||
++          this.$anchor.parent.type.name === "fileRowTable") &&
++        this.$anchor.parent.childCount === 1
 +      ) {
-+          let mapFrom = tr.steps.length;
-+          let mapping = tr.mapping.slice(mapFrom);
-+          tr.replaceRange(
-+              mapping.map(this.$anchor.before()),
-+              mapping.map(this.$anchor.after()),
-+              content,
-+          );
-+          selectionToInsertionEnd(tr, mapFrom, 1);
-+          return;
++        let mapFrom = tr.steps.length;
++        let mapping = tr.mapping.slice(mapFrom);
++        tr.replaceRange(
++          mapping.map(this.$anchor.before()),
++          mapping.map(this.$anchor.after()),
++          content,
++        );
++        selectionToInsertionEnd(tr, mapFrom, 1);
++        return;
 +      }
 +
 +      _get(_getPrototypeOf(NodeSelection.prototype), "replace", this).call(this, tr, content);
@@ -43,7 +43,7 @@ index 475bbd8642fc713f7bf3a9e20899f4e1cf923bfa..33c76906d70c99d16216884149c7ae70
      key: "fromJSON",
      value: function fromJSON(doc, json) {
 diff --git a/dist/index.js b/dist/index.js
-index 4e31ea63142d7cd3fe570b499c8cb160023531af..f39be9c8bf817bd44048e3e4a8a46ed7e26927f2 100644
+index 5dc1684937ed1d8de749629ac5989183339df41b..74fe3112ec93b204aa04fe64e4b404abe3628879 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -381,6 +381,35 @@ class NodeSelection extends Selection {
@@ -83,7 +83,7 @@ index 4e31ea63142d7cd3fe570b499c8cb160023531af..f39be9c8bf817bd44048e3e4a8a46ed7
  NodeSelection.prototype.visible = false;
  Selection.jsonID("node", NodeSelection);
 diff --git a/src/selection.ts b/src/selection.ts
-index c0ff60847f94c5ac8f6cb654780cf9e81bf372d8..d434a6635c63855e9c13c0eecf649874f389cce5 100644
+index c0ff60847f94c5ac8f6cb654780cf9e81bf372d8..030fd81532890f5a9a0f69a486a372dde816e949 100644
 --- a/src/selection.ts
 +++ b/src/selection.ts
 @@ -373,6 +373,36 @@ export class NodeSelection extends Selection {
@@ -100,22 +100,22 @@ index c0ff60847f94c5ac8f6cb654780cf9e81bf372d8..d434a6635c63855e9c13c0eecf649874
 +    // `tr.deleteSelection()` is called at a framework level in `prosemirror-view`.
 +    // Not just in keymap backspace/delete handlers.
 +    if (
-+        !content.size &&
-+        this.node.type.name === "file" &&
-+        (this.$anchor.parent.type.name === "fileRow" ||
-+            this.$anchor.parent.type.name === "fileFloat" ||
-+            this.$anchor.parent.type.name === "fileRowTable") &&
-+        this.$anchor.parent.childCount === 1
++      !content.size &&
++      this.node.type.name === "file" &&
++      (this.$anchor.parent.type.name === "fileRow" ||
++        this.$anchor.parent.type.name === "fileFloat" ||
++        this.$anchor.parent.type.name === "fileRowTable") &&
++      this.$anchor.parent.childCount === 1
 +    ) {
-+        let mapFrom = tr.steps.length;
-+        let mapping = tr.mapping.slice(mapFrom);
-+        tr.replaceRange(
-+            mapping.map(this.$anchor.before()),
-+            mapping.map(this.$anchor.after()),
-+            content,
-+        );
-+        selectionToInsertionEnd(tr, mapFrom, 1);
-+        return;
++      let mapFrom = tr.steps.length
++      let mapping = tr.mapping.slice(mapFrom)
++      tr.replaceRange(
++        mapping.map(this.$anchor.before()),
++        mapping.map(this.$anchor.after()),
++        content,
++      )
++      selectionToInsertionEnd(tr, mapFrom, 1)
++      return;
 +    }
 +
 +    super.replace(tr, content)

@@ -1,6 +1,6 @@
 import {Schema as ProsemirrorSchema, Slice} from "prosemirror-model";
 import {EditorState} from "prosemirror-state";
-import {EditorView, parseFromClipboard} from "prosemirror-view";
+import {EditorView, __parseFromClipboard as parseFromClipboard} from "prosemirror-view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";

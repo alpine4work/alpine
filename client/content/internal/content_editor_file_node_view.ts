@@ -126,7 +126,7 @@ export function createContentEditorFileNodeViewConstructor({
                 clientInfo: getClientInfo(),
             });
 
-            const pos = getPos();
+            const pos = assertExists(getPos());
             const $pos = view.state.doc.resolve(pos);
             const nodeParent = $pos.parent;
 
@@ -268,7 +268,7 @@ export function createContentEditorFileNodeViewConstructor({
 
                         view.dispatch(
                             view.state.tr.setSelection(
-                                new NodeSelection(view.state.doc.resolve(getPos())),
+                                new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
                             ),
                         );
 
@@ -287,7 +287,7 @@ export function createContentEditorFileNodeViewConstructor({
 
                         view.dispatch(
                             view.state.tr.setSelection(
-                                new NodeSelection(view.state.doc.resolve(getPos())),
+                                new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
                             ),
                         );
 
@@ -299,7 +299,7 @@ export function createContentEditorFileNodeViewConstructor({
                     const onDrag = (dragPromise: Promise<void>) => {
                         const ourDraggingFile = rememberContentEditorPosWhileLoading(
                             view,
-                            getPos(),
+                            assertExists(getPos()),
                             dragPromise,
                         );
 
@@ -370,7 +370,9 @@ export function createContentEditorFileNodeViewConstructor({
                 // Right-clicking on a file selects the file. This is another way to access
                 // file selection tools.
                 view.dispatch(
-                    view.state.tr.setSelection(new NodeSelection(view.state.doc.resolve(getPos()))),
+                    view.state.tr.setSelection(
+                        new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
+                    ),
                 );
 
                 if (!view.hasFocus()) view.focus();

@@ -95,7 +95,7 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 clientInfo: getClientInfo(),
             });
 
-            const pos = getPos();
+            const pos = getPos()!;
             const $pos = view.state.doc.resolve(pos);
 
             if ($pos.depth > 0) {

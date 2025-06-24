@@ -1,5 +1,8 @@
 import {DOMSerializer} from "prosemirror-model";
-import {NodeViewConstructor, serializeForClipboard} from "prosemirror-view";
+import {
+    NodeViewConstructor,
+    __serializeForClipboard as serializeForClipboard,
+} from "prosemirror-view";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {Reporter} from "~/client/design/reporter.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
@@ -108,7 +111,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
                     onCodeBlockLanguagePickerOpen({
                         targetElement: languagePickerElement,
                         languageId,
-                        getPos,
+                        getPos: () => getPos()!,
                     });
                 },
             });
@@ -155,7 +158,7 @@ export function createContentEditorCodeBlockNodeViewConstructor({
                         onCodeBlockCopyButtonHoverEnd(copyButtonElement);
                 },
                 onPress: () => {
-                    const pos = getPos();
+                    const pos = getPos()!;
 
                     const {dom, text} = serializeForClipboard(
                         view,

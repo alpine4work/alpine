@@ -617,7 +617,7 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
 
     const copiedDoc = editor.state.doc;
     const copiedFragment = editor.props.clipboardSerializer!.serializeFragment(copiedDoc.content);
-    const copiedFragmentText = editor.props.clipboardTextSerializer!(copiedDoc.slice(0));
+    const copiedFragmentText = editor.props.clipboardTextSerializer!(copiedDoc.slice(0), editor);
     const copiedElement = document.createElement("div");
     copiedElement.appendChild(copiedFragment);
     const copiedHtml = copiedElement.innerHTML;

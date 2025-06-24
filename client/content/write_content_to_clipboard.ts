@@ -1,5 +1,5 @@
 import {Slice} from "prosemirror-model";
-import {EditorView, serializeForClipboard} from "prosemirror-view";
+import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {ContentEditorDomParser} from "~/client/content/internal/content_editor_dom_parser.js";
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
