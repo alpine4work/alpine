@@ -1,7 +1,11 @@
 import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {Selection} from "prosemirror-state";
-import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
+import {
+    DirectEditorProps,
+    EditorView,
+    __serializeForClipboard as serializeForClipboard,
+} from "prosemirror-view";
 import {
     CSSProperties,
     Memo,
@@ -1345,7 +1349,7 @@ export function ContentView<Content extends ContentWithReferences>({
                 const state = ContentEditorState.create(content)._getInternalState();
                 const {schema} = state.doc.type;
 
-                const view = new EditorView(null, {
+                const viewProps: DirectEditorProps = {
                     state,
                     domParser: ContentEditorDomParser.fromSchema(schema),
                     clipboardSerializer:
@@ -1361,7 +1365,12 @@ export function ContentView<Content extends ContentWithReferences>({
                             () => assertExists(spaceId),
                             () => content.references,
                         ),
-                });
+
+                    // NOTE(imjoshin): Don't cause rerendered when doc attributes change
+                    ignoreDocAttrsForUpdate: true,
+                };
+
+                const view = new EditorView(null, viewProps);
 
                 const {dom, text} = serializeForClipboard(view, slice);
 

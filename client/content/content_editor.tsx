@@ -1143,6 +1143,9 @@ function ContentEditor<Content extends ContentWithReferences>(
             get scrollMargin() {
                 return getScrollMargin();
             },
+
+            // NOTE(imjoshin): Don't cause rerendered when doc attributes change
+            ignoreDocAttrsForUpdate: true,
         };
 
         /* ========================================================================== *\

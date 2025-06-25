@@ -138,7 +138,7 @@ patchedDependencies:
     hash: bwuveh72uqacseznp733exv6kq
     path: admin/patches/prosemirror-state@1.4.3.patch
   prosemirror-view@1.40.0:
-    hash: 2wxjxyzyp6yk6qc4szeagqbboa
+    hash: 56meujtl7nuw32gn2lhghwcbzq
     path: admin/patches/prosemirror-view@1.40.0.patch
   psl@1.9.0:
     hash: uwdiyrxrbk6jfhukrzmqvjpgvi
@@ -165,7 +165,7 @@ patchedDependencies:
     hash: m44xtuvbxft24o4hxumuafmflm
     path: admin/patches/y-prosemirror@1.2.1.patch
   yjs@13.6.6:
-    hash: f7s3wosacodqsm526mkowcsqmy
+    hash: bznt3p4y2qxo42yt73yprk7twe
     path: admin/patches/yjs@13.6.6.patch
 
 importers:
@@ -894,7 +894,7 @@ importers:
         version: 1.10.4
       prosemirror-view:
         specifier: 1.40.0
-        version: 1.40.0(patch_hash=2wxjxyzyp6yk6qc4szeagqbboa)
+        version: 1.40.0(patch_hash=56meujtl7nuw32gn2lhghwcbzq)
       punycode:
         specifier: ^2.3.1
         version: 2.3.1
@@ -981,7 +981,7 @@ importers:
         version: 8.18.0(bufferutil@4.0.7)(utf-8-validate@5.0.10)
       y-prosemirror:
         specifier: 1.2.1
-        version: 1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.25.1)(prosemirror-state@1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq))(prosemirror-view@1.40.0(patch_hash=2wxjxyzyp6yk6qc4szeagqbboa))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)))(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy))
+        version: 1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.25.1)(prosemirror-state@1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq))(prosemirror-view@1.40.0(patch_hash=56meujtl7nuw32gn2lhghwcbzq))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)))(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe))
       yaml:
         specifier: ^2.5.0
         version: 2.5.0
@@ -990,7 +990,7 @@ importers:
         version: 17.7.2
       yjs:
         specifier: ^13.6.6
-        version: 13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)
+        version: 13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)
 
 packages:
 
@@ -17910,7 +17910,7 @@ snapshots:
     dependencies:
       prosemirror-state: 1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq)
       prosemirror-transform: 1.10.4
-      prosemirror-view: 1.40.0(patch_hash=2wxjxyzyp6yk6qc4szeagqbboa)
+      prosemirror-view: 1.40.0(patch_hash=56meujtl7nuw32gn2lhghwcbzq)
       rope-sequence: 1.3.3
 
   prosemirror-inputrules@1.5.0:
@@ -17935,13 +17935,13 @@ snapshots:
     dependencies:
       prosemirror-model: 1.25.1
       prosemirror-transform: 1.10.4
-      prosemirror-view: 1.40.0(patch_hash=2wxjxyzyp6yk6qc4szeagqbboa)
+      prosemirror-view: 1.40.0(patch_hash=56meujtl7nuw32gn2lhghwcbzq)
 
   prosemirror-transform@1.10.4:
     dependencies:
       prosemirror-model: 1.25.1
 
-  prosemirror-view@1.40.0(patch_hash=2wxjxyzyp6yk6qc4szeagqbboa):
+  prosemirror-view@1.40.0(patch_hash=56meujtl7nuw32gn2lhghwcbzq):
     dependencies:
       prosemirror-model: 1.25.1
       prosemirror-state: 1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq)
@@ -19375,19 +19375,19 @@ snapshots:
 
   xxhash-wasm@1.0.2: {}
 
-  y-prosemirror@1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.25.1)(prosemirror-state@1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq))(prosemirror-view@1.40.0(patch_hash=2wxjxyzyp6yk6qc4szeagqbboa))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)))(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)):
+  y-prosemirror@1.2.1(patch_hash=m44xtuvbxft24o4hxumuafmflm)(prosemirror-model@1.25.1)(prosemirror-state@1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq))(prosemirror-view@1.40.0(patch_hash=56meujtl7nuw32gn2lhghwcbzq))(y-protocols@1.0.6(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)))(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)):
     dependencies:
       lib0: 0.2.104
       prosemirror-model: 1.25.1
       prosemirror-state: 1.4.3(patch_hash=bwuveh72uqacseznp733exv6kq)
-      prosemirror-view: 1.40.0(patch_hash=2wxjxyzyp6yk6qc4szeagqbboa)
-      y-protocols: 1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy))
-      yjs: 13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)
+      prosemirror-view: 1.40.0(patch_hash=56meujtl7nuw32gn2lhghwcbzq)
+      y-protocols: 1.0.6(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe))
+      yjs: 13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)
 
-  y-protocols@1.0.6(yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)):
+  y-protocols@1.0.6(yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)):
     dependencies:
       lib0: 0.2.104
-      yjs: 13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy)
+      yjs: 13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe)
 
   y18n@5.0.8: {}
 
@@ -19425,7 +19425,7 @@ snapshots:
       y18n: 5.0.8
       yargs-parser: 21.1.1
 
-  yjs@13.6.6(patch_hash=f7s3wosacodqsm526mkowcsqmy):
+  yjs@13.6.6(patch_hash=bznt3p4y2qxo42yt73yprk7twe):
     dependencies:
       lib0: 0.2.104
 
