@@ -2,10 +2,7 @@ import {compareAsc, compareDesc} from "date-fns";
 import {CaretDown} from "phosphor-react";
 import {useMemo, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {
-    useAccountClientStore,
-    useAccountModel,
-} from "~/client/accounts/account_client_store_context.js";
+import {useAccountModel, useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -60,7 +57,7 @@ export default function SpacePeopleSettingsRoute() {
     const {currentAccount, space} = useSpaceContextAndRequireSpaceAccess();
     const currentAccountData = useAccountModel(currentAccount);
     const appContext = useAppContext();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     // Add `accounts` to the RPC cache so future RPC calls have access to them
     // and we can skip any preloads but don't read `accounts` from the RPC
@@ -90,9 +87,9 @@ export default function SpacePeopleSettingsRoute() {
         useMemo(
             () =>
                 Store.many(
-                    (allAccounts ?? []).map(account => accountStore.getAccountStore(account)),
+                    (allAccounts ?? []).map(account => accountRegistry.getAccountStore(account)),
                 ),
-            [accountStore, allAccounts],
+            [accountRegistry, allAccounts],
         ),
     );
 
@@ -141,8 +138,8 @@ export default function SpacePeopleSettingsRoute() {
             newOwnerAccountId: modalState.accountData.id,
         });
 
-        accountStore.immediatelyUpdateAccountStoreIfExists(newOwnerAccount);
-        accountStore.immediatelyUpdateAccountStoreIfExists(oldOwnerAccount);
+        accountRegistry.immediatelyUpdateAccountStoreIfExists(newOwnerAccount);
+        accountRegistry.immediatelyUpdateAccountStoreIfExists(oldOwnerAccount);
         setModalState(null);
     };
 
@@ -153,7 +150,7 @@ export default function SpacePeopleSettingsRoute() {
             spaceId: space.id,
             accountId: modalState.accountData.id,
         });
-        accountStore.immediatelyUpdateAccountStoreIfExists(removedAccount.account);
+        accountRegistry.immediatelyUpdateAccountStoreIfExists(removedAccount.account);
 
         setModalState(null);
     };
@@ -178,7 +175,7 @@ export default function SpacePeopleSettingsRoute() {
                 accountId: account.id,
                 role: newRole,
             });
-            accountStore.immediatelyUpdateAccountStoreIfExists(updatedAccount.account);
+            accountRegistry.immediatelyUpdateAccountStoreIfExists(updatedAccount.account);
         }
     };
 
@@ -315,7 +312,7 @@ export default function SpacePeopleSettingsRoute() {
                                                         accountId: account.id,
                                                     },
                                                 );
-                                                accountStore.immediatelyUpdateAccountStoreIfExists(
+                                                accountRegistry.immediatelyUpdateAccountStoreIfExists(
                                                     addedAccount.account,
                                                 );
                                             }}
