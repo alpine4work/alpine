@@ -4901,7 +4901,7 @@ test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t 
     );
 });
 
-test.only("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t add two owners in race condition (simple)", async () => {
+test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t add two owners in race condition (simple)", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const session = await space.createSession();
@@ -4953,7 +4953,6 @@ test.only("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn
             [session.account.id, "Owner"],
         ]),
     );
-    console.log("test 5");
 });
 
 test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t add two owners in race condition", async () => {
