@@ -19,12 +19,13 @@ import {
     ContentParagraphShimmer3,
 } from "~/client/shimmer/content_shimmer.js";
 import {InboxEntryShimmer} from "~/client/shimmer/inbox_entry_shimmer.js";
-import {GeneralSpaceSettingsRouteShimmer} from "~/client/shimmer/internal/general_space_settings_route_shimmer.js";
 import {
     MobileBackButton,
     MobileBackButtonSpacer,
 } from "~/client/shimmer/internal/mobile_back_button.js";
 import {MobileSettingsRowsShimmer} from "~/client/shimmer/internal/mobile_settings_rows_shimmer.js";
+import {SpaceGeneralSettingsRouteShimmer} from "~/client/shimmer/internal/space_general_settings_route_shimmer.js";
+import {SpacePeopleSettingsRouteShimmer} from "~/client/shimmer/internal/space_people_settings_route_shimmer.js";
 import {MessageShimmer} from "~/client/shimmer/message_shimmer.js";
 import {PostShimmer, PostShimmerHeader} from "~/client/shimmer/post_shimmer.js";
 import {SearchEntityShimmer} from "~/client/shimmer/search_entity_shimmer.js";
@@ -222,7 +223,8 @@ const shimmerOptionsByRouteId: Record<
     },
     "routes/s.$spaceId.posts.new.$draftId": {component: NewPostRouteShimmer},
     "routes/s.$spaceId.search": {component: SearchRouteShimmer},
-    "routes/s.$spaceId.settings.general": {component: GeneralSpaceSettingsRouteShimmer},
+    "routes/s.$spaceId.settings.general": {component: SpaceGeneralSettingsRouteShimmer},
+    "routes/s.$spaceId.settings.people": {component: SpacePeopleSettingsRouteShimmer},
     "routes/s.$spaceId.tasks._index": {component: TaskPersonalRouteShimmer},
     // TODO: `inboxBannerMaxWidth` for this route.
     "routes/s.$spaceId.tasks.$taskId._index": {component: TaskDetailRouteShimmer},
@@ -239,9 +241,6 @@ const shimmerOptionsByRouteId: Record<
 
     // NOTE(rohit): We don't have a design for layout routes.
     "routes/s.$spaceId.settings": false,
-
-    // TODO(rohit): Add a shimmer for this route when we implement it.
-    "routes/s.$spaceId.settings.people": false,
 };
 
 const RouteShimmerMemo = memo(RouteShimmer);

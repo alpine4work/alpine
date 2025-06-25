@@ -2,12 +2,14 @@ import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/notifications_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_table.js";
-import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
+import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
 import {
     expensivelyGetAllSpaceAccounts,
     getOurAccountSpaceIds,
     getSpaceIfPossible,
-    removeSpaceAccountAsAdmin,
+    moveSpaceAccountOwnerRole,
+    removeSpaceAccount,
+    updateSpaceAccountRole,
     updateSpaceAccountSettings,
     updateSpaceName,
 } from "~/server/spaces/spaces_table.js";
@@ -59,19 +61,19 @@ export default implementRpcs(definitions, {
         },
     },
 
-    dangerouslyAddSpaceAccountAsAdmin: {
+    addSpaceAccount: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await dangerouslyAddSpaceAccountAsAdmin(context, input);
-            return {};
+            const account = await addSpaceAccount(context, input);
+            return {account};
         },
     },
 
-    removeSpaceAccountAsAdmin: {
+    removeSpaceAccount: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await removeSpaceAccountAsAdmin(context, input);
-            return {};
+            const account = await removeSpaceAccount(context, input);
+            return {account};
         },
     },
 
@@ -133,6 +135,39 @@ export default implementRpcs(definitions, {
             );
             return {
                 space,
+            };
+        },
+    },
+
+    updateSpaceAccountRole: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            // The updateSpaceAccountRole function from spaces_table.ts will handle all permission
+            // checks (actor is owner/admin, target is not owner, etc.) and the actual update.
+            const account = await updateSpaceAccountRole(context.actor.authorizeSession(), {
+                spaceId: input.spaceId,
+                accountId: input.accountId,
+                role: input.role,
+            });
+
+            return {account};
+        },
+    },
+
+    moveSpaceOwner: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const {newOwnerAccount, oldOwnerAccount} = await moveSpaceAccountOwnerRole(
+                context.actor.authorizeSession(),
+                {
+                    spaceId: input.spaceId,
+                    newOwnerAccountId: input.newOwnerAccountId,
+                },
+            );
+
+            return {
+                newOwnerAccount,
+                oldOwnerAccount,
             };
         },
     },

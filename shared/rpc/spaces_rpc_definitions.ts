@@ -5,7 +5,7 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceAccountSettingsSchema} from "~/shared/spaces/space_account_settings.js";
-import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {SpaceModel, SpaceRoleSchema} from "~/shared/spaces/space_model.js";
 
 export const expensivelyGetAllSpaceAccounts = defineRpc({
     name: "expensivelyGetAllSpaceAccounts",
@@ -30,22 +30,26 @@ export const createAlphaSpaceAsAdmin = defineRpc({
     },
 });
 
-export const dangerouslyAddSpaceAccountAsAdmin = defineRpc({
-    name: "dangerouslyAddSpaceAccountAsAdmin",
+export const addSpaceAccount = defineRpc({
+    name: "addSpaceAccount",
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
     },
-    output: {},
+    output: {
+        account: AccountModel.schema,
+    },
 });
 
-export const removeSpaceAccountAsAdmin = defineRpc({
-    name: "removeSpaceAccountAsAdmin",
+export const removeSpaceAccount = defineRpc({
+    name: "removeSpaceAccount",
     input: {
         spaceId: Schema.id<SpaceId>(),
         accountId: Schema.id<AccountId>(),
     },
-    output: {},
+    output: {
+        account: AccountModel.schema,
+    },
 });
 
 export const getOurAccountSpaces = defineRpc({
@@ -78,5 +82,27 @@ export const updateSpaceName = defineRpc({
     },
     output: {
         space: SpaceModel.schema(),
+    },
+});
+
+export const updateSpaceAccountRole = defineRpc({
+    name: "updateSpaceAccountRole",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
+        role: SpaceRoleSchema,
+    },
+    output: {account: AccountModel.schema},
+});
+
+export const moveSpaceOwner = defineRpc({
+    name: "moveSpaceOwner",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        newOwnerAccountId: Schema.id<AccountId>(),
+    },
+    output: {
+        newOwnerAccount: AccountModel.schema,
+        oldOwnerAccount: AccountModel.schema,
     },
 });

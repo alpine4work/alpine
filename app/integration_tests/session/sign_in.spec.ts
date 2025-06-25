@@ -3,20 +3,31 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {approveAlphaAccessRequest} from "~/server/alpha/alpha_access_table.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {generateId} from "~/shared/id/id.js";
 
 const {context, services} = createTestServices();
-const space = createTestSpace(context);
-const adminSession = createTestSession(context, space, {hasInternalAccess: true});
-
-const emailAddress = `test.${generateId()}@test.cyberworlds.dev`;
+let adminSession: TestSpaceSession;
 
 test.beforeAll(async () => {
     await seedDynamo(context);
 });
+
+// Setup an admin session in the default space before each test.
+// This is required because approving alpha access automatically creates a space account,
+// which needs admin permissions in the target space. The admin session must be a member
+// of the default space since new users are automatically added there after sign-in.
+test.beforeEach(async () => {
+    const defaultSpace = await TestSpace.get(context, getDynamoSeedConstants().defaultSpaceId);
+    adminSession = await defaultSpace.createSession({
+        hasInternalAccess: true,
+        role: "Admin",
+    });
+});
+
+const emailAddress = `test.${generateId()}@test.cyberworlds.dev`;
 
 test("can request alpha access", async ({page}) => {
     await page.goto("/");

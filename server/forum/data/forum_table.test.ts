@@ -51,7 +51,7 @@ import {
     updatePostContent,
 } from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
+import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -4253,58 +4253,58 @@ test("can add accounts to spaces as admin", async () => {
     const space1 = await TestSpace.create(context);
     const space2 = await TestSpace.create(context);
 
+    const adminSession = await space1.createSession({role: "Admin"});
     const session1 = await space1.createSession();
     const session2 = await space2.createSession();
+
     const session3 = await TestSession.create(await TestAccount.create(context));
     const session4 = await TestSession.create(await TestAccount.create(context));
-
-    const adminSession = await TestSession.create(
-        await TestAccount.create(context, {hasInternalAccess: true}),
-    );
 
     expect((await getOurAccountSpaceIds(session1.action())).spaceIds).toEqual(new Set([space1.id]));
     expect((await getOurAccountSpaceIds(session2.action())).spaceIds).toEqual(new Set([space2.id]));
     expect((await getOurAccountSpaceIds(session3.action())).spaceIds).toEqual(new Set([]));
     expect((await getOurAccountSpaceIds(session4.action())).spaceIds).toEqual(new Set([]));
-    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(new Set([]));
+    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
+        addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session3.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
+        addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session4.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
+        addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session1.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(session3.action(), {
+        addSpaceAccount(session3.action(), {
             spaceId: space1.id,
             accountId: session2.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(session2.action(), {
+        addSpaceAccount(session2.action(), {
             spaceId: space2.id,
             accountId: session2.account.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(session2.action(), {
+        addSpaceAccount(session2.action(), {
             spaceId: space2.id,
             accountId: session1.account.id,
         }),
@@ -4314,7 +4314,9 @@ test("can add accounts to spaces as admin", async () => {
     expect((await getOurAccountSpaceIds(session2.action())).spaceIds).toEqual(new Set([space2.id]));
     expect((await getOurAccountSpaceIds(session3.action())).spaceIds).toEqual(new Set([]));
     expect((await getOurAccountSpaceIds(session4.action())).spaceIds).toEqual(new Set([]));
-    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(new Set([]));
+    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
 
     const channel1 = await TestChannel.create(session1);
 
@@ -4324,23 +4326,25 @@ test("can add accounts to spaces as admin", async () => {
     expect((await getOurAccountSpaceIds(session2.action())).spaceIds).toEqual(new Set([space2.id]));
     expect((await getOurAccountSpaceIds(session3.action())).spaceIds).toEqual(new Set([]));
     expect((await getOurAccountSpaceIds(session4.action())).spaceIds).toEqual(new Set([]));
-    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(new Set([]));
+    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(
+        new Set([space1.id]),
+    );
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
+        addSpaceAccount(adminSession.action(), {
             spaceId: space1.id,
             accountId: generateId(),
         }),
     ).rejects.toThrow(NotFoundError);
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
+        addSpaceAccount(adminSession.action(), {
             spaceId: generateId(),
             accountId: session3.account.id,
         }),
-    ).rejects.toThrow(NotFoundError);
+    ).rejects.toThrow(PermissionDeniedError);
 
-    await dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
+    await addSpaceAccount(adminSession.action(), {
         spaceId: space1.id,
         accountId: session3.account.id,
     });
@@ -4351,16 +4355,20 @@ test("can add accounts to spaces as admin", async () => {
     expect((await getOurAccountSpaceIds(session2.action())).spaceIds).toEqual(new Set([space2.id]));
     expect((await getOurAccountSpaceIds(session3.action())).spaceIds).toEqual(new Set([space1.id]));
     expect((await getOurAccountSpaceIds(session4.action())).spaceIds).toEqual(new Set([]));
-    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(new Set([]));
-
-    await expect(getChannel(adminSession.action(), channel1.id)).rejects.toThrow(
-        PermissionDeniedError,
+    expect((await getOurAccountSpaceIds(adminSession.action())).spaceIds).toEqual(
+        new Set([space1.id]),
     );
 
-    await dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
-        spaceId: space1.id,
-        accountId: adminSession.account.id,
-    });
+    // admin is a member of space 1 so it can access channel1 which is in space 1
+    await getChannel(adminSession.action(), channel1.id);
+
+    // adminSession account is already a member of space1 so it can't be added again
+    await expect(
+        addSpaceAccount(adminSession.action(), {
+            spaceId: space1.id,
+            accountId: adminSession.account.id,
+        }),
+    ).rejects.toThrow(FailedPreconditionError);
 
     await getChannel(adminSession.action(), channel1.id);
 
@@ -4373,18 +4381,18 @@ test("can add accounts to spaces as admin", async () => {
     );
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
+        addSpaceAccount(adminSession.action(), {
             spaceId: space1.id,
             accountId: session3.account.id,
         }),
     ).rejects.toThrow(FailedPreconditionError);
 
     await expect(
-        dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
+        addSpaceAccount(adminSession.action(), {
             spaceId: space2.id,
             accountId: session2.account.id,
         }),
-    ).rejects.toThrow(FailedPreconditionError);
+    ).rejects.toThrow(PermissionDeniedError);
 
     expect((await getOurAccountSpaceIds(session1.action())).spaceIds).toEqual(new Set([space1.id]));
     expect((await getOurAccountSpaceIds(session2.action())).spaceIds).toEqual(new Set([space2.id]));
@@ -4396,7 +4404,7 @@ test("can add accounts to spaces as admin", async () => {
 
     await expect(getChannel(session2.action(), channel1.id)).rejects.toThrow(PermissionDeniedError);
 
-    await dangerouslyAddSpaceAccountAsAdmin(adminSession.action(), {
+    await addSpaceAccount(adminSession.action(), {
         spaceId: space1.id,
         accountId: session2.account.id,
     });

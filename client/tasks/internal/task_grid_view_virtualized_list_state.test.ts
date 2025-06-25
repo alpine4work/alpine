@@ -48,7 +48,8 @@ const account1 = new AccountModel({
     space: {
         version: 0,
         joinedTime: new Date(),
-        wasRemoved: false,
+        removal: null,
+        role: "Member",
     },
 });
 
@@ -60,7 +61,8 @@ const account2 = new AccountModel({
     space: {
         version: 0,
         joinedTime: new Date(),
-        wasRemoved: false,
+        removal: null,
+        role: "Member",
     },
 });
 

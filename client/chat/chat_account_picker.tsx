@@ -239,7 +239,7 @@ export function ChatAccountPicker({
                   // TODO(calebmer): When searching, removed accounts should rank lower. How do
                   // we give them a lower score while still allowing users to find them?
                   itemsWithoutSelection.filter(
-                      item => item.type !== "Account" || !item.accountData.space.wasRemoved,
+                      item => item.type !== "Account" || !item.accountData.space.removal,
                   )
                 : itemsSearchIndex.search(searchQuery).map(({item}) => item),
 

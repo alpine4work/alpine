@@ -12,11 +12,8 @@ import {
     createNotificationsScenario,
     massageInboxEntriesQuery,
 } from "~/server/notifications/data/test_helpers/notifications_table_test_helpers.js";
-import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
-import {
-    getSpaceAccountsCacheForTest,
-    removeSpaceAccountAsAdmin,
-} from "~/server/spaces/spaces_table.js";
+import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
+import {getSpaceAccountsCacheForTest, removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
@@ -1271,7 +1268,7 @@ for (const [currentProcessingType, processingMultiple] of [
         test("if an account is removed from a space their inbox won’t update anymore", async () => {
             const space = await TestSpace.create(context);
 
-            const session1 = await space.createSession({hasInternalAccess: true});
+            const session1 = await space.createSession({role: "Admin"});
             const session2 = await space.createSession();
 
             const document = await TestDocument.create(session1);
@@ -1365,7 +1362,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             });
 
-            await removeSpaceAccountAsAdmin(session1.action(), {
+            await removeSpaceAccount(session1.action(), {
                 spaceId: space.id,
                 accountId: session2.account.id,
             });
@@ -1414,7 +1411,7 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ).rejects.toThrow(PermissionDeniedError);
 
-            await dangerouslyAddSpaceAccountAsAdmin(session1.action(), {
+            await addSpaceAccount(session1.action(), {
                 spaceId: space.id,
                 accountId: session2.account.id,
             });

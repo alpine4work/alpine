@@ -1,7 +1,7 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {InternalError} from "~/shared/error/error.js";
 
@@ -11,7 +11,7 @@ test("account can lose access to space", async ({page, context: browserContext})
     const space1 = await TestSpace.create(context, {name: "Test Space 1"});
     const space2 = await TestSpace.create(context, {name: "Test Space 2"});
 
-    const session1 = await space1.createSession({hasInternalAccess: true});
+    const session1 = await space1.createSession({role: "Admin"});
     const session2 = await space1.createSession();
 
     await space2.addAccount(session1);
@@ -27,7 +27,7 @@ test("account can lose access to space", async ({page, context: browserContext})
     await expect(page.getByText("You don’t have access to this space")).toBeHidden();
     await expect(page.getByText("Switch space")).toBeHidden();
 
-    await removeSpaceAccountAsAdmin(session1.action(), {
+    await removeSpaceAccount(session1.action(), {
         spaceId: space1.id,
         accountId: session2.account.id,
     });

@@ -1,7 +1,8 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
-import {textInputClassName} from "~/client/design/text_input.js";
+import {Spacer} from "~/client/design/spacer.js";
+import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {
     MobileBackButton,
@@ -9,14 +10,13 @@ import {
 } from "~/client/shimmer/internal/mobile_back_button.js";
 import {TextShimmer} from "~/client/shimmer/text_shimmer.js";
 import {
-    spaceAvatarBorderRadius,
     spaceSettingsDesktopSidebarWidth,
     spaceSettingsMaxDesktopContentWidth,
 } from "~/client/styles/space_settings_shared_styles.js";
 import {grey5SemiTransparentColorVar, pulseAnimationClassName} from "~/client/styles/styles.js";
-import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
+import {Spacing, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 
-export function GeneralSpaceSettingsRouteShimmer() {
+export function SpacePeopleSettingsRouteShimmer() {
     const isMobile = usePlatform() === "mobile";
 
     if (isMobile) {
@@ -41,7 +41,7 @@ export function GeneralSpaceSettingsRouteShimmer() {
                     <TextShimmer fontSize="100" width="28" />
                     <MobileBackButtonSpacer />
                 </Box>
-                <GeneralSpaceSettingsRouteShimmerContent />
+                <PeopleSpaceSettingsRouteShimmerContent />
             </Box>
         );
     }
@@ -137,8 +137,8 @@ export function GeneralSpaceSettingsRouteShimmer() {
                 {renderRowLayout(
                     null,
                     <>
-                        <Box paddingY="5">
-                            <GeneralSpaceSettingsRouteShimmerContent />
+                        <Box paddingY="8">
+                            <PeopleSpaceSettingsRouteShimmerContent />
                         </Box>
                         <Box height="safe-area-inset-bottom" />
                     </>,
@@ -148,38 +148,83 @@ export function GeneralSpaceSettingsRouteShimmer() {
     );
 }
 
-function GeneralSpaceSettingsRouteShimmerContent() {
+function PeopleSpaceSettingsRowShimmer({
+    nameWidth,
+    isRemoved,
+    index,
+}: {
+    nameWidth: Spacing;
+    isRemoved?: boolean;
+    index?: number;
+}) {
     return (
-        <>
-            <Box display="flex" flexDirection="column" gap="5" width="full">
-                {/* Name field shimmer */}
-                <Box gap="5" display="flex" alignItems="center" justifyContent="space-between">
-                    <TextShimmer fontSize="100" width="12" />
-                    <Box
-                        position="relative"
-                        width="full"
-                        maxWidth="48"
-                        height="9"
-                        className={textInputClassName}
-                    />
-                </Box>
+        <Box
+            height="14"
+            borderTop={index === 0 ? "grey-5" : undefined}
+            borderBottom="grey-5"
+            display="flex"
+            alignItems="center"
+            gap="3"
+        >
+            <Box
+                backgroundColor="grey-5"
+                className={pulseAnimationClassName}
+                borderRadius="full"
+                width="8"
+                height="8"
+            />
+            <TextShimmer fontSize="100" width={nameWidth} />
+            <Box flexGrow="1" />
 
-                {/* Logo field shimmer */}
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box width="full">
-                        <TextShimmer fontSize="100" width="12" />
-                        <TextShimmer fontSize="75" width="48" />
-                    </Box>
-                    <Box
-                        marginLeft="-10"
-                        className={pulseAnimationClassName}
-                        width="12"
-                        height="12"
-                        backgroundColor="grey-10"
-                        borderRadius={spaceAvatarBorderRadius}
-                    />
-                </Box>
+            <TextShimmer fontSize="100" width={isRemoved ? "28" : "16"} />
+        </Box>
+    );
+}
+
+function PeopleSpaceSettingsRouteShimmerContent() {
+    const [resizeRef, size] = useResizeObserver();
+    const isMobile = usePlatform() === "mobile";
+
+    const renderDescriptionShimmer = (minWidth: number) => {
+        const containerWidth = size?.width;
+
+        if (isMobile && containerWidth && containerWidth < minWidth) {
+            return (
+                <>
+                    <TextShimmer fontSize="75" width="64" />
+                    <TextShimmer fontSize="75" width="28" />
+                </>
+            );
+        } else {
+            // On desktop, use a single longer line
+            return <TextShimmer fontSize="75" width="96" />;
+        }
+    };
+
+    return (
+        <Box ref={resizeRef} width="full">
+            <TextShimmer fontSize="200" width="20" />
+            <Box color="grey-60" userSelect="text" paddingTop="1" paddingBottom="6">
+                {renderDescriptionShimmer(470)}
             </Box>
-        </>
+
+            <PeopleSpaceSettingsRowShimmer index={0} nameWidth="28" />
+            <PeopleSpaceSettingsRowShimmer nameWidth="32" />
+            <PeopleSpaceSettingsRowShimmer nameWidth="24" />
+            <PeopleSpaceSettingsRowShimmer nameWidth="12" />
+            <PeopleSpaceSettingsRowShimmer nameWidth="28" />
+
+            <Spacer space="10" />
+            <TextShimmer fontSize="200" width="48" ragRight="12" />
+            <Box color="grey-60" userSelect="text" paddingTop="1" paddingBottom="6">
+                {renderDescriptionShimmer(540)}
+            </Box>
+
+            <PeopleSpaceSettingsRowShimmer isRemoved index={0} nameWidth="24" />
+            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="28" />
+            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="24" />
+            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="12" />
+            <PeopleSpaceSettingsRowShimmer isRemoved nameWidth="28" />
+        </Box>
     );
 }

@@ -3,7 +3,7 @@ import {ServerSessionActionContextModules} from "~/server/context/server_action_
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -13650,7 +13650,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
 
 test("will lose access to subscribed task upon reauthorization if account removed from space", async () => {
     const space = await TestSpace.create(context);
-    const session1 = await space.createSession({hasInternalAccess: true});
+    const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
 
     const server = createWebSocketServer(space);
@@ -13713,7 +13713,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
     expect(connection.isClosed()).toEqual(false);
     expect(connection.takeEvents()).toEqual([]);
 
-    await removeSpaceAccountAsAdmin(session1.action(), {
+    await removeSpaceAccount(session1.action(), {
         spaceId: space.id,
         accountId: session2.account.id,
     });

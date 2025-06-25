@@ -16,7 +16,8 @@ const account = new AccountModel({
     space: {
         version: 0,
         joinedTime: new Date(),
-        wasRemoved: false,
+        removal: null,
+        role: "Member",
     },
 });
 

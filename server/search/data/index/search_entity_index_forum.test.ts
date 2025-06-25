@@ -1051,7 +1051,7 @@ test("changes channel contributors as posts/comments are made", async () => {
     const space = await TestSpace.create(context);
 
     const [sessionA, sessionB, sessionC, sessionD, sessionE] = await runAllPromises([
-        space.createSession({name: "aaaaa", hasInternalAccess: true}),
+        space.createSession({name: "aaaaa", role: "Admin"}),
         space.createSession({name: "bbbbb"}),
         space.createSession({name: "ccccc"}),
         space.createSession({name: "ddddd"}),

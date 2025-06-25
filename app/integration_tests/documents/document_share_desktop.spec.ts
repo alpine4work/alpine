@@ -2,7 +2,7 @@ import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
-import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
@@ -1245,11 +1245,11 @@ test("account that used to be a member of space but was removed can see document
     page: page2,
 }) => {
     const space = await TestSpace.create(context, {name: "Test Space"});
-    const session = await space.createSession({hasInternalAccess: true});
+    const session = await space.createSession({role: "Admin"});
     const mentionSession = await space.createSession({name: "Sara Smith"});
     const otherSession = await space.createSession();
 
-    await removeSpaceAccountAsAdmin(session.action(), {
+    await removeSpaceAccount(session.action(), {
         spaceId: space.id,
         accountId: otherSession.account.id,
     });

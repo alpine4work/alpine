@@ -1,7 +1,7 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
@@ -420,7 +420,7 @@ test("fails if query is unauthorized", async () => {
 
 test("fails if account is removed from space", async () => {
     const space = await TestSpace.create(context);
-    const session1 = await space.createSession({hasInternalAccess: true});
+    const session1 = await space.createSession({role: "Admin"});
     const session2 = await space.createSession();
     const server = new TestTaskRealtimeServer(context);
 
@@ -444,7 +444,7 @@ test("fails if account is removed from space", async () => {
         ],
     });
 
-    await removeSpaceAccountAsAdmin(session1.action(), {
+    await removeSpaceAccount(session1.action(), {
         spaceId: space.id,
         accountId: session2.account.id,
     });

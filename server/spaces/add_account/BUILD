@@ -1,8 +1,8 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
-# We need a separate project for `dangerouslyAddSpaceAccountAsAdmin()` since it
-# needs to depend on `//server/search/data` so we can favorite a search entity
-# after creating an account.
+# We need a separate project for `addSpaceAccount()` since it needs to depend
+# on `//server/search/data` so we can favorite a search entity after creating
+# an account.
 ts_project(
     name = "add_account",
     visibility = [

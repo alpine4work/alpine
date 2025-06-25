@@ -18,7 +18,7 @@ import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {internalDangerouslyCreateAlphaSpaceWelcomeChannelTransactionEntries} from "~/server/forum/data/forum_table.js";
 import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
-import {dangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/add_account/dangerously_add_space_account_as_admin.js";
+import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
 import {internalCreateAlphaSpaceAsAdmin} from "~/server/spaces/spaces_table.js";
 import {
     AlphaAccessRequestDecisionSchema,
@@ -296,7 +296,7 @@ export async function approveAlphaAccessRequest(
         }),
     ]);
 
-    await dangerouslyAddSpaceAccountAsAdmin(context, {
+    await addSpaceAccount(context, {
         spaceId: defaultSpaceId,
         accountId,
     });

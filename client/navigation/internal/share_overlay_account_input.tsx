@@ -118,7 +118,7 @@ function ShareOverlayAccountInput(
                         allAccountDatas,
                         (accountData): ShareOverlayAccountInputItem | undefined => {
                             // Don't allow sharing with an account that was removed.
-                            if (accountData.space.wasRemoved) return;
+                            if (accountData.space.removal) return;
 
                             return {
                                 key: accountData.id,

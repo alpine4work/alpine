@@ -11,6 +11,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 export type ModalWithButtonsRef = {
     focusPrimaryButton(): void;
+    focusCancelButton(): void;
 };
 
 const ModalWithButtonsForwardRef = forwardRef(ModalWithButtons);
@@ -72,6 +73,7 @@ function ModalWithButtons(
 ) {
     const reporter = useReporter();
     const primaryButtonRef = useRef<HTMLButtonElement>(null);
+    const cancelButtonRef = useRef<HTMLButtonElement>(null);
     const [isPrimaryButtonPending, setIsPrimaryButtonPending] = useState(false);
 
     useImperativeHandle(
@@ -80,6 +82,11 @@ function ModalWithButtons(
             focusPrimaryButton: () => {
                 const primaryButtonElement = assertExists(primaryButtonRef.current);
                 primaryButtonElement.focus();
+            },
+            focusCancelButton: () => {
+                if (!cancelButtonRef.current) return;
+                const cancelButtonElement = cancelButtonRef.current;
+                cancelButtonElement.focus();
             },
         }),
         [],
@@ -162,6 +169,7 @@ function ModalWithButtons(
                             )}
                             {!shouldHideCancelButton && (
                                 <Button
+                                    ref={cancelButtonRef}
                                     variant="quieter"
                                     pressErrorTitle={cancelButtonPressErrorTitle}
                                     onPress={() => {

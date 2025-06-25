@@ -16,7 +16,7 @@ import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {updateSpaceName} from "~/shared/rpc/spaces_rpc_definitions.js";
 
-export default function GeneralSettings() {
+export default function SpaceGeneralSettingsRoute() {
     if (process.env.NODE_ENV === "production")
         throw new UnimplementedError("Shouldn’t be able to open general settings in production");
 
@@ -66,8 +66,8 @@ export default function GeneralSettings() {
 
     return (
         <>
-            <Box display="flex" flexDirection="column" gap="5" width="full">
-                <Box gap="5" display="flex" alignItems="center" justifyContent="space-between">
+            <Box display="flex" flexDirection="column" gap="6" width="full">
+                <Box gap="6" display="flex" alignItems="center" justifyContent="space-between">
                     <label
                         htmlFor={nameTextInputId}
                         className={sprinkles({
@@ -111,12 +111,13 @@ export default function GeneralSettings() {
                         )}
                     </Box>
                 </Box>
-                <Box display="flex" gap="5" alignItems="center" justifyContent="space-between">
+                <Box display="flex" gap="6" alignItems="center" justifyContent="space-between">
                     <Box>
                         <Box fontSize="100" fontStyle="semi-bold" userSelect="text">
                             Logo
                         </Box>
                         <Box
+                            paddingTop="1"
                             fontSize="75"
                             color="grey-60"
                             userSelect="text"

@@ -58,6 +58,7 @@ function ModalDialog({
     shouldHideCancelButton,
     onClose,
     withoutCloseInteractions,
+    initiallyFocus = "Primary",
 }: ModalDialogProps) {
     // Can't server-render `<ModalDialog>` since in our native mobile app we'll
     // have a different implementation then on the server.
@@ -67,15 +68,24 @@ function ModalDialog({
     const descriptionId = useId();
     const modalRef = useRef<ModalWithButtonsRef>(null);
 
-    // Immediately focus the primary button.
+    // Focus the specified button.
     const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
         if (hasInitiallyMountedRef.current) return;
         hasInitiallyMountedRef.current = true;
 
         const modal = assertExists(modalRef.current);
-        modal.focusPrimaryButton();
-    }, []);
+        switch (initiallyFocus) {
+            case "Primary":
+                modal.focusPrimaryButton();
+                break;
+            case "Cancel":
+                modal.focusCancelButton();
+                break;
+            default:
+                throw exhaustive(initiallyFocus);
+        }
+    }, [initiallyFocus]);
 
     const titleId = useId();
 

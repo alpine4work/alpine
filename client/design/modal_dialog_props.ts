@@ -24,4 +24,5 @@ export type ModalDialogProps = {
     readonly shouldHideCancelButton?: boolean;
     readonly onClose: () => void;
     readonly withoutCloseInteractions?: boolean;
+    readonly initiallyFocus?: "Primary" | "Cancel";
 };

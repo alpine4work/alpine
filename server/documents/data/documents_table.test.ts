@@ -57,7 +57,7 @@ import {dynamoClientExecuteActionTestCounter} from "~/server/dynamo/core/dynamo_
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileAsUploader} from "~/server/files/data/files_table.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
-import {removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
@@ -7600,10 +7600,11 @@ test("getting a document with optional comments strips comments if the actor onl
 
 test("can get a document with references as actors that don’t have access to the space", async () => {
     const otherSpace = await TestSpace.create(context);
-    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
 
     const space = await TestSpace.create(context);
     const [session1, session2, session3] = await space.createSessions(3);
+    const adminSession = await space.createSession({role: "Admin"});
 
     const document = await TestDocument.create(session1);
 
@@ -7638,7 +7639,7 @@ test("can get a document with references as actors that don’t have access to t
 
     const commentThread = await document.createCommentThread(session1, range);
 
-    await removeSpaceAccountAsAdmin(otherSession.action(), {
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session3.account.id,
     });
@@ -7688,7 +7689,8 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 0,
                                     joinedTime: expect.any(Date),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -7702,7 +7704,10 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 1,
                                     joinedTime: expect.any(Date),
-                                    wasRemoved: true,
+                                    removal: expect.objectContaining({
+                                        time: expect.any(Date),
+                                    }),
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -7837,7 +7842,8 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 0,
                                     joinedTime: expect.any(Date),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -7851,7 +7857,10 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 1,
                                     joinedTime: expect.any(Date),
-                                    wasRemoved: true,
+                                    removal: expect.objectContaining({
+                                        time: expect.any(Date),
+                                    }),
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -7926,11 +7935,12 @@ test("can get a document with references as actors that don’t have access to t
                                 id: session2.account.id,
                                 version: -1073741824,
                                 name: session2.account.initialName,
-                                nameVersion: 0,
+                                nameVersion: -1073741824,
                                 space: {
                                     version: -1073741824,
                                     joinedTime: new Date(0),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -7940,11 +7950,12 @@ test("can get a document with references as actors that don’t have access to t
                                 id: session3.account.id,
                                 version: -1073741824,
                                 name: session3.account.initialName,
-                                nameVersion: 0,
+                                nameVersion: -1073741824,
                                 space: {
                                     version: -1073741823,
                                     joinedTime: new Date(0),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -8011,11 +8022,12 @@ test("can get a document with references as actors that don’t have access to t
                                 id: session2.account.id,
                                 version: -1073741824,
                                 name: session2.account.initialName,
-                                nameVersion: 0,
+                                nameVersion: -1073741824,
                                 space: {
                                     version: -1073741824,
                                     joinedTime: new Date(0),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -8025,11 +8037,12 @@ test("can get a document with references as actors that don’t have access to t
                                 id: session3.account.id,
                                 version: -1073741824,
                                 name: session3.account.initialName,
-                                nameVersion: 0,
+                                nameVersion: -1073741824,
                                 space: {
                                     version: -1073741823,
                                     joinedTime: new Date(0),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -8044,6 +8057,7 @@ test("can get a document with references as actors that don’t have access to t
                             },
                         ],
                     ]),
+                    fileEntityById: undefined,
                     commentThreadById: new Map([]),
                 },
             },
@@ -8100,7 +8114,8 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 0,
                                     joinedTime: expect.any(Date),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -8114,7 +8129,10 @@ test("can get a document with references as actors that don’t have access to t
                                 space: {
                                     version: 1,
                                     joinedTime: expect.any(Date),
-                                    wasRemoved: true,
+                                    removal: expect.objectContaining({
+                                        time: expect.any(Date),
+                                    }),
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -8181,11 +8199,12 @@ test("can get a document with references as actors that don’t have access to t
                                 id: session2.account.id,
                                 version: -1073741824,
                                 name: session2.account.initialName,
-                                nameVersion: 0,
+                                nameVersion: -1073741824,
                                 space: {
                                     version: -1073741824,
                                     joinedTime: new Date(0),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -8195,11 +8214,12 @@ test("can get a document with references as actors that don’t have access to t
                                 id: session3.account.id,
                                 version: -1073741824,
                                 name: session3.account.initialName,
-                                nameVersion: 0,
+                                nameVersion: -1073741824,
                                 space: {
                                     version: -1073741823,
                                     joinedTime: new Date(0),
-                                    wasRemoved: false,
+                                    removal: null,
+                                    role: "Member",
                                 },
                             }),
                         ],
@@ -8214,6 +8234,7 @@ test("can get a document with references as actors that don’t have access to t
                             },
                         ],
                     ]),
+                    fileEntityById: undefined,
                     commentThreadById: new Map([]),
                 },
             },

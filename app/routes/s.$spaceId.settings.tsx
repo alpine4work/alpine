@@ -127,7 +127,7 @@ export default function SettingsLayout() {
     // FYI, it doesn't matter what we use here because we'll always
     // redirect to the non-settings route.
     const isSettingsRoute = nextPathname.match(/^\/s\/([^/]+)\/settings(?:\/|$)/);
-    let nextRoute: SettingsRoute = "general";
+    let nextRoute: SettingsRoute = currentRoute;
     if (isSettingsRoute) {
         nextRoute = parseSettingsRouteFromPathname(nextPathname);
     }
@@ -198,6 +198,7 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                             height="14"
                             display="flex"
                             alignItems="center"
+                            userSelect="text"
                         >
                             {title}
                             <Box
@@ -268,7 +269,7 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                     {renderRowLayout(
                         null,
                         <>
-                            <Box paddingY="5">
+                            <Box paddingY="8">
                                 <Outlet />
                             </Box>
                             <Box height="safe-area-inset-bottom" />

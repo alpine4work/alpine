@@ -33,15 +33,15 @@ export class TestAccount {
     public static async create(
         context: TestContext,
         {
+            id = generateId<AccountId>(),
             name = TestAccount.getNewName(),
             hasInternalAccess = false,
         }: {
+            id?: AccountId;
             name?: string;
             hasInternalAccess?: boolean;
         } = {},
     ) {
-        const id = generateId<AccountId>();
-
         await createAccountForTest(context, {
             id,
             name,

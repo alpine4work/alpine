@@ -13,7 +13,7 @@ import {
 } from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {addSpaceAccountForTest, removeSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {addSpaceAccountForTest, removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -12687,7 +12687,7 @@ test("authorizes a query with creator filter", async () => {
 
 test("can’t authorize a query with creator filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
-    const adminSession = await space.createSession({hasInternalAccess: true});
+    const adminSession = await space.createSession({role: "Admin"});
     const session = await space.createSession();
 
     await testAuthorizeTaskQueryAccess(session.action(), {
@@ -12710,7 +12710,7 @@ test("can’t authorize a query with creator filter if account access was remove
         ],
     });
 
-    await removeSpaceAccountAsAdmin(adminSession.action(), {
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session.account.id,
     });
@@ -12922,7 +12922,7 @@ test("authorizes a query with assignee filter", async () => {
 
 test("can’t authorize a query with assignee filter if account access was removed", async () => {
     const space = await TestSpace.create(context);
-    const adminSession = await space.createSession({hasInternalAccess: true});
+    const adminSession = await space.createSession({role: "Admin"});
     const session = await space.createSession();
 
     await testAuthorizeTaskQueryAccess(session.action(), {
@@ -12945,7 +12945,7 @@ test("can’t authorize a query with assignee filter if account access was remov
         ],
     });
 
-    await removeSpaceAccountAsAdmin(adminSession.action(), {
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session.account.id,
     });
@@ -14052,7 +14052,7 @@ test("must be allowed to access collection to sort by collection position with c
 test("must filter by assignee to sort by assignee position", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
-    const adminSession = await space.createSession({hasInternalAccess: true});
+    const adminSession = await space.createSession({role: "Admin"});
 
     await expect(
         testAuthorizeTaskQueryAccess(session.action(), {
@@ -14138,7 +14138,7 @@ test("must filter by assignee to sort by assignee position", async () => {
         ],
     });
 
-    await removeSpaceAccountAsAdmin(adminSession.action(), {
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session.account.id,
     });
@@ -14169,12 +14169,13 @@ test("must filter by assignee to sort by assignee position", async () => {
 test("must have space access to filter by creator", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
+    const adminSession = await space.createSession({role: "Admin"});
+
     const otherSpace = await TestSpace.create(context);
-    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+    await otherSpace.addAccount(session1.account);
 
-    await otherSpace.addAccount(session1);
-
-    await removeSpaceAccountAsAdmin(otherSession.action(), {
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session2.account.id,
     });
@@ -14420,10 +14421,13 @@ test("must have space access to filter by creator", async () => {
 test("must have space access to filter by assigner", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
-    const otherSpace = await TestSpace.create(context);
-    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+    const adminSession = await space.createSession({role: "Admin"});
 
-    await removeSpaceAccountAsAdmin(otherSession.action(), {
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+    await otherSpace.addAccount(session1.account);
+
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session2.account.id,
     });
@@ -14687,10 +14691,13 @@ test("must have space access to filter by assigner", async () => {
 test("must have space access to sort by creator", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
-    const otherSpace = await TestSpace.create(context);
-    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+    const adminSession = await space.createSession({role: "Admin"});
 
-    await removeSpaceAccountAsAdmin(otherSession.action(), {
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+    await otherSpace.addAccount(session1.account);
+
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session2.account.id,
     });
@@ -14826,10 +14833,13 @@ test("must have space access to sort by creator", async () => {
 test("must have space access to sort by assigner", async () => {
     const space = await TestSpace.create(context);
     const [session1, session2] = await space.createSessions(2);
-    const otherSpace = await TestSpace.create(context);
-    const otherSession = await otherSpace.createSession({hasInternalAccess: true});
+    const adminSession = await space.createSession({role: "Admin"});
 
-    await removeSpaceAccountAsAdmin(otherSession.action(), {
+    const otherSpace = await TestSpace.create(context);
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+    await otherSpace.addAccount(session1.account);
+
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session2.account.id,
     });
@@ -24238,7 +24248,7 @@ test("can authorize tasks in various states as various actors", async () => {
 
 test("account has access to tasks they create and tasks they’re assigned until they’re removed from the space", async () => {
     const space = await TestSpace.create(context);
-    const adminSession = await space.createSession({hasInternalAccess: true});
+    const adminSession = await space.createSession({role: "Admin"});
     const [session1, session2] = await space.createSessions(2);
 
     const task1 = await TestTask.create(session1);
@@ -24286,7 +24296,7 @@ test("account has access to tasks they create and tasks they’re assigned until
         true,
     );
 
-    await removeSpaceAccountAsAdmin(adminSession.action(), {
+    await removeSpaceAccount(adminSession.action(), {
         spaceId: space.id,
         accountId: session1.account.id,
     });

@@ -1,0 +1,23 @@
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
+import {SpaceRole} from "~/shared/spaces/space_model.js";
+
+/**
+ * Error message we show when the user is signed in but doesn't have access to
+ * the space they're trying to view.
+ */
+export const spaceAccessPermissionDeniedErrorDisplayMessage = errorDisplayMessage`You don’t have access to this space. Try ${errorDisplayMessage.switchSpaceLink(
+    "switching spaces",
+)} or ${errorDisplayMessage.signOutLink("signing out")}.`;
+
+/**
+ * Error messages we show when the user doesn't have the expected role in a space.
+ */
+export const spaceAccessPermissionDeniedErrorDisplayMessageByExpectedRole: Record<
+    SpaceRole,
+    ErrorDisplayMessage
+> = {
+    Member: spaceAccessPermissionDeniedErrorDisplayMessage,
+    Admin: errorDisplayMessage`You aren’t an admin for this space. Ask an admin in this space to give you admin access too.`,
+    Owner: errorDisplayMessage`This action is restricted to the owner. You aren’t an owner for this space.`,
+};

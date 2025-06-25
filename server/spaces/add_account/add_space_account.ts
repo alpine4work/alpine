@@ -1,16 +1,14 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {dangerouslyFavoriteSearchEntityWithoutAuthorization} from "~/server/search/data/table/search_entity_table.js";
-import {internalDangerouslyAddSpaceAccountAsAdmin} from "~/server/spaces/spaces_table.js";
+import {internalAddSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
- * Add an account to some space. Only administrators may call this method. But
- * administrators beware! Adding an account to a space gives the account access
- * to data within the space. Make sure you've been given permission by the
- * space owner before adding anyone new to their space.
+ * Add an account to some space. Only space admins may call this method.
  */
-export async function dangerouslyAddSpaceAccountAsAdmin(
+export function addSpaceAccount(
     context: ServerActionContext,
     {
         spaceId,
@@ -19,8 +17,8 @@ export async function dangerouslyAddSpaceAccountAsAdmin(
         spaceId: SpaceId;
         accountId: AccountId;
     },
-) {
-    await internalDangerouslyAddSpaceAccountAsAdmin(context, {
+): Promise<AccountModel> {
+    return internalAddSpaceAccount(context, {
         spaceId,
         accountId,
         favoriteSearchEntity: (

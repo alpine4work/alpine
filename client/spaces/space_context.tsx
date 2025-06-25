@@ -4,14 +4,12 @@ import {
     SpaceContextDefinition,
 } from "~/client/spaces/internal/space_context_definition.js";
 import {SpaceContext} from "~/client/spaces/space_context_types.js";
-import {
-    spaceAccessPermissionDeniedErrorDisplayMessage,
-    unauthenticatedErrorDisplayMessage,
-} from "~/shared/error/common_error_display_messages.js";
+import {unauthenticatedErrorDisplayMessage} from "~/shared/error/common_error_display_messages.js";
 import {InternalError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {MyAccountEvent} from "~/shared/notifications/my_account_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {spaceAccessPermissionDeniedErrorDisplayMessage} from "~/shared/spaces/space_error_messages.js";
 
 /**
  * Context available when we are in a space route. Throws an error if we are

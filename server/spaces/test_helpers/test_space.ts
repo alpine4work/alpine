@@ -14,7 +14,8 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 let testSpaceCount = 1;
 
@@ -62,7 +63,9 @@ export class TestSpace {
             name,
         });
 
-        return new TestSpace(context, id);
+        const space = new TestSpace(context, id);
+
+        return space;
     }
 
     public getTokenPayload(): SystemTokenPayload {
@@ -85,16 +88,35 @@ export class TestSpace {
         return this.context.systemAction(this.id);
     }
 
+    public impersonatedAction(account: AccountId | TestAccount | TestSpaceSession) {
+        return this.context.impersonatedAccountAction(
+            this.id,
+            account instanceof TestSpaceSession
+                ? account.account.id
+                : account instanceof TestAccount
+                ? account.id
+                : account,
+        );
+    }
+
     public async createSession(
-        account?: TestAccount | {name?: string; hasInternalAccess?: boolean},
+        account?:
+            | TestAccount
+            | {id?: AccountId; name?: string; hasInternalAccess?: boolean; role?: SpaceRole},
     ): Promise<TestSpaceSession> {
-        if (!account || !(account instanceof TestAccount)) {
-            account = await TestAccount.create(this.context, account);
+        let role: SpaceRole | undefined;
+        let actualAccount: TestAccount;
+
+        if (account instanceof TestAccount) {
+            actualAccount = account;
+        } else {
+            role = account?.role;
+            actualAccount = await TestAccount.create(this.context, account);
         }
 
         const [session] = await runAllPromises([
-            TestSpaceSession._create(this, account),
-            this.addAccountIfNotExists(account),
+            TestSpaceSession._create(this, actualAccount),
+            this.addAccountIfNotExists(actualAccount, role),
         ]);
 
         return session;
@@ -105,14 +127,15 @@ export class TestSpace {
         return runAllPromises(createArrayWithLength(count, () => this.createSession()));
     }
 
-    public async addAccount(account: TestAccount | TestSession) {
+    public async addAccount(account: TestAccount | TestSession, role?: SpaceRole) {
         await addSpaceAccountForTest(this.context, {
             spaceId: this.id,
             accountId: account instanceof TestSession ? account.account.id : account.id,
+            role: role ?? "Member",
         });
     }
 
-    public async addAccountIfNotExists(account: TestAccount | TestSession) {
+    public async addAccountIfNotExists(account: TestAccount | TestSession, role?: SpaceRole) {
         if (
             await isAccountMemberOfSpaceWithoutAuthorization(
                 this.context.clone({cache: new CacheContextModule()}),
@@ -123,6 +146,6 @@ export class TestSpace {
             return;
         }
 
-        await this.addAccount(account);
+        await this.addAccount(account, role);
     }
 }

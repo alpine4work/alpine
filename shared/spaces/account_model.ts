@@ -5,6 +5,7 @@ import {
 } from "~/shared/accounts/account_model_without_space.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SpaceRoleSchema} from "~/shared/spaces/space_model.js";
 
 export type AccountModelData = SchemaType<typeof AccountModelDataSchema>;
 
@@ -15,7 +16,8 @@ export const AccountModelDataSchema = AccountModelWithoutSpaceDataSchema.merge(
         space: Schema.object({
             version: Schema.integer,
             joinedTime: Schema.date,
-            wasRemoved: Schema.boolean,
+            removal: Schema.object({time: Schema.date}).nullable(),
+            role: SpaceRoleSchema.default("Member"),
         }),
     }),
 );
@@ -133,7 +135,8 @@ export class AccountModel implements AccountModelWithoutSpace {
             space: {
                 version: 0,
                 joinedTime: new Date(0),
-                wasRemoved: false,
+                removal: null,
+                role: "Member",
             },
         });
 

@@ -27,7 +27,8 @@ const accounts = [
         space: {
             version: 0,
             joinedTime: createdTime,
-            wasRemoved: false,
+            removal: null,
+            role: "Member",
         },
     }),
     new AccountModel({
@@ -38,7 +39,8 @@ const accounts = [
         space: {
             version: 0,
             joinedTime: createdTime,
-            wasRemoved: false,
+            removal: null,
+            role: "Member",
         },
     }),
     new AccountModel({
@@ -49,7 +51,8 @@ const accounts = [
         space: {
             version: 0,
             joinedTime: createdTime,
-            wasRemoved: false,
+            removal: null,
+            role: "Member",
         },
     }),
     new AccountModel({
@@ -60,7 +63,8 @@ const accounts = [
         space: {
             version: 0,
             joinedTime: createdTime,
-            wasRemoved: false,
+            removal: null,
+            role: "Member",
         },
     }),
     new AccountModel({
@@ -71,7 +75,8 @@ const accounts = [
         space: {
             version: 0,
             joinedTime: createdTime,
-            wasRemoved: false,
+            removal: null,
+            role: "Member",
         },
     }),
 ];

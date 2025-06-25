@@ -17,7 +17,6 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {EmailAddress, validateEmailAddress} from "~/server/emails/email_address.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
     FailedPreconditionError,
@@ -1129,10 +1128,10 @@ test("apple reviewer always has the same password", async () => {
 
 test("can authorize internal access", async () => {
     const space = await TestSpace.create(context);
-    const account1 = await TestAccount.create(context, {hasInternalAccess: true});
-    const session1 = await TestSession.create(account1);
+    const session1 = await space.createSession({hasInternalAccess: true});
+    const account1 = session1.account;
+    const session2 = await space.createSession();
     const account2 = await TestAccount.create(context);
-    const session2 = await TestSession.create(account2);
 
     await authorizeInternalAccess(session1.action());
 

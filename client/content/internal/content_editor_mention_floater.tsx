@@ -144,7 +144,7 @@ export function ContentEditorMentionFloater({
             //
             // TODO(calebmer): When searching, removed accounts should rank lower. How do
             // we give them a lower score while still allowing users to find them?
-            return allAccountDatas.filter(item => !item.space.wasRemoved);
+            return allAccountDatas.filter(item => !item.space.removal);
         }
         return allAccountsFuse.search(searchQuery).map(({item}) => item);
     }, [allAccountDatas, allAccountsFuse, searchQuery]);

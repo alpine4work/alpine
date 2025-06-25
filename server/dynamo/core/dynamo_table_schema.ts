@@ -2431,7 +2431,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             isConditionCheckErrorRetriable?: boolean;
             onAfterTransactionExecutedSuccessfully?: () => void;
         } = {},
-    ): DynamoTransactionEntry {
+    ): DynamoTransactionEntry & {newItem: Item} {
         return this._transactionPutItem(item, {
             condition: DynamoConditionExpression._unsafeRaw(
                 "attribute_not_exists(partitionKey)",
@@ -2461,7 +2461,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             condition?: DynamoCondition<Item>;
             onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>;
         } = {},
-    ): DynamoTransactionEntry {
+    ): DynamoTransactionEntry & {newItem: Item} {
         const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
             "attribute_exists(partitionKey)",
             DynamoConditionExpressionPrecedence.Function,
@@ -2502,7 +2502,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public transactionCreateOrReplaceItem<Item extends Types["Item"]>(
         item: Item,
         options?: {onAfterTransactionExecutedSuccessfully?: () => MaybePromise<void>},
-    ): DynamoTransactionEntry {
+    ): DynamoTransactionEntry & {newItem: Item} {
         return this._transactionPutItem(item, options);
     }
 
@@ -2526,7 +2526,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public transactionDirectlyUpdateItem<Item extends Types["Item"]>(
         item: Item,
         {condition}: {condition?: DynamoCondition<Item>} = {},
-    ): DynamoTransactionEntry {
+    ): DynamoTransactionEntry & {newItem: Item} {
         // Verify that the lock version was not changed by a concurrent writer.
         const updateLockVersionCondition = DynamoConditionExpression.from<Item>({
             updateLockVersion:
@@ -2595,7 +2595,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                   isConditionCheckErrorRetriable?: undefined;
               }
         ) = {},
-    ): DynamoTransactionEntry {
+    ): DynamoTransactionEntry & {newItem: Item} {
         // If our schema is write incompatible with the old schema then throw an error.
         // Do not allow writing to this table until the generated schema has been
         // updated.
@@ -2608,17 +2608,20 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {attributesSchema, serializedItem} = this._serializeItem(item);
 
         if (condition === undefined) {
-            return DynamoClient.transactionPutItem({
-                tableName: this._name,
-                item: serializedItem,
-                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
-                onAfterTransactionExecutedSuccessfully,
-                debugItemType: {
+            return Object.assign(
+                DynamoClient.transactionPutItem({
                     tableName: this._name,
-                    partitionType: item.partitionType,
-                    sortRangeType: item.sortRangeType,
-                },
-            });
+                    item: serializedItem,
+                    onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+                    onAfterTransactionExecutedSuccessfully,
+                    debugItemType: {
+                        tableName: this._name,
+                        partitionType: item.partitionType,
+                        sortRangeType: item.sortRangeType,
+                    },
+                }),
+                {newItem: item},
+            );
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
             const conditionExpression = DynamoConditionExpression.from(condition);
@@ -2627,23 +2630,28 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 conditionCompilationContext,
             );
 
-            return DynamoClient.transactionPutItem({
-                tableName: this._name,
-                item: serializedItem,
-                conditionExpression: conditionExpressionString,
-                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
-                expressionAttributeNames: new Map(
-                    conditionCompilationContext.iterateAttributeNames(),
-                ),
-                isConditionCheckErrorRetriable,
-                onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
-                onAfterTransactionExecutedSuccessfully,
-                debugItemType: {
+            return Object.assign(
+                DynamoClient.transactionPutItem({
                     tableName: this._name,
-                    partitionType: item.partitionType,
-                    sortRangeType: item.sortRangeType,
-                },
-            });
+                    item: serializedItem,
+                    conditionExpression: conditionExpressionString,
+                    expressionAttributeValues: new Map(
+                        conditionCompilationContext.iterateVariables(),
+                    ),
+                    expressionAttributeNames: new Map(
+                        conditionCompilationContext.iterateAttributeNames(),
+                    ),
+                    isConditionCheckErrorRetriable,
+                    onBeforeExecuteTransaction: this._handleBeforeExecuteTransaction,
+                    onAfterTransactionExecutedSuccessfully,
+                    debugItemType: {
+                        tableName: this._name,
+                        partitionType: item.partitionType,
+                        sortRangeType: item.sortRangeType,
+                    },
+                }),
+                {newItem: item},
+            );
         }
     }
 

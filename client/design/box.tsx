@@ -1,7 +1,13 @@
 import {DetailedHTMLProps, HTMLAttributes, Ref, createElement, forwardRef} from "react";
 import {Sprinkles, sprinkles} from "~/client/styles/styles.js";
 
-export type BoxProps = Sprinkles & Omit<HTMLAttributes<HTMLDivElement>, keyof Sprinkles>;
+export type BoxProps = Sprinkles &
+    Omit<HTMLAttributes<HTMLElement>, keyof Sprinkles> & {
+        /**
+         * The HTML element to render as. Defaults to 'div'.
+         */
+        as?: keyof JSX.IntrinsicElements;
+    };
 
 const BoxForwardRef = forwardRef(Box);
 export {BoxForwardRef as Box};
@@ -10,25 +16,30 @@ export {BoxForwardRef as Box};
 // plugin that inlines this component into `<div>`s and pre-computes the
 // `sprinkles()` function call. The only time we shouldn't inline this
 // component is if there's a spread in the props we can't statically analyze.
-function Box(props: BoxProps, ref: Ref<HTMLDivElement>) {
+function Box(props: BoxProps, ref: Ref<HTMLElement>) {
     const sprinklesProps: Sprinkles = {};
-    const divProps: DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement> = {};
+    const elementProps: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> = {};
+    let as: keyof JSX.IntrinsicElements = "div";
 
     for (const [key, value] of Object.entries(props)) {
-        if (sprinkles.properties.has(key as any)) {
+        if (key === "as") {
+            // Check if we are using the `Box` component as any other HTMLElement
+            // and extract that value.
+            as = value;
+        } else if (sprinkles.properties.has(key as any)) {
             (sprinklesProps as any)[key] = value;
         } else {
-            (divProps as any)[key] = value;
+            (elementProps as any)[key] = value;
         }
     }
 
     const sprinklesClassName = sprinkles(sprinklesProps);
 
-    divProps.ref = ref;
+    elementProps.ref = ref;
 
-    divProps.className = divProps.className
-        ? `${divProps.className} ${sprinklesClassName}`
+    elementProps.className = elementProps.className
+        ? `${elementProps.className} ${sprinklesClassName}`
         : sprinklesClassName;
 
-    return createElement("div", divProps);
+    return createElement(as, elementProps);
 }

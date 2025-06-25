@@ -48,7 +48,7 @@ export class TestSpaceSession extends TestSession {
      * Get the `AccountModel` for this session's account.
      */
     public override get(): Promise<AccountModel> {
-        return getAccount(this.action(), this.space.id, this.account.id);
+        return getAccount(this.space.systemAction(), this.space.id, this.account.id);
     }
 
     /**
@@ -57,7 +57,7 @@ export class TestSpaceSession extends TestSession {
      */
     public async getStub(): Promise<AccountModel> {
         const account = await dangerouslyGetAccountStubIfExistsWithoutAuthorization(
-            this.action(),
+            this.space.systemAction(),
             this.space.id,
             this.account.id,
         );

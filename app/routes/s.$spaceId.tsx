@@ -100,9 +100,9 @@ import {
     updateOurAccountName,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {
+    addSpaceAccount,
     createAlphaSpaceAsAdmin,
-    dangerouslyAddSpaceAccountAsAdmin,
-    removeSpaceAccountAsAdmin,
+    removeSpaceAccount,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
@@ -383,14 +383,11 @@ export default function SpaceLayoutRoute() {
             const output = await createAlphaSpaceAsAdmin(context, input);
             return output;
         },
-        dangerouslyAddSpaceAccountAsAdmin: async (input: {
-            spaceId: SpaceId;
-            accountId: AccountId;
-        }) => {
-            await dangerouslyAddSpaceAccountAsAdmin(context, input);
+        addSpaceAccount: async (input: {spaceId: SpaceId; accountId: AccountId}) => {
+            await addSpaceAccount(context, input);
         },
-        removeSpaceAccountAsAdmin: async (input: {spaceId: SpaceId; accountId: AccountId}) => {
-            await removeSpaceAccountAsAdmin(context, input);
+        removeSpaceAccount: async (input: {spaceId: SpaceId; accountId: AccountId}) => {
+            await removeSpaceAccount(context, input);
         },
     }));
 

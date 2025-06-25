@@ -8953,6 +8953,17 @@ export const dynamoGeneratedSchemaDescription: {
                             "attributesSchema": {
                                 "type": "Object",
                                 "propertySchemaByKey": {
+                                    "role": {
+                                        "valueSchema": {
+                                            "type": "Enum",
+                                            "values": [
+                                                "Owner",
+                                                "Admin",
+                                                "Member"
+                                            ]
+                                        },
+                                        "optional": true
+                                    },
                                     "joinedTime": {
                                         "valueSchema": {
                                             "type": "Date"

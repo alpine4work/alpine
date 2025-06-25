@@ -8,6 +8,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {SpaceRole} from "~/shared/spaces/space_model.js";
 
 export type TestSessionItem = {
     readonly sessionId: SessionId;
@@ -33,9 +34,11 @@ export function createTestSession(
     {
         name = `Test Account ${accountNameCounter++}`,
         hasInternalAccess = false,
+        role = "Member",
     }: {
         name?: string;
         hasInternalAccess?: boolean;
+        role?: SpaceRole;
     } = {},
 ): TestSessionItem {
     const sessionId = generateId<SessionId>();
@@ -68,6 +71,7 @@ export function createTestSession(
             await addSpaceAccountForTest(context, {
                 spaceId: space.id,
                 accountId,
+                role,
             }),
         ]);
 

@@ -43,7 +43,8 @@ const currentAccount = new AccountModel({
     space: {
         version: 0,
         joinedTime: createdTime,
-        wasRemoved: false,
+        removal: null,
+        role: "Member",
     },
 });
 
