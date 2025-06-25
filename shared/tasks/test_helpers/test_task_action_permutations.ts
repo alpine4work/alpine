@@ -38,8 +38,12 @@ import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
-import {TaskTitle, emptyTaskTitle, getTaskTitleProsemirrorNode} from "~/shared/tasks/task_title.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
+import {
+    TaskTitle,
+    emptyTaskTitle,
+    getTaskTitleProsemirrorNode,
+} from "~/shared/tasks/title/task_title.js";
 
 // These test cases should only be used in Jest tests.
 assert(import.meta.jest);

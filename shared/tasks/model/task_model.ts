@@ -38,7 +38,7 @@ import {
     TaskSortableAccountSchema,
 } from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatus, TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {TaskTitleModel, emptyTaskTitleModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 export type TaskModelData = SchemaType<typeof TaskModelDataSchema>;
 

@@ -25,11 +25,11 @@ import {
     defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskTitleModel, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 import {
     sentenceTaskTitleTestScenario,
     wordTaskTitleTestScenario,
 } from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
+import {TaskTitleModel, TaskTitleUpdate} from "~/shared/tasks/title/task_title.js";
 
 const baseContext = createTestContext({shouldStartOpensearch: true});
 

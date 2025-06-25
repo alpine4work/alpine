@@ -16,7 +16,7 @@ import {TaskPositionRegister} from "~/shared/tasks/task_position.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
+import {emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
 
 export function createEmptyTaskIndexDoc(
     actionTime: HybridLogicalTime,

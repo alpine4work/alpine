@@ -1,6 +1,6 @@
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {TaskTitle, TaskTitleUpdate, emptyTaskTitleModel} from "~/shared/tasks/task_title.js";
+import {TaskTitle, TaskTitleUpdate, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 assert(process.env.NODE_ENV === "test");
 

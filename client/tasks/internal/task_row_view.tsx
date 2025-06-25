@@ -128,7 +128,7 @@ import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskTitleUpdateModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateModel} from "~/shared/tasks/title/task_title.js";
 
 export type TaskGridViewColumn =
     | "ExpandButton"

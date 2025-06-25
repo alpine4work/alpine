@@ -71,7 +71,7 @@ import {
     TaskPriorityRegister,
 } from "~/shared/tasks/task_priority.js";
 import {TaskStatus, TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {TaskTitle, getTaskTitleText} from "~/shared/tasks/task_title.js";
+import {TaskTitle, getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 
 /**
  * Indexes an account and inlines the account's name and the account's

@@ -5,11 +5,15 @@ import {EditorView} from "prosemirror-view";
 import {prosemirrorToYXmlFragment, ySyncPlugin} from "y-prosemirror";
 import * as Y from "yjs";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {TaskTitle, TaskTitleProsemirrorSchema, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 import {
     sentenceTaskTitleTestScenario,
     wordTaskTitleTestScenario,
 } from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
+import {
+    TaskTitle,
+    TaskTitleProsemirrorSchema,
+    TaskTitleUpdate,
+} from "~/shared/tasks/title/task_title.js";
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;

@@ -27,7 +27,7 @@ import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
-import {addFallbackToTaskTitle} from "~/shared/tasks/task_title.js";
+import {addFallbackToTaskTitle} from "~/shared/tasks/title/task_title.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 const LoaderSchema = Schema.object({

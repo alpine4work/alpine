@@ -14,7 +14,7 @@ import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPositionByCollectionIdMap} from "~/shared/tasks/task_position_by_collection_id_map.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {TaskTitleModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const unknownTaskSortableAccount = new Lazy((): TaskSortableAccount => {
     const unknownAccount = AccountModel.getUnknown();

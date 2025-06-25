@@ -47,7 +47,7 @@ import {
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 

@@ -4,7 +4,7 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {TaskTitleUpdateModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateModel} from "~/shared/tasks/title/task_title.js";
 
 export type TaskQueryNormalizedFiltersInitialFieldsModel = {
     readonly status: "Open" | "Closed";

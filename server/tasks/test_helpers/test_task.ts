@@ -51,7 +51,7 @@ import {
     applyTaskTitleUpdate,
     createTaskTitleFromText,
     emptyTaskTitle,
-} from "~/shared/tasks/task_title.js";
+} from "~/shared/tasks/title/task_title.js";
 
 const schema = TaskNotesContentProsemirrorSchema;
 

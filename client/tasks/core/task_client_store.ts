@@ -83,7 +83,7 @@ import {
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
-import {TaskTitleUpdateModel, mergeTaskTitleUpdates} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateModel, mergeTaskTitleUpdates} from "~/shared/tasks/title/task_title.js";
 
 export type TaskClientStoreTaskEntry =
     // Task initialized and known authorization state:

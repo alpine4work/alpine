@@ -16,7 +16,7 @@ import {
     mergeTaskSortableAccounts,
 } from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
-import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {applyTaskTitleUpdate} from "~/shared/tasks/title/task_title.js";
 
 /**
  * Applies a `TaskTaskAction` to a `TaskIndexDoc`. `TaskTaskAction`s are

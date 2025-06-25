@@ -80,7 +80,7 @@ import {
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskRealtimeLoadQueriesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/task_title.js";
+import {addFallbackToTaskTitle, emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,

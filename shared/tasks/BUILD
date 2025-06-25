@@ -23,6 +23,8 @@ ts_project(
         "//shared/messaging",
         "//shared/prosemirror",
         "//shared/schema",
+        "//shared/search",
+        "//shared/tasks/title",
         "//shared/web_socket",
     ],
 )

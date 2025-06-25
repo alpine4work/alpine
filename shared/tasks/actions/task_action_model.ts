@@ -7,7 +7,7 @@ import {
     TaskUpdateTitleAction,
 } from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
-import {TaskTitleUpdate, TaskTitleUpdateModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdate, TaskTitleUpdateModel} from "~/shared/tasks/title/task_title.js";
 
 /**
  * `TaskAction` but you can change the type of `titleUpdate` in the

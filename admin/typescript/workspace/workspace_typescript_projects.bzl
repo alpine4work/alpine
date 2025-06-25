@@ -162,6 +162,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/store:store",
     "//shared/tasks:tasks",
     "//shared/tasks/test_helpers:test_helpers",
+    "//shared/tasks/title:title",
     "//shared/tracer:tracer",
     "//shared/tracer/dev:dev",
     "//shared/web_socket:web_socket",

@@ -28,7 +28,7 @@ import {
     TaskTitleModel,
     createTaskTitleFromText,
     emptyTaskTitle,
-} from "~/shared/tasks/task_title.js";
+} from "~/shared/tasks/title/task_title.js";
 
 test("merging identical tasks returns a referentially equal value to the first one", () => {
     const spaceId = generateId<SpaceId>();

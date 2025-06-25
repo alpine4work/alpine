@@ -129,7 +129,7 @@ import {
     addFallbackToTaskTitle,
     emptyTaskTitleModel,
     taskFallbackTitle,
-} from "~/shared/tasks/task_title.js";
+} from "~/shared/tasks/title/task_title.js";
 
 export function TaskDetailView({
     taskId,

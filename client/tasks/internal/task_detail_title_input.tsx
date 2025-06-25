@@ -36,7 +36,7 @@ import {
     TaskTitleModel,
     TaskTitleProsemirrorSchema,
     TaskTitleUpdateModel,
-} from "~/shared/tasks/task_title.js";
+} from "~/shared/tasks/title/task_title.js";
 
 export type TaskDetailTitleInputRef = {
     isFocused(): boolean;

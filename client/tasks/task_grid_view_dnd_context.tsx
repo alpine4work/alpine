@@ -44,7 +44,7 @@ import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskTitleModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 export type TaskGridViewDraggableData = {
     readonly type: "Row";

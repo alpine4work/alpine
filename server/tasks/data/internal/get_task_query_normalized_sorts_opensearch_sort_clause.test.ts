@@ -30,7 +30,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {compareTaskQuerySortCursors} from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskTitleModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
 

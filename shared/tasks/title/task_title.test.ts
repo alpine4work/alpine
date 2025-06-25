@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import {decodeBase64} from "~/shared/helpers/binary/base64.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 import {
     TaskTitle,
     TaskTitleModel,
@@ -18,8 +19,7 @@ import {
     isTaskTitle,
     mergeTaskTitleUpdates,
     realmTaskTitleClientId,
-} from "~/shared/tasks/task_title.js";
-import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
+} from "~/shared/tasks/title/task_title.js";
 
 test("can get task title text", () => {
     expect(getTaskTitleText(emptyTaskTitle.get())).toEqual("");

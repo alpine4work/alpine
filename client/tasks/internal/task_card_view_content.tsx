@@ -23,7 +23,7 @@ import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
-import {TaskTitleModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const TaskCardViewContentForwardRef = forwardRef(TaskCardViewContent);
 export {TaskCardViewContentForwardRef as TaskCardViewContent};

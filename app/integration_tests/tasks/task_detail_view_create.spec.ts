@@ -14,7 +14,7 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
-import {getTaskTitleText} from "~/shared/tasks/task_title.js";
+import {getTaskTitleText} from "~/shared/tasks/title/task_title.js";
 
 const {context, services} = createTestServices();
 

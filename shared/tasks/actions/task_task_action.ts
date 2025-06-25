@@ -10,7 +10,7 @@ import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";
 import {TaskPositionSchema} from "~/shared/tasks/task_position.js";
 import {TaskPrioritySchema} from "~/shared/tasks/task_priority.js";
 import {TaskStatusSchema} from "~/shared/tasks/task_status.js";
-import {TaskTitleUpdateSchema} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateSchema} from "~/shared/tasks/title/task_title.js";
 
 // We're in a tricky position with our naming convention. The namespace for all
 // task related code is "task". However, with these actions we want to

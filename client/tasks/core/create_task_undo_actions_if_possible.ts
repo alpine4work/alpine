@@ -25,7 +25,7 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {upcastTaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
-import {TaskTitleUpdateModel, emptyTaskTitleUpdateModel} from "~/shared/tasks/task_title.js";
+import {TaskTitleUpdateModel, emptyTaskTitleUpdateModel} from "~/shared/tasks/title/task_title.js";
 
 // We use an interface to prevent you from calling methods that mutate the
 // store or accessing `store.clock`.
