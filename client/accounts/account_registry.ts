@@ -1,5 +1,6 @@
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -36,19 +37,19 @@ export class AccountRegistry {
     // We could use a simple `Map` but that would lead to a memory leak since
     // account data would never be garbage collected. Account data is small so
     // arguably a memory leak is acceptable.
-    private readonly _accountDataStoreById = new AdvancedWeakValuesMap<
+    private readonly _accountStoreById = new AdvancedWeakValuesMap<
         AccountId,
         ValueStore<AccountModelData>
     >();
 
-    private readonly _accountDataStoreByModel = new WeakMap<
+    private readonly _accountStoreByModel = new WeakMap<
         AccountModel,
         ValueStore<AccountModelData>
     >();
 
     private _getAccountStoreWithoutUpdating(account: AccountModel): ValueStore<AccountModelData> {
         const accountStore = getOrSetDefaultMapValue(
-            this._accountDataStoreById,
+            this._accountStoreById,
             account.id,
             () => new ValueStore(account.initialData),
         );
@@ -64,7 +65,7 @@ export class AccountRegistry {
         // `AccountModel` will still be referenced by whatever data is backing the
         // virtualized scroll view. So keep a reference to the store alive while the
         // `AccountModel` is alive.
-        this._accountDataStoreByModel.set(account, accountStore);
+        this._accountStoreByModel.set(account, accountStore);
 
         return accountStore;
     }
@@ -82,12 +83,15 @@ export class AccountRegistry {
     public getAccountStore(account: AccountModel): Store<AccountModelData> {
         const accountStore = this._getAccountStoreWithoutUpdating(account);
 
-        const accountSnapshot = accountStore.getSnapshot();
-        if (
-            accountSnapshot.version < account.initialData.version ||
-            accountSnapshot.space.version < account.initialData.space.version
-        ) {
-            this._scheduleAccountUpdate(account);
+        // Don't schedule account update on the server.
+        if (typeof window !== "undefined") {
+            const accountSnapshot = accountStore.getSnapshot();
+            if (
+                accountSnapshot.version < account.initialData.version ||
+                accountSnapshot.space.version < account.initialData.space.version
+            ) {
+                this._scheduleAccountUpdate(account);
+            }
         }
 
         return accountStore;
@@ -136,7 +140,7 @@ export class AccountRegistry {
     public immediatelyUpdateAccountStoreIfExists(
         newAccount: AccountModel | AccountModelWithoutSpace,
     ) {
-        const accountStore = this._accountDataStoreById.get(newAccount.id);
+        const accountStore = this._accountStoreById.get(newAccount.id);
 
         accountStore?.set(oldAccountData =>
             newAccount instanceof AccountModel
@@ -153,10 +157,12 @@ export class AccountRegistry {
      * returns null. That's why this is a "weak" get.
      */
     public weakGetAccountStoreByIdIfExists(accountId: AccountId): Store<AccountModelData> | null {
-        return this._accountDataStoreById.get(accountId) ?? null;
+        return this._accountStoreById.get(accountId) ?? null;
     }
 
     private _scheduleAccountUpdate(account: AccountModel) {
+        assert(typeof window !== "undefined");
+
         if (this._scheduledAccountUpdates !== null) {
             this._scheduledAccountUpdates.add(account);
         } else {
@@ -178,7 +184,7 @@ export class AccountRegistry {
 
         batchStoreUpdates(() => {
             for (const newAccount of scheduledAccountUpdates) {
-                this._accountDataStoreById
+                this._accountStoreById
                     .get(newAccount.id)
                     ?.set(oldAccountData =>
                         AccountModel.mergeData(oldAccountData, newAccount.initialData),

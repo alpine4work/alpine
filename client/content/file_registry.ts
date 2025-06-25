@@ -135,12 +135,12 @@ export class FileRegistry {
     // We could use a simple `Map` but that would lead to a memory leak since
     // file data would never be garbage collected. Account data is small so
     // arguably a memory leak is acceptable.
-    private readonly _fileDataStoreById = new AdvancedWeakValuesMap<
+    private readonly _fileStoreById = new AdvancedWeakValuesMap<
         FileId,
         ValueStore<FileModelRegistryData>
     >();
 
-    private readonly _fileDataStoreByModel = new WeakMap<
+    private readonly _fileStoreByModel = new WeakMap<
         FileModel,
         ValueStore<FileModelRegistryData>
     >();
@@ -156,7 +156,7 @@ export class FileRegistry {
         fileData: FileModelRegistryData,
     ): ValueStore<FileModelRegistryData> {
         const fileStore = getOrSetDefaultMapValue(
-            this._fileDataStoreById,
+            this._fileStoreById,
             file.id,
             () => new ValueStore(fileData),
         );
@@ -172,7 +172,7 @@ export class FileRegistry {
         // `FileModel` will still be referenced by whatever data is backing the
         // virtualized scroll view. So keep a reference to the store alive while the
         // `FileModel` is alive.
-        this._fileDataStoreByModel.set(file, fileStore);
+        this._fileStoreByModel.set(file, fileStore);
 
         return fileStore;
     }
@@ -197,9 +197,12 @@ export class FileRegistry {
 
         const fileStore = this._getFileStoreWithoutUpdating(file, fileData);
 
-        const fileDataSnapshot = fileStore.getSnapshot();
-        if (mergeFileModelRegistryData(fileDataSnapshot, fileData) !== fileDataSnapshot) {
-            this._scheduleFileUpdate(fileData);
+        // Don't schedule file update on the server.
+        if (typeof window !== "undefined") {
+            const fileDataSnapshot = fileStore.getSnapshot();
+            if (mergeFileModelRegistryData(fileDataSnapshot, fileData) !== fileDataSnapshot) {
+                this._scheduleFileUpdate(fileData);
+            }
         }
 
         return fileStore;
@@ -225,6 +228,8 @@ export class FileRegistry {
     }
 
     private _scheduleFileUpdate(data: FileModelRegistryData) {
+        assert(typeof window !== "undefined");
+
         if (this._scheduledFileUpdates !== null) {
             this._scheduledFileUpdates.push(data);
         } else {
@@ -246,7 +251,7 @@ export class FileRegistry {
 
         batchStoreUpdates(() => {
             for (const newFileData of scheduledFileUpdates) {
-                this._fileDataStoreById
+                this._fileStoreById
                     .get(newFileData.id)
                     ?.set(oldFileData => mergeFileModelRegistryData(oldFileData, newFileData));
             }
@@ -291,7 +296,7 @@ export class FileRegistry {
             "file" in initialFileDataOrReference
                 ? this._getFileStore(initialFileDataOrReference)
                 : getOrSetDefaultMapValue(
-                      this._fileDataStoreById,
+                      this._fileStoreById,
                       initialFileDataOrReference.id,
                       () => new ValueStore(initialFileDataOrReference),
                   );
