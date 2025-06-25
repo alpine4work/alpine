@@ -1,5 +1,5 @@
 import {Check, DiceSix} from "phosphor-react";
-import {RefObject, forwardRef, useCallback, useEffect, useId, useMemo, useState} from "react";
+import {RefObject, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {usePress} from "react-aria";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
@@ -32,9 +32,6 @@ import {DocumentContentWithReferences} from "~/shared/documents/document_content
 import {randomArrayItem} from "~/shared/helpers/array/random_array_item.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-
-const DocumentContentCoverModalForwardRef = forwardRef(DocumentContentCoverModal);
-export {DocumentContentCoverModalForwardRef as DocumentContentCoverModal};
 
 function DocumentContentCoverBlobsArtOption({
     blob,
@@ -163,7 +160,7 @@ function createOptions(
     return options;
 }
 
-function DocumentContentCoverModal({
+export function DocumentContentCoverModal({
     editorRef,
     editorState,
     onClose,
@@ -182,13 +179,19 @@ function DocumentContentCoverModal({
 
     const [blobOptions, setBlobOptions] = useState(() => {
         const blobsCover =
-            currentlySetDocumentContentCover === "Blobs" ? currentlySetDocumentContentCover : null;
+            currentlySetDocumentContentCover?.type === "Blobs"
+                ? currentlySetDocumentContentCover
+                : null;
         return createOptions(blobsCover, blobsCover ? 0 : null);
     });
 
     // If content cover changes on another client, update it here
     useEffect(() => {
-        if (!currentlySetDocumentContentCover || currentlySetDocumentContentCover.type !== "Blobs")
+        if (
+            isMobile ||
+            !currentlySetDocumentContentCover ||
+            currentlySetDocumentContentCover.type !== "Blobs"
+        )
             return;
 
         const currentlySetBlobOption = blobOptions.findIndex(
@@ -226,7 +229,7 @@ function DocumentContentCoverModal({
         });
 
         setSelectedBlobOption(firstIndexThatIsNotTheSameBlob);
-    }, [currentlySetDocumentContentCover, blobOptions, selectedBlobOption]);
+    }, [isMobile, currentlySetDocumentContentCover, blobOptions, selectedBlobOption]);
 
     const onRefresh = useCallback(() => {
         setBlobOptions(
@@ -275,6 +278,15 @@ function DocumentContentCoverModal({
     );
 
     if (isMobile) {
+        const saveDisabled =
+            (!currentlySetDocumentContentCover && selectedBlobOption === null) ||
+            (selectedBlobOption !== null &&
+                currentlySetDocumentContentCover?.seed === blobOptions[selectedBlobOption]?.seed &&
+                currentlySetDocumentContentCover?.themeColor ===
+                    blobOptions[selectedBlobOption]?.themeColor &&
+                currentlySetDocumentContentCover?.hueSpread ===
+                    blobOptions[selectedBlobOption]?.hueSpread);
+
         return (
             <DocumentContentCoverModalMobileView
                 blobOptions={blobOptions}
@@ -283,6 +295,7 @@ function DocumentContentCoverModal({
                 onSave={onSave}
                 onRefresh={onRefresh}
                 onClose={onClose}
+                saveDisabled={saveDisabled}
             />
         );
     } else {
@@ -427,6 +440,7 @@ function DocumentContentCoverModalDesktopView({
 function DocumentContentCoverModalMobileView({
     blobOptions,
     selectedBlobOption,
+    saveDisabled,
     onSelectBlobOption,
     onSave,
     onClose,
@@ -434,6 +448,7 @@ function DocumentContentCoverModalMobileView({
 }: {
     blobOptions: BlobCoverOptionsType;
     selectedBlobOption: number | null;
+    saveDisabled: boolean;
     onSelectBlobOption: (index: number | null) => void;
     onSave: () => void;
     onClose: () => void;
@@ -453,6 +468,7 @@ function DocumentContentCoverModalMobileView({
                         >
                             <Button
                                 fontSize="100"
+                                isDisabled={saveDisabled}
                                 pressErrorTitle="Couldn’t save cover"
                                 onPress={() => {
                                     onSave();
