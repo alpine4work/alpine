@@ -215,7 +215,7 @@ test("will copy/paste from vscode as code block lines", async () => {
     );
 
     expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("function addNumbers() {"), codeBlockLine("    const a = 1;"), codeBlockLine("    const b = 2;"), codeBlockLine("    return a + b;"), codeBlockLine("}"), codeBlockLine))',
+        'doc(codeBlock(codeBlockLine("function addNumbers() {"), codeBlockLine("    const a = 1;"), codeBlockLine("    const b = 2;"), codeBlockLine("    return a + b;"), codeBlockLine("}")))',
     );
 });
 
@@ -238,7 +238,7 @@ test("will copy/paste from gist as code block lines", async () => {
     );
 
     expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}"), codeBlockLine))',
+        'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}")))',
     );
 });
 
@@ -284,7 +284,7 @@ test("will copy/paste from alpine as div code block lines", async () => {
     );
 
     expect(getDoc().toString()).toEqual(
-        'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}"), codeBlockLine))',
+        'doc(codeBlock(codeBlockLine("const addNumbers = () => {"), codeBlockLine("  const a = 1;"), codeBlockLine("  const b = 2;"), codeBlockLine("  return a + b;"), codeBlockLine("}")))',
     );
 });
 
@@ -579,5 +579,123 @@ console.log(a + b);</code></pre>`,
 
     expect(getDoc().toString()).toEqual(
         'doc(title, unorderedListItem(paragraph("test")), codeBlock(codeBlockLine("let a = 1;"), codeBlockLine("let b = 2;"), codeBlockLine, codeBlockLine("console.log(a + b);")))',
+    );
+});
+
+test("will paste word from VSCode", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [{type: "title"}, {type: "paragraph"}],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(3))));
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<div><div style="color: #cccccc;background-color: #1f1f1f;font-family: Menlo, Monaco, 'Courier New', monospace;font-weight: normal;font-size: 12px;line-height: 18px;white-space: pre;"><div><span style="color: #dcdcaa;">transformPastedDOM</span></div></div></div>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual('doc(title, paragraph(code("transformPastedDOM")))');
+});
+
+test("will paste multiple lines of code from VSCode", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [{type: "title"}, {type: "paragraph"}],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(3))));
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<div><div style="color: #cccccc;background-color: #1f1f1f;font-family: Menlo, Monaco, 'Courier New', monospace;font-weight: normal;font-size: 12px;line-height: 18px;white-space: pre;"><div><span style="color: #569cd6;">const</span><span style="color: #cccccc;"> </span><span style="color: #dcdcaa;">generateFileIdWithSynchronizedClock</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">=</span><span style="color: #cccccc;"> () </span><span style="color: #569cd6;">=&gt;</span><span style="color: #cccccc;"> {</span></div><div><span style="color: #cccccc;">    </span><span style="color: #569cd6;">const</span><span style="color: #cccccc;"> </span><span style="color: #4fc1ff;">clock</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">=</span></div><div><span style="color: #cccccc;">        </span><span style="color: #dcdcaa;">getSynchronizedSystemClock</span><span style="color: #cccccc;">().</span><span style="color: #dcdcaa;">getStateWithoutListening</span><span style="color: #cccccc;">().</span><span style="color: #9cdcfe;">value</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">??</span></div><div><span style="color: #cccccc;">        </span><span style="color: #4fc1ff;">unsynchronizedSystemClock</span><span style="color: #cccccc;">;</span></div><br><div><span style="color: #cccccc;">    </span><span style="color: #c586c0;">return</span><span style="color: #cccccc;"> </span><span style="color: #dcdcaa;">generateChronologicalIdWithTime</span><span style="color: #cccccc;">&lt;</span><span style="color: #4ec9b0;">FileId</span><span style="color: #cccccc;">&gt;(</span><span style="color: #9cdcfe;">Math</span><span style="color: #cccccc;">.</span><span style="color: #dcdcaa;">round</span><span style="color: #cccccc;">(</span><span style="color: #4fc1ff;">clock</span><span style="color: #cccccc;">.</span><span style="color: #dcdcaa;">now</span><span style="color: #cccccc;">()));</span></div><div><span style="color: #cccccc;">};</span></div><br></div></div>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, codeBlock(codeBlockLine("const generateFileIdWithSynchronizedClock = () => {"), codeBlockLine("    const clock ="), codeBlockLine("        getSynchronizedSystemClock().getStateWithoutListening().value ??"), codeBlockLine("        unsynchronizedSystemClock;"), codeBlockLine("    return generateChronologicalIdWithTime<FileId>(Math.round(clock.now()));"), codeBlockLine("};")))',
+    );
+});
+
+test("will paste multiple lines of code from VSCode which end with a newline", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [{type: "title"}, {type: "paragraph"}],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(3))));
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<div><div style="color: #cccccc;background-color: #1f1f1f;font-family: Menlo, Monaco, 'Courier New', monospace;font-weight: normal;font-size: 12px;line-height: 18px;white-space: pre;"><div><span style="color: #569cd6;">const</span><span style="color: #cccccc;"> </span><span style="color: #dcdcaa;">generateFileIdWithSynchronizedClock</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">=</span><span style="color: #cccccc;"> () </span><span style="color: #569cd6;">=&gt;</span><span style="color: #cccccc;"> {</span></div><div><span style="color: #cccccc;">    </span><span style="color: #569cd6;">const</span><span style="color: #cccccc;"> </span><span style="color: #4fc1ff;">clock</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">=</span></div><div><span style="color: #cccccc;">        </span><span style="color: #dcdcaa;">getSynchronizedSystemClock</span><span style="color: #cccccc;">().</span><span style="color: #dcdcaa;">getStateWithoutListening</span><span style="color: #cccccc;">().</span><span style="color: #9cdcfe;">value</span><span style="color: #cccccc;"> </span><span style="color: #d4d4d4;">??</span></div><div><span style="color: #cccccc;">        </span><span style="color: #4fc1ff;">unsynchronizedSystemClock</span><span style="color: #cccccc;">;</span></div><br><div><span style="color: #cccccc;">    </span><span style="color: #c586c0;">return</span><span style="color: #cccccc;"> </span><span style="color: #dcdcaa;">generateChronologicalIdWithTime</span><span style="color: #cccccc;">&lt;</span><span style="color: #4ec9b0;">FileId</span><span style="color: #cccccc;">&gt;(</span><span style="color: #9cdcfe;">Math</span><span style="color: #cccccc;">.</span><span style="color: #dcdcaa;">round</span><span style="color: #cccccc;">(</span><span style="color: #4fc1ff;">clock</span><span style="color: #cccccc;">.</span><span style="color: #dcdcaa;">now</span><span style="color: #cccccc;">()));</span></div><div><span style="color: #cccccc;">};</span></div><br><br></div></div>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, codeBlock(codeBlockLine("const generateFileIdWithSynchronizedClock = () => {"), codeBlockLine("    const clock ="), codeBlockLine("        getSynchronizedSystemClock().getStateWithoutListening().value ??"), codeBlockLine("        unsynchronizedSystemClock;"), codeBlockLine("    return generateChronologicalIdWithTime<FileId>(Math.round(clock.now()));"), codeBlockLine("};"), codeBlockLine))',
+    );
+});
+
+test("don't infinitely recurse when pasting code block content with extra wrapping node", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [{type: "title"}, {type: "paragraph"}],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(3))));
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<div style="white-space: pre"><div>let a = 1;</div><span><div>let b = 2;</div></span><div>console.log(a + b);</div></div>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, codeBlock(codeBlockLine("let a = 1;"), codeBlockLine("let b = 2;"), codeBlockLine("console.log(a + b);")))',
     );
 });
