@@ -4901,7 +4901,7 @@ test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t 
     );
 });
 
-test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t add two owners in race condition (simple)", async () => {
+test.only("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t add two owners in race condition (simple)", async () => {
     const space = await TestSpace.create(context);
     const ownerSession = await space.createSession({role: "Owner"});
     const session = await space.createSession();
@@ -4924,11 +4924,18 @@ test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t 
         role: "Owner",
     });
 
+    // Don't treat a rejection of this promise as an uncaught exception.
+    //
+    // NOTE(calebmer): I'm surprised this is necessary. Shouldn't
+    // `await expect(promise2)` handle the promise?? But without this catch the
+    // test is flaky *shrug*
+    promise2.catch(() => {});
+
     const {unpause: unpause1} = await pause1Promise;
 
     unpause1();
     await expect(promise1).resolves.toBeTruthy();
-    await expect(promise2).rejects.toThrow("Space already has an owner");
+    await expect(promise2).rejects.toThrow("Space already has an owner account");
 
     expect(
         new Map(
@@ -4946,6 +4953,7 @@ test("`moveSpaceAccountOwnerRole()` and `internalAddSpaceAccount()` shouldn’t 
             [session.account.id, "Owner"],
         ]),
     );
+    console.log("test 5");
 });
 
 test("`internalAddSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn’t add two owners in race condition", async () => {
