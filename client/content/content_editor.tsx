@@ -11,7 +11,7 @@ import {
     TextHThree,
     TextHTwo,
 } from "phosphor-react";
-import {history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
+import {closeHistory, history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
 import {Fragment, Node, Schema as ProsemirrorSchema, ResolvedPos, Slice} from "prosemirror-model";
 import {
     AllSelection,
@@ -3426,6 +3426,26 @@ function ContentEditor<Content extends ContentWithReferences>(
                 getContentEditorReferences(newState).references
         ) {
             referencesUpdateEmitterRef.current.emit();
+        }
+
+        // Close the history stack if we're making cross-node edits. If we're
+        // editing within an `inlineContent` node then allow history entries to be
+        // grouped but if we're editing across nodes (e.g. typing in a paragraph, then
+        // hit enter, then created a code block all within the history debounce delay)
+        // we want to close history each time the selected node changes while editing.
+        if (oldState.doc !== newState.doc) {
+            const isTypingWithinInlineContent =
+                oldState.selection.$from.parent.inlineContent &&
+                newState.selection.$from.parent.inlineContent &&
+                oldState.selection.$from.parent === oldState.selection.$to.parent &&
+                newState.selection.$from.parent === newState.selection.$to.parent &&
+                oldState.selection.$from.start() === newState.selection.$from.start();
+
+            if (!isTypingWithinInlineContent) {
+                scheduleMicrotask(() => {
+                    view.dispatch(closeHistory(view.state.tr));
+                });
+            }
         }
 
         // Report any added undo/redo stack entries...
