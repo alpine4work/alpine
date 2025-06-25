@@ -4958,7 +4958,7 @@ function handlePasteAfterResolvingReferences(
     slice: Slice,
 ): void {
     // Convert any links in text to link marks.
-    slice = transformPastedLinks(doc.type.schema, slice);
+    slice = transformPastedLinks(doc.type.schema, slice, selection);
 
     // If pasting into a table, transform pasted content to make sure it matches
     // the expected content type for a table.
@@ -5136,7 +5136,19 @@ function fixNodeSelectionAfterPaste(slice: Slice, transaction: Transaction) {
  * Iterate through all content in the slice and if we find a URL in the slice's
  * text, add a link mark around the URL.
  */
-function transformPastedLinks(schema: ProsemirrorSchema, slice: Slice): Slice {
+function transformPastedLinks(
+    schema: ProsemirrorSchema,
+    slice: Slice,
+    selection: Selection,
+): Slice {
+    // Don't auto link content in code
+    if (selection.$from.marks().some(mark => mark.type.name === "code")) return slice;
+
+    // Don't auto link content in code
+    for (let depth = selection.$from.depth; depth >= 0; depth--) {
+        if (selection.$from.node(depth).type.name === "codeBlock") return slice;
+    }
+
     const urlRegExp = getUrlRegExp();
 
     const newFragment = transformFragment(slice.content);
@@ -5166,6 +5178,10 @@ function transformPastedLinks(schema: ProsemirrorSchema, slice: Slice): Slice {
     }
 
     function transformNode(oldNode: Node): Node | Fragment {
+        // Don't auto link content in code
+        if (oldNode.type.name === "codeBlock") return oldNode;
+        if (oldNode.marks.some(mark => mark.type.name === "code")) return oldNode;
+
         if (
             oldNode.type.name !== "text" ||
             // If this text already has a link mark, then don't override the link mark.
