@@ -9,7 +9,7 @@ import {
 } from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useState} from "react";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {ContentFileAudioViewerDesktop} from "~/client/content/internal/content_file_audio_viewer_desktop.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
@@ -70,7 +70,7 @@ export function ContentFileViewerModalDesktop({
     loaderDataPromise,
     onClose,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     attachmentTarget: FileAttachmentTarget | "Uploader";
     ownedByElement: Element | null;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
@@ -323,7 +323,7 @@ export function ContentFileViewerModalDesktop({
 }
 
 function ContentFileDesktopViewer(props: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};

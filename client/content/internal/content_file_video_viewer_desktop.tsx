@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {useMemo, useRef} from "react";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {ContentFileImageViewerDesktop} from "~/client/content/internal/content_file_image_viewer_desktop.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
@@ -28,7 +28,7 @@ export function ContentFileVideoViewerDesktop({
     loaderDataPromise,
     viewerSize,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
@@ -57,7 +57,7 @@ function ContentFileVideoViewerDesktopInner({
     file,
     durationMs,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     durationMs: number;
 }) {
     if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {

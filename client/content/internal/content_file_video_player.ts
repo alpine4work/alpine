@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {
     addContentFileVideoAndAudioPlayerControlsBehavior,
     formatContentFileVideoAndAudioPlayerDurationString,
@@ -56,7 +56,7 @@ export function renderContentFileVideoPlayer(
         withoutInteractivity,
     }: {
         spaceId: SpaceId;
-        file: FileClientStoreData;
+        file: FileModelRegistryData;
         durationMs: number;
         layout: {width: number; height: number} | null;
         platform: Platform;

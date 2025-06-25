@@ -1,7 +1,7 @@
 import {ArrowLeft, DotsThreeVertical, Link as LinkIcon} from "phosphor-react";
 import {useCallback, useEffect, useMemo, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {chatMessagingViewHeaderItem} from "~/client/chat/internal/chat_messaging_view_header_item.js";
 import {useAppContext} from "~/client/context/app_context.js";

@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {ContentFileViewerModalDesktop} from "~/client/content/internal/content_file_viewer_modal_desktop.js";
 import {ContentFileViewerModalMobile} from "~/client/content/internal/content_file_viewer_modal_mobile.js";
 import {useHandoffContentFilePreviewState} from "~/client/content/internal/handoff_content_file_preview_state.js";
@@ -37,7 +37,7 @@ export function ContentFileViewerModal({
     const context = useAppContext();
     const platform = usePlatform();
     const {space} = useSpaceContext();
-    const fileStore = useFileClientStore();
+    const fileRegistry = useFileRegistry();
 
     const handoffFilePreviewState = useHandoffContentFilePreviewState(fileId);
 
@@ -86,15 +86,15 @@ export function ContentFileViewerModal({
 
     const file = useStore(
         useMemo(
-            () => (fileReference ? fileStore.getFileStore(fileReference) : nullStore),
-            [fileReference, fileStore],
+            () => (fileReference ? fileRegistry.getFileStore(fileReference) : nullStore),
+            [fileReference, fileRegistry],
         ),
     );
 
     useEffect(() => {
         if (!fileReference) return;
-        return fileStore.startMaintainingFile(() => context, fileReference, attachmentTarget);
-    }, [attachmentTarget, context, fileReference, fileStore]);
+        return fileRegistry.startMaintainingFile(() => context, fileReference, attachmentTarget);
+    }, [attachmentTarget, context, fileReference, fileRegistry]);
 
     const [loaderDataPromiseResolver] = useStateWithDependencies(
         () => createPromiseImmediateResolver<ContentFileViewerLoaderData | null>(),

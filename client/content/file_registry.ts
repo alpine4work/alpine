@@ -74,12 +74,12 @@ const getFilePollWaitSeconds = (() => {
     return (x: number) => (a * (pi - 2 * arctan(((c - x) * n1) / c))) / n2;
 })();
 
-export type FileClientStoreData = FileModelData & {
+export type FileModelRegistryData = FileModelData & {
     readonly signedUrlSearch: string;
     readonly isSignedUrlExpired: boolean;
 };
 
-type FileClientStoreState = {
+type FileRegistryState = {
     referenceCount: number;
     getContexts: Array<() => AppContext>;
     attachmentTargets: Array<FileAttachmentTarget | "Uploader">;
@@ -97,11 +97,11 @@ type FileClientStoreState = {
 };
 
 /**
- * Normalized store of file model data for the client. We may render the same
- * `FileModel` in multiple different places in the product at the same time.
- * For example in a post, in a channel files section, and in a file viewer
- * modal. We want files across all these surfaces to be consistent. And to have
- * the following behaviors:
+ * Normalized registry of file model data for the client. We may render the
+ * same `FileModel` in multiple different places in the product at the same
+ * time. For example in a post, in a channel files section, and in a file
+ * viewer modal. We want files across all these surfaces to be consistent. And
+ * to have the following behaviors:
  *
  * 1. The file should use the same signed URL in all the places its rendered to
  *    leverage browser caching.
@@ -119,13 +119,13 @@ type FileClientStoreState = {
  * Written so that stores are garbage collected when there are no more
  * references to the associated `FileModel`s in our realm.
  *
- * We should only have one `FileClientStore` per space. We assume all file
+ * We should only have one `FileRegistry` per space. We assume all file
  * models in this store are in the same space.
  */
-export class FileClientStore {
+export class FileRegistry {
     private readonly _spaceId: SpaceId;
 
-    private _scheduledFileUpdates: Array<FileClientStoreData> | null = null;
+    private _scheduledFileUpdates: Array<FileModelRegistryData> | null = null;
 
     // NOTE(calebmer): We broadly discourage usage of `AdvancedWeakValuesMap` since
     // it leads to non-deterministic behavior. This class is fine since you call
@@ -137,15 +137,15 @@ export class FileClientStore {
     // arguably a memory leak is acceptable.
     private readonly _fileDataStoreById = new AdvancedWeakValuesMap<
         FileId,
-        ValueStore<FileClientStoreData>
+        ValueStore<FileModelRegistryData>
     >();
 
     private readonly _fileDataStoreByModel = new WeakMap<
         FileModel,
-        ValueStore<FileClientStoreData>
+        ValueStore<FileModelRegistryData>
     >();
 
-    private readonly _fileStateById = new Map<FileId, FileClientStoreState>();
+    private readonly _fileStateById = new Map<FileId, FileRegistryState>();
 
     constructor(spaceId: SpaceId) {
         this._spaceId = spaceId;
@@ -153,8 +153,8 @@ export class FileClientStore {
 
     private _getFileStoreWithoutUpdating(
         file: FileModel,
-        fileData: FileClientStoreData,
-    ): ValueStore<FileClientStoreData> {
+        fileData: FileModelRegistryData,
+    ): ValueStore<FileModelRegistryData> {
         const fileStore = getOrSetDefaultMapValue(
             this._fileDataStoreById,
             file.id,
@@ -162,10 +162,10 @@ export class FileClientStore {
         );
 
         // As long as the `FileModel` lives, hold a reference to
-        // `ValueStore<FileClientStoreData>`. This prevents a bug where we're in a
+        // `ValueStore<FileModelRegistryData>`. This prevents a bug where we're in a
         // virtualized scroll view and a component rendering a `FileModel` is
         // scrolled offscreen so it no longer references the store so the store is
-        // garbage collected. If the store held newer `FileClientStoreData` then when
+        // garbage collected. If the store held newer `FileModelRegistryData` then when
         // you scroll and `FileModel` is back onscreen it will appear like the file
         // reverted to its original state.
         //
@@ -183,7 +183,7 @@ export class FileClientStore {
     }: {
         signedUrlSearch: string;
         file: FileModel;
-    }): ValueStore<FileClientStoreData> {
+    }): ValueStore<FileModelRegistryData> {
         const expirationTime =
             getContentReferencesFileSignedUrlSearchExpirationTime(signedUrlSearch);
 
@@ -198,7 +198,7 @@ export class FileClientStore {
         const fileStore = this._getFileStoreWithoutUpdating(file, fileData);
 
         const fileDataSnapshot = fileStore.getSnapshot();
-        if (mergeFileClientStoreData(fileDataSnapshot, fileData) !== fileDataSnapshot) {
+        if (mergeFileModelRegistryData(fileDataSnapshot, fileData) !== fileDataSnapshot) {
             this._scheduleFileUpdate(fileData);
         }
 
@@ -218,13 +218,13 @@ export class FileClientStore {
     public getFileStore(fileReference: {
         signedUrlSearch: string;
         file: FileModel;
-    }): Store<FileClientStoreData> {
+    }): Store<FileModelRegistryData> {
         // This function returns a `Store` which you can't call `set()` on. Whereas the
         // private `_getFileStore()` returns a `FileStore` which does have a setter.
         return this._getFileStore(fileReference);
     }
 
-    private _scheduleFileUpdate(data: FileClientStoreData) {
+    private _scheduleFileUpdate(data: FileModelRegistryData) {
         if (this._scheduledFileUpdates !== null) {
             this._scheduledFileUpdates.push(data);
         } else {
@@ -248,7 +248,7 @@ export class FileClientStore {
             for (const newFileData of scheduledFileUpdates) {
                 this._fileDataStoreById
                     .get(newFileData.id)
-                    ?.set(oldFileData => mergeFileClientStoreData(oldFileData, newFileData));
+                    ?.set(oldFileData => mergeFileModelRegistryData(oldFileData, newFileData));
             }
         });
     }
@@ -273,7 +273,7 @@ export class FileClientStore {
     public startMaintainingFile(
         getContext: () => AppContext,
         initialFileDataOrReference:
-            | FileClientStoreData
+            | FileModelRegistryData
             | {signedUrlSearch: string; file: FileModel},
         attachmentTarget: FileAttachmentTarget | "Uploader",
     ): () => void {
@@ -373,8 +373,8 @@ export class FileClientStore {
 
     private _startMaintainingFile(
         fileId: FileId,
-        fileStore: ValueStore<FileClientStoreData>,
-        fileState: FileClientStoreState,
+        fileStore: ValueStore<FileModelRegistryData>,
+        fileState: FileRegistryState,
     ) {
         const update = () => {
             const file = fileStore.getSnapshot();
@@ -521,7 +521,7 @@ export class FileClientStore {
                     ).then(
                         output => {
                             fileStore.set(file =>
-                                mergeFileClientStoreData(file, {
+                                mergeFileModelRegistryData(file, {
                                     ...output.file.initialData,
                                     signedUrlSearch: file.signedUrlSearch,
                                     isSignedUrlExpired: file.isSignedUrlExpired,
@@ -580,10 +580,10 @@ export class FileClientStore {
     }
 }
 
-function mergeFileClientStoreData(
-    oldFileData: FileClientStoreData,
-    newFileData: FileClientStoreData,
-): FileClientStoreData {
+function mergeFileModelRegistryData(
+    oldFileData: FileModelRegistryData,
+    newFileData: FileModelRegistryData,
+): FileModelRegistryData {
     const signedUrlSearch = mergeContentReferencesFileSignedUrlSearches(
         oldFileData.signedUrlSearch,
         newFileData.signedUrlSearch,

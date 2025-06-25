@@ -31,21 +31,21 @@ export const FileModelDataSchema = Schema.object({
  * these properties are true.
  *
  * File models store all their data which may change in an `initialData`
- * property. To access data on the client you should use `FileClientStore` in
- * order to get the latest data for a file. `FileClientStore` is also
+ * property. To access data on the client you should use `FileRegistry` in
+ * order to get the latest data for a file. `FileRegistry` is also
  * responsible for polling a file while it's loading and refreshing file signed
  * URLs when they expire. Account models use a similar pattern (see
- * `AccountClientStore`).
+ * `AccountRegistry`).
  */
 export class FileModel {
     // Immutable data for the file. Since this data doesn't change you don't have
-    // to access it through `FileClientStore` or `initialData`.
+    // to access it through `FileRegistry` or `initialData`.
     public readonly id: FileId;
     public readonly contentType: FileContentType;
     public readonly contentLength: number;
 
     /**
-     * Don't use this property on the client! Use `FileClientStore` to get the
+     * Don't use this property on the client! Use `FileRegistry` to get the
      * latest data for this file.
      */
     public readonly initialData: FileModelData;
@@ -67,8 +67,7 @@ export class FileModel {
     /**
      * Does this file have a preview? If so what type of preview does it have?
      * This object is immutable after a file has been created. Which is why you're
-     * allowed to access it without going through `FileClientStore` or
-     * `initialData`.
+     * allowed to access it without going through `FileRegistry` or `initialData`.
      */
     public get hasPreview(): FileHasPreview | null {
         if (this.initialData.preview === null) return null;

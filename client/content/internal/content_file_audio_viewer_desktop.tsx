@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {useMemo, useRef} from "react";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {
     addContentFileAudioPlayerBehavior,
     renderContentFileAudioPlayer,
@@ -39,7 +39,7 @@ export function ContentFileAudioViewerDesktop({
     file,
     viewerSize,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     viewerSize: {width: number; height: number};
 }) {
     assert(file.preview?.type === "Audio");
@@ -94,7 +94,7 @@ function ContentFileAudioViewerDesktopInner({
     audioSrc,
     viewerSize,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     filePreview: FileAudioPreview & {isProcessing: false};
     audioSrc: string;
     viewerSize: {width: number; height: number};

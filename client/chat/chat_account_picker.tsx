@@ -17,7 +17,7 @@ import {
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -90,7 +90,7 @@ export function ChatAccountPicker({
     shouldInitiallyFocus: boolean;
 }) {
     const platform = usePlatform();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
     const {space, currentAccount} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -147,7 +147,7 @@ export function ChatAccountPicker({
 
             itemStores.push(
                 Store.mapMany(
-                    otherAccounts.map(account => accountStore.getAccountStore(account)),
+                    otherAccounts.map(account => accountRegistry.getAccountStore(account)),
                     (otherAccountDatas): ChatAccountPickerItem => {
                         const otherAccountNames = joinPrettyConjunctionList(
                             otherAccountDatas.map(accountData =>
@@ -169,14 +169,16 @@ export function ChatAccountPicker({
 
         for (const account of allAccounts) {
             itemStores.push(
-                accountStore.getAccountStore(account).map((accountData): ChatAccountPickerItem => {
-                    return {
-                        type: "Account",
-                        key: `Account:${account.id}`,
-                        textValue: accountData.name,
-                        accountData,
-                    };
-                }),
+                accountRegistry
+                    .getAccountStore(account)
+                    .map((accountData): ChatAccountPickerItem => {
+                        return {
+                            type: "Account",
+                            key: `Account:${account.id}`,
+                            textValue: accountData.name,
+                            accountData,
+                        };
+                    }),
             );
         }
 
@@ -191,7 +193,7 @@ export function ChatAccountPicker({
                 return 0;
             }),
         );
-    }, [accountStore, allAccounts, currentAccount?.id, suggestedChats]);
+    }, [accountRegistry, allAccounts, currentAccount?.id, suggestedChats]);
 
     const allItems = useStore(allItemsStore);
 
@@ -457,10 +459,10 @@ export function ChatAccountPicker({
         useMemo(
             () =>
                 Store.mapMany(
-                    selectedAccounts.map(account => accountStore.getAccountStore(account)),
+                    selectedAccounts.map(account => accountRegistry.getAccountStore(account)),
                     accounts => accounts,
                 ),
-            [accountStore, selectedAccounts],
+            [accountRegistry, selectedAccounts],
         ),
     );
 

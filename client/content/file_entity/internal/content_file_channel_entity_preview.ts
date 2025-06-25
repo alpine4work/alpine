@@ -2,9 +2,9 @@ import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {renderAccountAvatar} from "~/client/accounts/account_avatar_html.js";
 import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
-import {FileClientStore} from "~/client/content/file_client_store.js";
+import {FileRegistry} from "~/client/content/file_registry.js";
 import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
@@ -55,8 +55,8 @@ export function renderContentFileChannelEntityPreview(
         getContext,
         clientInfo,
         spaceId,
-        accountStore,
-        fileStore,
+        accountRegistry,
+        fileRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
@@ -70,8 +70,8 @@ export function renderContentFileChannelEntityPreview(
         getContext: () => AppContext;
         clientInfo: ClientInfo;
         spaceId: SpaceId | null;
-        accountStore: AccountClientStore;
-        fileStore: FileClientStore;
+        accountRegistry: AccountRegistry;
+        fileRegistry: FileRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
@@ -255,7 +255,7 @@ export function renderContentFileChannelEntityPreview(
             const accountCount = fileEntity.contributorCount;
 
             const previewAccounts = fileEntity.topContributors
-                .map(account => get(accountStore.getAccountStore(account)))
+                .map(account => get(accountRegistry.getAccountStore(account)))
                 // If we have any removed accounts then sort them to the end of the array.
                 // Prefer showing accounts that are still a part of the space.
                 //
@@ -424,8 +424,8 @@ export function renderContentFileChannelEntityPreview(
                     getContext,
                     clientInfo,
                     spaceId,
-                    accountStore,
-                    fileStore,
+                    accountRegistry,
+                    fileRegistry,
                     currentAccount,
                     // If we render files/tables inside the preview make sure they have an
                     // appropriately scaled block width (important for row of 3 recursive docs use

@@ -19,7 +19,7 @@ import {
 } from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
     setContentEditorQuickUndo,
@@ -114,7 +114,7 @@ export function ContentEditorMentionFloater({
         }
     }, [isClosing, onCloseWithoutAnimation]);
 
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
     const allAccounts = useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output
         ?.accounts;
 
@@ -123,11 +123,11 @@ export function ContentEditorMentionFloater({
             () =>
                 allAccounts
                     ? Store.mapMany(
-                          allAccounts.map(account => accountStore.getAccountStore(account)),
+                          allAccounts.map(account => accountRegistry.getAccountStore(account)),
                           accounts => accounts,
                       )
                     : null,
-            [accountStore, allAccounts],
+            [accountRegistry, allAccounts],
         ),
     );
 

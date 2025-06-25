@@ -21,7 +21,7 @@ import {
 import {AriaListBoxOptions, useComboBox, useListBox, useOption} from "react-aria";
 import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -100,7 +100,7 @@ function ShareOverlayAccountInput(
 ) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -112,7 +112,7 @@ function ShareOverlayAccountInput(
     const itemsWithExcludedAccounts = useStore(
         useMemo(() => {
             return Store.mapMany(
-                allAccounts.map(account => accountStore.getAccountStore(account)),
+                allAccounts.map(account => accountRegistry.getAccountStore(account)),
                 allAccountDatas =>
                     filterMapArray(
                         allAccountDatas,
@@ -127,7 +127,7 @@ function ShareOverlayAccountInput(
                         },
                     ),
             );
-        }, [accountStore, allAccounts]),
+        }, [accountRegistry, allAccounts]),
     );
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -343,10 +343,10 @@ function ShareOverlayAccountInput(
         useMemo(
             () =>
                 Store.mapMany(
-                    selectedAccounts.map(account => accountStore.getAccountStore(account)),
+                    selectedAccounts.map(account => accountRegistry.getAccountStore(account)),
                     accounts => accounts,
                 ),
-            [accountStore, selectedAccounts],
+            [accountRegistry, selectedAccounts],
         ),
     );
 

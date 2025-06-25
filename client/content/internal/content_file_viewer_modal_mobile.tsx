@@ -1,7 +1,7 @@
 import {DownloadSimple, Export, FileDotted, Lock, SpinnerGap, X} from "phosphor-react";
 import prettyBytes from "pretty-bytes";
 import {useCallback, useState} from "react";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {ContentFileAudioViewerMobile} from "~/client/content/internal/content_file_audio_viewer_mobile.js";
 import {ContentFileCodeViewer} from "~/client/content/internal/content_file_code_viewer.js";
 import {ContentFileImageViewerMobile} from "~/client/content/internal/content_file_image_viewer_mobile.js";
@@ -62,7 +62,7 @@ export function ContentFileViewerModalMobile({
     loaderDataPromise,
     onClose,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     ownedByElement: Element | null;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     onClose: () => void;
@@ -313,7 +313,7 @@ export function ContentFileViewerModalMobile({
 }
 
 function ContentFileViewerMobile(props: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};

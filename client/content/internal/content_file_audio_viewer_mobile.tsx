@@ -1,6 +1,6 @@
 import {SpinnerGap} from "phosphor-react";
 import {useRef} from "react";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerLargeProcessingIndicatorColor,
@@ -25,7 +25,7 @@ export function ContentFileAudioViewerMobile({
     file,
     loaderDataPromise,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
 }) {
     if (file.alternative && !file.alternative.isProcessing && !file.alternative.ok) {
@@ -87,7 +87,7 @@ function ContentFileAudioViewerMobileInner({
     file,
     audioElement,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     audioElement: HTMLAudioElement;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);

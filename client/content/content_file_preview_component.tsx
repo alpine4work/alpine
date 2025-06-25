@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {Memo, useMemo, useRef} from "react";
-import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {
     addContentFilePreviewBehavior,
@@ -44,14 +44,14 @@ export function ContentFilePreview({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const {space} = useSpaceContext();
-    const fileStore = useFileClientStore();
+    const fileRegistry = useFileRegistry();
 
     const containerRef = useRef<HTMLDivElement>(null);
 
     const file = useStore(
         useMemo(
-            () => fileStore.getFileStore({signedUrlSearch, file: fileFromProps}),
-            [fileFromProps, fileStore, signedUrlSearch],
+            () => fileRegistry.getFileStore({signedUrlSearch, file: fileFromProps}),
+            [fileFromProps, fileRegistry, signedUrlSearch],
         ),
     );
 

@@ -16,7 +16,7 @@ import {UNSAFE_DataRouterStateContext as DataRouterStateContext, To, useParams} 
 import {LoadingIndicatorSpaceOutletContainer} from "~/app/router/loading_indicator_space_outlet_container.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
-import {useAccountClientStoreForSpaceId} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistryForSpaceId} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentFileViewerModal} from "~/client/content/content_file_viewer_modal.js";
 import {contentFileEntityRenderers} from "~/client/content/file_entity/content_file_entity_renderers.js";
@@ -347,13 +347,13 @@ export default function SpaceLayoutRoute() {
         }
     }, [loaderData]);
 
-    const accountsStore = useAccountClientStoreForSpaceId(spaceId);
+    const accountRegistry = useAccountRegistryForSpaceId(spaceId);
 
     useDevConsoleTool("accounts", () => ({
-        store: accountsStore,
+        store: accountRegistry,
         updateOurName: async (name: string) => {
             const {account} = await updateOurAccountName(context, {name});
-            accountsStore.immediatelyUpdateAccountStoreIfExists(account);
+            accountRegistry.immediatelyUpdateAccountStoreIfExists(account);
         },
     }));
 
@@ -362,13 +362,13 @@ export default function SpaceLayoutRoute() {
         // only available temporarily for users who ask for it.
         (globalThis as any).__updateOurAccountName = async (name: string) => {
             const {account} = await updateOurAccountName(context, {name});
-            accountsStore.immediatelyUpdateAccountStoreIfExists(account);
+            accountRegistry.immediatelyUpdateAccountStoreIfExists(account);
         };
 
         return () => {
             delete (globalThis as any).__updateOurAccountName;
         };
-    }, [accountsStore, context]);
+    }, [accountRegistry, context]);
 
     useDevConsoleTool("admin", () => ({
         getAccountById: async (accountId: AccountId) => {

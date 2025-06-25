@@ -3,7 +3,7 @@
 import {useLoaderData} from "@remix-run/react";
 import {ReactNode, createContext, useContext, useEffect, useRef, useState} from "react";
 import {UNSAFE_DataRouterStateContext as DataRouterStateContext} from "react-router";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
@@ -221,38 +221,38 @@ export function TaskRealtimeClientContextProvider({
 
     const {currentAccount} = useSpaceContext();
 
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     // We need to hold a strong reference to `Store<AccountModelData>` for the
-    // current account so `accountStore.weakGetAccountStoreByIdIfExists()` will
+    // current account so `accountRegistry.weakGetAccountStoreByIdIfExists()` will
     // always be able to return the data for the current account.
     //
     // The task system depends on current account data existing in
-    // `AccountClientStore`. Any `AccountId` in a `TaskAction` we pass to
-    // `TaskClientStore` must have account data in `AccountClientStore` or else an
+    // `AccountRegistry`. Any `AccountId` in a `TaskAction` we pass to
+    // `TaskClientStore` must have account data in `AccountRegistry` or else an
     // error will be thrown. And we put `currentAccount.id` in `TaskAction`s a lot,
     // e.g. when creating tasks we set the `creatorId` to `currentAccount.id`.
     //
     // Some other code may coincidentally have added `currentAccount` to
-    // `AccountClientStore` but we want to guarantee `currentAccount` is in
-    // `AccountClientStore` and also prevent garbage collection of `currentAccount`
-    // from `AccountClientStore`.
+    // `AccountRegistry` but we want to guarantee `currentAccount` is in
+    // `AccountRegistry` and also prevent garbage collection of `currentAccount`
+    // from `AccountRegistry`.
     useStateWithDependencies(
-        ([accountStore, currentAccount]) => {
+        ([accountRegistry, currentAccount]) => {
             if (!currentAccount) return;
-            return accountStore.getAccountStore(currentAccount);
+            return accountRegistry.getAccountStore(currentAccount);
         },
-        [accountStore, currentAccount],
+        [accountRegistry, currentAccount],
     );
 
     const [client] = useState((): TaskRealtimeClient => {
         const initializeClient = () => {
             const client = new TaskRealtimeClient(() => contextRef.current, {
-                // The account store has a similar lifetime to our `TaskRealtimeClient`. On the
-                // client it's a shared global reference that never changes. So we won't have
-                // to reinitialize `TaskRealtimeClient` when the account store changes since
-                // the account store doesn't change.
-                accountStore,
+                // The account registry has a similar lifetime to our `TaskRealtimeClient`. On
+                // the client it's a shared global reference that never changes. So we won't
+                // have to reinitialize `TaskRealtimeClient` when the account store changes
+                // since the account store doesn't change.
+                accountRegistry,
                 spaceId,
                 currentAccountId,
                 browserId,

@@ -7,7 +7,7 @@ import {
     AccountAvatarPileSize,
     accountAvatarPileSizes,
 } from "~/client/accounts/account_avatar_pile_size.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useReporter} from "~/client/design/reporter.js";

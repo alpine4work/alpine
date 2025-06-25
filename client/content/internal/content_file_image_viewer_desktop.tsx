@@ -3,7 +3,7 @@
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {
     getFileImagePreviewRenderingAdjustments,
     handleCopyContentFile,
@@ -52,7 +52,7 @@ export function ContentFileImageViewerDesktop({
     maxZoomScale,
     extraChildrenForVideo,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     viewerSize: {width: number; height: number};
@@ -122,7 +122,7 @@ function ContentFileImageDesktopViewerInner({
     maxZoomScale,
     extraChildrenForVideo,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
     attachmentTarget: FileAttachmentTarget | "Uploader";
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;

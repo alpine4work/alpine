@@ -1,7 +1,7 @@
 import {ArrowUpRight, CaretDown, CaretUp, Check} from "phosphor-react";
 import {ReactNode, useCallback, useEffect, useMemo, useRef} from "react";
 import {createPath, useLocation} from "react-router";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -60,7 +60,7 @@ export function InboxBannerOutletContainer({
     const routeLayout = useRouteLayout();
     const {locale, isAppleDevice} = useClientInfo();
     const location = useLocation();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
     const {space, currentAccount} = useSpaceContext();
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
     const archiveInboxEntry = useArchiveInboxEntry();
@@ -152,10 +152,10 @@ export function InboxBannerOutletContainer({
         useMemo(
             () =>
                 printInboxEntryDisplaySummaryWithoutInteractivityStore(
-                    accountStore,
+                    accountRegistry,
                     entryDisplay.summary,
                 ),
-            [accountStore, entryDisplay.summary],
+            [accountRegistry, entryDisplay.summary],
         ),
     );
 

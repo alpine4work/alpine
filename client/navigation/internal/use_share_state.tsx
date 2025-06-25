@@ -1,5 +1,5 @@
 import {useId, useMemo, useState} from "react";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -41,7 +41,7 @@ export function useShareState(
     } | null,
 ) {
     const {space, currentAccount} = useSpaceContext();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     const modalOwnerId = useId();
 
@@ -105,7 +105,7 @@ export function useShareState(
                 if (action.accountGrantById.size === 1) {
                     changedAccountName = getAccountShortNameWithoutFullNameTooltip(
                         (action.accountGrantById.size === 1
-                            ? accountStore
+                            ? accountRegistry
                                   .weakGetAccountStoreByIdIfExists(
                                       iterableFirst(action.accountGrantById)![0],
                                   )
@@ -121,8 +121,9 @@ export function useShareState(
             }
             case "DeleteAccountGrant": {
                 changedAccountName = getAccountShortNameWithoutFullNameTooltip(
-                    accountStore.weakGetAccountStoreByIdIfExists(action.accountId)?.getSnapshot() ??
-                        AccountModel.getUnknown().initialData,
+                    accountRegistry
+                        .weakGetAccountStoreByIdIfExists(action.accountId)
+                        ?.getSnapshot() ?? AccountModel.getUnknown().initialData,
                 );
 
                 changeDescription = `remove ${
@@ -132,8 +133,9 @@ export function useShareState(
             }
             case "SetAccountGrantLevel": {
                 changedAccountName = getAccountShortNameWithoutFullNameTooltip(
-                    accountStore.weakGetAccountStoreByIdIfExists(action.accountId)?.getSnapshot() ??
-                        AccountModel.getUnknown().initialData,
+                    accountRegistry
+                        .weakGetAccountStoreByIdIfExists(action.accountId)
+                        ?.getSnapshot() ?? AccountModel.getUnknown().initialData,
                 );
 
                 changeDescription = `change ${

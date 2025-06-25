@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import {NodeViewConstructor} from "prosemirror-view";
-import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -24,7 +24,7 @@ export function createContentEditorMentionNodeViewConstructor({
         const contentReferences = getContentEditorReferences(view.state).references;
 
         const contentMentionTextStore = createContentMentionTextStore(
-            getAccountClientStore(getSpaceId()),
+            getAccountRegistry(getSpaceId()),
             contentReferences,
             mention,
         );

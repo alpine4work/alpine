@@ -1,4 +1,4 @@
-import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {
     TaskGridViewVirtualizedListState,
@@ -38,7 +38,7 @@ afterEach(() => {
 
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
-const accountStore = getAccountClientStore(spaceId);
+const accountRegistry = getAccountRegistry(spaceId);
 
 const account1 = new AccountModel({
     id: generateId(),
@@ -66,13 +66,13 @@ const account2 = new AccountModel({
 
 // Make sure we hold a reference to the `account1` store for the entire test.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const account1Store = accountStore.getAccountStore(account1);
+const account1Store = accountRegistry.getAccountStore(account1);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const account2Store = accountStore.getAccountStore(account2);
+const account2Store = accountRegistry.getAccountStore(account2);
 
 const getSortableAccount = (accountId: AccountId) => {
     const accountData = assertExists(
-        accountStore.weakGetAccountStoreByIdIfExists(accountId),
+        accountRegistry.weakGetAccountStoreByIdIfExists(accountId),
     ).getSnapshot();
 
     return {
@@ -156,7 +156,7 @@ function expectItems(
 
 test("can represent items of an empty query", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -205,7 +205,7 @@ test("can represent items of an empty query", () => {
 
 test("can represent items of a query", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -298,7 +298,7 @@ test("can represent items of a query", () => {
 
 test("can represent items of a query with some expanded unloaded child tasks", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -602,7 +602,7 @@ test("can represent items of a query with some expanded unloaded child tasks", (
 
 test("can represent items of a query with some expanded child tasks", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -1099,7 +1099,7 @@ test("can represent items of a query with some expanded child tasks", () => {
 
 test("can represent items of a query with some expanded child tasks and extra unloaded child tasks", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -1686,7 +1686,7 @@ test("can represent items of a query with some expanded child tasks and extra un
 
 test("can represent items of a query with some expanded child tasks where task reports fewer than query", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2159,7 +2159,7 @@ test("can represent items of a query with some expanded child tasks where task r
 
 test("can represent items of a query with some double nested expanded child tasks", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -2667,7 +2667,7 @@ test("can represent items of a query with some double nested expanded child task
 
 test("can get the index of items including nested items if the path to the task is known", () => {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,

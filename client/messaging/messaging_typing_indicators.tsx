@@ -2,7 +2,7 @@ import {compareAsc as compareDatesAsc} from "date-fns/compareAsc";
 import {Easing, timeline} from "motion";
 import {useEffect, useMemo, useRef} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {

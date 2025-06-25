@@ -1,4 +1,4 @@
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
@@ -16,7 +16,7 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
  * actions.
  *
  * On the client, we expect every `AccountId` referenced by a `TaskAction` to
- * be in our `AccountClientStore` at the moment this function is called. There
+ * be in our `AccountRegistry` at the moment this function is called. There
  * are two cases where this typically happens:
  *
  * 1. We are applying actions from the server, in which case the server sends
@@ -30,7 +30,7 @@ import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
  *    `AccountModel` reference but most of the time it should happen naturally.
  */
 export function createGetTaskActionReferencedSortableAccount(
-    store: AccountClientStore,
+    accountRegistry: AccountRegistry,
     actions: TaskActionMaybeModel | ReadonlyArray<TaskActionMaybeModel>,
 ): (accountId: AccountId) => TaskSortableAccount {
     const actionReferencedAccountIds = new Set<AccountId>();
@@ -50,17 +50,17 @@ export function createGetTaskActionReferencedSortableAccount(
     // 2. Creates a map that holds a reference to any account stores we care about
     //    so they won't be garbage collected
     //
-    // 2 is why we can't pass an `AccountClientStore` directly into
+    // 2 is why we can't pass an `AccountRegistry` directly into
     // `TaskModel.apply()`. We need to make sure that at task creation time we
     // capture a reference to referenced accounts so then at a later action
     // applied time the referenced accounts aren't garbage collected.
     const actionReferencedAccountStoreById = new Map(
         mapIterable(actionReferencedAccountIds, accountId => {
-            const accountStore = store.weakGetAccountStoreByIdIfExists(accountId);
+            const accountStore = accountRegistry.weakGetAccountStoreByIdIfExists(accountId);
 
             if (!accountStore) {
                 throw new InternalError(
-                    "Couldn’t find `AccountId` referenced by `TaskAction` in `AccountClientStore`",
+                    "Couldn’t find `AccountId` referenced by `TaskAction` in `AccountRegistry`",
                 );
             }
 

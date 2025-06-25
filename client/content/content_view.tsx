@@ -14,9 +14,9 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
-import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
@@ -279,8 +279,8 @@ export function ContentView<Content extends ContentWithReferences>({
     const routeLayout = useRouteLayout();
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
-    const accountStore = useAccountClientStore();
-    const fileStore = useFileClientStore();
+    const accountRegistry = useAccountRegistry();
+    const fileRegistry = useFileRegistry();
     const reporter = useReporter();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const currentDate = useCurrentDate();
@@ -486,8 +486,8 @@ export function ContentView<Content extends ContentWithReferences>({
                     getContext: () => assertExists(context),
                     clientInfo,
                     spaceId,
-                    accountStore,
-                    fileStore,
+                    accountRegistry,
+                    fileRegistry,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     blockWidth,
                     transformScale,
@@ -523,8 +523,8 @@ export function ContentView<Content extends ContentWithReferences>({
                 getContext: () => assertExists(context),
                 clientInfo,
                 spaceId,
-                accountStore,
-                fileStore,
+                accountRegistry,
+                fileRegistry,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 blockWidth,
                 transformScale,
@@ -559,8 +559,8 @@ export function ContentView<Content extends ContentWithReferences>({
         id,
         clientInfo,
         spaceId,
-        accountStore,
-        fileStore,
+        accountRegistry,
+        fileRegistry,
         spaceContext?.currentAccount,
         blockWidth,
         transformScale,
@@ -1001,7 +1001,7 @@ export function ContentView<Content extends ContentWithReferences>({
                     cleanupFunctions.push(cleanupBehavior);
                 } else {
                     const actualFileStore = fileReference
-                        ? fileStore.getFileStore(fileReference)
+                        ? fileRegistry.getFileStore(fileReference)
                         : undefinedStore;
 
                     let cleanupBehavior: (() => void) | null = null;
@@ -1061,7 +1061,7 @@ export function ContentView<Content extends ContentWithReferences>({
         isEditorInitialAppRender,
         rootNavigate,
         isInitialAppRender,
-        fileStore,
+        fileRegistry,
         fileEntityRenderers,
     ]);
 

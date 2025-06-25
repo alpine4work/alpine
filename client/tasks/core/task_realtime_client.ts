@@ -1,4 +1,4 @@
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/core/disable_task_grid_view_animations_until_next_browser_paint.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
@@ -73,13 +73,13 @@ export class TaskRealtimeClient {
     constructor(
         getContext: () => AppContext,
         {
-            accountStore,
+            accountRegistry,
             spaceId,
             currentAccountId,
             browserId,
             onDisplayError,
         }: {
-            accountStore: AccountClientStore;
+            accountRegistry: AccountRegistry;
             spaceId: SpaceId;
             currentAccountId: AccountId | null;
             browserId: BrowserId;
@@ -99,7 +99,7 @@ export class TaskRealtimeClient {
         );
 
         this.store = new TaskClientStore({
-            accountStore,
+            accountRegistry,
             spaceId,
             currentAccountId,
             onError: options => {

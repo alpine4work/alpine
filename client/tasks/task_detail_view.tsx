@@ -16,7 +16,7 @@ import {
     useRef,
     useState,
 } from "react";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -1162,14 +1162,14 @@ function TaskDetailViewMain(
     const context = useAppContext();
     const platform = usePlatform();
     const {timeZone} = useClientInfo();
-    const accountClientStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
     const {currentAccount} = useSpaceContext();
 
     const task = useStore(taskSubscription?.taskEntryStore ?? null)?.task ?? null;
 
     const assigneeAccountStore = !taskSubscription
         ? initialFields.assignee !== null
-            ? assertExists(accountClientStore.getAccountStore(initialFields.assignee))
+            ? assertExists(accountRegistry.getAccountStore(initialFields.assignee))
             : null
         : task
         ? store.getTaskAssigneeAccountStore(task)

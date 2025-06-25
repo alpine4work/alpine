@@ -1,4 +1,4 @@
-import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {TaskClientStore} from "~/client/tasks/core/task_client_store.js";
 import {InternalError} from "~/shared/error/error.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
@@ -13,7 +13,7 @@ import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-const accountStore = getAccountClientStore(generateId());
+const accountRegistry = getAccountRegistry(generateId());
 
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
@@ -31,7 +31,7 @@ beforeEach(() => {
     import.meta.jest.useFakeTimers();
 
     store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,
@@ -107,9 +107,9 @@ const account2 = new AccountModel({
 
 // Make sure we hold a reference to the account stores for the entire test.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const account1Store = accountStore.getAccountStore(account1);
+const account1Store = accountRegistry.getAccountStore(account1);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const account2Store = accountStore.getAccountStore(account2);
+const account2Store = accountRegistry.getAccountStore(account2);
 
 testTaskActionPermutations({
     account1,
@@ -129,7 +129,7 @@ testTaskActionPermutations({
                     ? [
                           new AccountModel({
                               ...assertExists(
-                                  accountStore
+                                  accountRegistry
                                       .weakGetAccountStoreByIdIfExists(action.accountId)
                                       ?.getSnapshot(),
                               ),

@@ -1,4 +1,4 @@
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/core/task_client_store.js";
 import {
@@ -33,7 +33,7 @@ interface TaskClientStoreInterface {
     readonly clock: HybridLogicalClock;
     readonly spaceId: SpaceId;
     readonly currentAccountId: AccountId | null;
-    readonly accountStore: AccountClientStore;
+    readonly accountRegistry: AccountRegistry;
     getTaskEntryStoreIfExists(task: TaskId): Store<TaskClientStoreTaskEntry> | null;
 }
 
@@ -170,7 +170,7 @@ export class TaskUndoActions {
             }
 
             const getActionReferencedSortableAccount = createGetTaskActionReferencedSortableAccount(
-                store.accountStore,
+                store.accountRegistry,
                 action,
             );
 
@@ -356,7 +356,7 @@ export function createTaskUndoActionsIfPossible(
                 }
 
                 const getActionReferencedSortableAccount =
-                    createGetTaskActionReferencedSortableAccount(store.accountStore, action);
+                    createGetTaskActionReferencedSortableAccount(store.accountRegistry, action);
 
                 let taskEntry = workingTaskEntryById.get(action.taskId);
 

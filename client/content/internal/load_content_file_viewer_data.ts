@@ -1,5 +1,5 @@
 import {Tree} from "@lezer/common";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -64,7 +64,7 @@ export async function loadContentFileViewerData({
     platform,
 }: {
     spaceId: SpaceId;
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     platform: Platform;
 }): Promise<ContentFileViewerLoaderData | null> {
     switch (file.contentType) {
@@ -174,7 +174,7 @@ export function getContentFileViewerSrc({
     asPreview = false,
 }: {
     spaceId: SpaceId;
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     asPreview?: boolean;
 }): string | null {
     if (asPreview) {
@@ -204,7 +204,7 @@ async function loadContentFileImageViewer({
     asPreview = false,
 }: {
     spaceId: SpaceId;
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     platform: Platform;
     asPreview?: boolean;
 }): Promise<ContentFileViewerLoaderData> {
@@ -243,7 +243,7 @@ async function loadContentFileVideoViewerMobile({
     file,
 }: {
     spaceId: SpaceId;
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
 }): Promise<ContentFileViewerLoaderData> {
     const src = getContentFileViewerSrc({spaceId, file});
     if (!src) return {type: "VideoMobile", videoElement: null};
@@ -272,7 +272,7 @@ async function loadContentFileAudioViewerMobile({
     file,
 }: {
     spaceId: SpaceId;
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
 }): Promise<ContentFileViewerLoaderData> {
     const src = getContentFileViewerSrc({spaceId, file});
     if (!src) return {type: "AudioMobile", audioElement: null};
@@ -298,7 +298,7 @@ async function loadContentFileCodeViewer({
     file,
 }: {
     spaceId: SpaceId;
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
 }): Promise<ContentFileViewerLoaderData> {
     const languageId =
         getFileContentTypeContentCodeBlockLanguageIdIfExists(file.contentType) ?? "text";

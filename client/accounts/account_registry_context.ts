@@ -1,4 +1,4 @@
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {
     createGlobalContext,
     getGlobalContext,
@@ -10,48 +10,48 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
-const AccountClientStoreContext = createGlobalContext(() => new Map<SpaceId, AccountClientStore>());
+const AccountRegistryContext = createGlobalContext(() => new Map<SpaceId, AccountRegistry>());
 
 /**
- * On the client you have global access to the account client store. Not just
+ * On the client you have global access to the account registry. Not just
  * access through React context.
  *
- * If the global client store hasn't been initialized yet (since a context
+ * If the global registry hasn't been initialized yet (since a context
  * provider component hasn't mounted) then calling this function will
  * initialize it.
  *
  * Will throw an error if we're not running in a web browser.
  */
-export function getAccountClientStore(spaceId: SpaceId): AccountClientStore {
+export function getAccountRegistry(spaceId: SpaceId): AccountRegistry {
     return getOrSetDefaultMapValue(
-        getGlobalContext(AccountClientStoreContext),
+        getGlobalContext(AccountRegistryContext),
         spaceId,
-        () => new AccountClientStore(),
+        () => new AccountRegistry(),
     );
 }
 
 /**
- * Gets the account client store for our app. Used to normalize our presentation of
+ * Gets the account registry for our app. Used to normalize our presentation of
  * accounts on the client even when we've loaded different data objects for the
  * accounts.
  *
- * If we're in a web browser we have one global store instance.
+ * If we're in a web browser we have one global registry instance.
  */
-export function useAccountClientStore(): AccountClientStore {
+export function useAccountRegistry(): AccountRegistry {
     const {space} = useSpaceContext();
 
     return getOrSetDefaultMapValue(
-        useGlobalContext(AccountClientStoreContext),
+        useGlobalContext(AccountRegistryContext),
         space.id,
-        () => new AccountClientStore(),
+        () => new AccountRegistry(),
     );
 }
 
-export function useAccountClientStoreForSpaceId(spaceId: SpaceId): AccountClientStore {
+export function useAccountRegistryForSpaceId(spaceId: SpaceId): AccountRegistry {
     return getOrSetDefaultMapValue(
-        useGlobalContext(AccountClientStoreContext),
+        useGlobalContext(AccountRegistryContext),
         spaceId,
-        () => new AccountClientStore(),
+        () => new AccountRegistry(),
     );
 }
 
@@ -67,10 +67,10 @@ export function useAccountModel(
 export function useAccountModel(
     account: AccountModel | AccountModelData | null,
 ): AccountModelData | null {
-    const store = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     const accountData = useStore(
-        account instanceof AccountModel ? store.getAccountStore(account) : null,
+        account instanceof AccountModel ? accountRegistry.getAccountStore(account) : null,
     );
 
     if (accountData === null) {

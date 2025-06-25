@@ -9,23 +9,22 @@ import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 /**
- * Normalized store of account model data for the client. When we load data
+ * Normalized registry of account model data for the client. When we load data
  * from the server it includes `AccountModel` objects. There may be many
  * `AccountModel` objects with different data that represent the same
- * underlying account. This store will provide one, consistent, view of each
+ * underlying account. This registry will provide one, consistent, view of each
  * `AccountId` on the client. It makes sure we don't render the same account in
  * different ways in different parts of the product.
  *
- * Written so that stores are garbage collected when there are no more
+ * Written so that account stores are garbage collected when there are no more
  * references to the associated `AccountModel`s in our realm.
  */
-export class AccountClientStore {
+export class AccountRegistry {
     private _scheduledAccountUpdates: Set<AccountModel> | null = null;
 
     // NOTE(calebmer): We broadly discourage usage of `AdvancedWeakValuesMap` since
     // it leads to non-deterministic behavior. We use it here because it's
-    // convenient for the pervasive use of `AccountClientStore` across our
-    // codebase.
+    // convenient for the pervasive use of `AccountRegistry` across our codebase.
     //
     // You mostly call `getAccountStore()` on this class which doesn't introduce
     // non-deterministic behavior due to JavaScript garbage collector timing.

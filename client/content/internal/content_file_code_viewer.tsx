@@ -3,7 +3,7 @@ import {highlightCode} from "@lezer/highlight";
 import classNames from "classnames";
 import {SpinnerGap} from "phosphor-react";
 import {ReactNode, useMemo} from "react";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {
     contentFileViewerLargeProcessingIndicatorFontSize,
@@ -32,7 +32,7 @@ export function ContentFileCodeViewer({
     file,
     loaderDataPromise,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
 }) {
     if (file.preview && !file.preview.isProcessing && !file.preview.ok) {

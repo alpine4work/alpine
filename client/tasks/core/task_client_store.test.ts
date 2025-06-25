@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
 import {
     TaskClientReadonlyStore,
@@ -54,7 +54,7 @@ const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
-const accountStore = getAccountClientStore(spaceId);
+const accountRegistry = getAccountRegistry(spaceId);
 
 const account1 = new AccountModel({
     id: generateId(),
@@ -70,11 +70,11 @@ const account1 = new AccountModel({
 
 // Make sure we hold a reference to the `account1` store for the entire test.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const account1Store = accountStore.getAccountStore(account1);
+const account1Store = accountRegistry.getAccountStore(account1);
 
 const getSortableAccount = (accountId: AccountId) => {
     const accountData = assertExists(
-        accountStore.weakGetAccountStoreByIdIfExists(accountId),
+        accountRegistry.weakGetAccountStoreByIdIfExists(accountId),
     ).getSnapshot();
 
     return {
@@ -200,7 +200,7 @@ afterEach(() => {
 
 function createAutoRetainStore() {
     const store = new TaskClientStore({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError: handleError,

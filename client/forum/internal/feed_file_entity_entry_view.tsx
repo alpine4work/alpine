@@ -1,6 +1,6 @@
 import {useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityPreview} from "~/client/content/content_file_entity_preview_component.js";
 import {getContentBlockWidth} from "~/client/content/state/get_content_block_width.js";
 import {Box} from "~/client/design/box.js";

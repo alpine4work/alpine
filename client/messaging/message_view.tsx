@@ -16,10 +16,7 @@ import {
     useState,
 } from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {
-    getAccountClientStore,
-    useAccountModel,
-} from "~/client/accounts/account_client_store_context.js";
+import {getAccountRegistry, useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
@@ -443,7 +440,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         getClipboardSerializerPrefix: () => {
             if (shouldMergeWithPreviousMessage) return null;
 
-            const authorName = getAccountClientStore(space.id)
+            const authorName = getAccountRegistry(space.id)
                 .getAccountStore(message.author)
                 .getSnapshot().name;
 

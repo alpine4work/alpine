@@ -1,5 +1,5 @@
 import {ReactNode} from "react";
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {ChatBrandIcon} from "~/client/icons/brand/chat_brand_icon.js";
@@ -219,7 +219,7 @@ export function renderInboxEntryDisplaySummary(summary: InboxEntryDisplaySummary
  * interactivity or embellishment (e.g. account names are not in bold).
  */
 export function printInboxEntryDisplaySummaryWithoutInteractivityStore(
-    accountStore: AccountClientStore,
+    accountRegistry: AccountRegistry,
     summary: InboxEntryDisplaySummary,
 ): Store<string> {
     return computeStore(get => {
@@ -230,7 +230,7 @@ export function printInboxEntryDisplaySummaryWithoutInteractivityStore(
                 text += summaryItem;
             } else {
                 text += getAccountShortNameWithoutFullNameTooltip(
-                    get(accountStore.getAccountStore(summaryItem)),
+                    get(accountRegistry.getAccountStore(summaryItem)),
                 );
             }
         }

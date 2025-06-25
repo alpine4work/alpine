@@ -2,7 +2,7 @@ import {UserPlus} from "phosphor-react";
 import {useCallback, useMemo, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -56,7 +56,7 @@ export function ChannelViewContributorsSection({
     const platform = usePlatform();
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
-    const accountsStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     const accessLevel = useMemo(
         () => getAccountAccessLevelAssumingSpaceAccess(channel.accessPolicy, currentAccount?.id),
@@ -75,7 +75,7 @@ export function ChannelViewContributorsSection({
         useMemo(() => {
             return Store.mapMany(
                 (contributors?.topContributors ?? [AccountModel.getUnknown()]).map(account =>
-                    accountsStore.getAccountStore(account),
+                    accountRegistry.getAccountStore(account),
                 ),
                 accounts => {
                     return (
@@ -91,7 +91,7 @@ export function ChannelViewContributorsSection({
                     );
                 },
             );
-        }, [accountsStore, contributors?.topContributors]),
+        }, [accountRegistry, contributors?.topContributors]),
     );
 
     const previewAccountIds = useMemo(

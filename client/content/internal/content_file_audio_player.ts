@@ -1,5 +1,5 @@
 import prettyBytes from "pretty-bytes";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {
     addContentFileVideoAndAudioPlayerControlsBehavior,
     renderContentFileVideoAndAudioPlayerControls,
@@ -100,7 +100,7 @@ export function renderContentFileAudioPlayer(
         withoutInteractivity,
         layout,
     }: {
-        file: FileClientStoreData;
+        file: FileModelRegistryData;
         filePreview: FileAudioPreview & {isProcessing: false; ok: true};
         audioSrc: string;
         platform: Platform;

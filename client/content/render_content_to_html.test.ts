@@ -1,8 +1,8 @@
 /* eslint-disable string-quotes */
 
 import {CalendarDate} from "@internationalized/date";
-import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
-import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/content/content_styles.js";
@@ -100,8 +100,8 @@ test("will properly number list items", () => {
                 {
                     getContext,
                     spaceId: null,
-                    accountStore: getAccountClientStore(spaceId),
-                    fileStore: getFileClientStore(spaceId),
+                    accountRegistry: getAccountRegistry(spaceId),
+                    fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",
@@ -196,8 +196,8 @@ test("will properly number list items with indentation", () => {
                 {
                     getContext,
                     spaceId: null,
-                    accountStore: getAccountClientStore(spaceId),
-                    fileStore: getFileClientStore(spaceId),
+                    accountRegistry: getAccountRegistry(spaceId),
+                    fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",
@@ -250,8 +250,8 @@ test("will properly number list items in quote blocks", () => {
                 {
                     getContext,
                     spaceId: null,
-                    accountStore: getAccountClientStore(spaceId),
-                    fileStore: getFileClientStore(spaceId),
+                    accountRegistry: getAccountRegistry(spaceId),
+                    fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",
@@ -309,8 +309,8 @@ test("will render code block", () => {
                 {
                     getContext,
                     spaceId: null,
-                    accountStore: getAccountClientStore(spaceId),
-                    fileStore: getFileClientStore(spaceId),
+                    accountRegistry: getAccountRegistry(spaceId),
+                    fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
                     spacingScale: "small",

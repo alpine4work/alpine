@@ -1,7 +1,7 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
-import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -105,7 +105,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
             const dom = document.createElement("span");
             const mention: ContentMention = node.attrs.mention;
             const mentionText = createContentMentionTextStore(
-                getAccountClientStore(this._getSpaceId()),
+                getAccountRegistry(this._getSpaceId()),
                 this._getContentReferences(),
                 mention,
             ).getSnapshot();
@@ -169,7 +169,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         ) {
             const fileRowDom = document.createElement("div");
 
-            const fileStore = getFileClientStore(this._getSpaceId());
+            const fileRegistry = getFileRegistry(this._getSpaceId());
             const contentReferences = this._getContentReferences();
 
             const platform: Platform = "desktop";
@@ -183,7 +183,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 getFile: fileId => {
                     const fileReference = contentReferences.fileById?.get(fileId);
                     if (!fileReference) return null;
-                    return fileStore.getFileStore(fileReference).getSnapshot();
+                    return fileRegistry.getFileStore(fileReference).getSnapshot();
                 },
             });
 

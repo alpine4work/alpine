@@ -2,8 +2,8 @@ import classNames from "classnames";
 import Color from "color";
 import prettyBytes from "pretty-bytes";
 import {Node} from "prosemirror-model";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
-import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
 import {
@@ -133,7 +133,7 @@ export function renderContentFilePreview({
 }: {
     spaceId: SpaceId;
     node: Node;
-    file: FileClientStoreData | undefined;
+    file: FileModelRegistryData | undefined;
     layout: ContentFileLayout;
     blockWidth: number;
     transformScale: number;
@@ -495,7 +495,7 @@ function renderContentFileImagePreview(
         withoutInteractivity,
     }: {
         spaceId: SpaceId;
-        file: FileClientStoreData;
+        file: FileModelRegistryData;
         filePreview: FileImagePreview;
         layout: ContentFileLayout;
         transformScale: number;
@@ -559,7 +559,7 @@ function renderContentFileImagePreviewInner(
         withoutInteractivity,
     }: {
         spaceId: SpaceId;
-        file: FileClientStoreData;
+        file: FileModelRegistryData;
         fileSize: {width: number; height: number};
         filePreview: Exclude<FileImagePreview, {ok: false}>;
         filePreviewSize: FileImagePreviewSize;
@@ -767,7 +767,7 @@ function renderContentFileCodePreview(
         platform,
         spacingScale,
     }: {
-        file: FileClientStoreData;
+        file: FileModelRegistryData;
         filePreview: FileCodePreview;
         layout: ContentFileLayout;
         blockWidth: number;
@@ -1522,7 +1522,7 @@ export function addContentFilePreviewBehavior(
     }: {
         spaceId: SpaceId;
         node: Node;
-        file: FileClientStoreData | undefined;
+        file: FileModelRegistryData | undefined;
         attachmentTarget: FileAttachmentTarget | "Uploader";
         isInert?: boolean;
         isInitialAppRender: boolean;
@@ -1810,7 +1810,7 @@ export function addContentFilePreviewBehavior(
     }
 
     const stopMaintainingFile = file
-        ? getFileClientStore(spaceId).startMaintainingFile(getContext, file, attachmentTarget)
+        ? getFileRegistry(spaceId).startMaintainingFile(getContext, file, attachmentTarget)
         : null;
 
     return () => {
@@ -1877,7 +1877,7 @@ export async function handleCopyContentFile(
         attachmentTarget,
     }: {
         spaceId: SpaceId;
-        file: FileClientStoreData | null;
+        file: FileModelRegistryData | null;
         attachmentTarget: FileAttachmentTarget | "Uploader";
     },
 ) {
@@ -2004,7 +2004,7 @@ export function handleDownloadContentFile({
     file,
 }: {
     spaceId: SpaceId;
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
 }) {
     if (file.isUploading) {
         throw new FailedPreconditionError("File hasn’t finished uploading", {

@@ -264,7 +264,7 @@ export function TaskGridViewDndContext({
                     task.id,
                     task.applyAction(
                         action,
-                        createGetTaskActionReferencedSortableAccount(store.accountStore, action),
+                        createGetTaskActionReferencedSortableAccount(store.accountRegistry, action),
                     ),
                 );
             }

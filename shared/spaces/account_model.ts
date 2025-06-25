@@ -37,7 +37,7 @@ export const AccountModelDataSchema = AccountModelWithoutSpaceDataSchema.merge(
  *
  * These objects are not normalized! You may have multiple `AccountModel`s
  * representing the same user. Even with different data. On the client we have
- * an `AccountClientStore` object that normalizes accounts. You can use the
+ * an `AccountRegistry` object that normalizes accounts. You can use the
  * `useAccountModel()` hook to get the account's latest data so the account
  * renders the same way everywhere. If an account with new data is loaded from
  * the server we re-render the application with the new `AccountModel`.

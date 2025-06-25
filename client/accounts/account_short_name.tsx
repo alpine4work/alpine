@@ -1,5 +1,5 @@
 import {useMemo} from "react";
-import {useAccountModel} from "~/client/accounts/account_client_store_context.js";
+import {useAccountModel} from "~/client/accounts/account_registry_context.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";

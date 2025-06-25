@@ -1,6 +1,6 @@
 import {DOMSerializer} from "prosemirror-model";
 import {NodeView, NodeViewConstructor} from "prosemirror-view";
-import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {dispatchContentEditorFileParentUpdatedEvent} from "~/client/content/internal/content_editor_file_node_view.js";
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
@@ -120,7 +120,7 @@ export function createContentEditorFileFloatNodeViewConstructor({
                     getFile: fileId => {
                         const fileReference = references.fileById?.get(fileId);
                         if (!fileReference) return null;
-                        return get(getFileClientStore(getSpaceId()).getFileStore(fileReference));
+                        return get(getFileRegistry(getSpaceId()).getFileStore(fileReference));
                     },
                 }),
             );

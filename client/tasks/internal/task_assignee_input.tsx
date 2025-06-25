@@ -13,7 +13,7 @@ import {
 import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {InputWithAutoGrowingWidth} from "~/client/design/input_with_auto_growing_width.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
@@ -128,7 +128,7 @@ function TaskAssigneeInput(
 ) {
     const platform = usePlatform();
     const canPrimaryInputHover = useCanPrimaryInputHover();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
     const {space, currentAccount} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -183,7 +183,7 @@ function TaskAssigneeInput(
     const allItems = useStore(
         useMemo(() => {
             return Store.mapMany(
-                allAccounts.map(account => accountStore.getAccountStore(account)),
+                allAccounts.map(account => accountRegistry.getAccountStore(account)),
                 allAccountDatas => {
                     const allItems: Array<TaskAssigneeInputItem> = allAccountDatas.map(
                         accountData => ({
@@ -210,7 +210,7 @@ function TaskAssigneeInput(
                     return allItems;
                 },
             );
-        }, [accountStore, allAccounts, currentAccount?.id]),
+        }, [accountRegistry, allAccounts, currentAccount?.id]),
     );
 
     const itemsSearchIndex = useMemo(
@@ -443,7 +443,7 @@ function TaskAssigneeInput(
                         initialAssigneeAccountId: newAssigneeAccount?.id ?? null,
                         value: getSelectionInputValue(
                             newAssigneeAccount
-                                ? accountStore.getAccountStore(newAssigneeAccount).getSnapshot()
+                                ? accountRegistry.getAccountStore(newAssigneeAccount).getSnapshot()
                                 : null,
                         ),
                         hasChanged: false,

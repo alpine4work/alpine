@@ -2,7 +2,7 @@ import _Fuse from "fuse.js";
 import {Memo, ReactNode, useMemo, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -224,7 +224,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
     normalizedAccountIds: Memo<ReadonlySet<AccountId | "MissingAccount">>;
 }) {
     const {currentAccount} = useSpaceContext();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     const store = useMemo(() => {
         return computeStore(get => {
@@ -253,7 +253,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
                         {account.id === currentAccount?.id
                             ? "me"
                             : getAccountShortNameWithoutFullNameTooltip(
-                                  get(accountStore.getAccountStore(account)),
+                                  get(accountRegistry.getAccountStore(account)),
                               )}
                     </Box>
                 </>
@@ -320,7 +320,7 @@ function TaskQueryFilterAccountOperationEditorPreview({
                 </>
             );
         });
-    }, [accountStore, currentAccount, filterReferences.accountById, normalizedAccountIds]);
+    }, [accountRegistry, currentAccount, filterReferences.accountById, normalizedAccountIds]);
 
     return useStore(store);
 }
@@ -338,7 +338,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
 }) {
     const platform = usePlatform();
     const {space, currentAccount} = useSpaceContext();
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     // If `currentAccount` is non-null then `queryReferencesForUrlGrant` should be
     // null. Since the list of accounts we show the user should be loaded from the
@@ -359,7 +359,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
         let accountDatasStore: Store<ReadonlyArray<AccountModelData>>;
         if (!queryReferencesForUrlGrant) {
             accountDatasStore = Store.many(
-                (allAccounts ?? []).map(account => accountStore.getAccountStore(account)),
+                (allAccounts ?? []).map(account => accountRegistry.getAccountStore(account)),
             );
         } else {
             accountDatasStore = new ConstStore(
@@ -459,7 +459,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
             return allItems;
         });
     }, [
-        accountStore,
+        accountRegistry,
         allAccounts,
         currentAccount,
         initialAccountIds,

@@ -11,7 +11,7 @@ import {
 } from "react";
 import {FocusScope} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction} from "~/client/design/menu.js";
@@ -439,7 +439,7 @@ export function ShareOverlayAccountGrants({
     isReadOnly: boolean;
     isAltKeyDown: boolean;
 }) {
-    const accountStore = useAccountClientStore();
+    const accountRegistry = useAccountRegistry();
 
     // Sort account grants by:
     //
@@ -526,7 +526,7 @@ export function ShareOverlayAccountGrants({
                                     ([accountId, accountGrant]) => {
                                         const account = accountById.get(accountId) ?? null;
                                         const accountData = account
-                                            ? get(accountStore.getAccountStore(account))
+                                            ? get(accountRegistry.getAccountStore(account))
                                             : null;
                                         return {accountId, accountGrant, account, accountData};
                                     },
@@ -536,7 +536,7 @@ export function ShareOverlayAccountGrants({
                         ),
                     ),
                 ),
-            [accountById, accountGrantByIdByInitialAccessLevel, accountStore],
+            [accountById, accountGrantByIdByInitialAccessLevel, accountRegistry],
         ),
     );
 

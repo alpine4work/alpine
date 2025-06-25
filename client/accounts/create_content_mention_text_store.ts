@@ -1,4 +1,4 @@
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -10,7 +10,7 @@ import {Store} from "~/shared/store/store.js";
  * Get the text to display for a content mention.
  */
 export function createContentMentionTextStore(
-    accountStore: AccountClientStore,
+    accountRegistry: AccountRegistry,
     references: ContentReferences,
     mention: ContentMention,
 ): Store<string> {
@@ -18,7 +18,7 @@ export function createContentMentionTextStore(
 
     if (!account) return new ConstStore(missingAccountName);
 
-    return accountStore.getAccountStore(account).map(accountData => {
+    return accountRegistry.getAccountStore(account).map(accountData => {
         const accountName = mention.isShort
             ? getAccountShortNameWithoutFullNameTooltip(accountData)
             : accountData.name;

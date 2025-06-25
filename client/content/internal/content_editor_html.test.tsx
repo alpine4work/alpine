@@ -14,7 +14,7 @@ import {
     ContentFileEntityRenderers,
     ContentFileEntityRenderersContext,
 } from "~/client/content/content_file_entity_renderers_context.js";
-import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
+import {disableStartMaintainingFileForTest} from "~/client/content/file_registry.js";
 import {
     ContentEditorState,
     getContentEditorReferences,

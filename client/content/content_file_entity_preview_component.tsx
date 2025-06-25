@@ -1,8 +1,8 @@
 import classNames from "classnames";
 import {useContext, useMemo, useRef} from "react";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
-import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {
     addContentFileEntityPreviewBehavior,
@@ -50,8 +50,8 @@ export function ContentFileEntityPreview({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const {space, currentAccount} = useSpaceContext();
-    const accountStore = useAccountClientStore();
-    const fileStore = useFileClientStore();
+    const accountRegistry = useAccountRegistry();
+    const fileRegistry = useFileRegistry();
     const currentDate = useCurrentDate();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
 
@@ -73,8 +73,8 @@ export function ContentFileEntityPreview({
                 getContext: () => context,
                 clientInfo,
                 spaceId: space.id,
-                accountStore,
-                fileStore,
+                accountRegistry,
+                fileRegistry,
                 currentAccount,
                 blockWidth,
                 transformScale: 1,
@@ -92,7 +92,7 @@ export function ContentFileEntityPreview({
             return html;
         });
     }, [
-        accountStore,
+        accountRegistry,
         blockWidth,
         clientInfo,
         context,
@@ -101,7 +101,7 @@ export function ContentFileEntityPreview({
         fileEntityId,
         fileEntityRenderers,
         fileEntityResult,
-        fileStore,
+        fileRegistry,
         height,
         isInitialAppRender,
         node,

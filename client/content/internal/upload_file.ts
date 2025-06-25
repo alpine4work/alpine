@@ -1,5 +1,5 @@
 import status from "statuses";
-import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {
     ProgressValueStore,
     ProgressValueStoreWithCancel,
@@ -340,10 +340,10 @@ async function actuallyUploadFile(
         let callOnAttachTimeout: Timeout | null = null;
         const promiseResolver = createPromiseResolver();
 
-        const fileStore = getFileClientStore(spaceId).getFileStore(fileReference);
+        const fileRegistry = getFileRegistry(spaceId).getFileStore(fileReference);
 
         const update = () => {
-            const file = fileStore.getSnapshot();
+            const file = fileRegistry.getSnapshot();
             const attachReadiness = getFileModelDataAttachReadiness(file);
 
             switch (attachReadiness) {
@@ -360,7 +360,7 @@ async function actuallyUploadFile(
                             hasCalledOnAttach = true;
                             callOnAttachTimeout = null;
                             try {
-                                const file = fileStore.getSnapshot();
+                                const file = fileRegistry.getSnapshot();
 
                                 onAttach({
                                     signedUrlSearch: file.signedUrlSearch,
@@ -384,7 +384,7 @@ async function actuallyUploadFile(
                         callOnAttachTimeout?.clear();
                         callOnAttachTimeout = null;
                         try {
-                            const file = fileStore.getSnapshot();
+                            const file = fileRegistry.getSnapshot();
 
                             onAttach({
                                 signedUrlSearch: file.signedUrlSearch,
@@ -401,10 +401,10 @@ async function actuallyUploadFile(
             }
         };
 
-        const unsubscribe = fileStore.subscribe(update);
+        const unsubscribe = fileRegistry.subscribe(update);
         update();
 
-        const stopMaintainingFile = getFileClientStore(spaceId).startMaintainingFile(
+        const stopMaintainingFile = getFileRegistry(spaceId).startMaintainingFile(
             () => context,
             fileReference,
             attachmentTarget ?? "Uploader",

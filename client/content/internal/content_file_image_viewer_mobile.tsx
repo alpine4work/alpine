@@ -4,7 +4,7 @@ import classNames from "classnames";
 import {DownloadSimple, SpinnerGap} from "phosphor-react";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {flushSync} from "react-dom";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {
     getFileImagePreviewRenderingAdjustments,
     renderFileImagePreviewPlaceholder,
@@ -54,7 +54,7 @@ export function ContentFileImageViewerMobile({
     withoutZoom = false,
     extraChildrenForVideo,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};
     viewerSize: {width: number; height: number};
@@ -263,7 +263,7 @@ function ContentFileImageMobileViewerInner({
     withoutZoom,
     extraChildrenForVideo,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     filePreviewPlaceholder: FileImagePreviewPlaceholder;
     loaderDataPromise: PromiseImmediate<ContentFileViewerLoaderData | null>;
     navigationBarSize: {width: number; height: number};

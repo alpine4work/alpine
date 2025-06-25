@@ -12,7 +12,7 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
-import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {MessageInputFile} from "~/client/content/messaging/add_message_input_files.js";
 import {MessageInputBase, MessageInputRef} from "~/client/content/messaging/message_input_base.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
@@ -127,7 +127,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
     const reporter = useReporter();
     const {currentAccount, space} = useSpaceContext();
     const inboxPeekContext = useInboxContext();
-    const fileStore = useFileClientStore();
+    const fileRegistry = useFileRegistry();
 
     const inputRef = useRef<MessageInputRef>(null);
 
@@ -252,7 +252,7 @@ function MessageInput<RoomKey extends string, Message extends MessageModel<RoomK
                 files: inputFiles.map(inputFile => {
                     switch (inputFile.type) {
                         case "File": {
-                            const latestFile = fileStore.getFileStore(inputFile).getSnapshot();
+                            const latestFile = fileRegistry.getFileStore(inputFile).getSnapshot();
                             return {
                                 type: "File",
                                 signedUrlSearch: latestFile.signedUrlSearch,

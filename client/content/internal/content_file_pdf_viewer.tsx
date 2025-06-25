@@ -1,4 +1,4 @@
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
 import {ContentFileProcessorError} from "~/client/content/internal/content_file_processor_error.js";
 import {getContentFileViewerSrc} from "~/client/content/internal/load_content_file_viewer_data.js";
 import {getFilePreviewSize} from "~/client/content/state/content_file_layout_computations.js";
@@ -21,7 +21,7 @@ export function ContentFilePdfViewer({
     viewerWidth,
     viewerHeight,
 }: {
-    file: FileClientStoreData;
+    file: FileModelRegistryData;
     viewerWidth: number;
     viewerHeight: number;
 }) {

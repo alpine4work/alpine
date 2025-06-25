@@ -2,10 +2,10 @@ import classNames from "classnames";
 import {Node} from "prosemirror-model";
 import {EditorView, __serializeForClipboard as serializeForClipboard} from "prosemirror-view";
 import {Memo, useContext, useMemo, useRef, useState} from "react";
-import {useAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
-import {FileClientStoreData} from "~/client/content/file_client_store.js";
-import {useFileClientStore} from "~/client/content/file_client_store_context.js";
+import {FileModelRegistryData} from "~/client/content/file_registry.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {registerClipboardSerializer} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {ContentBaseProsemirrorSchemaWithFiles} from "~/client/content/internal/content_base_schema_with_files.js";
 import {ContentEditorDomClipboardSerializer} from "~/client/content/internal/content_editor_dom_clipboard_serializer.js";
@@ -81,8 +81,8 @@ export function MessageViewFiles({
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {space, currentAccount} = useSpaceContext();
-    const accountStore = useAccountClientStore();
-    const fileStore = useFileClientStore();
+    const accountRegistry = useAccountRegistry();
+    const fileRegistry = useFileRegistry();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const currentDate = useCurrentDate();
 
@@ -112,7 +112,7 @@ export function MessageViewFiles({
                 const html = new HtmlFragmentGenerator();
                 const fileRows: Array<{
                     files: Array<MessageContentPayloadModelFile>;
-                    fileDatas: Array<FileClientStoreData | FileEntityId>;
+                    fileDatas: Array<FileModelRegistryData | FileEntityId>;
                     fileLayouts: Array<ContentFileLayout>;
                 }> = [];
                 let nextFileRow: Array<MessageContentPayloadModelFile> = [];
@@ -134,7 +134,7 @@ export function MessageViewFiles({
                 function pushNextFileRow(files: Array<MessageContentPayloadModelFile>) {
                     const fileDatas = files.map(file => {
                         if (file.type === "FileEntity") return file.fileEntityId;
-                        return get(fileStore.getFileStore(file));
+                        return get(fileRegistry.getFileStore(file));
                     });
 
                     const fileLayouts = computeContentFileRowLikeLayout(fileDatas, {
@@ -196,8 +196,8 @@ export function MessageViewFiles({
                                 getContext: () => context,
                                 clientInfo,
                                 spaceId: space.id,
-                                accountStore,
-                                fileStore,
+                                accountRegistry,
+                                fileRegistry,
                                 currentAccount,
                                 blockWidth,
                                 transformScale: 1,
@@ -236,14 +236,14 @@ export function MessageViewFiles({
                 }
             });
         }, [
-            accountStore,
+            accountRegistry,
             availableWidth,
             clientInfo,
             context,
             currentAccount,
             currentDate,
             fileEntityRenderers,
-            fileStore,
+            fileRegistry,
             files,
             isInitialAppRender,
             nodeByFileId,

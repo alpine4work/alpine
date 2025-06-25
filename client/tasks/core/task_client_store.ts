@@ -1,4 +1,4 @@
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {
@@ -298,7 +298,7 @@ export type TaskClientReadonlyStore = Pick<
     TaskClientStore,
     | "getTaskCountForTest"
     | "getCollectionCountForTest"
-    | "accountStore"
+    | "accountRegistry"
     | "spaceId"
     | "currentAccountId"
     | "clock"
@@ -332,18 +332,18 @@ export type TaskClientReadonlyStore = Pick<
  */
 export class TaskClientStore {
     private readonly _internal: TaskClientStoreInternal;
-    public readonly accountStore: AccountClientStore;
+    public readonly accountRegistry: AccountRegistry;
     public readonly spaceId: SpaceId;
     public readonly currentAccountId: AccountId | null;
     public readonly clock: HybridLogicalClock;
 
     constructor({
-        accountStore,
+        accountRegistry,
         spaceId,
         currentAccountId,
         onError,
     }: {
-        accountStore: AccountClientStore;
+        accountRegistry: AccountRegistry;
         spaceId: SpaceId;
         currentAccountId: AccountId | null;
         onError: (
@@ -353,12 +353,12 @@ export class TaskClientStore {
         ) => void;
     }) {
         this._internal = new TaskClientStoreInternal(this, {
-            accountStore,
+            accountRegistry,
             spaceId,
             currentAccountId,
             onError,
         });
-        this.accountStore = this._internal.accountStore;
+        this.accountRegistry = this._internal.accountRegistry;
         this.spaceId = this._internal.spaceId;
         this.currentAccountId = this._internal.currentAccountId;
         this.clock = this._internal.clock;
@@ -541,7 +541,7 @@ export function setShouldDisableCommitTaskActionTransactionMutexForTest(shouldDi
 export class TaskClientStoreInternal {
     public readonly external: TaskClientStore;
 
-    public readonly accountStore: AccountClientStore;
+    public readonly accountRegistry: AccountRegistry;
     public readonly spaceId: SpaceId;
     public readonly currentAccountId: AccountId | null;
     private readonly _onError: (
@@ -597,7 +597,7 @@ export class TaskClientStoreInternal {
     /**
      * Accounts referenced by our tasks.
      *
-     * We can't rely on `AccountClientStore.weakGetAccountStoreByIdIfExists()` to
+     * We can't rely on `AccountRegistry.weakGetAccountStoreByIdIfExists()` to
      * get an account referenced by a task. Since the account might be garbage
      * collected.
      */
@@ -648,12 +648,12 @@ export class TaskClientStoreInternal {
     constructor(
         external: TaskClientStore,
         {
-            accountStore,
+            accountRegistry,
             spaceId,
             currentAccountId,
             onError,
         }: {
-            accountStore: AccountClientStore;
+            accountRegistry: AccountRegistry;
             spaceId: SpaceId;
             currentAccountId: AccountId | null;
             onError: (
@@ -664,7 +664,7 @@ export class TaskClientStoreInternal {
         },
     ) {
         this.external = external;
-        this.accountStore = accountStore;
+        this.accountRegistry = accountRegistry;
         this.spaceId = spaceId;
         this.currentAccountId = currentAccountId;
         this._onError = onError;
@@ -897,7 +897,7 @@ export class TaskClientStoreInternal {
 
         // Incorporate referenced accounts into account store:
         for (const account of event.referencedAccounts) {
-            this.accountStore.getAndImmediatelyUpdateAccountStore(account);
+            this.accountRegistry.getAndImmediatelyUpdateAccountStore(account);
         }
 
         // Backfill tasks:
@@ -1271,7 +1271,7 @@ export class TaskClientStoreInternal {
             this.clock.tick(action.time);
 
             const getActionReferencedSortableAccount = createGetTaskActionReferencedSortableAccount(
-                this.accountStore,
+                this.accountRegistry,
                 action,
             );
 
@@ -1561,7 +1561,7 @@ export class TaskClientStoreInternal {
 
             const updateTaskEntry = (taskId: TaskId, oldTaskEntry: TaskClientStoreTaskEntry) => {
                 // Skip tasks that haven't been backfilled yet. When we apply actions for these
-                // tasks we'll read the updated account name from `AccountClientStore`.
+                // tasks we'll read the updated account name from `AccountRegistry`.
                 if (oldTaskEntry.task === null) return;
 
                 const newTask = oldTaskEntry.task.applyUpdateAccountNameAction(action);
@@ -2531,7 +2531,7 @@ export class TaskClientStoreInternal {
         // Apply actions optimistically:
         for (const action of actions) {
             const getActionReferencedSortableAccount = createGetTaskActionReferencedSortableAccount(
-                this.accountStore,
+                this.accountRegistry,
                 action,
             );
 
@@ -4114,7 +4114,7 @@ export class TaskClientStoreInternal {
                 referencedAccountStore.referenceCount++;
             } else {
                 const accountStore =
-                    this.accountStore.weakGetAccountStoreByIdIfExists(newReferencedAccountId);
+                    this.accountRegistry.weakGetAccountStoreByIdIfExists(newReferencedAccountId);
 
                 // It's expected that when a `newTaskEntry` is introduced by the server, the
                 // server has made referenced accounts available through `referencedAccounts`.
@@ -4123,7 +4123,7 @@ export class TaskClientStoreInternal {
                 // somewhere in the UI.
                 if (!accountStore) {
                     throw new InternalError(
-                        "Couldn’t find `AccountId` referenced by `TaskModel` in `AccountClientStore`",
+                        "Couldn’t find `AccountId` referenced by `TaskModel` in `AccountRegistry`",
                     );
                 }
 
@@ -4181,7 +4181,7 @@ export class TaskClientStoreInternal {
                     if (action.type !== "UpdateTask" || action.taskId !== taskId) continue;
 
                     const getActionReferencedSortableAccount =
-                        createGetTaskActionReferencedSortableAccount(this.accountStore, action);
+                        createGetTaskActionReferencedSortableAccount(this.accountRegistry, action);
 
                     if (task !== null) {
                         task = task.applyAction(action, getActionReferencedSortableAccount);

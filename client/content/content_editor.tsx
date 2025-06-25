@@ -51,7 +51,7 @@ import {
 import {flushSync} from "react-dom";
 import {ContentFileEntityRenderersContext} from "~/client/content/content_file_entity_renderers_context.js";
 import {ContentView} from "~/client/content/content_view.js";
-import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {createContentEditorCheckListItemNodeViewConstructor} from "~/client/content/internal/content_editor_check_list_item_node_view.js";
 import {ContentEditorCodeBlockLanguagePickerComboBox} from "~/client/content/internal/content_editor_code_block_language_picker_combo_box.js";
 import {createContentEditorCodeBlockNodeViewConstructor} from "~/client/content/internal/content_editor_code_block_node_view.js";
@@ -2982,7 +2982,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                             : undefined;
 
                         const file = fileReference
-                            ? getFileClientStore(spaceId).getFileStore(fileReference).getSnapshot()
+                            ? getFileRegistry(spaceId).getFileStore(fileReference).getSnapshot()
                             : null;
 
                         handleCopyContentFile(selectedNodeElement, {

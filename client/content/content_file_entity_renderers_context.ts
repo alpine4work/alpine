@@ -1,7 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import {createContext} from "react";
-import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {FileClientStore} from "~/client/content/file_client_store.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
+import {FileRegistry} from "~/client/content/file_registry.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {Reporter} from "~/client/design/reporter.js";
@@ -34,8 +34,8 @@ export type ContentFileEntityRenderers = {
                 getContext: () => AppContext;
                 clientInfo: ClientInfo;
                 spaceId: SpaceId | null;
-                accountStore: AccountClientStore;
-                fileStore: FileClientStore;
+                accountRegistry: AccountRegistry;
+                fileRegistry: FileRegistry;
                 currentAccount: AccountModel | null;
                 blockWidth: number;
                 transformScale: number;

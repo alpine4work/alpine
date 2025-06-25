@@ -3,9 +3,9 @@ import {Node} from "prosemirror-model";
 import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
 import {MutableRefObject} from "react";
-import {getAccountClientStore} from "~/client/accounts/account_client_store_context.js";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
-import {getFileClientStore} from "~/client/content/file_client_store_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {ContentEditorFileToolbarController} from "~/client/content/internal/content_editor_file_toolbar.js";
 import {
     addContentFileEntityPreviewBehavior,
@@ -188,7 +188,7 @@ export function createContentEditorFileNodeViewConstructor({
                 const htmlStore = computeStore(get => {
                     const file = get(
                         fileReference
-                            ? getFileClientStore(spaceId).getFileStore(fileReference)
+                            ? getFileRegistry(spaceId).getFileStore(fileReference)
                             : undefinedStore,
                     );
 
@@ -203,7 +203,7 @@ export function createContentEditorFileNodeViewConstructor({
                             if (!otherFileReference) return null;
 
                             return get(
-                                getFileClientStore(getSpaceId()).getFileStore(otherFileReference),
+                                getFileRegistry(getSpaceId()).getFileStore(otherFileReference),
                             );
                         },
                     });
@@ -222,8 +222,8 @@ export function createContentEditorFileNodeViewConstructor({
                             getContext,
                             clientInfo,
                             spaceId,
-                            accountStore: getAccountClientStore(spaceId),
-                            fileStore: getFileClientStore(spaceId),
+                            accountRegistry: getAccountRegistry(spaceId),
+                            fileRegistry: getFileRegistry(spaceId),
                             currentAccount: getCurrentAccount(),
                             blockWidth: blockWidthPx,
                             transformScale: 1,

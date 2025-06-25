@@ -2,7 +2,7 @@
 
 import {render} from "@testing-library/react";
 import {ContentView} from "~/client/content/content_view.js";
-import {disableStartMaintainingFileForTest} from "~/client/content/file_client_store.js";
+import {disableStartMaintainingFileForTest} from "~/client/content/file_registry.js";
 import {
     getSelectionClipboardData,
     handleCopyEventIfNotTextInputElement,
