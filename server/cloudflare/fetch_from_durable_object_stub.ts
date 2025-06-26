@@ -28,7 +28,17 @@ export async function fetchFromDurableObjectStub({
     span: TracerSpan;
 }): Promise<Response> {
     const durableObjectId = durableObjectNamespace.idFromName(idName);
-    const durableObjectStub = durableObjectNamespace.get(durableObjectId);
+
+    const durableObjectStub = durableObjectNamespace.get(durableObjectId, {
+        // Currently, we only have data in the AWS region `us-east-1`. So place Durable
+        // Objects in the Eastern North America region so Durable Objects get low
+        // latency when making RPC calls to `AppService` in AWS.
+        //
+        // Long term, ideally we'll put space data in the nearest AWS region to the
+        // customer and our Durable Objects should be created near that data center
+        // as well. Or we'll have DynamoDB replicas in multiple regions.
+        locationHint: "enam",
+    });
 
     const newUrl = new URL(request.url);
     newUrl.pathname = pathname;
