@@ -2005,15 +2005,15 @@ test("effective task collection name fuzzy searching", async () => {
         "The Lock Artist",
     ]);
     expect(await testSearch("the")).toEqual([
-        "The Code of the Wooster",
         "The Preservationist",
-        "The Silmarillion",
-        "The Grand Design",
-        "The Lost Symbol",
-        "The DaVinci Code",
-        "The Lock Artist",
         "The Book of Samson",
+        "The Grand Design",
         "The Book of Lies",
+        "The Lost Symbol",
+        "The Silmarillion",
+        "The DaVinci Code",
+        "The Code of the Wooster",
+        "The Lock Artist",
     ]);
 
     // Testing word position swaps

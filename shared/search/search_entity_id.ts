@@ -1,4 +1,5 @@
 import {InternalError} from "~/shared/error/error.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -14,10 +15,11 @@ import {
     DocumentCommentThreadId,
     DocumentId,
     PostId,
+    SpaceId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
  * The identifier of an entity in our search system. Search entities are a
@@ -28,7 +30,15 @@ export type SearchEntityId = {
     [Key in keyof SearchEntityIdAxes]: SearchEntityIdAxes[Key][keyof SearchEntityIdAxes[Key]];
 }[keyof SearchEntityIdAxes];
 
-export const SearchEntityIdSchema = Schema.string as Schema<SearchEntityId>;
+export const SearchEntityIdSchema = Schema.string.transform<SearchEntityId>({
+    serialize: id => id,
+    deserialize: id => {
+        if (!isSearchEntityId(id))
+            throw new SchemaDeserializationError("Expected search entity id");
+
+        return id;
+    },
+});
 
 type SearchEntityIdAxes = {
     Dynamic: {
@@ -80,7 +90,15 @@ type SearchEntityByAffinityOrNotAffinityAxis = {
  */
 export type SearchDynamicEntityId = SearchEntityByDynamicOrStaticAxis["Dynamic"];
 
-export const SearchDynamicEntityIdSchema = Schema.string as Schema<SearchDynamicEntityId>;
+export const SearchDynamicEntityIdSchema = SearchEntityIdSchema.transform<SearchDynamicEntityId>({
+    serialize: id => id,
+    deserialize: id => {
+        if (!isSearchDynamicEntityId(id))
+            throw new SchemaDeserializationError("Expected search dynamic entity id");
+
+        return id;
+    },
+});
 
 /**
  * Search entities that are not indexed in OpenSearch. These entities are
@@ -89,7 +107,137 @@ export const SearchDynamicEntityIdSchema = Schema.string as Schema<SearchDynamic
  */
 export type SearchStaticEntityId = SearchEntityByDynamicOrStaticAxis["Static"];
 
-export const SearchStaticEntityIdSchema = Schema.string as Schema<SearchStaticEntityId>;
+export const SearchStaticEntityIdSchema = SearchEntityIdSchema.transform<SearchStaticEntityId>({
+    serialize: id => id,
+    deserialize: id => {
+        if (!isSearchStaticEntityId(id))
+            throw new SchemaDeserializationError("Expected search static entity id");
+
+        return id;
+    },
+});
+
+type GetSearchEntityIdActualTestMapUnionType<Id extends string> =
+    Id extends `${infer IdType}:${string}`
+        ? Record<IdType, (idRest: string) => boolean>
+        : Record<Id, null>;
+
+type GetSearchEntityIdActualTestMapType<Id extends string> = MergeObjectIntersection<
+    UnionToIntersection<GetSearchEntityIdActualTestMapUnionType<Id>>
+>;
+
+const searchEntityIdTestMap: GetSearchEntityIdActualTestMapType<SearchEntityId> = {
+    Account: isId,
+    Document: isId,
+    Channel: isId,
+    Chat: isId,
+    Task: isId,
+    TaskCollection: isId,
+    DocumentComment: isIdAndIdAndMessageIndex,
+    Post: isId,
+    PostComment: isIdAndMessageIndex,
+    ChatMessage: isIdAndMessageIndex,
+    TaskComment: isIdAndMessageIndex,
+    TaskPersonal: null,
+    CreateChatMessage: null,
+    CreatePost: null,
+    CreateChannel: null,
+    CreateDocument: null,
+    CreateTask: null,
+    CreateTaskCollection: null,
+    CreateTaskView: null,
+    TaskQueryFilteredToCreatorIsCurrentAccount: null,
+    TaskQueryFilteredToAssigneeIsCurrentAccount: null,
+    TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive: null,
+    TaskQueryFilteredToAssignerIsCurrentAccount: null,
+    SearchFavorites: null,
+};
+
+function isIdAndMessageIndex(string: string): boolean {
+    const [idString = "", messageIndexString = ""] = string.split("-", 2);
+    if (!isId(idString)) return false;
+    return /\d+/.test(messageIndexString);
+}
+
+function isIdAndIdAndMessageIndex(string: string): boolean {
+    const [id1String = "", id2String = "", messageIndexString = ""] = string.split("-", 3);
+    if (!isId(id1String)) return false;
+    if (!isId(id2String)) return false;
+    return /\d+/.test(messageIndexString);
+}
+
+type GetSearchEntityIdTestMapUnionType<Id extends string> = Id extends `${infer IdType}:${string}`
+    ? Record<IdType, true>
+    : Record<Id, true>;
+
+type GetSearchEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
+    UnionToIntersection<GetSearchEntityIdTestMapUnionType<Id>>
+>;
+
+const searchDynamicEntityIdTestMap: GetSearchEntityIdTestMapType<SearchDynamicEntityId> = {
+    Account: true,
+    Document: true,
+    Channel: true,
+    Chat: true,
+    Task: true,
+    TaskCollection: true,
+    DocumentComment: true,
+    Post: true,
+    PostComment: true,
+    ChatMessage: true,
+    TaskComment: true,
+};
+
+const searchStaticEntityIdTestMap: GetSearchEntityIdTestMapType<SearchStaticEntityId> = {
+    TaskPersonal: true,
+    CreateChatMessage: true,
+    CreatePost: true,
+    CreateChannel: true,
+    CreateDocument: true,
+    CreateTask: true,
+    CreateTaskCollection: true,
+    CreateTaskView: true,
+    TaskQueryFilteredToCreatorIsCurrentAccount: true,
+    TaskQueryFilteredToAssigneeIsCurrentAccount: true,
+    TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive: true,
+    TaskQueryFilteredToAssignerIsCurrentAccount: true,
+    SearchFavorites: true,
+};
+
+/**
+ * Is the provided string a valid `SearchEntityId`?
+ */
+export function isSearchEntityId(id: string): id is SearchEntityId {
+    const [idType = "", idRest = ""] = id.split(":", 2);
+    const idTest = cast<{[key: string]: ((idRest: string) => boolean) | null}>(
+        searchEntityIdTestMap,
+    )[idType];
+
+    if (idTest === undefined) return false;
+
+    if (idTest === null) {
+        // Implies that `idRest` is an empty string.
+        return id === idType;
+    }
+
+    return idTest(idRest);
+}
+
+/**
+ * Is the provided `SearchEntityId` a valid `SearchDynamicEntityId`?
+ */
+export function isSearchDynamicEntityId(id: SearchEntityId): id is SearchDynamicEntityId {
+    const [idType = ""] = id.split(":", 2);
+    return cast<{[key: string]: true}>(searchDynamicEntityIdTestMap)[idType] === true;
+}
+
+/**
+ * Is the provided `SearchEntityId` a `SearchStaticEntityId`?
+ */
+export function isSearchStaticEntityId(id: SearchEntityId): id is SearchStaticEntityId {
+    const [idType = ""] = id.split(":", 2);
+    return cast<{[key: string]: true}>(searchStaticEntityIdTestMap)[idType] === true;
+}
 
 /**
  * Search entities that we record affinity points for. Not every search
@@ -108,7 +256,15 @@ export const SearchStaticEntityIdSchema = Schema.string as Schema<SearchStaticEn
  */
 export type SearchAffinityEntityId = SearchEntityByAffinityOrNotAffinityAxis["Affinity"];
 
-export const SearchAffinityEntityIdSchema = Schema.string as Schema<SearchAffinityEntityId>;
+export const SearchAffinityEntityIdSchema = SearchEntityIdSchema.transform<SearchAffinityEntityId>({
+    serialize: id => id,
+    deserialize: id => {
+        if (!isSearchAffinityEntityId(id))
+            throw new SchemaDeserializationError("Expected search affinity entity id");
+
+        return id;
+    },
+});
 
 type SearchEntityIdType<Id extends string> = Id extends `${infer Type}:${string}` ? Type : Id;
 
@@ -142,6 +298,37 @@ assertEqualTypes<
     SearchEntityIdType<SearchEntityIdAxes["Static"]["Affinity"]> &
         SearchEntityIdType<SearchEntityIdAxes["Static"]["NotAffinity"]>,
     never
+>();
+
+/**
+ * Search entities which can be @ mentioned. Basically entities with a title
+ * since that's all that's rendered in the mention.
+ */
+export type SearchMentionEntityId =
+    | `Document:${DocumentId}`
+    | `Channel:${ChannelId}`
+    | `Task:${TaskId}`
+    | `TaskCollection:${TaskCollectionId}`
+    | `Post:${PostId}`;
+
+export const SearchMentionEntityIdSchema = SearchEntityIdSchema.transform<SearchMentionEntityId>({
+    serialize: id => id,
+    deserialize: id => {
+        if (!isSearchMentionEntityId(id))
+            throw new SchemaDeserializationError("Expected search mention entity id");
+
+        return id;
+    },
+});
+
+assertAssignableTypes<SearchMentionEntityId, SearchEntityId>();
+assertEqualTypes<
+    SearchMentionEntityId,
+    | Exclude<
+          SearchAffinityEntityId,
+          `Account:${ContentMentionAccountId}` | `Chat:${ChatId}` | "TaskPersonal"
+      >
+    | `Post:${PostId}`
 >();
 
 /**
@@ -256,39 +443,70 @@ export function printSearchDynamicEntityId(
     }
 }
 
-type GetSearchEntityIdTestMapUnionType<Id extends string> = Id extends `${infer IdType}:${string}`
-    ? Record<IdType, (idRest: string) => boolean>
-    : Record<Id, null>;
-
-type GetSearchEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
-    UnionToIntersection<GetSearchEntityIdTestMapUnionType<Id>>
->;
-
 const searchAffinityEntityIdTestMap: GetSearchEntityIdTestMapType<SearchAffinityEntityId> = {
-    Account: isId,
-    Document: isId,
-    Channel: isId,
-    Chat: isId,
-    Task: isId,
-    TaskCollection: isId,
-    TaskPersonal: null,
+    Account: true,
+    Document: true,
+    Channel: true,
+    Chat: true,
+    Task: true,
+    TaskCollection: true,
+    TaskPersonal: true,
 };
 
 /**
  * Is the provided `SearchEntityId` a valid `SearchAffinityEntityId`?
  */
 export function isSearchAffinityEntityId(id: SearchEntityId): id is SearchAffinityEntityId {
-    const [idType = "", idRest = ""] = id.split(":", 2);
-    const idTest = cast<{[key: string]: ((idRest: string) => boolean) | null}>(
-        searchAffinityEntityIdTestMap,
-    )[idType];
+    const [idType = ""] = id.split(":", 2);
+    return cast<{[key: string]: true}>(searchAffinityEntityIdTestMap)[idType] === true;
+}
 
-    if (idTest === undefined) return false;
+type GetSearchMentionEntityIdTestMapUnionType<Id extends string> =
+    Id extends `${infer IdType}:${string}` ? Record<IdType, true> : Record<Id, false>;
 
-    if (idTest === null) {
-        // Implies that `idRest` is an empty string.
-        return id === idType;
-    }
+type GetSearchMentionEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
+    UnionToIntersection<GetSearchMentionEntityIdTestMapUnionType<Id>>
+>;
 
-    return idTest(idRest);
+const searchMentionEntityIdTestMap: GetSearchMentionEntityIdTestMapType<SearchMentionEntityId> = {
+    Document: true,
+    Channel: true,
+    Task: true,
+    TaskCollection: true,
+    Post: true,
+};
+
+export type SearchMentionEntityType = keyof typeof searchMentionEntityIdTestMap;
+
+let searchMentionEntityTypes: ReadonlyArray<SearchMentionEntityType> | null = null;
+
+/**
+ * The entity types which make for valid `SearchMentionEntityId`s.
+ */
+export function getSearchMentionEntityTypes() {
+    searchMentionEntityTypes ??= Object.keys(
+        searchMentionEntityIdTestMap,
+    ) as ReadonlyArray<SearchMentionEntityType>;
+    return searchMentionEntityTypes;
+}
+
+/**
+ * Is the provided `SearchEntityId` a valid `SearchMentionEntityId`?
+ */
+export function isSearchMentionEntityId(
+    id: SearchEntityId | `Account:${ContentMentionAccountId}~${SpaceId}`,
+): id is SearchMentionEntityId {
+    const [idType = ""] = id.split(":", 2);
+    return cast<{[key: string]: true}>(searchMentionEntityIdTestMap)[idType] === true;
+}
+
+/**
+ * Parse a `SearchMentionEntityId` into a more convenient to use object format.
+ */
+export function parseSearchMentionEntityId(
+    id: SearchMentionEntityId,
+): SearchDynamicEntityIdObject & {readonly type: SearchMentionEntityType} {
+    return parseSearchDynamicEntityId(id) as SearchDynamicEntityIdObject & {
+        readonly type: SearchMentionEntityType;
+    };
 }

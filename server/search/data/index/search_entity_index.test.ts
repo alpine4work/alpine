@@ -26,6 +26,7 @@ import {
     searchByAffinity,
     searchByKeywords,
     searchBySemantics,
+    searchMentionByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {
     favoriteSearchEntity,
@@ -44,7 +45,7 @@ import {
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -62,6 +63,7 @@ import {
     SearchEntityResultModel,
     SearchFavoriteEntityResultModel,
 } from "~/shared/search/search_entity_result_model.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**
@@ -4377,14 +4379,14 @@ test(
             ]);
             expect(await testSearch("the")).toEqual([
                 "The Preservationist",
-                "The Silmarillion",
-                "The Code of the Wooster",
-                "The Grand Design",
-                "The Lost Symbol",
-                "The DaVinci Code",
-                "The Lock Artist",
                 "The Book of Samson",
+                "The Grand Design",
                 "The Book of Lies",
+                "The Lost Symbol",
+                "The Silmarillion",
+                "The DaVinci Code",
+                "The Code of the Wooster",
+                "The Lock Artist",
             ]);
 
             // Testing word position swaps
@@ -4624,4 +4626,717 @@ test("reading search entities is batched and cached", async () => {
     ]);
 
     expect(getCount()).toEqual(2);
+});
+
+test("searching mentions requires space access", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    // Create a document in the other space
+    await TestDocument.create(session, {
+        title: "Test Document",
+        body: "This is a test document.",
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    // Try to search in the other space without access
+    await expect(
+        searchMentionByKeywords(session.action(), {
+            spaceId: otherSpace.id,
+            queryText: "Test",
+            limit: 10,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("searching mentions excludes entities user doesn’t have access to", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const privatePersonalDocument1 = await TestDocument.create(session1, {
+        title: "Private Personal Document 1",
+    });
+
+    const privateSharedDocument1 = await TestDocument.create(session1, {
+        title: "Private Shared Document 1",
+    });
+
+    const publicDocument1 = await TestDocument.create(session1, {
+        title: "Public Document 1",
+    });
+
+    const privatePersonalDocument2 = await TestDocument.create(session2, {
+        title: "Private Personal Document 2",
+    });
+
+    const privateSharedDocument2 = await TestDocument.create(session2, {
+        title: "Private Shared Document 2",
+    });
+
+    const publicDocument2 = await TestDocument.create(session2, {
+        title: "Public Document 2",
+    });
+
+    await privateSharedDocument1.access.grant(session1, session2);
+    await publicDocument1.access.grantDefault(session1);
+
+    await privateSharedDocument2.access.grant(session2, session1);
+    await publicDocument2.access.grantDefault(session2);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await searchMentionByKeywords(session1.action(), {
+            spaceId: space.id,
+            queryText: "document",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${publicDocument1.id}`,
+                    title: "Public Document 1",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${publicDocument2.id}`,
+                    title: "Public Document 2",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${privatePersonalDocument1.id}`,
+                    title: "Private Personal Document 1",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${privateSharedDocument1.id}`,
+                    title: "Private Shared Document 1",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${privateSharedDocument2.id}`,
+                    title: "Private Shared Document 2",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchMentionByKeywords(session2.action(), {
+            spaceId: space.id,
+            queryText: "document",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${publicDocument1.id}`,
+                    title: "Public Document 1",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${publicDocument2.id}`,
+                    title: "Public Document 2",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${privatePersonalDocument2.id}`,
+                    title: "Private Personal Document 2",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${privateSharedDocument2.id}`,
+                    title: "Private Shared Document 2",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${privateSharedDocument1.id}`,
+                    title: "Private Shared Document 1",
+                    titleVersion: {type: "Integer", version: 1},
+                    media: null,
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+});
+
+test("searching mentions supports prefix matching", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document1 = await TestDocument.create(session, {
+        title: "foobar document",
+    });
+
+    const document2 = await TestDocument.create(session, {
+        title: "barfoo document",
+    });
+
+    const channel = await TestChannel.create(session, {
+        name: "foobaz channel",
+    });
+
+    const task = await TestTask.create(session, {
+        title: "fooqux task",
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "fo",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document1.id}`,
+                    title: "foobar document",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Channel:${channel.id}`,
+                    title: "foobaz channel",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Task:${task.id}`,
+                    title: "fooqux task",
+                    titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                    media: {
+                        type: "TaskDisplayStatus",
+                        displayStatus: "OpenInactive",
+                        version: expect.any(Array),
+                    },
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "foo",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document1.id}`,
+                    title: "foobar document",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Channel:${channel.id}`,
+                    title: "foobaz channel",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Task:${task.id}`,
+                    title: "fooqux task",
+                    titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
+                    media: {
+                        type: "TaskDisplayStatus",
+                        displayStatus: "OpenInactive",
+                        version: expect.any(Array),
+                    },
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "foob",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document1.id}`,
+                    title: "foobar document",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Channel:${channel.id}`,
+                    title: "foobaz channel",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "bar",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document2.id}`,
+                    title: "barfoo document",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "docu",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document1.id}`,
+                    title: "foobar document",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document2.id}`,
+                    title: "barfoo document",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    // Should return "foobaz" as a typo match
+    expect(
+        await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "foobar",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document1.id}`,
+                    title: "foobar document",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Channel:${channel.id}`,
+                    title: "foobaz channel",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+});
+
+test("searching mentions excludes accounts and chats even if keywords match", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "foo"});
+    const session2 = await space.createSession({name: "bar"});
+    const session3 = await space.createSession({name: "qux"});
+
+    const chat = await TestChat.get(session, session2, session3);
+    await chat.sendMessage(session, "foo");
+
+    const document = await TestDocument.create(session, {title: "foo bar qux"});
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "foo",
+            limit: 10,
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            {
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document.id}`,
+                    title: "foo bar qux",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+            },
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "foo",
+            limit: 10,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        }).then(results => results.sort((a, b) => defaultCompareStrings(a.model.id, b.model.id))),
+    ).toEqual(
+        [
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: await session.get(),
+                bodyTextSnippet: [],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Chat:${chat.id}`,
+                    title: "bar, foo, and qux",
+                    titleVersion: null,
+                    media: {
+                        type: "AccountPile",
+                        previewAccounts: expect.any(Array),
+                        accountCount: 2,
+                    },
+                }),
+                bodyTextSnippet: [],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `ChatMessage:${chat.id}-0`,
+                    title: null,
+                    titleVersion: null,
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [{isHighlighted: true, text: "foo"}],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Document:${document.id}`,
+                    title: "foo bar qux",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+                bodyTextSnippet: [],
+            }),
+        ].sort((a, b) => defaultCompareStrings(a.model.id, b.model.id)),
+    );
+});
+
+test("searching mentions has effective name fuzzy searching", async () => {
+    const bookNames = [
+        "Old Man’s War",
+        "The Lock Artist",
+        "HTML5",
+        "Thank You Jeeves",
+        "The Code of the Wooster",
+        "Right Ho Jeeves",
+        "The DaVinci Code",
+        "Angels & Demons",
+        "The Silmarillion",
+        "Syrup",
+        "The Lost Symbol",
+        "The Book of Lies",
+        "Lamb",
+        "Fool",
+        "Incompetence",
+        "Fat",
+        "Colony",
+        "Backwards, Red Dwarf",
+        "The Grand Design",
+        "The Book of Samson",
+        "The Preservationist",
+        "Fallen",
+        "Monster 1959",
+        "Test Mabc",
+        "Test Mxyz",
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ];
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let lastCollection: TestTaskCollection | null = null;
+
+    for (let i = 0; i < bookNames.length; i++) {
+        const bookName = bookNames[i]!;
+
+        const j = i % 4;
+        switch (j) {
+            case 0: {
+                const document = await TestDocument.create(session, {title: bookName});
+                await document.access.grantDefault(session);
+                break;
+            }
+            case 1: {
+                const channel = await TestChannel.create(session, {name: bookName});
+                await channel.access.grantDefault(session);
+                break;
+            }
+            case 2: {
+                const collection = await TestTaskCollection.create(session, {name: bookName});
+                await collection.access.grantDefault(session);
+                lastCollection = collection;
+                break;
+            }
+            case 3: {
+                const task = await TestTask.create(session, {title: bookName});
+                await task.addCollection(session, assertExists(lastCollection));
+                break;
+            }
+            default:
+                throw new InternalError(`Unexpected: ${j}`);
+        }
+
+        import.meta.jest.advanceTimersByTime(1000);
+        await runAllTimersAndWaitForTestTasks();
+    }
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const testSearch = async (queryText: string) => {
+        const results = await searchMentionByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText,
+            limit: 100,
+        });
+
+        return results.map(result => result.model.initialData.title);
+    };
+
+    // Testing prefix matching
+    expect(await testSearch("inc")).toEqual(["Incompetence"]);
+    expect((await testSearch("f")).sort()).toEqual([
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2024Q3",
+        "Fallen",
+        "Fat",
+        "Fool",
+    ]);
+
+    // Testing not first word matching
+    expect(await testSearch("jeeves")).toEqual(["Right Ho Jeeves", "Thank You Jeeves"]);
+
+    // Testing not first word prefix matching
+    expect(await testSearch("jee")).toEqual(["Right Ho Jeeves", "Thank You Jeeves"]);
+
+    // Testing stop word inclusion
+    expect(await testSearch("th")).toEqual([
+        "The Preservationist",
+        "The Silmarillion",
+        "The Code of the Wooster",
+        "The Lock Artist",
+        "The Book of Samson",
+        "The Grand Design",
+        "The Book of Lies",
+        "The Lost Symbol",
+        "The DaVinci Code",
+        "Thank You Jeeves",
+    ]);
+    expect(await testSearch("t")).toEqual([
+        "Test Mxyz",
+        "The Preservationist",
+        "The Silmarillion",
+        "The Code of the Wooster",
+        "The Lock Artist",
+        "Test Mabc",
+        "The Book of Samson",
+        "The Grand Design",
+        "The Book of Lies",
+        "The Lost Symbol",
+        "The DaVinci Code",
+        "Thank You Jeeves",
+    ]);
+    expect(await testSearch("the")).toEqual([
+        "The Preservationist",
+        "The Silmarillion",
+        "The Code of the Wooster",
+        "The Lock Artist",
+        "The Book of Samson",
+        "The Grand Design",
+        "The Book of Lies",
+        "The Lost Symbol",
+        "The DaVinci Code",
+    ]);
+
+    // Testing word position swaps
+    expect(await testSearch("Backwards, Red Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Backwards Red Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Backwards Dwarf Red")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Red Backwards Dwarf")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("Dwarf Red Backwards")).toEqual(["Backwards, Red Dwarf"]);
+    expect(await testSearch("thank jeeves")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+    expect(await testSearch("jeeves thank")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+    expect(await testSearch("jeeves thank you")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+    expect(await testSearch("jeeves you thank")).toEqual(["Thank You Jeeves", "Right Ho Jeeves"]);
+
+    // Testing word in different positions
+    expect(await testSearch("code")).toEqual([
+        "The Code of the Wooster",
+        "The DaVinci Code",
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+
+    // Testing last word prefix matching
+    expect(await testSearch("test")).toEqual(["Test Mxyz", "Test Mabc"]);
+    expect(await testSearch("test m")).toEqual([
+        "Test Mxyz",
+        "Test Mabc",
+        "Monster 1959",
+        "Old Man’s War",
+    ]);
+    expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
+    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Test Mxyz", "Old Man’s War"]);
+    expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
+    expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
+    expect(await testSearch("tes m")).toEqual([
+        "Test Mxyz",
+        "Test Mabc",
+        "Monster 1959",
+        "Old Man’s War",
+    ]);
+
+    // Testing typos
+    expect(await testSearch("Preservationist")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Preseravtionist")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Preseravtoinist")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Perseravtoinist")).toEqual([]);
+    expect(await testSearch("Perseravtoisnit")).toEqual([]);
+    expect(await testSearch("Mnoster 1")).toEqual(["Monster 1959"]);
+
+    // Testing typos in prefix
+    expect(await testSearch("Preserv")).toEqual(["The Preservationist"]);
+    expect(await testSearch("Presevr")).toEqual([]);
+    expect(await testSearch("Perserv")).toEqual([]);
+    expect(await testSearch("rPeserv")).toEqual([]);
+
+    // Testing identifiers are analyzed properly
+    expect(await testSearch("2024")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ]);
+    expect(await testSearch("2024 Q3")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3 2024")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ]);
+    expect(await testSearch("FY2024Q3")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3FY2024")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ]);
+    expect(await testSearch("FY2024 Q3")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
+    ]);
+    expect(await testSearch("Q3 FY2024")).toEqual([
+        "Core Product FY2024Q3",
+        "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
+    ]);
 });

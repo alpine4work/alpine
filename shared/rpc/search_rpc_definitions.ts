@@ -7,6 +7,7 @@ import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityInteractionSchema} from "~/shared/search/search_affinity_entity_interaction.js";
 import {SearchAffinityEntityIdSchema} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
     SearchAffinityEntityResultModel,
     SearchEntityResultModel,
@@ -74,6 +75,24 @@ export const clearSearchEntityAffinity = defineRpc({
         entityId: SearchAffinityEntityIdSchema,
     },
     output: {},
+});
+
+export const searchMentionByKeywords = defineRpc({
+    name: "searchMentionByKeywords",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        queryText: Schema.string,
+        limit: Schema.integer,
+        debugOptions: SearchOptionsSchema.optional(),
+    },
+    output: {
+        results: Schema.array(
+            Schema.object({
+                score: Schema.float,
+                model: SearchEntityModel.schema,
+            }),
+        ),
+    },
 });
 
 export const searchChannelsByKeywords = defineRpc({

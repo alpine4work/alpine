@@ -34,6 +34,12 @@ const SearchOptionsActualSchema = Schema.object({
     titleBoost: Schema.float,
 
     /**
+     * How much should we down-boost typo matches? Should be <1 so that the score
+     * of a typo match is lower than a proper match.
+     */
+    typoBoost: Schema.float,
+
+    /**
      * Minimum keyword score contribution for a semantic search result.
      *
      * - If there is only a semantic match (no keyword match) this value is added
@@ -224,6 +230,10 @@ export const standardSearchOptions: SearchOptions = {
     // still less than 2 so a hit matching multiple body fields can beat a hit
     // matching one title field.
     titleBoost: 1.8,
+
+    // A typo match is worth much less than a proper match. Exact matches should
+    // always appear first.
+    typoBoost: 0.25,
 
     // The relevance "floor" for a semantic result. Same as a great body keyword
     // score match.

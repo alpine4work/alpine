@@ -5,6 +5,7 @@ import {
     searchBySemantics,
     searchChannelsByAffinity,
     searchChannelsByKeywords,
+    searchMentionByKeywords,
     searchTaskCollectionsByAffinity,
     searchTaskCollectionsByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
@@ -54,6 +55,14 @@ export default implementRpcs(definitions, {
         execute: async (context, input) => {
             await clearSearchEntityAffinity(context.actor.authorizeSession(), input);
             return {};
+        },
+    },
+
+    searchMentionByKeywords: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const results = await searchMentionByKeywords(context.actor.authorizeSession(), input);
+            return {results};
         },
     },
 
