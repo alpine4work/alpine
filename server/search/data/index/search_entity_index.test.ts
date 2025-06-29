@@ -14,10 +14,11 @@ import {
 } from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
+import {opensearchClientExecuteOperationTestCounter} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
-    getSearchEntitiesTitleAndMediaIfExist,
+    getSearchEntityIfPossible,
     getSearchEntityIndexesForTest,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,
@@ -33,6 +34,7 @@ import {
 } from "~/server/search/data/table/search_entity_table.js";
 import {updateSpaceAccountSettings} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -49,9 +51,17 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
+import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {
+    SearchAffinityEntityResultModel,
+    SearchEntityResultModel,
+    SearchFavoriteEntityResultModel,
+} from "~/shared/search/search_entity_result_model.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**
@@ -1829,23 +1839,28 @@ test("get search entities only sees entities the account has access to", async (
     await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
     const getSearchEntityIds = async (context: TestSessionActionContext, space: TestSpace) => {
-        const entities = await getSearchEntitiesTitleAndMediaIfExist(context, {
-            spaceId: space.id,
-            entityIds: [
-                `Document:${document.id}`,
-                `Document:${otherDocument.id}`,
-                `Task:${task1.id}`,
-                `Task:${task2.id}`,
-                `Task:${task3.id}`,
-                `Task:${task4.id}`,
-                `Task:${task5.id}`,
-                `TaskCollection:${collection1.id}`,
-                `TaskCollection:${collection2.id}`,
-                `TaskCollection:${collection3.id}`,
-            ],
-        });
+        const entityIds: Array<SearchDynamicEntityId> = [
+            `Document:${document.id}`,
+            `Document:${otherDocument.id}`,
+            `Task:${task1.id}`,
+            `Task:${task2.id}`,
+            `Task:${task3.id}`,
+            `Task:${task4.id}`,
+            `Task:${task5.id}`,
+            `TaskCollection:${collection1.id}`,
+            `TaskCollection:${collection2.id}`,
+            `TaskCollection:${collection3.id}`,
+        ];
 
-        return filterMapArray(entities, entity => entity?.id).sort(defaultCompareStrings);
+        const entityResults = await runAllPromises(
+            entityIds.map(entityId => getSearchEntityIfPossible(context, space.id, entityId)),
+        );
+
+        return filterMapArray(entityResults, entityResult =>
+            entityResult && !entityResult.isPrivate
+                ? entityResult.entity.getSearchEntityId()
+                : undefined,
+        ).sort(defaultCompareStrings);
     };
 
     await expect(getSearchEntityIds(otherSession.action(), space)).rejects.toThrow(
@@ -1910,10 +1925,14 @@ test("search by semantics will highlight matching words", async () => {
             },
         ),
     ).toEqual([
-        {
-            id: `Document:${document.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "This is a test",
+            model: new SearchEntityModel({
+                id: `Document:${document.id}`,
+                title: "This is a test",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {text: "The body also contains the word “", isHighlighted: false},
                 {text: "test", isHighlighted: true},
@@ -1927,8 +1946,7 @@ test("search by semantics will highlight matching words", async () => {
                           ],
                 ).flat(),
             ],
-            media: null,
-        },
+        }),
     ]);
 });
 
@@ -2004,10 +2022,17 @@ test("searches with natural language parsing works", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Post:${post.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: null,
+            model: new SearchEntityModel({
+                id: `Post:${post.id}`,
+                title: null,
+                titleVersion: null,
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
@@ -2030,45 +2055,50 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "trains"},
                 {isHighlighted: false, text: " document."},
             ],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
-        {
-            id: `Document:${document1.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 1",
+            model: new SearchEntityModel({
+                id: `Document:${document1.id}`,
+                title: "Test 1",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Document:${document4.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 4",
+            model: new SearchEntityModel({
+                id: `Document:${document4.id}`,
+                title: "Test 4",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Document:${document2.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 2",
+            model: new SearchEntityModel({
+                id: `Document:${document2.id}`,
+                title: "Test 2",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
+        }),
     ]);
 
     expect(
@@ -2080,44 +2110,60 @@ test("searches with natural language parsing works", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Document:${document1.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 1",
+            model: new SearchEntityModel({
+                id: `Document:${document1.id}`,
+                title: "Test 1",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Document:${document4.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 4",
+            model: new SearchEntityModel({
+                id: `Document:${document4.id}`,
+                title: "Test 4",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Document:${document2.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 2",
+            model: new SearchEntityModel({
+                id: `Document:${document2.id}`,
+                title: "Test 2",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Post:${post.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: null,
+            model: new SearchEntityModel({
+                id: `Post:${post.id}`,
+                title: null,
+                titleVersion: null,
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
@@ -2142,11 +2188,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
+        }),
     ]);
 
     expect(
@@ -2158,41 +2200,53 @@ test("searches with natural language parsing works", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Document:${document4.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 4",
+            model: new SearchEntityModel({
+                id: `Document:${document4.id}`,
+                title: "Test 4",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains! Trains!"}],
-            media: null,
-        },
-        {
-            id: `Document:${document3.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 3",
+            model: new SearchEntityModel({
+                id: `Document:${document3.id}`,
+                title: "Test 3",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
-            media: null,
-        },
-        {
-            id: `Document:${document1.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 1",
+            model: new SearchEntityModel({
+                id: `Document:${document1.id}`,
+                title: "Test 1",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
-            media: null,
-        },
-        {
-            id: `Post:${post.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: null,
+            model: new SearchEntityModel({
+                id: `Post:${post.id}`,
+                title: null,
+                titleVersion: null,
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            }),
             bodyTextSnippet: [
                 {isHighlighted: false, text: "Check out this trains "},
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
+        }),
     ]);
 
     expect(
@@ -2204,34 +2258,47 @@ test("searches with natural language parsing works", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Document:${document1.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 1",
+            model: new SearchEntityModel({
+                id: `Document:${document1.id}`,
+                title: "Test 1",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Document:${document4.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 4",
+            model: new SearchEntityModel({
+                id: `Document:${document4.id}`,
+                title: "Test 4",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Post:${post.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: null,
+            model: new SearchEntityModel({
+                id: `Post:${post.id}`,
+                title: null,
+                titleVersion: null,
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
@@ -2256,11 +2323,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
+        }),
     ]);
 
     expect(
@@ -2272,20 +2335,30 @@ test("searches with natural language parsing works", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Document:${document2.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 2",
+            model: new SearchEntityModel({
+                id: `Document:${document2.id}`,
+                title: "Test 2",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "!"},
             ],
-            media: null,
-        },
-        {
-            id: `Post:${post.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: null,
+            model: new SearchEntityModel({
+                id: `Post:${post.id}`,
+                title: null,
+                titleVersion: null,
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            }),
             bodyTextSnippet: [
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
@@ -2310,11 +2383,7 @@ test("searches with natural language parsing works", async () => {
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
+        }),
     ]);
 
     expect(
@@ -2326,57 +2395,64 @@ test("searches with natural language parsing works", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Document:${document5.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 5",
+            model: new SearchEntityModel({
+                id: `Document:${document5.id}`,
+                title: "Test 5",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: false, text: "By: "},
                 {isHighlighted: true, text: "Sara"},
             ],
-            media: null,
-        },
-        {
-            id: `Document:${document2.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 2",
+            model: new SearchEntityModel({
+                id: `Document:${document2.id}`,
+                title: "Test 2",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: John. Trains!"}],
-            media: null,
-        },
-        {
-            id: `Account:${session2.account.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Sara Smith",
+            model: await session2.get(),
             bodyTextSnippet: [],
-            media: {
-                type: "Account",
-                account: await session2.get(),
-            },
-        },
-        {
-            id: `Document:${document3.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 3",
+            model: new SearchEntityModel({
+                id: `Document:${document3.id}`,
+                title: "Test 3",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: false, text: "By: "},
                 {isHighlighted: true, text: "Sara"},
             ],
-            media: null,
-        },
-        {
-            id: `Post:${post.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: null,
+            model: new SearchEntityModel({
+                id: `Post:${post.id}`,
+                title: null,
+                titleVersion: null,
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            }),
             bodyTextSnippet: [
                 {isHighlighted: false, text: "Check out this trains "},
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
+        }),
     ]);
 
     expect(
@@ -2388,66 +2464,76 @@ test("searches with natural language parsing works", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Document:${document4.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 4",
+            model: new SearchEntityModel({
+                id: `Document:${document4.id}`,
+                title: "Test 4",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: false, text: "By: "},
                 {isHighlighted: true, text: "John"},
                 {isHighlighted: false, text: ". Trains! Trains!"},
             ],
-            media: null,
-        },
-        {
-            id: `Document:${document3.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 3",
+            model: new SearchEntityModel({
+                id: `Document:${document3.id}`,
+                title: "Test 3",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [{isHighlighted: false, text: "By: Sara"}],
-            media: null,
-        },
-        {
-            id: `Document:${document1.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 1",
+            model: new SearchEntityModel({
+                id: `Document:${document1.id}`,
+                title: "Test 1",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [{isHighlighted: false, text: "Trains! Trains!"}],
-            media: null,
-        },
-        {
-            id: `Account:${session1.account.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "John Smith",
+            model: await session1.get(),
             bodyTextSnippet: [],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
-        {
-            id: `Document:${document2.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Test 2",
+            model: new SearchEntityModel({
+                id: `Document:${document2.id}`,
+                title: "Test 2",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {isHighlighted: false, text: "By: "},
                 {isHighlighted: true, text: "John"},
                 {isHighlighted: false, text: ". Trains!"},
             ],
-            media: null,
-        },
-        {
-            id: `Post:${post.id}`,
+        }),
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: null,
+            model: new SearchEntityModel({
+                id: `Post:${post.id}`,
+                title: null,
+                titleVersion: null,
+                media: {
+                    type: "Account",
+                    account: await session1.get(),
+                },
+            }),
             bodyTextSnippet: [
                 {isHighlighted: false, text: "Check out this trains "},
                 {isHighlighted: true, text: "document"},
                 {isHighlighted: false, text: "."},
             ],
-            media: {
-                type: "Account",
-                account: await session1.get(),
-            },
-        },
+        }),
     ]);
 });
 
@@ -2532,10 +2618,14 @@ test("highlighting bullet points with bold formatting works well", async () => {
             currentTime: new Date(),
         }),
     ).toEqual([
-        {
-            id: `Document:${document.id}`,
+        new SearchEntityResultModel({
             score: expect.any(Number),
-            title: "Document with bullet points that have strong titles",
+            model: new SearchEntityModel({
+                id: `Document:${document.id}`,
+                title: "Document with bullet points that have strong titles",
+                titleVersion: expect.anything(),
+                media: null,
+            }),
             bodyTextSnippet: [
                 {
                     isHighlighted: false,
@@ -2549,8 +2639,7 @@ test("highlighting bullet points with bold formatting works well", async () => {
                     text: " ingredients. Sweet Indulgences: Exploring the world of decadent desserts and sweets",
                 },
             ],
-            media: null,
-        },
+        }),
     ]);
 });
 
@@ -2580,27 +2669,36 @@ test("search by affinity can include my tasks", async () => {
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: "TaskPersonal",
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(3),
-                title: "My tasks",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: "TaskPersonal",
+                    title: "My tasks",
+                    titleVersion: null,
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 });
@@ -2635,29 +2733,38 @@ test("search by affinity can include the task personal view in favorites", async
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: "TaskPersonal",
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3),
-                title: "My tasks",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: "TaskPersonal",
+                    title: "My tasks",
+                    titleVersion: null,
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 });
@@ -2686,29 +2793,38 @@ test("search by affinity can include the task personal view in favorites even if
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: "TaskPersonal",
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "My tasks",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: "TaskPersonal",
+                    title: "My tasks",
+                    titleVersion: null,
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 });
@@ -2767,27 +2883,36 @@ test("search by affinity will also return up to five favorites", async () => {
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document4.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(3),
-                title: "Test Document 4",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -2799,36 +2924,48 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document4.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -2840,36 +2977,48 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a1",
-            },
+                favoriteOrderKey: assertOrderKey("a1"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -2881,43 +3030,58 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a1",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a1"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a2",
-            },
+                favoriteOrderKey: assertOrderKey("a2"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -2929,43 +3093,58 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a2",
-            },
+                favoriteOrderKey: assertOrderKey("a2"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document4.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -2977,43 +3156,58 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a2",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a2"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3030,43 +3224,58 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3078,50 +3287,68 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3133,57 +3360,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3195,57 +3443,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3257,57 +3526,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3320,57 +3610,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
-            {
-                id: `Document:${document8.id}`,
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 8",
-                media: null,
-                favoriteOrderKey: "a7",
-            },
+                favoriteOrderKey: assertOrderKey("a7"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document8.id}`,
+                    title: "Test Document 8",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3383,57 +3694,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
-            {
-                id: `Document:${document8.id}`,
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 8",
-                media: null,
-                favoriteOrderKey: "a7",
-            },
-            {
-                id: `Document:${document9.id}`,
+                favoriteOrderKey: assertOrderKey("a7"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document8.id}`,
+                    title: "Test Document 8",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 9",
-                media: null,
-                favoriteOrderKey: "a8",
-            },
+                favoriteOrderKey: assertOrderKey("a8"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document9.id}`,
+                    title: "Test Document 9",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3446,50 +3778,68 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
-            {
-                id: `Document:${document8.id}`,
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 8",
-                media: null,
-                favoriteOrderKey: "a7",
-            },
-            {
-                id: `Document:${document9.id}`,
+                favoriteOrderKey: assertOrderKey("a7"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document8.id}`,
+                    title: "Test Document 8",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 9",
-                media: null,
-                favoriteOrderKey: "a8",
-            },
+                favoriteOrderKey: assertOrderKey("a8"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document9.id}`,
+                    title: "Test Document 9",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3502,57 +3852,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
-            {
-                id: `Document:${document8.id}`,
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 8",
-                media: null,
-                favoriteOrderKey: "a7",
-            },
-            {
-                id: `Document:${document9.id}`,
+                favoriteOrderKey: assertOrderKey("a7"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document8.id}`,
+                    title: "Test Document 8",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 9",
-                media: null,
-                favoriteOrderKey: "a8",
-            },
+                favoriteOrderKey: assertOrderKey("a8"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document9.id}`,
+                    title: "Test Document 9",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3566,57 +3937,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3648,57 +4040,78 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
-            {
-                id: `Document:${document7.id}`,
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 7",
-                media: null,
-                favoriteOrderKey: "a6",
-            },
+                favoriteOrderKey: assertOrderKey("a6"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document7.id}`,
+                    title: "Test Document 7",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3722,50 +4135,68 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
-            {
-                id: `Document:${document5.id}`,
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 5",
-                media: null,
-                favoriteOrderKey: "a4",
-            },
-            {
-                id: `Document:${document6.id}`,
+                favoriteOrderKey: assertOrderKey("a4"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document5.id}`,
+                    title: "Test Document 5",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 6",
-                media: null,
-                favoriteOrderKey: "a5",
-            },
+                favoriteOrderKey: assertOrderKey("a5"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document6.id}`,
+                    title: "Test Document 6",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -3783,36 +4214,48 @@ test("search by affinity will also return up to five favorites", async () => {
     expect(await searchByAffinity(session1.action(), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
-            {
-                id: `Document:${document3.id}`,
+            new SearchFavoriteEntityResultModel({
                 score: 0,
-                title: "Test Document 3",
-                media: null,
-                favoriteOrderKey: "a0",
-            },
-            {
-                id: `Document:${document4.id}`,
+                favoriteOrderKey: assertOrderKey("a0"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document3.id}`,
+                    title: "Test Document 3",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchFavoriteEntityResultModel({
                 score: expect.closeTo(3, 0),
-                title: "Test Document 4",
-                media: null,
-                favoriteOrderKey: "a3",
-            },
+                favoriteOrderKey: assertOrderKey("a3"),
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document4.id}`,
+                    title: "Test Document 4",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
         results: [
-            {
-                id: `Document:${document1.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60, -1),
-                title: "Test Document 1",
-                media: null,
                 favoriteOrderKey: null,
-            },
-            {
-                id: `Document:${document2.id}`,
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document1.id}`,
+                    title: "Test Document 1",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1, 0),
-                title: "Test Document 2",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document2.id}`,
+                    title: "Test Document 2",
+                    titleVersion: expect.anything(),
+                    media: null,
+                }),
+            }),
         ],
     });
 });
@@ -3881,7 +4324,9 @@ test(
             });
 
             return filterMapArray(results, result =>
-                result.id.startsWith("Channel:") ? result.title : undefined,
+                result.id.startsWith("Channel:") && result.model instanceof SearchEntityModel
+                    ? result.model.initialData.title
+                    : undefined,
             );
         };
 
@@ -4086,3 +4531,97 @@ test(
     // run in CI.
     30 * 1000,
 );
+
+test("make sure cross space reads don’t work", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+
+    const session1 = await space1.createSession();
+    const session2 = await space2.createSession();
+
+    const channel = await TestChannel.create(session1, {name: "test"});
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const testSearch = async (session: TestSpaceSession) => {
+        const results = await searchByKeywords(session.action(), {
+            spaceId: session.space.id,
+            queryText: "test",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return filterMapArray(results, result =>
+            result.id.startsWith("Channel:") ? result.id : undefined,
+        );
+    };
+
+    expect(await testSearch(session1)).toEqual([`Channel:${channel.id}`]);
+    expect(await testSearch(session2)).toEqual([]);
+
+    expect(
+        await getSearchEntityIfPossible(session1.action(), space1.id, `Channel:${channel.id}`),
+    ).not.toBeNull();
+    expect(
+        await getSearchEntityIfPossible(session2.action(), space2.id, `Channel:${channel.id}`),
+    ).toBeNull();
+    await expect(
+        getSearchEntityIfPossible(session2.action(), space1.id, `Channel:${channel.id}`),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("reading search entities is batched and cached", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const [channel1, channel2, channel3, channel4, channel5] = await runAllPromises([
+        TestChannel.create(session, {name: "Test 1"}),
+        TestChannel.create(session, {name: "Test 2"}),
+        TestChannel.create(session, {name: "Test 3"}),
+        TestChannel.create(session, {name: "Test 4"}),
+        TestChannel.create(session, {name: "Test 5"}),
+    ]);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const {getCount} = opensearchClientExecuteOperationTestCounter.recordAllForTest();
+    opensearchClientExecuteOperationTestCounter.resetForTest();
+
+    expect(getCount()).toEqual(0);
+
+    const actionContext = session.action();
+
+    await runAllPromises([
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel1.id}`),
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel2.id}`),
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel3.id}`),
+    ]);
+
+    expect(getCount()).toEqual(1);
+
+    await getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel2.id}`);
+
+    expect(getCount()).toEqual(1);
+
+    await runAllPromises([
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel4.id}`),
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel5.id}`),
+    ]);
+
+    expect(getCount()).toEqual(2);
+
+    await getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel2.id}`);
+
+    expect(getCount()).toEqual(2);
+
+    await runAllPromises([
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel2.id}`),
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel3.id}`),
+        getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel5.id}`),
+    ]);
+
+    expect(getCount()).toEqual(2);
+});

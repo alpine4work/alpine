@@ -22,12 +22,13 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
-import {
-    SearchAffinityEntityResult,
-    SearchFavoriteEntityResult,
-} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchEntityId, SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {
+    SearchAffinityEntityResultModel,
+    SearchEntityResultModel,
+    SearchFavoriteEntityResultModel,
+} from "~/shared/search/search_entity_result_model.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {searchStaticEntityIndex} from "~/shared/search/search_static_entity.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -262,7 +263,7 @@ export function useSearchState({
     );
 
     const affinityResultById = useMemo(() => {
-        const affinityResultById = new Map<SearchEntityId, SearchAffinityEntityResult>();
+        const affinityResultById = new Map<SearchEntityId, SearchAffinityEntityResultModel>();
 
         for (const result of affinitySearch.output?.favoriteResults ?? []) {
             affinityResultById.set(result.id, result);
@@ -375,7 +376,7 @@ export function useSearchState({
             const intercept =
                 interpolation.point2.keywordScore - slope * interpolation.point2.affinityScore;
 
-            let newResults: Array<SearchEntityResult> | null = null;
+            let newResults: Array<SearchEntityResultModel> | null = null;
 
             // Search for commands matching the query text and add them to the beginning of
             // our results list if so.
@@ -392,13 +393,18 @@ export function useSearchState({
                 // "Create a" doesn't match "Create task". But "Create tsk" matches
                 // "Create task".
                 if (match.score! < 0.2) {
-                    newResults.push({
-                        id: match.item.entityId,
-                        score: Infinity,
-                        title: match.item.entity.title,
-                        bodyTextSnippet: [],
-                        media: match.item.entity.media ?? null,
-                    });
+                    newResults.push(
+                        new SearchEntityResultModel({
+                            model: new SearchEntityModel({
+                                id: match.item.entityId,
+                                title: match.item.entity.title,
+                                titleVersion: null,
+                                media: match.item.entity.media ?? null,
+                            }),
+                            score: Infinity,
+                            bodyTextSnippet: [],
+                        }),
+                    );
                 }
             }
 
@@ -547,8 +553,8 @@ type ExecuteSearchByAffinityOutput =
           readonly isPending: boolean;
           readonly isError: false;
           readonly hasMoreFavoriteResults: boolean;
-          readonly favoriteResults: ReadonlyArray<SearchFavoriteEntityResult>;
-          readonly results: ReadonlyArray<SearchAffinityEntityResult>;
+          readonly favoriteResults: ReadonlyArray<SearchFavoriteEntityResultModel>;
+          readonly results: ReadonlyArray<SearchAffinityEntityResultModel>;
       };
 
 export type SearchStateExecutionOutput =
@@ -653,7 +659,7 @@ function createSearchStateExecution({
                 nextStore.executeSearchBySemantics();
 
                 return Store.map(lastStore, nextStore, (lastResult, nextResult) => {
-                    if (nextResult.results === null) return {...lastResult, isPending: true};
+                    if (nextResult.isPending) return {...lastResult, isPending: true};
                     return nextResult;
                 });
             });

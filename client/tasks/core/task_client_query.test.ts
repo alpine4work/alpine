@@ -107,7 +107,7 @@ const context = Context.new({
 const taskEntryCache = new WeakMap();
 
 function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
-    const taskEntry = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot();
+    const taskEntry = store.getTaskEntrySnapshot(taskId);
     if (!taskEntry) return null;
 
     // This test was written before we added `actionReferencedAccountStoreById` to
@@ -3693,7 +3693,7 @@ test("temporarily holds on to actions applied to collection that wasn’t backfi
         },
     } satisfies TaskAction;
 
-    expect(store.getCollectionEntryStoreIfExists(action.collectionId)).toBeNull();
+    expect(store.getCollectionEntrySnapshot(action.collectionId)).toBeNull();
 
     store.applyUpdateEvent({
         type: "Update",
@@ -3705,13 +3705,13 @@ test("temporarily holds on to actions applied to collection that wasn’t backfi
         originClientId: null,
     });
 
-    expect(store.getCollectionEntryStoreIfExists(action.collectionId)).not.toBeNull();
+    expect(store.getCollectionEntrySnapshot(action.collectionId)).not.toBeNull();
 
     expect(errors.length).toEqual(0);
 
     import.meta.jest.runAllTimers();
 
-    expect(store.getCollectionEntryStoreIfExists(action.collectionId)).toBeNull();
+    expect(store.getCollectionEntrySnapshot(action.collectionId)).toBeNull();
 
     expect(errors.length).toEqual(1);
     expect(errors[0]).toBeInstanceOf(DeadlineExceededError);
@@ -4829,7 +4829,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
 
     expect(getTaskEntryIfExists(store, task2.id)).toEqual(null);
     expect(getTaskEntryIfExists(store, task3.id)).toEqual(null);
-    expect(store.getCollectionEntryStoreIfExists(collection.id)).toEqual(null);
+    expect(store.getCollectionEntrySnapshot(collection.id)).toEqual(null);
 
     const authorizationStateVersion1 = store.clock.now();
 
@@ -4870,7 +4870,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         optimisticState: null,
     });
 
-    expect(store.getCollectionEntryStoreIfExists(collection.id)).toEqual(null);
+    expect(store.getCollectionEntrySnapshot(collection.id)).toEqual(null);
 
     const authorizationStateVersion2 = store.clock.now();
 
@@ -4913,7 +4913,7 @@ test("can handle unauthorized task with another unauthorized task parent due to 
         optimisticState: null,
     });
 
-    expect(store.getCollectionEntryStoreIfExists(collection.id)?.getSnapshot()).toEqual({
+    expect(store.getCollectionEntrySnapshot(collection.id)).toEqual({
         collection: collection.applyAction(collectionAction),
         actions: null,
         authorizationState: new TaskAuthorizationStateRegister(

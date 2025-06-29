@@ -92,7 +92,7 @@ const context = Context.new({
 const taskEntryCache = new WeakMap();
 
 function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
-    const taskEntry = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot();
+    const taskEntry = store.getTaskEntrySnapshot(taskId);
     if (!taskEntry) return null;
 
     // This test was written before we added `actionReferencedAccountStoreById` to
@@ -127,7 +127,7 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
 const collectionEntryCache = new WeakMap();
 
 function getCollectionEntryIfExists(store: TaskClientStore, collectionId: TaskCollectionId) {
-    const collectionEntry = store.getCollectionEntryStoreIfExists(collectionId)?.getSnapshot();
+    const collectionEntry = store.getCollectionEntrySnapshot(collectionId);
     if (!collectionEntry) return null;
 
     // This test was written before we added `actionReferencedAccountStoreById` to
@@ -14551,9 +14551,7 @@ test("subscription to parent task captures all updates during child task removal
 
     {
         // Verify parent-child relationship was established
-        const newChildTask = assertExists(
-            store.getTaskEntryStoreIfExists(childTask.id)?.getSnapshot().task,
-        );
+        const newChildTask = assertExists(store.getTaskEntrySnapshot(childTask.id)?.task);
         expect(newChildTask.getParent()?.taskId).toBe(parentTask.id);
     }
 
@@ -14581,9 +14579,7 @@ test("subscription to parent task captures all updates during child task removal
 
     {
         // Verify that the child's parent is now null
-        const newChildTask = assertExists(
-            store.getTaskEntryStoreIfExists(childTask.id)?.getSnapshot().task,
-        );
+        const newChildTask = assertExists(store.getTaskEntrySnapshot(childTask.id)?.task);
         expect(newChildTask.getParent()).toBeNull();
     }
 
@@ -14608,9 +14604,7 @@ test("subscription to parent task captures all updates during child task removal
 
     {
         // Verify that the child's parent is now null
-        const newChildTask = assertExists(
-            store.getTaskEntryStoreIfExists(childTask.id)?.getSnapshot().task,
-        );
+        const newChildTask = assertExists(store.getTaskEntrySnapshot(childTask.id)?.task);
         expect(newChildTask.getParent()).toBeNull();
     }
 

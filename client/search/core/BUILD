@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/phosphor-react",
         "//:node_modules/react",
+        "//client/accounts",
         "//client/design",
         "//client/rpc",
         "//client/spaces",

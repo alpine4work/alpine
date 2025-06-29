@@ -127,7 +127,7 @@ type ContextStatic = {
      * return type. Like this: `Context.new<{ ... }>({ ... })`.
      */
     // TypeScript treats `new` as a keyword and not a property when it doesn't
-    // have quotes.
+    // have quotes when generating a `.d.ts` file.
     "new"<Modules extends {[key: string]: ContextModuleBase}>(
         modules: Modules & ContextModulesDependencies<Modules>,
     ): ContextWithDestroy<Modules>;

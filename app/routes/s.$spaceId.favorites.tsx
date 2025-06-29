@@ -8,11 +8,11 @@ import {getSpaceAccountSettings} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchFavoriteEntityResultSchema} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
 const LoaderSchema = Schema.object({
     shortcutFavoriteEntityCount: Schema.integer,
-    results: Schema.array(SearchFavoriteEntityResultSchema),
+    results: Schema.array(SearchFavoriteEntityResultModel.schema()),
 });
 
 export async function loader({context: unauthenticatedContext, params}: LoaderArgs) {

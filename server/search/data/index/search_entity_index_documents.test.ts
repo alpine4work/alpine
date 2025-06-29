@@ -28,6 +28,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {ContentMentionAccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchAffinityEntityModel} from "~/shared/search/search_entity_model.js";
+import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
 // Needs to be before `afterEach()` hook where we err if there are remaining
 // timers since the constructor adds an `afterEach()` hook to clear timers
@@ -1493,13 +1495,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1507,13 +1512,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1530,13 +1538,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1544,13 +1555,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1560,13 +1574,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1591,13 +1608,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1605,13 +1625,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1621,13 +1644,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1635,13 +1661,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(1),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 
@@ -1652,13 +1681,16 @@ test("newly created documents will be visible in search even before indexing", a
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
-            {
-                id: `Document:${document.id}`,
+            new SearchAffinityEntityResultModel({
                 score: expect.closeTo(60),
-                title: "Hollywoo Stars and Celebrities",
-                media: null,
                 favoriteOrderKey: null,
-            },
+                model: SearchAffinityEntityModel.new({
+                    id: `Document:${document.id}`,
+                    title: "Hollywoo Stars and Celebrities",
+                    titleVersion: {type: "Integer", version: expect.any(Number)},
+                    media: null,
+                }),
+            }),
         ],
     });
 

@@ -20,6 +20,7 @@ ts_project(
         "//:node_modules/murmurhash",
         "//:node_modules/stemmer",
         "//:node_modules/unicode-default-word-boundary",
+        "//server/helpers",
         "//server/helpers/node",
         "//shared/context",
         "//shared/error",

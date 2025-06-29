@@ -45,7 +45,7 @@ import {
     searchByAffinity,
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
 export function FeedViewSideBar({
     height,
@@ -237,7 +237,7 @@ function FeedSearchAffinityView({
     onRemoveFromFavorites,
     onRemoveFromSuggested,
 }: {
-    result: SearchAffinityEntityResult;
+    result: SearchAffinityEntityResultModel;
     randomSeed: string;
     onRemoveFromFavorites?: () => MaybePromise<void>;
     onRemoveFromSuggested?: () => MaybePromise<void>;

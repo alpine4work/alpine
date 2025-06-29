@@ -6,12 +6,12 @@ import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityInteractionSchema} from "~/shared/search/search_affinity_entity_interaction.js";
-import {
-    SearchAffinityEntityResultSchema,
-    SearchFavoriteEntityResultSchema,
-} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchAffinityEntityIdSchema} from "~/shared/search/search_entity_id.js";
-import {SearchEntityResultSchema} from "~/shared/search/search_entity_result.js";
+import {
+    SearchAffinityEntityResultModel,
+    SearchEntityResultModel,
+    SearchFavoriteEntityResultModel,
+} from "~/shared/search/search_entity_result_model.js";
 import {SearchOptionsSchema} from "~/shared/search/search_options.js";
 import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
@@ -26,7 +26,7 @@ export const searchByKeywords = defineRpc({
         debugOptions: SearchOptionsSchema.optional(),
     },
     output: {
-        results: Schema.array(SearchEntityResultSchema),
+        results: Schema.array(SearchEntityResultModel.schema()),
     },
 });
 
@@ -41,7 +41,7 @@ export const searchBySemantics = defineRpc({
         debugOptions: SearchOptionsSchema.optional(),
     },
     output: {
-        results: Schema.array(SearchEntityResultSchema),
+        results: Schema.array(SearchEntityResultModel.schema()),
     },
 });
 
@@ -52,8 +52,8 @@ export const searchByAffinity = defineRpc({
     },
     output: {
         hasMoreFavoriteResults: Schema.boolean,
-        favoriteResults: Schema.array(SearchFavoriteEntityResultSchema),
-        results: Schema.array(SearchAffinityEntityResultSchema),
+        favoriteResults: Schema.array(SearchFavoriteEntityResultModel.schema()),
+        results: Schema.array(SearchAffinityEntityResultModel.schema()),
     },
 });
 

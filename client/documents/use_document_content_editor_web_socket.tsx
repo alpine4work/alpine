@@ -18,6 +18,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {useErrorState} from "~/client/helpers/use_error_state.js";
 import {useStore} from "~/client/helpers/use_store.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useWebSocketErrorDialog} from "~/client/web_socket/use_web_socket.js";
@@ -38,6 +39,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
+    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -56,7 +58,9 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createDocument, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
+import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {nullStore} from "~/shared/store/const_store.js";
+import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 type DocumentContentEditorWebSocketClientState =
@@ -109,6 +113,7 @@ export function useDocumentContentEditorWebSocket(
     onClearOurPresenceState: Memo<() => void>;
     onUnclearOurPresenceState: Memo<() => void>;
     content: DocumentContentWithReferences;
+    title: string;
     accessLevel: AccessLevel;
     otherPresenceStateByConnectionId: ImmutableMap<
         WebSocketConnectionId,
@@ -150,6 +155,7 @@ export function useDocumentContentEditorWebSocket(
     const initialWithoutComments = !hasAccessLevel(initialAccessLevel, "Comment");
 
     const context = useAppContext();
+    const searchEntityRegistry = useSearchEntityRegistry();
     const addGlobalLoadingIndicator = useAddGlobalLoadingIndicator();
 
     const contextRef = useRef(context);
@@ -330,6 +336,12 @@ export function useDocumentContentEditorWebSocket(
     const contentWithoutSendableSteps = state.editorState.getDocWithoutSendableSteps();
     const persistedContent = getDocumentContentEditorStatePersistedContent(state);
 
+    const title = useMemo(() => getDocumentContentTitle(content.doc), [content.doc]);
+    const persistedTitle = useMemo(
+        () => getDocumentContentTitle(persistedContent),
+        [persistedContent],
+    );
+
     const contentWithoutSendableStepsAccessLevel = useMemo(
         () =>
             getAccountAccessLevelAssumingSpaceAccess(
@@ -460,6 +472,36 @@ export function useDocumentContentEditorWebSocket(
         }, setErrorState);
     }, [clientState, context, currentAccount?.id, setErrorState, withoutComments]);
 
+    // Update `SearchEntityRegistry` with the latest document title. Now as the
+    // title changes in realtime, any `SearchEntityModel`s rendered elsewhere in
+    // the product will also update.
+    //
+    // Optimization: Only updates `SearchEntityRegistry` when `title` changes. Not
+    // on any arbitrary update to the document. Otherwise we'd put this in
+    // `useMemo()`.
+    {
+        const searchEntityRef = useRef<{
+            title: string;
+            store: Store<SearchEntityModelData>;
+        } | null>(null);
+
+        useEffect(() => {
+            if (searchEntityRef.current?.title === persistedTitle) return;
+
+            searchEntityRef.current = {
+                title: persistedTitle,
+                store: searchEntityRegistry.getEntityStore(
+                    new SearchEntityModel({
+                        id: `Document:${documentId}`,
+                        title: persistedTitle,
+                        titleVersion: {type: "Integer", version: state.persistedVersion},
+                        media: null,
+                    }),
+                ),
+            };
+        }, [documentId, persistedTitle, searchEntityRegistry, state.persistedVersion]);
+    }
+
     return {
         spaceId: space.id,
         isConnected: webSocketState?.isConnected ?? false,
@@ -499,6 +541,7 @@ export function useDocumentContentEditorWebSocket(
             }
         }, [clientState]),
         content,
+        title,
         accessLevel,
         otherPresenceStateByConnectionId: state.extra.otherPresenceStateByConnectionId,
         rememberedSteps: state.extra.rememberedSteps,

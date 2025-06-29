@@ -132,7 +132,6 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
-    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -260,6 +259,7 @@ export function DocumentContentEditor({
         onClearOurPresenceState,
         onUnclearOurPresenceState,
         content,
+        title,
         accessLevel,
         otherPresenceStateByConnectionId,
         rememberedSteps,
@@ -1530,7 +1530,7 @@ export function DocumentContentEditor({
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
-        title: getDocumentContentTitle(content.doc),
+        title,
         getTitleBoundaryElement: useCallback(() => {
             // Assume the title `<h1>` element is always the first element in the
             // ProseMirror DOM.

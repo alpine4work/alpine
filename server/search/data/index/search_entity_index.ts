@@ -88,6 +88,8 @@ import {
     printContentSingleLineTextSnippet,
     printContentSingleLineTextSnippetPreservingMarks,
 } from "~/shared/content/print_content_single_line_text_snippet.js";
+import {ContextBatcher} from "~/shared/context/batch_context_module.js";
+import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
@@ -123,20 +125,27 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
-    SearchAffinityEntityResult,
-    SearchFavoriteEntityResult,
-} from "~/shared/search/search_affinity_entity_result.js";
-import {
     SearchAffinityEntityId,
     SearchDynamicEntityId,
+    SearchEntityId,
     parseSearchDynamicEntityId,
     printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
-import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
+import {
+    SearchAffinityEntityModel,
+    SearchEntityModel,
+    isSearchEntityModelId,
+} from "~/shared/search/search_entity_model.js";
+import {
+    SearchAffinityEntityResultModel,
+    SearchEntityResultModel,
+    SearchFavoriteEntityResultModel,
+} from "~/shared/search/search_entity_result_model.js";
 import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
@@ -1090,7 +1099,7 @@ export async function searchByKeywords(
         currentTime: Date;
         debugOptions?: SearchOptions;
     },
-): Promise<Array<SearchEntityResult>> {
+): Promise<Array<SearchEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
     assertSearchQueryTextLength(queryText);
@@ -1363,7 +1372,7 @@ export async function searchByKeywords(
     const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
         explain: !!debugOptions,
         size: limit,
-        storedFields: ["title", "media"],
+        storedFields: ["title", "titleVersion", "media"],
         sort: [
             "_score",
 
@@ -1436,7 +1445,7 @@ export async function searchByKeywords(
     });
 
     const results = await runAllPromises(
-        hits.map(async (hit): Promise<SearchEntityResult> => {
+        hits.map(async (hit): Promise<SearchEntityResultModel> => {
             const entityId = fromSearchEntityIdForKeywordIndex(hit.id);
 
             // The highlighted body text we get from OpenSearch is markdown formatted with
@@ -1467,13 +1476,13 @@ export async function searchByKeywords(
                   ).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : emptyArray;
 
-            const docMedia = hit.fields.media?.[0];
+            const hitMedia = hit.fields.media?.[0];
 
-            const resultMedia =
-                docMedia?.type === "TaskCollectionColor"
-                    ? docMedia
-                    : docMedia
-                    ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, docMedia)
+            const media =
+                hitMedia?.type === "TaskCollectionColor"
+                    ? hitMedia
+                    : hitMedia
+                    ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, hitMedia)
                     : null;
 
             // If this hit is for a task collection then we'll include, as the search
@@ -1497,16 +1506,32 @@ export async function searchByKeywords(
                 }
             }
 
-            return {
-                id: entityId,
+            let model: SearchEntityModel | AccountModel;
+
+            if (!isSearchEntityModelId(entityId)) {
+                // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
+                // `Account:${AccountId}`. Expect that account search entities always have an
+                // account media object.
+                assert(hitMedia?.type === "Account");
+
+                model = await getAccount(context, spaceId, hitMedia.accountId);
+            } else {
+                model = new SearchEntityModel({
+                    id: entityId,
+                    title: hit.fields.title?.[0] ?? null,
+                    titleVersion: hit.fields.titleVersion?.[0] ?? null,
+                    media,
+                });
+            }
+
+            return new SearchEntityResultModel({
+                model,
                 score: hit.score,
-                title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
-                media: resultMedia,
                 explanation: hit.explanation
                     ? enrichOpensearchSearchHitExplanation(hit.explanation)
                     : undefined,
-            };
+            });
         }),
     );
 
@@ -1596,7 +1621,7 @@ export async function searchBySemantics(
         currentTime: Date;
         debugOptions?: SearchOptions;
     },
-): Promise<Array<SearchEntityResult>> {
+): Promise<Array<SearchEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
     assertSearchQueryTextLength(queryText);
@@ -1633,7 +1658,14 @@ export async function searchBySemantics(
         spaceId,
         {
             size: limit,
-            storedFields: ["entity.id", "entity.title", "entity.media", "text", "preambleEndIndex"],
+            storedFields: [
+                "entity.id",
+                "entity.title",
+                "entity.titleVersion",
+                "entity.media",
+                "text",
+                "preambleEndIndex",
+            ],
             sort: ["_score"],
             query: {
                 knn: {
@@ -1708,19 +1740,19 @@ export async function searchBySemantics(
     const highestScoreByEntityId = new Map<SearchDynamicEntityId, number>();
 
     const results = await runAllPromises(
-        hits.map(async (hit): Promise<SearchEntityResult | null> => {
-            const id = assertExists(hit.fields["entity.id"]?.[0]);
+        hits.map(async (hit): Promise<SearchEntityResultModel | null> => {
+            const entityId = assertExists(hit.fields["entity.id"]?.[0]);
 
             // If we've already seen this entity, return null. We only return one result
             // per entity and only the result with the highest score. The first entity we
             // see should have the highest score given the hit list is sorted by score (we
             // double check this with an `assert()`).
-            const highestScore = highestScoreByEntityId.get(id);
+            const highestScore = highestScoreByEntityId.get(entityId);
             if (highestScore !== undefined) {
                 assert(highestScore >= hit.score);
                 return null;
             }
-            highestScoreByEntityId.set(id, hit.score);
+            highestScoreByEntityId.set(entityId, hit.score);
 
             const score = hit.score * options.semanticScoreScaleFromOpensearch;
 
@@ -1794,19 +1826,35 @@ export async function searchBySemantics(
                   ).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : [];
 
-            const media = hit.fields["entity.media"]?.[0];
+            const hitMedia = hit.fields["entity.media"]?.[0];
 
-            const resultMedia = media
-                ? await prepareSearchEntityMediaForResult(context, spaceId, id, media)
+            const media = hitMedia
+                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, hitMedia)
                 : null;
 
-            return {
-                id,
-                score,
-                title: hit.fields["entity.title"]?.[0] ?? null,
+            let model: SearchEntityModel | AccountModel;
+
+            if (!isSearchEntityModelId(entityId)) {
+                // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
+                // `Account:${AccountId}`. Expect that account search entities always have an
+                // account media object.
+                assert(hitMedia?.type === "Account");
+
+                model = await getAccount(context, spaceId, hitMedia.accountId);
+            } else {
+                model = new SearchEntityModel({
+                    id: entityId,
+                    title: hit.fields["entity.title"]?.[0] ?? null,
+                    titleVersion: hit.fields["entity.titleVersion"]?.[0] ?? null,
+                    media,
+                });
+            }
+
+            return new SearchEntityResultModel({
+                model,
+                score: hit.score,
                 bodyTextSnippet,
-                media: resultMedia,
-            };
+            });
         }),
     );
 
@@ -1856,50 +1904,65 @@ async function prepareSearchEntityMediaForResult(
     }
 }
 
-/**
- * Get the titles and media of the provided search entities if the search
- * entity exists and the account has access to the search entity. The media
- * will be returned as `SearchEntityMediaModel` to be `SearchEntityModel`
- * ready.
- */
-export async function getSearchEntitiesTitleAndMediaIfExist(
-    context: SearchSessionActionContext,
-    {spaceId, entityIds}: {spaceId: SpaceId; entityIds: Iterable<SearchDynamicEntityId>},
-): Promise<
-    ReadonlyArray<{
-        id: SearchDynamicEntityId;
-        title: string | null;
-        media: SearchEntityMediaModel | null;
-    } | null>
-> {
-    await authorizeSpaceAccess(context, spaceId);
+type SearchEntityModelBaseResult =
+    | {
+          isPrivate: false;
+          id: SearchDynamicEntityId;
+          title: string | null;
+          titleVersion: SearchEntityTitleVersion | null;
+          media: SearchEntityMediaModel | null;
+      }
+    | {isPrivate: true};
 
-    const commands = Array.from(
-        entityIds,
-        entityId =>
-            new OpensearchGetDocWithoutSourceCommand(
-                SearchEntityKeywordIndex,
-                spaceId,
-                intoSearchEntityIdForKeywordIndex(spaceId, entityId),
-                {
-                    storedFields: [
-                        "title",
-                        "media",
-                        "accessPolicy.accountGrantAccountIds",
-                        "accessPolicy.defaultGrantType",
-                    ],
-                },
-            ),
-    );
+const SearchEntityCache = new ContextCache<
+    `${SpaceId}:${SearchDynamicEntityId}`,
+    SearchEntityModelBaseResult | null
+>({whenActorChanges: "SafelyReset"});
+
+const SearchEntityBatcher = new ContextBatcher<
+    SearchSessionActionContextModules,
+    {spaceId: SpaceId; entityId: SearchDynamicEntityId},
+    SearchEntityModelBaseResult | null
+>(async (context, inputs) => {
+    const commands = inputs.map(({spaceId, entityId}) => {
+        return new OpensearchGetDocWithoutSourceCommand(
+            SearchEntityKeywordIndex,
+            spaceId,
+            intoSearchEntityIdForKeywordIndex(spaceId, entityId),
+            {
+                storedFields: [
+                    "title",
+                    "titleVersion",
+                    "media",
+                    "accessPolicy.accountGrantAccountIds",
+                    "accessPolicy.defaultGrantType",
+                ],
+            },
+        );
+    });
 
     const docsByIdByIndex = await context.opensearch.multiGetDocByIdByIndexIfExist(commands);
     const docsById = docsByIdByIndex.get(SearchEntityKeywordIndex) ?? emptyMap;
 
     return runAllPromises(
         commands.map(async (command, index) => {
+            const spaceId = inputs[index]!.spaceId;
             const doc = docsById.get(command.id);
 
-            if (!doc || doc.routing !== spaceId) {
+            // Make sure the doc we get is from the right space. Providing a `routing`
+            // value to OpenSearch only makes sure our request goes to the right node. If
+            // space A and space B are saved on the same OpenSearch node and an attacker
+            // requests document in space B from their space A then OpenSearch will
+            // return the doc even though the `routing` value doesn't exactly match since
+            // `routing` puts the request on the node that shares space A and space B.
+            //
+            // So for security make sure we check the routing value is exactly equal to our
+            // `SpaceId`!
+            if (doc && doc.routing !== spaceId) {
+                return null;
+            }
+
+            if (!doc) {
                 const entityId = fromSearchEntityIdForKeywordIndex(commands[index]!.id);
                 const entityIdObject = parseSearchDynamicEntityId(entityId);
 
@@ -1924,10 +1987,15 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
                         context,
                         entityIdObject.documentId,
                     );
-                    if (documentResult?.ok) {
+                    if (documentResult) {
+                        if (!documentResult.ok) {
+                            return {isPrivate: true};
+                        }
                         return {
+                            isPrivate: false,
                             id: entityId,
                             title: documentResult.value.getTitle(),
+                            titleVersion: {type: "Integer", version: documentResult.value.version},
                             media: null,
                         };
                     }
@@ -1944,18 +2012,118 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
                     context.actor.getAccountId(),
                 );
 
-            if (!isAccessAuthorized) return null;
+            if (!isAccessAuthorized) return {isPrivate: true};
 
             const title = doc.fields.title?.[0] ?? null;
-            const media = doc.fields.media?.[0] ?? null;
+            const titleVersion = doc.fields.titleVersion?.[0] ?? null;
+            const docMedia = doc.fields.media?.[0] ?? null;
 
-            const mediaForResult = media
-                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, media)
+            const media = docMedia
+                ? await prepareSearchEntityMediaForResult(context, spaceId, entityId, docMedia)
                 : null;
 
-            return {id: entityId, title, media: mediaForResult};
+            return {
+                isPrivate: false,
+                id: entityId,
+                title,
+                titleVersion,
+                media,
+            };
         }),
     );
+});
+
+/**
+ * Get the titles and media of the provided search entity if the search
+ * entity exists and the account has access to the search entity. The media
+ * will be returned as `SearchEntityMediaModel` to be `SearchEntityModel`
+ * ready.
+ */
+async function getSearchEntityBaseIfPossible(
+    context: SearchSessionActionContext,
+    spaceId: SpaceId,
+    entityId: SearchDynamicEntityId,
+): Promise<SearchEntityModelBaseResult | null> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    return SearchEntityCache.get(context, `${spaceId}:${entityId}`, () => {
+        return context.batch.execute(SearchEntityBatcher, {spaceId, entityId});
+    });
+}
+
+/**
+ * Get `SearchEntityModel`s for the provided `SearchEntityId`. Accounts are
+ * represented by `AccountModel` instead of `SearchEntityModel` so the client
+ * uses `AccountRegistry` to normalize accounts instead of
+ * `SearchEntityRegistry`.
+ */
+export async function getSearchEntityIfPossible(
+    context: SearchSessionActionContext,
+    spaceId: SpaceId,
+    entityId: SearchDynamicEntityId,
+): Promise<
+    {isPrivate: false; entity: SearchEntityModel | AccountModel} | {isPrivate: true} | null
+> {
+    const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId);
+    if (entity === null || entity.isPrivate === true) return entity;
+
+    if (!isSearchEntityModelId(entity.id)) {
+        // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
+        // `Account:${AccountId}`. Expect that account search entities always have an
+        // account media object.
+        assert(entity.media?.type === "Account");
+
+        return {isPrivate: false, entity: entity.media.account};
+    } else {
+        return {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                id: entity.id,
+                title: entity.title,
+                titleVersion: entity.titleVersion,
+                media: entity.media,
+            }),
+        };
+    }
+}
+
+/**
+ * Get `SearchAffinityEntityModel`s for the provided `SearchAffinityEntityId`s.
+ * Accounts are represented by `AccountModel` instead of `SearchEntityModel` so
+ * the client uses `AccountRegistry` to normalize accounts instead of
+ * `SearchEntityRegistry`.
+ *
+ * You load search entities in a batch since unlike DynamoDB, we don't
+ * automatically batch reads to OpenSearch.
+ */
+export async function getSearchAffinityEntityIfPossible(
+    context: SearchSessionActionContext,
+    spaceId: SpaceId,
+    entityId: SearchAffinityEntityId & SearchDynamicEntityId,
+): Promise<
+    {isPrivate: false; entity: SearchAffinityEntityModel | AccountModel} | {isPrivate: true} | null
+> {
+    const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId);
+    if (entity === null || entity.isPrivate === true) return entity;
+
+    if (!isSearchEntityModelId(entityId)) {
+        // The only `SearchEntityId` which isn't a `SearchEntityModelId` is
+        // `Account:${AccountId}`. Expect that account search entities always have an
+        // account media object.
+        assert(entity.media?.type === "Account");
+
+        return {isPrivate: false, entity: entity.media.account};
+    } else {
+        return {
+            isPrivate: false,
+            entity: SearchAffinityEntityModel.new({
+                id: entityId,
+                title: entity.title,
+                titleVersion: entity.titleVersion,
+                media: entity.media,
+            }),
+        };
+    }
 }
 
 /**
@@ -1979,8 +2147,8 @@ export async function searchByAffinity(
     spaceId: SpaceId,
 ): Promise<{
     hasMoreFavoriteResults: boolean;
-    favoriteResults: Array<SearchFavoriteEntityResult>;
-    results: Array<SearchAffinityEntityResult>;
+    favoriteResults: Array<SearchFavoriteEntityResultModel>;
+    results: Array<SearchAffinityEntityResultModel>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
@@ -2005,7 +2173,7 @@ export async function searchByAffinity(
         getSpaceAccountSettings(context, spaceId),
     ]);
 
-    const dynamicEntityIds = new Set<SearchDynamicEntityId>();
+    const dynamicEntityIds = new Set<SearchAffinityEntityId & SearchDynamicEntityId>();
 
     for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
         const favoriteEntity = favoriteEntities[i]!;
@@ -2020,28 +2188,26 @@ export async function searchByAffinity(
         }
     }
 
-    const dynamicEntitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
-        spaceId,
-        entityIds: dynamicEntityIds,
-    });
+    const dynamicEntities = await runAllPromises(
+        mapIterable(dynamicEntityIds, entityId =>
+            getSearchAffinityEntityIfPossible(context, spaceId, entityId),
+        ),
+    );
 
-    const dynamicEntityTitleAndMediaById = new Map<
-        SearchDynamicEntityId,
-        {id: SearchDynamicEntityId; title: string | null; media: SearchEntityMediaModel | null}
-    >();
+    const dynamicEntityById = new Map<SearchEntityId, SearchAffinityEntityModel | AccountModel>();
 
-    for (const entityTitleAndMedia of dynamicEntitiesTitleAndMedia) {
-        if (entityTitleAndMedia !== null) {
-            dynamicEntityTitleAndMediaById.set(entityTitleAndMedia.id, entityTitleAndMedia);
+    for (const entity of dynamicEntities) {
+        if (entity !== null && !entity.isPrivate) {
+            dynamicEntityById.set(entity.entity.getSearchEntityId(), entity.entity);
         }
     }
 
     let hasMoreFavoriteResults = favoriteEntities.length > favoritesLimit;
     const favoriteResultById = new Map<
         SearchAffinityEntityId,
-        Replace<SearchFavoriteEntityResult, {score: number}>
+        Replace<SearchFavoriteEntityResultModel, {score: number}>
     >();
-    const results: Array<SearchAffinityEntityResult> = [];
+    const results: Array<SearchAffinityEntityResultModel> = [];
 
     for (let i = 0; i < Math.min(favoriteEntities.length, favoritesLimit); i++) {
         const favoriteEntity = favoriteEntities[i]!;
@@ -2051,38 +2217,35 @@ export async function searchByAffinity(
                 hasMoreFavoriteResults = true;
                 break;
             } else {
-                const entityTitleAndMedia = dynamicEntityTitleAndMediaById.get(
-                    favoriteEntity.entityId,
-                );
+                const entity = dynamicEntityById.get(favoriteEntity.entityId);
 
-                if (entityTitleAndMedia) {
+                if (entity) {
                     hasMoreFavoriteResults = true;
                     break;
                 }
             }
         } else {
-            let result: SearchFavoriteEntityResult;
+            let result: SearchFavoriteEntityResultModel;
             if (favoriteEntity.entityId === "TaskPersonal") {
-                result = {
-                    id: favoriteEntity.entityId,
+                result = new SearchFavoriteEntityResultModel({
+                    model: SearchAffinityEntityModel.new({
+                        id: favoriteEntity.entityId,
+                        title: searchStaticEntityById[favoriteEntity.entityId].title,
+                        titleVersion: null,
+                        media: null,
+                    }),
                     score: 0,
-                    title: searchStaticEntityById[favoriteEntity.entityId].title,
-                    media: null,
                     favoriteOrderKey: favoriteEntity.orderKey,
-                };
+                });
             } else {
-                const entityTitleAndMedia = dynamicEntityTitleAndMediaById.get(
-                    favoriteEntity.entityId,
-                );
-                if (!entityTitleAndMedia) continue;
+                const dynamicEntity = dynamicEntityById.get(favoriteEntity.entityId);
+                if (!dynamicEntity) continue;
 
-                result = {
-                    id: favoriteEntity.entityId,
+                result = new SearchFavoriteEntityResultModel({
+                    model: dynamicEntity,
                     score: 0,
-                    title: entityTitleAndMedia.title ?? "",
-                    media: entityTitleAndMedia.media,
                     favoriteOrderKey: favoriteEntity.orderKey,
-                };
+                });
             }
 
             if (favoriteResultById.has(result.id)) {
@@ -2109,26 +2272,27 @@ export async function searchByAffinity(
         }
         resultIds.add(entity.entityId);
 
-        let result: SearchAffinityEntityResult;
+        let result: SearchAffinityEntityResultModel;
         if (entity.entityId === "TaskPersonal") {
-            result = {
-                id: entity.entityId,
+            result = new SearchAffinityEntityResultModel({
+                model: SearchAffinityEntityModel.new({
+                    id: entity.entityId,
+                    title: searchStaticEntityById[entity.entityId].title,
+                    titleVersion: null,
+                    media: null,
+                }),
                 score: entity.points,
-                title: searchStaticEntityById[entity.entityId].title,
-                media: null,
                 favoriteOrderKey: entity.favoriteOrderKey,
-            };
+            });
         } else {
-            const entityTitleAndMedia = dynamicEntityTitleAndMediaById.get(entity.entityId);
-            if (!entityTitleAndMedia) continue;
+            const dynamicEntity = dynamicEntityById.get(entity.entityId);
+            if (!dynamicEntity) continue;
 
-            result = {
-                id: entity.entityId,
+            result = new SearchAffinityEntityResultModel({
+                model: dynamicEntity,
                 score: entity.points,
-                title: entityTitleAndMedia.title ?? "",
-                media: entityTitleAndMedia.media,
                 favoriteOrderKey: entity.favoriteOrderKey,
-            };
+            });
         }
 
         results.push(result);
@@ -2559,7 +2723,7 @@ export async function searchTaskCollectionsByAffinity(
 export async function getAllSearchFavoriteEntities(
     context: SearchSessionActionContext,
     spaceId: SpaceId,
-): Promise<ReadonlyArray<SearchFavoriteEntityResult>> {
+): Promise<ReadonlyArray<SearchFavoriteEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
     const favoriteEntities = await internalGetSearchFavoriteEntities(context, {
@@ -2567,42 +2731,48 @@ export async function getAllSearchFavoriteEntities(
         limit: "All",
     });
 
-    const entityIds: Array<SearchDynamicEntityId> = [];
+    const entityIds: Array<SearchDynamicEntityId & SearchAffinityEntityId> = [];
     for (const favoriteEntity of favoriteEntities) {
         if (favoriteEntity.entityId === "TaskPersonal") continue;
         entityIds.push(favoriteEntity.entityId);
     }
 
-    const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
-        spaceId,
-        entityIds,
-    });
+    const entities = await runAllPromises(
+        mapIterable(entityIds, entityId =>
+            getSearchAffinityEntityIfPossible(context, spaceId, entityId),
+        ),
+    );
 
-    const results: Array<SearchFavoriteEntityResult> = [];
+    const results: Array<SearchFavoriteEntityResultModel> = [];
 
-    let entitiesTitleAndMediaIndex = 0;
+    let entityIndex = 0;
     for (const favoriteEntity of favoriteEntities) {
         if (favoriteEntity.entityId === "TaskPersonal") {
-            results.push({
-                id: favoriteEntity.entityId,
-                score: 0,
-                title: searchStaticEntityById[favoriteEntity.entityId].title,
-                media: null,
-                favoriteOrderKey: assertExists(favoriteEntity.orderKey),
-            });
+            results.push(
+                new SearchFavoriteEntityResultModel({
+                    model: SearchAffinityEntityModel.new({
+                        id: favoriteEntity.entityId,
+                        title: searchStaticEntityById[favoriteEntity.entityId].title,
+                        titleVersion: null,
+                        media: null,
+                    }),
+                    score: 0,
+                    favoriteOrderKey: assertExists(favoriteEntity.orderKey),
+                }),
+            );
         } else {
-            const entityTitleAndMedia = entitiesTitleAndMedia[entitiesTitleAndMediaIndex++];
-            if (!entityTitleAndMedia) continue;
+            const entity = entities[entityIndex++];
+            if (!entity || entity.isPrivate) continue;
 
-            assert(entityTitleAndMedia.id === favoriteEntity.entityId);
+            assert(entity.entity.getSearchEntityId() === favoriteEntity.entityId);
 
-            results.push({
-                id: favoriteEntity.entityId,
-                score: 0,
-                title: entityTitleAndMedia.title ?? "",
-                media: entityTitleAndMedia.media,
-                favoriteOrderKey: assertExists(favoriteEntity.orderKey),
-            });
+            results.push(
+                new SearchFavoriteEntityResultModel({
+                    model: entity.entity,
+                    score: 0,
+                    favoriteOrderKey: favoriteEntity.orderKey,
+                }),
+            );
         }
     }
 

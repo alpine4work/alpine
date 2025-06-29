@@ -13,10 +13,10 @@ import {testTaskActionPermutations} from "~/shared/tasks/test_helpers/test_task_
 
 const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
-const accountRegistry = getAccountRegistry(generateId());
-
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
+
+const accountRegistry = getAccountRegistry(spaceId);
 
 let store: TaskClientStore;
 let retainedTaskIds = new Set<TaskId>();
@@ -146,7 +146,7 @@ testTaskActionPermutations({
     },
     getTask: taskId => {
         // Task should exist. We auto-retain tasks in our store.
-        const task = assertExists(store.getTaskEntryStoreIfExists(taskId)?.getSnapshot()?.task);
+        const task = assertExists(store.getTaskEntrySnapshot(taskId)?.task);
 
         return {
             creator: task.getCreator(),
@@ -181,9 +181,7 @@ testTaskActionPermutations({
     },
     getTaskCollection: collectionId => {
         // Task should exist. We auto-retain collections in our store.
-        const collection = assertExists(
-            store.getCollectionEntryStoreIfExists(collectionId)?.getSnapshot()?.collection,
-        );
+        const collection = assertExists(store.getCollectionEntrySnapshot(collectionId)?.collection);
 
         return {
             createdTime: collection.getCreatedTime(),

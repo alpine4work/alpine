@@ -19,7 +19,7 @@ export function TaskCloseConfirmationModalDialog({
 }) {
     const {locale} = useClientInfo();
 
-    const taskEntryStore = taskId !== null ? store.getTaskEntryStoreIfExists(taskId) : null;
+    const taskEntryStore = taskId !== null ? store.getTaskEntryStore(taskId) : null;
     const taskEntry = useStore(taskEntryStore);
     const childTaskCount = taskEntry?.task?.getOpenChildTaskCount() ?? 0;
 

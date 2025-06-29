@@ -1,4 +1,5 @@
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
+import {SearchEntityRegistryFriend} from "~/client/search/core/search_entity_registry.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/core/create_get_task_action_referenced_sortable_account.js";
 import {
@@ -35,6 +36,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -53,8 +55,11 @@ import {
     deleteTaskAndAllChildren,
     duplicateTaskAndAllChildren,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
+import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModelData, SearchEntityModelId} from "~/shared/search/search_entity_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
+import {nullStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 import {StoreMap} from "~/shared/store/store_map.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -302,8 +307,10 @@ export type TaskClientReadonlyStore = Pick<
     | "spaceId"
     | "currentAccountId"
     | "clock"
-    | "getTaskEntryStoreIfExists"
-    | "getCollectionEntryStoreIfExists"
+    | "getTaskEntrySnapshot"
+    | "getCollectionEntrySnapshot"
+    | "getTaskEntryStore"
+    | "getCollectionEntryStore"
     | "getTaskAssigneeAccountStore"
     | "getReferencedAccountStoreIfExists"
     | "getSubscriptionsStore"
@@ -330,7 +337,7 @@ export type TaskClientReadonlyStore = Pick<
  * We can also use our tree store helpers to incrementally compute information
  * based on our client queries.
  */
-export class TaskClientStore {
+export class TaskClientStore implements SearchEntityRegistryFriend {
     private readonly _internal: TaskClientStoreInternal;
     public readonly accountRegistry: AccountRegistry;
     public readonly spaceId: SpaceId;
@@ -377,12 +384,20 @@ export class TaskClientStore {
         return this._internal.getCollectionCountForTest();
     }
 
-    public getTaskEntryStoreIfExists(taskId: TaskId) {
-        return this._internal.getTaskEntryStoreIfExists(taskId);
+    public getTaskEntrySnapshot(taskId: TaskId) {
+        return this._internal.getTaskEntrySnapshot(taskId);
     }
 
-    public getCollectionEntryStoreIfExists(collectionId: TaskCollectionId) {
-        return this._internal.getCollectionEntryStoreIfExists(collectionId);
+    public getCollectionEntrySnapshot(collectionId: TaskCollectionId) {
+        return this._internal.getCollectionEntrySnapshot(collectionId);
+    }
+
+    public getTaskEntryStore(taskId: TaskId) {
+        return this._internal.getTaskEntryStore(taskId);
+    }
+
+    public getCollectionEntryStore(collectionId: TaskCollectionId) {
+        return this._internal.getCollectionEntryStore(collectionId);
     }
 
     public getTaskAssigneeAccountStore(task: TaskModel): Store<AccountModelData> | null {
@@ -529,6 +544,69 @@ export class TaskClientStore {
     public _onCollectionSubscriptionUnsubscribed(subscription: TaskClientCollectionSubscription) {
         this._internal.onCollectionSubscriptionUnsubscribed(subscription);
     }
+
+    /**
+     * We can add `TaskClientStore` as a friend of `SearchEntityRegistry`.
+     * `SearchEntityRegistry` uses friends to augment its normalized store of
+     * search entities with data from another normalized store. So if we have a
+     * search entity reference to a task it'll use the same task data that's
+     * available in `TaskClientStore`.
+     */
+    public getSearchEntityRegistryFriendStoreIfExists(
+        entityId: SearchEntityModelId,
+    ): Store<SearchEntityModelData | null> | null {
+        if (!entityId.startsWith("Task:") && !entityId.startsWith("TaskCollection:")) return null;
+
+        const entityIdObject = parseSearchDynamicEntityId(
+            entityId as SearchEntityModelId & (`Task:${string}` | `TaskCollection:${string}`),
+        );
+
+        if (entityIdObject.type === "Task") {
+            return this.getTaskEntryStore(entityIdObject.taskId).map(
+                (taskEntry): SearchEntityModelData | null => {
+                    if (!taskEntry?.task) return null;
+                    const {task} = taskEntry;
+
+                    return {
+                        id: `Task:${task.id}`,
+                        title: task.getTitle().getText(),
+                        titleVersion: {type: "TaskTitle", snapshot: task.getTitle().getSnapshot()},
+                        media: {
+                            type: "TaskDisplayStatus",
+                            displayStatus: task.getDisplayStatus(),
+                            version: maxHybridLogicalTime(
+                                task.rawData.status.version,
+                                task.rawData.assigneeStatus.version,
+                            ),
+                        },
+                    };
+                },
+            );
+        } else if (entityIdObject.type === "TaskCollection") {
+            return this.getCollectionEntryStore(entityIdObject.collectionId).map(
+                (collectionEntry): SearchEntityModelData | null => {
+                    if (!collectionEntry?.collection) return null;
+                    const {collection} = collectionEntry;
+
+                    return {
+                        id: `TaskCollection:${collection.id}`,
+                        title: collection.rawData.name.value,
+                        titleVersion: {
+                            type: "HybridLogicalTime",
+                            time: collection.rawData.name.version,
+                        },
+                        media: {
+                            type: "TaskCollectionColor",
+                            color: collection.rawData.color.value,
+                            version: collection.rawData.color.version,
+                        },
+                    };
+                },
+            );
+        } else {
+            throw new InternalError(quote`Unexpected search entity type: ${entityIdObject.type}`);
+        }
+    }
 }
 
 let shouldDisableCommitTaskActionTransactionMutexForTest = false;
@@ -591,6 +669,48 @@ export class TaskClientStoreInternal {
         {
             referenceCount: number;
             store: ValueStore<TaskClientStoreCollectionEntry>;
+        }
+    >();
+
+    /**
+     * Stores for `TaskId`s that update between the task entry and null based on
+     * whether the task is in the store or not. By calling
+     * `TaskClientStore.getTaskEntryStore()` even if the task doesn't currently
+     * exist you'll get a `Store` whose value is null that will update to the task
+     * entry if the task is later loaded (e.g. by `<TaskDetailView>`).
+     *
+     * To reduce memory usage we use an `AdvancedWeakValuesMap`. Users of
+     * `TaskClientStore` get a simple API since there's no way to observe whether a
+     * task entry store has been garbage collected or not. To `TaskClientStore`
+     * users there's _always_ a store for _every_ `TaskId`. But in reality we
+     * garbage collect stores that aren't used.
+     */
+    private readonly _taskEntryStoreByIdStores = new AdvancedWeakValuesMap<
+        TaskId,
+        Store<TaskClientStoreTaskEntry | null> & {
+            set(value: ValueStore<TaskClientStoreTaskEntry> | null): void;
+        }
+    >();
+
+    /**
+     * Stores for `TaskCollectionId`s that update between the collection entry and
+     * null based on whether the collection is in the store or not. By calling
+     * `TaskClientStore.getCollectionEntryStore()` even if the collection doesn't
+     * currently exist you'll get a `Store` whose value is null that will update to
+     * the collection entry if the collection is later loaded (e.g. by
+     * `<TaskCollectionView>`).
+     *
+     * To reduce memory usage we use an `AdvancedWeakValuesMap`. Users of
+     * `TaskClientStore` get a simple API since there's no way to observe whether a
+     * collection entry store has been garbage collected or not. To
+     * `TaskClientStore` users there's _always_ a store for _every_
+     * `TaskCollectionId`. But in reality we garbage collect stores that aren't
+     * used.
+     */
+    private readonly _collectionEntryStoreByIdStores = new AdvancedWeakValuesMap<
+        TaskCollectionId,
+        Store<TaskClientStoreCollectionEntry | null> & {
+            set(value: ValueStore<TaskClientStoreCollectionEntry> | null): void;
         }
     >();
 
@@ -712,14 +832,50 @@ export class TaskClientStoreInternal {
         return this._subscriptionsStore;
     }
 
-    public getTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
+    public _getTaskEntryStoreIfExists(taskId: TaskId): Store<TaskClientStoreTaskEntry> | null {
         return this._taskEntryStoreById.get(taskId)?.store ?? null;
     }
 
-    public getCollectionEntryStoreIfExists(
+    public _getCollectionEntryStoreIfExists(
         collectionId: TaskCollectionId,
     ): Store<TaskClientStoreCollectionEntry> | null {
         return this._collectionEntryStoreById.get(collectionId)?.store ?? null;
+    }
+
+    public getTaskEntrySnapshot(taskId: TaskId): TaskClientStoreTaskEntry | null {
+        return this._taskEntryStoreById.get(taskId)?.store.getSnapshot() ?? null;
+    }
+
+    public getCollectionEntrySnapshot(
+        collectionId: TaskCollectionId,
+    ): TaskClientStoreCollectionEntry | null {
+        return this._collectionEntryStoreById.get(collectionId)?.store.getSnapshot() ?? null;
+    }
+
+    public getTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry | null> {
+        return getOrSetDefaultMapValue(this._taskEntryStoreByIdStores, taskId, () => {
+            const store = new ValueStore(this._taskEntryStoreById.get(taskId)?.store ?? null);
+
+            return Object.assign(
+                store.flatMap(store => store ?? nullStore),
+                {set: store.set.bind(store)},
+            );
+        });
+    }
+
+    public getCollectionEntryStore(
+        collectionId: TaskCollectionId,
+    ): Store<TaskClientStoreCollectionEntry | null> {
+        return getOrSetDefaultMapValue(this._collectionEntryStoreByIdStores, collectionId, () => {
+            const store = new ValueStore(
+                this._collectionEntryStoreById.get(collectionId)?.store ?? null,
+            );
+
+            return Object.assign(
+                store.flatMap(store => store ?? nullStore),
+                {set: store.set.bind(store)},
+            );
+        });
     }
 
     /**
@@ -769,6 +925,7 @@ export class TaskClientStoreInternal {
                 this._delayReleaseTaskEntryStoreIds.add(taskId);
             } else {
                 this._taskEntryStoreById.delete(taskId);
+                this._taskEntryStoreByIdStores.get(taskId)?.set(null);
                 this._updateReferencedAccountStores(taskEntryStore.store.getSnapshot(), null);
             }
         }
@@ -822,6 +979,7 @@ export class TaskClientStoreInternal {
                 this._delayReleaseCollectionEntryStoreIds.add(collectionId);
             } else {
                 this._collectionEntryStoreById.delete(collectionId);
+                this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
             }
         }
     }
@@ -2386,6 +2544,7 @@ export class TaskClientStoreInternal {
                         assert(taskEntryStore.referenceCount === 0);
 
                         this._taskEntryStoreById.delete(taskId);
+                        this._taskEntryStoreByIdStores.get(taskId)?.set(null);
 
                         this._updateReferencedAccountStores(
                             taskEntryStore.store.getSnapshot(),
@@ -2400,6 +2559,7 @@ export class TaskClientStoreInternal {
                         assert(collectionEntryStore.referenceCount === 0);
 
                         this._collectionEntryStoreById.delete(collectionId);
+                        this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
                     }
                 }
 
@@ -3826,6 +3986,7 @@ export class TaskClientStoreInternal {
                             store: new ValueStore(newTaskEntry),
                         };
                         this._taskEntryStoreById.set(taskId, taskEntryStore);
+                        this._taskEntryStoreByIdStores.get(taskId)?.set(taskEntryStore.store);
 
                         // If a reference isn't added to the task by the end of this function then we
                         // immediately garbage collect the new store.
@@ -3890,6 +4051,9 @@ export class TaskClientStoreInternal {
                         };
 
                         this._collectionEntryStoreById.set(collectionId, collectionEntryStore);
+                        this._collectionEntryStoreByIdStores
+                            .get(collectionId)
+                            ?.set(collectionEntryStore.store);
 
                         // If a reference isn't added to the collection by the end of this function then
                         // we immediately garbage collect the new store.
@@ -3985,6 +4149,7 @@ export class TaskClientStoreInternal {
                             assert(taskEntryStore.referenceCount === 0);
 
                             this._taskEntryStoreById.delete(taskId);
+                            this._taskEntryStoreByIdStores.get(taskId)?.set(null);
 
                             this._updateReferencedAccountStores(
                                 taskEntryStore.store.getSnapshot(),
@@ -4001,6 +4166,7 @@ export class TaskClientStoreInternal {
                             assert(collectionEntryStore.referenceCount === 0);
 
                             this._collectionEntryStoreById.delete(collectionId);
+                            this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
                         }
                     }
                 }
@@ -4027,6 +4193,7 @@ export class TaskClientStoreInternal {
                                 this._temporarilyRetainTaskEntryStore(taskId);
                             } else {
                                 this._taskEntryStoreById.delete(taskId);
+                                this._taskEntryStoreByIdStores.get(taskId)?.set(null);
                                 this._updateReferencedAccountStores(taskEntry, null);
                             }
                         }
@@ -4051,6 +4218,7 @@ export class TaskClientStoreInternal {
                                 this._temporarilyRetainCollectionEntryStore(collectionId);
                             } else {
                                 this._collectionEntryStoreById.delete(collectionId);
+                                this._collectionEntryStoreByIdStores.get(collectionId)?.set(null);
                             }
                         }
                     }
@@ -4694,7 +4862,9 @@ export class TaskClientStoreInternal {
      * listens to our subscribed tasks and will subscribe to the task on the server.
      */
     public createAndRetainTaskSubscription(taskId: TaskId): TaskClientTaskSubscription {
-        const taskEntryStore = getOrSetDefaultMapValue(this._taskEntryStoreById, taskId, () => {
+        let taskEntryStore = this._taskEntryStoreById.get(taskId);
+
+        if (taskEntryStore === undefined) {
             const taskEntry: TaskClientStoreTaskEntry = {
                 task: null,
                 actions: [],
@@ -4704,11 +4874,14 @@ export class TaskClientStoreInternal {
 
             this._updateReferencedAccountStores(null, taskEntry);
 
-            return {
+            taskEntryStore = {
                 referenceCount: 0,
                 store: new ValueStore<TaskClientStoreTaskEntry>(taskEntry),
             };
-        });
+
+            this._taskEntryStoreById.set(taskId, taskEntryStore);
+            this._taskEntryStoreByIdStores.get(taskId)?.set(taskEntryStore.store);
+        }
 
         const taskSubscription = new TaskClientTaskSubscription(this, taskId, taskEntryStore.store);
 
@@ -4803,10 +4976,10 @@ export class TaskClientStoreInternal {
     public createAndRetainCollectionSubscription(
         collectionId: TaskCollectionId,
     ): TaskClientCollectionSubscription {
-        const collectionEntryStore = getOrSetDefaultMapValue(
-            this._collectionEntryStoreById,
-            collectionId,
-            () => ({
+        let collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
+
+        if (collectionEntryStore === undefined) {
+            collectionEntryStore = {
                 referenceCount: 0,
                 store: new ValueStore<TaskClientStoreCollectionEntry>({
                     collection: null,
@@ -4814,8 +4987,11 @@ export class TaskClientStoreInternal {
                     optimisticState: null,
                     authorizationState: null,
                 }),
-            }),
-        );
+            };
+
+            this._collectionEntryStoreById.set(collectionId, collectionEntryStore);
+            this._collectionEntryStoreByIdStores.get(collectionId)?.set(collectionEntryStore.store);
+        }
 
         const collectionSubscription = new TaskClientCollectionSubscription(
             this,

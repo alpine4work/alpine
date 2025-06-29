@@ -89,13 +89,11 @@ export function useTaskCollectionComboBoxSearchState({
                         // realtime then let's merge our realtime data with the searched data from the
                         // server. We don't put our searched data in the store because it's not kept
                         // up-to-date in realtime.
-                        const collectionEntryStore = store.getCollectionEntryStoreIfExists(
+                        const collectionEntryStore = store.getCollectionEntryStore(
                             collectionResult.collection.id,
                         );
 
-                        const collectionFromStore = collectionEntryStore
-                            ? get(collectionEntryStore).collection
-                            : null;
+                        const collectionFromStore = get(collectionEntryStore)?.collection;
 
                         items.push({
                             type: "Collection",
@@ -150,13 +148,11 @@ export function useTaskCollectionComboBoxSearchState({
                         // realtime then let's merge our realtime data with the searched data from the
                         // server. We don't put our searched data in the store because it's not kept
                         // up-to-date in realtime.
-                        const collectionEntryStore = store.getCollectionEntryStoreIfExists(
+                        const collectionEntryStore = store.getCollectionEntryStore(
                             collectionResult.collection.id,
                         );
 
-                        const collection = collectionEntryStore
-                            ? get(collectionEntryStore).collection
-                            : null;
+                        const collection = get(collectionEntryStore)?.collection;
 
                         items.push({
                             type: "Collection",

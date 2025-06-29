@@ -15,7 +15,6 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Store} from "~/shared/store/store.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskActionModel,
@@ -34,7 +33,7 @@ interface TaskClientStoreInterface {
     readonly spaceId: SpaceId;
     readonly currentAccountId: AccountId | null;
     readonly accountRegistry: AccountRegistry;
-    getTaskEntryStoreIfExists(task: TaskId): Store<TaskClientStoreTaskEntry> | null;
+    getTaskEntrySnapshot(task: TaskId): TaskClientStoreTaskEntry | null;
 }
 
 assertAssignableTypes<TaskClientStore, TaskClientStoreInterface>();
@@ -124,7 +123,7 @@ export class TaskUndoActions {
         // action.
         const getTask = (taskId: TaskId): TaskModel | null => {
             return getOrSetDefaultMapValue(workingTaskEntryById, taskId, () => {
-                const task = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot().task;
+                const task = store.getTaskEntrySnapshot(taskId)?.task;
                 return task ? {task, actions: null} : {task: null, actions: []};
             }).task;
         };
@@ -178,7 +177,7 @@ export class TaskUndoActions {
 
             // If we don't have an entry for this task, try to get one from our store.
             if (!taskEntry) {
-                const task = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot().task;
+                const task = store.getTaskEntrySnapshot(taskId)?.task;
                 if (task) {
                     taskEntry = {task, actions: null};
                 }
@@ -301,7 +300,7 @@ export function createTaskUndoActionsIfPossible(
         // action.
         const getTask = (taskId: TaskId): TaskModel | null => {
             return getOrSetDefaultMapValue(workingTaskEntryById, taskId, () => {
-                const task = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot().task;
+                const task = store.getTaskEntrySnapshot(taskId)?.task;
                 return task ? {task, actions: null} : {task: null, actions: []};
             }).task;
         };
@@ -362,7 +361,7 @@ export function createTaskUndoActionsIfPossible(
 
                 // If we don't have an entry for this task, try to get one from our store.
                 if (!taskEntry) {
-                    const task = store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot().task;
+                    const task = store.getTaskEntrySnapshot(action.taskId)?.task;
                     if (task) {
                         taskEntry = {task, actions: null};
                     }

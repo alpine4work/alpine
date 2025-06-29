@@ -43,8 +43,10 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
-import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
+import {
+    SearchAffinityEntityResultModel,
+    SearchEntityResultModel,
+} from "~/shared/search/search_entity_result_model.js";
 
 export function SearchMobileView({
     initialAffinitySearch,
@@ -393,7 +395,7 @@ function SearchMobileEntityView({
     spaceId: SpaceId;
     searchKey: string;
     searchTime: Date;
-    result: SearchEntityResult | SearchAffinityEntityResult;
+    result: SearchEntityResultModel | SearchAffinityEntityResultModel;
     isFirstItem: boolean;
     isLastItem: boolean;
 }) {

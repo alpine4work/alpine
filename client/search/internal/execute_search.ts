@@ -5,7 +5,7 @@ import {pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
+import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {createPromiseStore} from "~/shared/store/promise_store.js";
@@ -52,7 +52,7 @@ export type ExecuteSearchOutput =
     | {
           readonly isPending: boolean;
           readonly isError: false;
-          readonly results: ReadonlyArray<SearchEntityResult>;
+          readonly results: ReadonlyArray<SearchEntityResultModel>;
       };
 
 /**
@@ -206,7 +206,7 @@ export function executeSearch(
                 semanticSearchState.value.results.map(result => [result.id, result]),
             );
 
-            const newResults: Array<SearchEntityResult> = [];
+            const newResults: Array<SearchEntityResultModel> = [];
 
             let maxKeywordScore = -Infinity;
             let minKeywordScore = Infinity;

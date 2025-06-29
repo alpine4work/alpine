@@ -13,6 +13,7 @@ import {useStore} from "~/client/helpers/use_store.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {unwrapLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {subscribeToTaskClientStoreSubscriptionsIfRealtimeUnavailable} from "~/client/tasks/core/subscribe_to_task_client_store_subscriptions_if_realtime_unavailable.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/core/task_client_collection_subscription.js";
@@ -222,6 +223,7 @@ export function TaskRealtimeClientContextProvider({
     const {currentAccount} = useSpaceContext();
 
     const accountRegistry = useAccountRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     // We need to hold a strong reference to `Store<AccountModelData>` for the
     // current account so `accountRegistry.weakGetAccountStoreByIdIfExists()` will
@@ -389,6 +391,12 @@ export function TaskRealtimeClientContextProvider({
             }
         };
     }, [client, currentAccount, spaceId]);
+
+    // Add our `TaskClientStore` as a friend of `SearchEntityRegistry`.
+    useEffect(() => {
+        searchEntityRegistry.addFriend(client.store);
+        return () => searchEntityRegistry.removeFriend(client.store);
+    }, [client.store, searchEntityRegistry]);
 
     useDevConsoleTool("tasks", () => ({store: client.store}));
 

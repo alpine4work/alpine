@@ -83,8 +83,8 @@ import {
     unfavoriteSearchEntity,
 } from "~/shared/rpc/search_rpc_definitions.js";
 import {updateSpaceAccountSettings} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {SearchFavoriteEntityResult} from "~/shared/search/search_affinity_entity_result.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {
     searchShortcutFavoriteEntityMaxCount,
     searchShortcutFavoriteEntityMinCount,
@@ -100,7 +100,7 @@ export function SearchFavoritesView({
     initialResults,
 }: {
     initialShortcutFavoriteEntityCount: number;
-    initialResults: ReadonlyArray<SearchFavoriteEntityResult>;
+    initialResults: ReadonlyArray<SearchFavoriteEntityResultModel>;
 }) {
     const spacingScale = useSpacingScale();
     const platform = usePlatform();
@@ -443,11 +443,11 @@ function SearchFavoritesViewInner({
     updateResults,
     shortcutDividerIndex,
 }: {
-    results: ReadonlyArray<SearchFavoriteEntityResult>;
+    results: ReadonlyArray<SearchFavoriteEntityResultModel>;
     updateResults: (
         update: (
-            value: ReadonlyArray<SearchFavoriteEntityResult>,
-        ) => ReadonlyArray<SearchFavoriteEntityResult>,
+            value: ReadonlyArray<SearchFavoriteEntityResultModel>,
+        ) => ReadonlyArray<SearchFavoriteEntityResultModel>,
     ) => void;
     shortcutDividerIndex: number;
 }) {
@@ -569,7 +569,7 @@ function SearchFavoritesViewDragPortals({
     results,
 }: {
     randomSeed: string;
-    results: ReadonlyArray<SearchFavoriteEntityResult>;
+    results: ReadonlyArray<SearchFavoriteEntityResultModel>;
 }) {
     const platform = usePlatform();
     const {active, activatorEvent} = useDndContext();
@@ -634,7 +634,7 @@ function SearchFavoritesViewItem({
     isDragOverlay = false,
 }: {
     randomSeed: string;
-    result: SearchFavoriteEntityResult;
+    result: SearchFavoriteEntityResultModel;
     removeResult: () => Promise<void>;
     isDragOverlay?: boolean;
 }) {

@@ -11,6 +11,7 @@ import {Spacer} from "~/client/design/spacer.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useSearchEntityModel} from "~/client/search/core/search_entity_registry_context.js";
 import {getSearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
 import {
     SearchEntityViewTitle,
@@ -38,8 +39,10 @@ import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
-import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
-import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
+import {
+    SearchAffinityEntityResultModel,
+    SearchEntityResultModel,
+} from "~/shared/search/search_entity_result_model.js";
 
 export function SearchEntityView({
     result,
@@ -55,7 +58,7 @@ export function SearchEntityView({
     marginX = searchEntityViewDefaultMarginX,
     paddingX = searchEntityViewDefaultPaddingX,
 }: {
-    result: SearchEntityResult | SearchAffinityEntityResult;
+    result: SearchEntityResultModel | SearchAffinityEntityResultModel;
     isSelected?: boolean;
     isPressed?: boolean;
     withMarginTop?: boolean;
@@ -70,6 +73,7 @@ export function SearchEntityView({
 }) {
     const spacingScale = useSpacingScale();
 
+    const entityData = useSearchEntityModel(result.model);
     const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
 
     const contextMenuActions: Array<Array<MenuAction>> = [];
@@ -181,12 +185,12 @@ export function SearchEntityView({
                             minHeight: searchEntityViewMinHeightPx[spacingScale],
                         }}
                     >
-                        {result.title !== null && (
+                        {entityData.title !== null && (
                             <>
                                 <SearchEntityViewTitle
                                     icon={typeDisplay.icon}
-                                    title={result.title}
-                                    media={result.media}
+                                    title={entityData.title}
+                                    media={entityData.media}
                                 />
                                 {result.bodyTextSnippet && result.bodyTextSnippet.length > 0 && (
                                     <Spacer space={searchEntityViewTitleMarginBottom} />
@@ -198,7 +202,7 @@ export function SearchEntityView({
                             color="grey-60"
                             fontSize={searchEntityViewBodyTextSnippetFontSize}
                             className={
-                                result.title === null
+                                entityData.title === null
                                     ? searchStyles.bodyTextSnippetWithoutTitleClassName
                                     : undefined
                             }
@@ -207,8 +211,8 @@ export function SearchEntityView({
                                 // except IE.
                                 // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
                                 display: "-webkit-box",
-                                WebkitLineClamp: result.title !== null ? 3 : 4,
-                                lineClamp: result.title !== null ? 3 : 4,
+                                WebkitLineClamp: entityData.title !== null ? 3 : 4,
+                                lineClamp: entityData.title !== null ? 3 : 4,
                                 WebkitBoxOrient: "vertical",
                                 textOverflow: "ellipsis",
                                 // Render contextual alternate glyphs. Particularly important that we render
@@ -216,22 +220,22 @@ export function SearchEntityView({
                                 // eslint-disable-next-line string-quotes
                                 fontFeatureSettings: '"calt" on',
                                 minHeight:
-                                    result.title === null
+                                    entityData.title === null
                                         ? searchEntityViewBodyTextSnippetMinHeight
                                         : undefined,
                             }}
                         >
-                            {result.title === null && (
+                            {entityData.title === null && (
                                 <SearchEntityViewTitlePrefix
                                     icon={typeDisplay.icon}
-                                    media={result.media}
+                                    media={entityData.media}
                                 />
                             )}
                             {typeDisplay.isAccountMediaAuthor &&
-                            result.media?.type === "Account" ? (
+                            entityData.media?.type === "Account" ? (
                                 <>
                                     <AccountShortName
-                                        account={result.media.account}
+                                        account={entityData.media.account}
                                         isTooltipDisabled={true}
                                     />
                                     {": "}

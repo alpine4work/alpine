@@ -3329,13 +3329,12 @@ function getTaskUndoActionsGridViewTargetIfExists(
         }
 
         let depth = 0;
-        let currentTask =
-            store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot().task ?? null;
+        let currentTask = store.getTaskEntrySnapshot(action.taskId)?.task ?? null;
         while (currentTask) {
             depth++;
             const parentTaskId = currentTask.getParent()?.taskId;
             currentTask = parentTaskId
-                ? store.getTaskEntryStoreIfExists(parentTaskId)?.getSnapshot().task ?? null
+                ? store.getTaskEntrySnapshot(parentTaskId)?.task ?? null
                 : null;
         }
 

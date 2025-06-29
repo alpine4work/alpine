@@ -26,6 +26,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {getInitialAppRenderSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -64,6 +65,7 @@ import {
     updateChannelName,
     updateChannelNameAndDescription,
 } from "~/shared/rpc/forum_rpc_definitions.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 export function ChannelView({
     initialChannelResult,
@@ -81,6 +83,7 @@ export function ChannelView({
     const routeLayout = useRouteLayout();
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     assert(initialChannelResult.items[0]?.model instanceof ChannelModel);
 
@@ -132,6 +135,20 @@ export function ChannelView({
             displayMessage: channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel.View,
         });
     }
+
+    // Update `SearchEntityRegistry` with the latest channel name. Now as the
+    // name changes in realtime, any `SearchEntityModel`s rendered elsewhere in
+    // the product will also update.
+    useMemo(() => {
+        return searchEntityRegistry.getEntityStore(
+            new SearchEntityModel({
+                id: `Channel:${channelId}`,
+                title: channel.name,
+                titleVersion: {type: "Integer", version: channelItem.version},
+                media: null,
+            }),
+        );
+    }, [channel.name, channelId, channelItem.version, searchEntityRegistry]);
 
     const [posts, setPosts] = useState(() => PostQueryList.new(initialPostsResult));
 

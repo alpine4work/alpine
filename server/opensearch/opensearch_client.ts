@@ -5,6 +5,7 @@ import murmurhash from "murmurhash";
 import {dirname, join as joinPath} from "path";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
+import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchHighlightClause} from "~/server/opensearch/opensearch_highlight_clause.js";
 import {
     OpensearchIndex,
@@ -50,6 +51,10 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
+
+// Useful for testing caching logic for OpenSearch. If the number of executed
+// actions doesn't increase that means we're hitting a cache.
+export const opensearchClientExecuteOperationTestCounter = new TestCounter<string>();
 
 export type OpensearchClientDocWithId<DocId, Doc> = {
     readonly id: DocId;
@@ -1219,6 +1224,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         url.searchParams.set("routing", routing);
         url.searchParams.set("realtime", String(realtime));
 
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest("/:index/_doc/:docId");
+        }
+
         const body = await fetchWithTracer(
             tracer,
             url,
@@ -1326,6 +1335,10 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         if (storedFields.length > 0) {
             url.searchParams.set("stored_fields", storedFields.join(","));
+        }
+
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest("/:index/_doc/:docId");
         }
 
         const body = await fetchWithTracer(
@@ -1494,6 +1507,12 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest(
+                singularIndex ? "/:index/_mget" : "/_mget",
+            );
+        }
+
         const responseBody = await fetchWithTracer(
             tracer,
             url,
@@ -1660,6 +1679,12 @@ export class OpensearchClient implements OpensearchClientInterface {
             "content-type": "application/json",
         };
 
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest(
+                !doc.version ? "/:index/_create/:docId" : "/:index/_doc/:docId",
+            );
+        }
+
         await fetchWithTracer(
             tracer,
             url,
@@ -1796,6 +1821,12 @@ export class OpensearchClient implements OpensearchClientInterface {
         const requestHeaders: {[key: string]: string} = {
             "content-type": "application/x-ndjson",
         };
+
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest(
+                singularIndex ? "/:index/_bulk" : "/_bulk",
+            );
+        }
 
         const versionConflictError: FailedPreconditionError | null = await fetchWithTracer(
             tracer,
@@ -2012,6 +2043,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         const requestHeaders: {[key: string]: string} = {
             "content-type": "application/json",
         };
+
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest("/:index/_search");
+        }
 
         const body = await fetchWithTracer(
             tracer,
@@ -2346,6 +2381,10 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         const requestHeaders: {[key: string]: string} = {};
 
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest("/:index/_refresh");
+        }
+
         await fetchWithTracer(
             tracer,
             url,
@@ -2401,6 +2440,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         const requestHeaders: {[key: string]: string} = {
             "content-type": "application/json",
         };
+
+        if (import.meta.jest) {
+            opensearchClientExecuteOperationTestCounter.incrementForTest("/:index/_analyze");
+        }
 
         return fetchWithTracer(
             tracer,

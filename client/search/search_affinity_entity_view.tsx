@@ -1,13 +1,14 @@
 import {memo, useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {useSearchEntityModel} from "~/client/search/core/search_entity_registry_context.js";
 import {getSearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
 import {SearchEntityViewTitle} from "~/client/search/internal/search_entity_view_title.js";
 import {
     searchAffinityEntityViewMinHeightPx,
     searchEntityViewPaddingY,
 } from "~/client/styles/search_shared_styles.js";
-import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
 const SearchAffinityEntityViewMemo = memo(SearchAffinityEntityView);
 export {SearchAffinityEntityViewMemo as SearchAffinityEntityView};
@@ -16,11 +17,12 @@ function SearchAffinityEntityView({
     result,
     lineClamp,
 }: {
-    result: SearchAffinityEntityResult;
+    result: SearchAffinityEntityResultModel;
     lineClamp?: number;
 }) {
     const spacingScale = useSpacingScale();
 
+    const entityData = useSearchEntityModel(result.model);
     const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
 
     return (
@@ -35,8 +37,8 @@ function SearchAffinityEntityView({
         >
             <SearchEntityViewTitle
                 icon={typeDisplay.icon}
-                title={result.title}
-                media={result.media}
+                title={entityData.title}
+                media={entityData.media}
                 lineClamp={lineClamp}
             />
         </Box>

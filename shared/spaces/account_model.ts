@@ -3,7 +3,7 @@ import {
     AccountModelWithoutSpaceData,
     AccountModelWithoutSpaceDataSchema,
 } from "~/shared/accounts/account_model_without_space.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SpaceRoleSchema} from "~/shared/spaces/space_model.js";
 
@@ -78,6 +78,15 @@ export class AccountModel implements AccountModelWithoutSpace {
         serialize: account => account.initialData,
         deserialize: account => new AccountModel(account),
     });
+
+    /**
+     * Also implemented by `SearchEntityModel` so you can call
+     * `getSearchEntityId()` on `SearchEntityModel | AccountModel` to get the
+     * `SearchEntityId`.
+     */
+    public getSearchEntityId(): `Account:${ContentMentionAccountId}` {
+        return `Account:${this.id}`;
+    }
 
     public static mergeData(data1: AccountModelData, data2: AccountModelData): AccountModelData {
         if (data1.version >= data2.version && data1.space.version >= data2.space.version) {

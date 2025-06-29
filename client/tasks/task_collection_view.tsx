@@ -612,10 +612,7 @@ export function TaskCollectionView({
             const time1 = store.clock.now();
             const time2 = store.clock.now();
 
-            const taskCollections = store
-                .getTaskEntryStoreIfExists(taskId)
-                ?.getSnapshot()
-                .task?.getCollections();
+            const taskCollections = store.getTaskEntrySnapshot(taskId)?.task?.getCollections();
 
             return [
                 {

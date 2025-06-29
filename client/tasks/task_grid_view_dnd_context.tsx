@@ -257,7 +257,7 @@ export function TaskGridViewDndContext({
 
                 const task =
                     newTaskById.get(action.taskId) ??
-                    store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot().task;
+                    store.getTaskEntrySnapshot(action.taskId)?.task;
                 if (!task) continue;
 
                 newTaskById.set(
@@ -282,7 +282,7 @@ export function TaskGridViewDndContext({
 
                     const parentTask =
                         newTaskById.get(parentTaskId) ??
-                        store.getTaskEntryStoreIfExists(parentTaskId)?.getSnapshot().task;
+                        store.getTaskEntrySnapshot(parentTaskId)?.task;
                     if (!parentTask) break;
 
                     parentTaskId = parentTask.getParent()?.taskId;

@@ -420,10 +420,7 @@ export function useTaskGridViewExpansionState({
                     stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
                     onFinish?.();
                 } else if (
-                    stateManager.store
-                        .getTaskEntryStoreIfExists(taskId)
-                        ?.getSnapshot()
-                        .task?.getChildTaskCount() === 0
+                    stateManager.store.getTaskEntrySnapshot(taskId)?.task?.getChildTaskCount() === 0
                 ) {
                     // Noop if the task we're toggling is loaded and has no children. There's
                     // nothing to expand! Expanded state for tasks with no children is eventually
@@ -617,9 +614,8 @@ export function useTaskGridViewExpansionState({
 
                                 oldGrandParentTaskId =
                                     stateManager.store
-                                        .getTaskEntryStoreIfExists(oldGrandParentTaskId)
-                                        ?.getSnapshot()
-                                        .task?.getParent()?.taskId ?? null;
+                                        .getTaskEntrySnapshot(oldGrandParentTaskId)
+                                        ?.task?.getParent()?.taskId ?? null;
                             }
 
                             // We push parent tasks onto the end but task paths have parent tasks in
@@ -644,9 +640,8 @@ export function useTaskGridViewExpansionState({
 
                                 newGrandParentTaskId =
                                     stateManager.store
-                                        .getTaskEntryStoreIfExists(newGrandParentTaskId)
-                                        ?.getSnapshot()
-                                        .task?.getParent()?.taskId ?? null;
+                                        .getTaskEntrySnapshot(newGrandParentTaskId)
+                                        ?.task?.getParent()?.taskId ?? null;
                             }
 
                             // We push parent tasks onto the end but task paths have parent tasks in
@@ -670,9 +665,8 @@ export function useTaskGridViewExpansionState({
                             oldTaskPath.every((taskId, i) => newTaskPath[i] === taskId) &&
                             stateManager.areChildTasksExpanded(oldTaskPath) &&
                             stateManager.store
-                                .getTaskEntryStoreIfExists(newTaskPath[newTaskPath.length - 1]!)
-                                ?.getSnapshot()
-                                .task?.getChildTaskCount() === 1
+                                .getTaskEntrySnapshot(newTaskPath[newTaskPath.length - 1]!)
+                                ?.task?.getChildTaskCount() === 1
                         ) {
                             const taskChildrenQuery =
                                 stateManager.store.ensureAndRetainTaskChildrenQuery(
@@ -771,9 +765,8 @@ export function useTaskGridViewExpansionState({
 
                             oldGrandParentTaskId =
                                 stateManager.store
-                                    .getTaskEntryStoreIfExists(oldGrandParentTaskId)
-                                    ?.getSnapshot()
-                                    .task?.getParent()?.taskId ?? null;
+                                    .getTaskEntrySnapshot(oldGrandParentTaskId)
+                                    ?.task?.getParent()?.taskId ?? null;
                         }
 
                         // We push parent tasks onto the end but task paths have parent tasks in

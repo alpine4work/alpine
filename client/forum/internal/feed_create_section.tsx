@@ -56,7 +56,7 @@ import {
     markSearchAffinityEntityInteraction,
     searchByAffinity,
 } from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchAffinityEntityResult} from "~/shared/search/search_affinity_entity_result.js";
+import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 
 export function FeedCreateSection({
     initialAffinitySearch,
@@ -362,7 +362,7 @@ function FeedCreateSectionMobileSearchAffinityView({
     result,
     randomSeed,
 }: {
-    result: SearchAffinityEntityResult;
+    result: SearchAffinityEntityResultModel;
     randomSeed: string;
 }) {
     const context = useAppContext();

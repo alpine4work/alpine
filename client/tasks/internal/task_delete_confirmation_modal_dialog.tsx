@@ -26,7 +26,7 @@ export function TaskDeleteConfirmationModalDialog({
     const context = useAppContext();
     const {locale} = useClientInfo();
 
-    const taskEntryStore = store.getTaskEntryStoreIfExists(taskId);
+    const taskEntryStore = store.getTaskEntryStore(taskId);
     const taskEntry = useStore(taskEntryStore);
     const childTaskCount = taskEntry?.task?.getChildTaskCount() ?? 0;
 

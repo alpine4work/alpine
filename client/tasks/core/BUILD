@@ -15,6 +15,7 @@ ts_project(
         "//:node_modules/react-router",
         "//client/accounts",
         "//client/context",
+        "//client/search/core",
         "//client/spaces",
         "//client/tracer",
         "//shared/helpers",

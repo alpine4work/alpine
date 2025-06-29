@@ -227,7 +227,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                 // failed to send us some data or we didn't retain a reference to the collection
                 // and it was garbage collected.
                 const collectionEntryStore = assertExists(
-                    this._getStore().getCollectionEntryStoreIfExists(newCollectionId),
+                    this._getStore()._getCollectionEntryStoreIfExists(newCollectionId),
                     "Referenced collection is not present in store",
                 );
 
@@ -294,7 +294,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                     // failed to send us some data or we didn't retain a reference to the collection
                     // and it was garbage collected.
                     const collectionEntryStore = assertExists(
-                        this._getStore().getCollectionEntryStoreIfExists(addedCollectionId),
+                        this._getStore()._getCollectionEntryStoreIfExists(addedCollectionId),
                         "Referenced collection is not present in store",
                     );
 
@@ -363,7 +363,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
             // us some data or we didn't retain a reference to the task and it was garbage
             // collected.
             const taskEntryStore = assertExists(
-                this._getStore().getTaskEntryStoreIfExists(newParentTaskId),
+                this._getStore()._getTaskEntryStoreIfExists(newParentTaskId),
                 "Referenced task is not present in store",
             );
 
