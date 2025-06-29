@@ -134,6 +134,7 @@ import {
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 import {SearchEntityResult} from "~/shared/search/search_entity_result.js";
+import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
 import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
@@ -321,6 +322,7 @@ assertEqualTypes<
         lastReadStartTime: Date;
         hasEmbeddingChunks: boolean;
         title: string;
+        titleVersion: SearchEntityTitleVersion;
         body: string;
         media: SearchEntityMedia;
     }
@@ -332,6 +334,7 @@ assertEqualTypes<
     {
         "entity.id": SearchDynamicEntityId;
         "entity.title": string;
+        "entity.titleVersion": SearchEntityTitleVersion;
         "entity.media": SearchEntityMedia;
         text: string;
         textHash: number;
@@ -605,6 +608,7 @@ export async function processIndexSearchEntityJob(
             accessPolicy: entity.accessPolicy,
             dependencyIds: Array.from(dependencyIds),
             title: entity.title,
+            titleVersion: entity.titleVersion,
             body: entity.body,
             media: entity.media,
             creatorId: entity.creatorId,
@@ -1018,6 +1022,7 @@ export async function processIndexSearchEntityEmbeddingChunksJob(
                             id: job.entityId,
                             accessPolicy: entity.accessPolicy,
                             title: entity.title,
+                            titleVersion: entity.titleVersion,
                             media: entity.media,
                         },
                         text: chunk.text,

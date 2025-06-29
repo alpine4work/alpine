@@ -2258,9 +2258,14 @@ describe("getSearchEntity", () => {
                 },
                 createdTime: new Date(task1.createdTime[0]),
                 title: "Test Task 1",
+                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
                 body: null,
                 embeddingChunks: [],
-                media: {type: "TaskDisplayStatus", displayStatus: "OpenInactive"},
+                media: {
+                    type: "TaskDisplayStatus",
+                    displayStatus: "OpenInactive",
+                    version: expect.any(Array),
+                },
                 creatorId: session2.account.id,
                 contributorIds: new Map([[session2.account.id, "Major"]]),
             },
@@ -2279,6 +2284,7 @@ describe("getSearchEntity", () => {
                 accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                 createdTime: new Date(task2.createdTime[0]),
                 title: "Test Task 2",
+                titleVersion: {type: "TaskTitle", snapshot: expect.any(Uint8Array)},
                 body: taskNotes,
                 embeddingChunks: [
                     {
@@ -2287,7 +2293,11 @@ describe("getSearchEntity", () => {
                         tokenCountWithoutPreamble: 143,
                     },
                 ],
-                media: {type: "TaskDisplayStatus", displayStatus: "OpenInactive"},
+                media: {
+                    type: "TaskDisplayStatus",
+                    displayStatus: "OpenInactive",
+                    version: expect.any(Array),
+                },
                 creatorId: session3.account.id,
                 contributorIds: new Map([
                     [session3.account.id, "Major"],
@@ -2338,9 +2348,10 @@ describe("getSearchEntity", () => {
                 },
                 createdTime: new Date(privateCollection.createdTime[0]),
                 title: "Private Test Task Collection",
+                titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
                 body: null,
                 embeddingChunks: [],
-                media: {type: "TaskCollectionColor", color: null},
+                media: {type: "TaskCollectionColor", color: null, version: expect.any(Array)},
                 creatorId: session1.account.id,
                 contributorIds: new Map(),
             },
@@ -2359,9 +2370,10 @@ describe("getSearchEntity", () => {
                 accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                 createdTime: new Date(publicCollection.createdTime[0]),
                 title: "Public Test Task Collection",
+                titleVersion: {type: "HybridLogicalTime", time: expect.any(Array)},
                 body: null,
                 embeddingChunks: [],
-                media: {type: "TaskCollectionColor", color: "purple"},
+                media: {type: "TaskCollectionColor", color: "purple", version: expect.any(Array)},
                 creatorId: session3.account.id,
                 contributorIds: new Map(),
             },
@@ -2420,6 +2432,7 @@ describe("getSearchEntity", () => {
                 },
                 createdTime: comment1.createdTime,
                 title: null,
+                titleVersion: null,
                 body: "Test task comment content 1.",
                 embeddingChunks: [
                     {
@@ -2450,6 +2463,7 @@ describe("getSearchEntity", () => {
                 accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                 createdTime: comment2.createdTime,
                 title: null,
+                titleVersion: null,
                 body: "Test task comment content 2.",
                 embeddingChunks: [
                     {

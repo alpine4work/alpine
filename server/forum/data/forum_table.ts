@@ -2062,6 +2062,7 @@ export async function getChannelNameAndDescriptionContentAndContributors(
     channelId: ChannelId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
+    version: number;
     name: string;
     description: MessageContent;
     createdTime: Date;
@@ -2106,6 +2107,7 @@ export async function getChannelNameAndDescriptionContentAndContributors(
     await authorizeChannelItemAccess(context, channelItem, "View");
 
     return {
+        version: channelItem.updateLockVersion ?? 0,
         name: channelItem.name,
         description: channelItem.description,
         createdTime: channelItem.createdTime,

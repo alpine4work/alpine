@@ -6,6 +6,7 @@ import {
     yXmlFragmentToProsemirror,
 } from "y-prosemirror";
 import * as Y from "yjs";
+import {Snapshot} from "yjs";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -426,6 +427,29 @@ export function mergeTaskTitleUpdates(
     return Y.encodeStateAsUpdateV2(doc) as TaskTitleUpdate;
 }
 
+/**
+ * A Yjs snapshot of a `TaskTitle` at some state. Yjs snapshots can be used to
+ * tell if two `TaskTitle`s are identical without needing the full `TaskTitle`.
+ * Snapshots only contain version information from a `TaskTitle` at a specific
+ * point in time.
+ *
+ * Yjs snapshots can be used to restore Yjs docs to a specific point in time
+ * but only if the Yjs doc has GC disabled (`gc: false`). When GC is disabled a
+ * Yjs doc contains its entire editing history. When GC is enabled this isn't
+ * the case.
+ *
+ * [Yjs snapshots aren't currently documented][1].
+ *
+ * [1]: https://discuss.yjs.dev/t/documentation-for-yjs-snapshots
+ */
+export type TaskTitleSnapshot = Uint8Array & {readonly _TaskTitleSnapshot: never};
+
+export const TaskTitleSnapshotSchema = Schema.bytes as any as Schema<TaskTitleSnapshot>;
+
+export function decodeTaskTitleSnapshot(snapshot: TaskTitleSnapshot): Snapshot {
+    return Y.decodeSnapshotV2(snapshot);
+}
+
 export const emptyTaskTitleModel = new Lazy(() => new TaskTitleModel(emptyTaskTitle.get()));
 
 export const emptyTaskTitleUpdateModel = new Lazy(
@@ -507,6 +531,7 @@ export class TaskTitleModel {
     private _raw: TaskTitle | null;
     private _prosemirrorNode: Node | null = null;
     private _text: string | null = null;
+    private _snapshot: TaskTitleSnapshot | null = null;
 
     constructor(doc: Y.Doc | TaskTitle) {
         if (doc instanceof Y.Doc) {
@@ -613,6 +638,14 @@ export class TaskTitleModel {
     public getText(): string {
         this._text ??= getTaskTitleProsemirrorNodeText(this.getProsemirrorNode());
         return this._text;
+    }
+
+    /**
+     * Get the Yjs CRDT snapshot for this title.
+     */
+    public getSnapshot(): TaskTitleSnapshot {
+        this._snapshot ??= Y.encodeSnapshotV2(Y.snapshot(this._getDoc())) as TaskTitleSnapshot;
+        return this._snapshot;
     }
 
     /**

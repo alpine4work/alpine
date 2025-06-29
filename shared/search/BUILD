@@ -12,5 +12,6 @@ ts_project(
         "//shared/opensearch",
         "//shared/schema",
         "//shared/spaces",
+        "//shared/tasks/title",
     ],
 )

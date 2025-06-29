@@ -45,6 +45,7 @@ import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -76,6 +77,7 @@ import {
     SearchDynamicEntityIdObject,
     printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -89,6 +91,7 @@ export type SearchEntity = {
     readonly accessPolicy: SearchEntityIndexAccessPolicy;
     readonly createdTime: Date;
     readonly title: string | null;
+    readonly titleVersion: SearchEntityTitleVersion | null;
     readonly body: string | null;
     readonly media: SearchEntityMedia | null;
     readonly embeddingChunks: ReadonlyArray<SearchEntityEmbeddingChunk>;
@@ -334,6 +337,7 @@ class SearchEntityReadState {
     }
 
     public getChannelNameAndDescriptionContentAndContributors(channelId: ChannelId): Promise<{
+        version: number;
         name: string;
         description: MessageContent;
         createdTime: Date;
@@ -642,6 +646,7 @@ async function getAccountSearchEntity(
         createdTime: account.initialData.space.joinedTime,
 
         title: account.initialData.name,
+        titleVersion: {type: "Integer", version: account.initialData.nameVersion},
         body: null,
         media: {type: "Account", accountId: accountId as AccountId},
         embeddingChunks: emptyArray,
@@ -705,6 +710,7 @@ async function getDocumentSearchEntity(
         accessPolicy: getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy),
         createdTime,
         title,
+        titleVersion: {type: "Integer", version},
         body: getFullText(),
         media: null,
         embeddingChunks: getEmbeddingChunks(),
@@ -804,6 +810,7 @@ async function getDocumentCommentSearchEntity(
         accessPolicy: getSearchEntityIndexAccessPolicy(documentAccessPolicy),
         createdTime,
         title: null,
+        titleVersion: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
@@ -840,6 +847,7 @@ async function getChannelSearchEntity(
         accessPolicy: getSearchEntityIndexAccessPolicy(channel.accessPolicy),
         createdTime: channel.createdTime,
         title: channel.name,
+        titleVersion: {type: "Integer", version: channel.version},
         body: getFullText(),
         media: null,
         embeddingChunks: getEmbeddingChunks(),
@@ -905,6 +913,7 @@ async function getPostSearchEntity(
         accessPolicy: getSearchEntityIndexAccessPolicy(post.channelAccessPolicy),
         createdTime: post.createdTime,
         title: null,
+        titleVersion: null,
         body: getFullText(),
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks: getEmbeddingChunks(),
@@ -943,6 +952,7 @@ async function getPostCommentSearchEntity(
         accessPolicy: getSearchEntityIndexAccessPolicy(channelAccessPolicy),
         createdTime,
         title: null,
+        titleVersion: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
@@ -982,6 +992,7 @@ async function getChatSearchEntity(
             },
             createdTime,
             title: null,
+            titleVersion: null,
             body: null,
             media: null,
             embeddingChunks: emptyArray,
@@ -1019,6 +1030,10 @@ async function getChatSearchEntity(
 
         createdTime,
         title,
+        // TODO: There's a title, should we have a title version? We don't care too
+        // much about a title version here since clients don't need to update account
+        // names in realtime.
+        titleVersion: null,
         body: null,
         media:
             accountIds.length === 1
@@ -1092,6 +1107,7 @@ async function getChatMessageSearchEntity(
 
         createdTime,
         title: null,
+        titleVersion: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],
@@ -1197,6 +1213,7 @@ async function getTaskSearchEntity(
             accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
             createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
             title: null,
+            titleVersion: null,
             body: null,
             media: null,
             embeddingChunks: emptyArray,
@@ -1329,8 +1346,16 @@ async function getTaskSearchEntity(
         accessPolicy,
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
+        titleVersion: {type: "TaskTitle", snapshot: task.getTitle().getSnapshot()},
         body: notesChunkResult?.getFullText() ?? null,
-        media: {type: "TaskDisplayStatus", displayStatus: task.getDisplayStatus()},
+        media: {
+            type: "TaskDisplayStatus",
+            displayStatus: task.getDisplayStatus(),
+            version: maxHybridLogicalTime(
+                task.rawData.status.version,
+                task.rawData.assigneeStatus.version,
+            ),
+        },
         embeddingChunks: notesChunkResult?.getEmbeddingChunks() ?? [],
         creatorId: task.getCreator().accountId,
         contributorIds,
@@ -1351,6 +1376,7 @@ async function getTaskCollectionSearchEntity(
             accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
             createdTime: new Date(collection.getCreatedTime()[0]),
             title: null,
+            titleVersion: null,
             body: null,
             media: null,
             embeddingChunks: emptyArray,
@@ -1364,8 +1390,13 @@ async function getTaskCollectionSearchEntity(
         accessPolicy: getSearchEntityIndexAccessPolicy(accessPolicy),
         createdTime: new Date(collection.getCreatedTime()[0]),
         title: collection.getName(),
+        titleVersion: {type: "HybridLogicalTime", time: collection.rawData.name.version},
         body: null,
-        media: {type: "TaskCollectionColor", color: collection.getColor()},
+        media: {
+            type: "TaskCollectionColor",
+            color: collection.getColor(),
+            version: collection.rawData.color.version,
+        },
         embeddingChunks: emptyArray,
         creatorId: collection.rawData.creatorId,
         // In the future we could keep track of which accounts were adding tasks to the
@@ -1412,6 +1443,7 @@ async function getTaskCommentSearchEntity(
         accessPolicy,
         createdTime,
         title: null,
+        titleVersion: null,
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.getEmbeddingChunks() ?? [],

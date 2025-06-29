@@ -31,6 +31,10 @@ import {
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
+import {
+    SearchEntityTitleVersion,
+    SearchEntityTitleVersionSchema,
+} from "~/shared/search/search_entity_title_version.js";
 
 // NOTE(calebmer, 2025-01-14): The fact that this is a constant string
 // `"Space"` and not a boolean is a historical artifact based on data written
@@ -111,6 +115,14 @@ const SearchEntityMediaType = new OpensearchIndexKeywordType().transform<SearchE
     serialize: media => JSON.stringify(SearchEntityMediaSchema.serialize(media)),
     deserialize: media => SearchEntityMediaSchema.deserialize(JSON.parse(media)),
 });
+
+const SearchEntityTitleVersionType =
+    new OpensearchIndexKeywordType().transform<SearchEntityTitleVersion>({
+        serialize: titleVersion =>
+            JSON.stringify(SearchEntityTitleVersionSchema.serialize(titleVersion)),
+        deserialize: titleVersion =>
+            SearchEntityTitleVersionSchema.deserialize(JSON.parse(titleVersion)),
+    });
 
 export type SearchEntityKeywordIndexDoc = OpensearchIndexTypeType<
     typeof SearchEntityKeywordIndexDocType
@@ -201,6 +213,12 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
             .nullable()
             // Store the title so we can highlight it.
             .store(),
+
+        /**
+         * Version information for `title`. Used by the client to pick a winning title
+         * when there's a conflict.
+         */
+        titleVersion: SearchEntityTitleVersionType.nullable().default(null).store(),
 
         /**
          * For body text analysis we manually recreate the [OpenSearch
@@ -368,6 +386,12 @@ export const SearchEntityEmbeddingChunkIndexDocType = OpensearchIndexObjectType.
                  * index so we can load the title when searching.
                  */
                 title: new OpensearchIndexKeywordType().nullable().store(),
+
+                /**
+                 * Version information for `title`. Used by the client to pick a winning title
+                 * when there's a conflict.
+                 */
+                titleVersion: SearchEntityTitleVersionType.nullable().default(null).store(),
 
                 /**
                  * Media we display alongside the search entity if available. For example, if

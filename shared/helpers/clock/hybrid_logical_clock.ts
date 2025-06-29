@@ -18,7 +18,7 @@ export const zeroHybridLogicalTime: HybridLogicalTime = [0, 0];
 export function compareHybridLogicalTimes(
     [time1, ticks1]: HybridLogicalTime,
     [time2, ticks2]: HybridLogicalTime,
-): number {
+): -1 | 0 | 1 {
     if (time1 < time2) return -1;
     if (time2 < time1) return 1;
 

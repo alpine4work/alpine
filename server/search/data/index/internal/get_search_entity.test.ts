@@ -34,6 +34,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                     createdTime: (await session.get()).initialData.space.joinedTime,
                     title: "Caleb Meredith",
+                    titleVersion: {type: "Integer", version: 0},
                     body: null,
                     media: {type: "Account", accountId: session.account.id},
                     embeddingChunks: [],
@@ -79,6 +80,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                     createdTime: document.createdTime,
                     title: "Lorem Ipsum",
+                    titleVersion: {type: "Integer", version: 55},
                     body: documentBody,
                     embeddingChunks: [
                         {
@@ -134,6 +136,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                     createdTime: expect.any(Date),
                     title: null,
+                    titleVersion: null,
                     body: "Test document comment content.",
                     embeddingChunks: [
                         {
@@ -173,6 +176,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                     createdTime: channel.createdTime,
                     title: "Test Channel",
+                    titleVersion: {type: "Integer", version: 0},
                     body: "Test channel description content.",
                     embeddingChunks: [
                         {
@@ -214,6 +218,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                     createdTime: post.createdTime,
                     title: null,
+                    titleVersion: null,
                     body: "Test post content.",
                     embeddingChunks: [
                         {
@@ -258,6 +263,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                     createdTime: comment.createdTime,
                     title: null,
+                    titleVersion: null,
                     body: "Test post comment content.",
                     embeddingChunks: [
                         {
@@ -298,6 +304,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: null,
+                    titleVersion: null,
                     body: null,
                     embeddingChunks: [],
                     media: null,
@@ -324,6 +331,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: null,
+                    titleVersion: null,
                     body: null,
                     embeddingChunks: [],
                     media: null,
@@ -358,6 +366,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: null,
+                    titleVersion: null,
                     body: null,
                     embeddingChunks: [],
                     media: null,
@@ -394,6 +403,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: expect.any(Date),
                     title: "Caleb Meredith, Josh Meredith, and Shawn Meredith",
+                    titleVersion: null,
                     body: null,
                     embeddingChunks: [],
                     media: {
@@ -443,6 +453,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     },
                     createdTime: message.createdTime,
                     title: null,
+                    titleVersion: null,
                     body: "Test chat message content.",
                     embeddingChunks: [
                         {
