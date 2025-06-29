@@ -45,11 +45,11 @@ export function RequestedAlphaAccessEmailTemplate({
                             <EmailText>They did not include a message.</EmailText>
                         ) : (
                             <EmailText>
-                                They included the message: "
+                                They included the message: “
                                 {interleaveArray(message.split(/[\n\r]/g), index => (
                                     <br key={index} />
                                 ))}
-                                "
+                                ”
                             </EmailText>
                         )}
                         <EmailText>

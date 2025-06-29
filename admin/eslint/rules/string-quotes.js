@@ -42,7 +42,28 @@ module.exports = {
             TemplateElement(node) {
                 const nodeStart = node.range[0] + 1;
                 const text = node.value.raw;
-                const matches = node.value.raw.matchAll(/["']/g);
+                const matches = text.matchAll(/["']/g);
+
+                for (const match of matches) {
+                    const start = nodeStart + match.index;
+                    const end = start + 1;
+
+                    const {properQuote} = parse(text, match.index);
+
+                    context.report({
+                        loc: {
+                            start: sourceCode.getLocFromIndex(start),
+                            end: sourceCode.getLocFromIndex(end),
+                        },
+                        messageId: "useProperQuotes",
+                        fix: fixer => fixer.replaceTextRange([start, end], properQuote),
+                    });
+                }
+            },
+            JSXText(node) {
+                const nodeStart = node.range[0];
+                const text = node.raw;
+                const matches = text.matchAll(/["']/g);
 
                 for (const match of matches) {
                     const start = nodeStart + match.index;

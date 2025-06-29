@@ -89,7 +89,7 @@ export function SignInEmailTemplate({
                 <MjmlSection>
                     <MjmlColumn>
                         <EmailText color="grey-60" fontSize="75">
-                            If you aren't trying to sign in to{" "}
+                            If you aren’t trying to sign in to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
                                 href="https://alpine.inc"

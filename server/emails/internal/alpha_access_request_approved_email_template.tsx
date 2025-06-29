@@ -37,13 +37,13 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             >
                                 sign in
                             </a>{" "}
-                            with this email address. I'm excited to share what we're working on with
+                            with this email address. I’m excited to share what we’re working on with
                             you!
                         </EmailText>
                         <EmailText>
-                            What you'll find when you sign in is the very beginning of our product.
-                            There's not much, it's early stage, and works best on desktop (but will
-                            work on mobile). We'll continuously deploy updates to{" "}
+                            What you’ll find when you sign in is the very beginning of our product.
+                            There’s not much, it’s early stage, and works best on desktop (but will
+                            work on mobile). We’ll continuously deploy updates to{" "}
                             <a
                                 // TODO(calebmer): Should use localhost in development?
                                 href="https://alpine.inc"
@@ -56,7 +56,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                             over the next year.
                         </EmailText>
                         <EmailText>
-                            We've prepared for you a couple documents written with our product so
+                            We’ve prepared for you a couple documents written with our product so
                             you can learn more about our plan. Including a{" "}
                             <a
                                 href="https://alpine.inc/s/111hc413nfdxa6vwspnhm3ejsc/documents/nfwdfnzt86ktkw25mk5knpx6fw"
@@ -88,7 +88,7 @@ export function AlphaAccessRequestApprovedEmailTemplate() {
                         </EmailText>
                         <EmailText>
                             I want to hear what you think! Feel free to respond directly to this
-                            email with any feedback or questions. I'll be sending you updates to
+                            email with any feedback or questions. I’ll be sending you updates to
                             this email address over the next year with our progress.
                         </EmailText>
                         <EmailText>
