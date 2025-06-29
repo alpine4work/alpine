@@ -13,11 +13,11 @@ import {
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -141,7 +141,7 @@ export async function createAdhocServerProcessContext({
                 Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules>
             >({
                 cache: new CacheContextModule(),
-                dynamoBatchContext: new DynamoBatchContextModule(),
+                batch: new BatchContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew("Adhoc", spaceId),
             });
 
@@ -155,7 +155,7 @@ export async function createAdhocServerProcessContext({
                 Omit<ServerSessionActionContextModules, keyof ServerProcessContextModules>
             >({
                 cache: new CacheContextModule(),
-                dynamoBatchContext: new DynamoBatchContextModule(),
+                batch: new BatchContextModule(),
                 actor: DynamoSessionActorContextModule.dangerouslyNew("Adhoc", session),
             });
 

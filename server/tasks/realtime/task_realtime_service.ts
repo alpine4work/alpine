@@ -9,7 +9,6 @@ import {
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerProcessContext,
@@ -42,6 +41,7 @@ import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_conn
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
@@ -184,7 +184,7 @@ export async function run({
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
-                dynamoBatchContext: new DynamoBatchContextModule(),
+                batch: new BatchContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,
                     spaceId,
@@ -243,7 +243,7 @@ export async function run({
         const baseActionContext = processContext.clone({
             tracer: new TracerContextModule(span),
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
         });
 
         const actorContextModule = await createDynamoActorContextModule(

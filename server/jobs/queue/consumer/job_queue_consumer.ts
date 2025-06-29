@@ -8,7 +8,6 @@ import {
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobDescription, getJobDescriptionSpaceId} from "~/server/jobs/core/job_description.js";
@@ -19,6 +18,7 @@ import {
 } from "~/server/jobs/core/job_queue_name.js";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -824,7 +824,7 @@ export class JobQueueConsumer<
                     {
                         tracer: new TracerContextModule(span),
                         cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        batch: new BatchContextModule(),
                         // We're ok dangerously creating a space system actor here since we use AWS IAM
                         // policies to only allow our services to send messages to our SQS queue. So we
                         // can trust job objects to not be malicious.
@@ -870,7 +870,7 @@ export class JobQueueConsumer<
                     {
                         tracer: new TracerContextModule(span),
                         cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        batch: new BatchContextModule(),
                     },
                     actionContext =>
                         this._processMaintenanceJob(

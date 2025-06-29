@@ -7,7 +7,7 @@ import {
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -26,13 +26,13 @@ export type ServerActionContextModulesBase = ServerProcessContextModules & {
     cache: CacheContextModule;
 
     /**
-     * Batch DynamoDB requests at the action level. Any calls to `getItem()`,
-     * `createOrReplaceItem()`, or `deleteItem()` in short succession on the
-     * context are batched.
+     * Action-level batching. We batch at the action level so that unrelated
+     * requests do not share IO.
      *
-     * We batch at the action level so that unrelated requests do not share IO.
+     * For example, any calls to DynamoDB's `getItem()`, `createOrReplaceItem()`,
+     * or `deleteItem()` in short succession on the context are batched.
      */
-    dynamoBatchContext: DynamoBatchContextModule;
+    batch: BatchContextModule;
 };
 
 /**

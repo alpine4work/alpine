@@ -36,10 +36,7 @@ import {
     ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
-import {
-    DynamoBatchContextModule,
-    DynamoContextModule,
-} from "~/server/dynamo/core/dynamo_context_module.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestLocalEdgeServiceContextModule} from "~/server/dynamo/test_helpers/test_local_edge_service_context_module.js";
 import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
@@ -56,6 +53,7 @@ import {
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -182,7 +180,7 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
     withCache(): Context<
         TestContextModules & {
             cache: CacheContextModule;
-            dynamoBatchContext: DynamoBatchContextModule;
+            batch: BatchContextModule;
         }
     >;
 
@@ -393,7 +391,7 @@ export function createTestContext({
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
                 cache: context.cache.forkForChangedActor(),
-                dynamoBatchContext: new DynamoBatchContextModule(),
+                batch: new BatchContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
                     context.actor.serviceName,
                     spaceId,
@@ -406,7 +404,7 @@ export function createTestContext({
     const createUnknownAnonymousContext = (): TestUnknownActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
             actor: new DynamoUnknownActorContextModule(async () =>
                 DynamoAnonymousActorContextModule.dangerouslyNew("Test"),
             ),
@@ -426,7 +424,7 @@ export function createTestContext({
     ): TestSessionActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
             actor: DynamoSessionActorContextModule.dangerouslyNew(
                 serviceName,
                 Session.test(session),
@@ -446,7 +444,7 @@ export function createTestContext({
     ): TestSystemActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
             actor: DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
         });
     };
@@ -459,7 +457,7 @@ export function createTestContext({
     } = {}): TestAnonymousActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
             actor: DynamoAnonymousActorContextModule.dangerouslyNew(serviceName),
         });
     };
@@ -476,7 +474,7 @@ export function createTestContext({
     ): TestImpersonatedAccountActionContext => {
         return processContext.clone({
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
             actor: DynamoImpersonatedAccountActorContextModule.dangerouslyNew(
                 DynamoSystemActorContextModule.dangerouslyNew(serviceName, spaceId),
                 accountId,
@@ -487,7 +485,7 @@ export function createTestContext({
     const withCache = () => {
         return processContext.clone({
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
         });
     };
 

@@ -16,12 +16,14 @@ import {
     DynamoClientInternal,
 } from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {BatchContextModule, ContextBatcherBase} from "~/shared/context/batch_context_module.js";
+import {Context} from "~/shared/context/context.js";
+import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -111,8 +113,7 @@ export class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchGetItem.html
      */
     public async getItemIfExists(
-        tracer: TracerBase,
-        batchContext: DynamoClientBatchContext | null,
+        context: Context<{batch?: BatchContextModule; tracer: TracerContextModule}>,
         {
             tableName,
             key,
@@ -131,24 +132,20 @@ export class DynamoClient {
             debugItemType: DynamoClientDebugItemType;
         },
     ): Promise<SchemaSerializedObjectValue | null> {
-        if (batchContext !== null) {
+        if (context.batch) {
             const batcher = this._getItemBatcherByConsistency[consistency];
             return batcher.getItem(
-                tracer,
-                batchContext,
+                context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
-                {
-                    projectionExpression,
-                    expressionAttributeNames,
-                },
+                {projectionExpression, expressionAttributeNames},
                 expectsStrongReadConsistency,
                 debugItemType,
             );
         }
 
         const output = await this._client.GetItem(
-            tracer,
+            context.tracer.getTracer(),
             {
                 TableName: tableName,
                 Key: intoDynamoAttributeValueObject(key),
@@ -184,8 +181,7 @@ export class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async putItem(
-        tracer: TracerBase,
-        batchContext: DynamoClientBatchContext | null,
+        context: Context<{batch?: BatchContextModule; tracer: TracerContextModule}>,
         {
             tableName,
             key,
@@ -215,10 +211,9 @@ export class DynamoClient {
         }
 
         // Writes without a condition may be batched.
-        if (batchContext !== null && conditionExpression === undefined)
+        if (context.batch && conditionExpression === undefined)
             return this._writeItemBatcher.putItem(
-                tracer,
-                batchContext,
+                context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
                 item,
@@ -227,7 +222,7 @@ export class DynamoClient {
 
         try {
             await this._client.PutItem(
-                tracer,
+                context.tracer.getTracer(),
                 {
                     TableName: tableName,
                     Item: intoDynamoAttributeValueObject(item),
@@ -272,8 +267,7 @@ export class DynamoClient {
      * [2]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BatchWriteItem.html
      */
     public async deleteItem(
-        tracer: TracerBase,
-        batchContext: DynamoClientBatchContext | null,
+        context: Context<{batch?: BatchContextModule; tracer: TracerContextModule}>,
         {
             tableName,
             key,
@@ -293,10 +287,9 @@ export class DynamoClient {
         },
     ): Promise<void> {
         // Writes without a condition may be batched.
-        if (batchContext !== null && conditionExpression === undefined)
+        if (context.batch && conditionExpression === undefined)
             return this._writeItemBatcher.deleteItem(
-                tracer,
-                batchContext,
+                context as Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
                 tableName,
                 key,
                 debugItemType,
@@ -304,7 +297,7 @@ export class DynamoClient {
 
         try {
             await this._client.DeleteItem(
-                tracer,
+                context.tracer.getTracer(),
                 {
                     TableName: tableName,
                     Key: intoDynamoAttributeValueObject(key),
@@ -934,64 +927,61 @@ type DynamoClientKeyBatch<ItemInput, ItemOutput> = {
     debugItemTypes: Array<DynamoClientDebugItemType>;
 };
 
-/**
- * Will batch `GetItem`, `PutItem`, and `DeleteItem` actions called with the
- * same batch object in a short window of time. Otherwise these actions are
- * not batched.
- *
- * We batch at the action level so that unrelated requests do not share IO.
- */
-export class DynamoClientBatchContext {
-    private readonly _scheduledBatchByBatcher = new Map<
-        DynamoClientItemBatcherBase<any, any, any, any>,
-        DynamoClientBatch<null, any, any>
-    >();
-
-    public getScheduledBatch<TableInput, ItemInput1, ItemInput2, ItemOutput>(
-        batcher: DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, ItemOutput>,
-        tracer: TracerBase,
-    ): DynamoClientBatch<null, ItemInput1, ItemOutput> {
-        return getOrSetDefaultMapValue(this._scheduledBatchByBatcher, batcher, () => {
-            const scheduledBatch = {
-                itemCount: 0,
-                tableBatches: new Map(),
-                expectsStrongReadConsistency: false,
-            };
-
-            // We schedule a macrotask that will run after the microtask queue
-            // is exhausted.
-            scheduleMacrotask(() => {
-                assert(this._scheduledBatchByBatcher.delete(batcher));
-                batcher._executeFullBatch(tracer, scheduledBatch);
-            });
-
-            return scheduledBatch;
-        });
-    }
-}
-
-abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, ItemOutput> {
+abstract class DynamoClientItemBatcherBase<
+    TableInput,
+    ItemInput1,
+    ItemInput2,
+    ItemOutput,
+> extends ContextBatcherBase<
+    {tracer: TracerContextModule},
+    DynamoClientBatch<null, ItemInput1, ItemOutput>,
+    {
+        tracer: TracerBase;
+        tableName: string;
+        key: SchemaSerializedObjectValue;
+        input: ItemInput1;
+        expectsStrongReadConsistency: boolean;
+        debugItemType: DynamoClientDebugItemType;
+    },
+    ItemOutput
+> {
     private readonly _maxBatchItemCount: number;
 
     constructor({maxBatchItemCount}: {maxBatchItemCount: number}) {
+        super();
         this._maxBatchItemCount = maxBatchItemCount;
     }
 
-    protected _addItem(
-        tracer: TracerBase,
-        batchContext: DynamoClientBatchContext,
-        tableName: string,
-        key: SchemaSerializedObjectValue,
-        input: ItemInput1,
-        expectsStrongReadConsistency: boolean,
-        debugItemType: DynamoClientDebugItemType,
-    ): Promise<ItemOutput> {
-        const scheduledBatch = batchContext.getScheduledBatch(this, tracer);
+    public override newBatch(): DynamoClientBatch<null, ItemInput1, ItemOutput> {
+        return {
+            itemCount: 0,
+            tableBatches: new Map(),
+            expectsStrongReadConsistency: false,
+        };
+    }
 
+    public override addToBatch(
+        batch: DynamoClientBatch<null, ItemInput1, ItemOutput>,
+        {
+            tracer,
+            tableName,
+            key,
+            input,
+            expectsStrongReadConsistency,
+            debugItemType,
+        }: {
+            tracer: TracerBase;
+            tableName: string;
+            key: SchemaSerializedObjectValue;
+            input: ItemInput1;
+            expectsStrongReadConsistency: boolean;
+            debugItemType: DynamoClientDebugItemType;
+        },
+    ): Promise<ItemOutput> {
         const keyAttributes = new Set(Object.keys(key));
         const promiseResolver = createPromiseResolver<ItemOutput>();
 
-        const tableBatch = getOrSetDefaultMapValue(scheduledBatch.tableBatches, tableName, () => ({
+        const tableBatch = getOrSetDefaultMapValue(batch.tableBatches, tableName, () => ({
             input: null,
             keyAttributes,
             keyBatches: new Map(),
@@ -1006,7 +996,7 @@ abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, I
             () => {
                 // Every time this function is called, it means we are adding a new key to the
                 // map. So increment the number of items this batch is fetching here.
-                scheduledBatch.itemCount++;
+                batch.itemCount++;
 
                 return {
                     key,
@@ -1020,16 +1010,17 @@ abstract class DynamoClientItemBatcherBase<TableInput, ItemInput1, ItemInput2, I
         keyBatch.inputs.push(input);
         keyBatch.promiseResolvers.push({tracer, promiseResolver});
         keyBatch.debugItemTypes.push(debugItemType);
-        scheduledBatch.expectsStrongReadConsistency ||= expectsStrongReadConsistency;
+        batch.expectsStrongReadConsistency ||= expectsStrongReadConsistency;
 
         return promiseResolver.promise;
     }
 
-    // Public since this method needs to be called from `DynamoClientBatchContext`.
-    public _executeFullBatch(
-        tracer: TracerBase,
+    public override executeBatch(
+        context: Context<{tracer: TracerContextModule}>,
         fullBatch: DynamoClientBatch<null, ItemInput1, ItemOutput>,
     ) {
+        const tracer = context.tracer.getTracer();
+
         // This batch execution is performed in a microtask, so if an error is thrown
         // it's thrown into the void. Add a try/catch so that errors reject the promise
         // resolvers in our batch.
@@ -1222,23 +1213,21 @@ class DynamoClientGetItemBatcher extends DynamoClientItemBatcherBase<
     }
 
     public getItem(
-        tracer: TracerBase,
-        batchContext: DynamoClientBatchContext,
+        context: Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
         tableName: string,
         key: SchemaSerializedObjectValue,
         input: DynamoClientGetItemBatchItemInput,
         expectsStrongReadConsistency: boolean,
         debugItemType: DynamoClientDebugItemType,
     ) {
-        return this._addItem(
-            tracer,
-            batchContext,
+        return context.batch.execute(this, {
+            tracer: context.tracer.getTracer(),
             tableName,
             key,
             input,
             expectsStrongReadConsistency,
             debugItemType,
-        );
+        });
     }
 
     protected override _reorganizeBatch(
@@ -1610,40 +1599,36 @@ class DynamoClientWriteItemBatcher extends DynamoClientItemBatcherBase<
     }
 
     public putItem(
-        tracer: TracerBase,
-        batchContext: DynamoClientBatchContext,
+        context: Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
         tableName: string,
         key: SchemaSerializedObjectValue,
         item: SchemaSerializedObjectValue,
         debugItemType: DynamoClientDebugItemType,
     ): Promise<void> {
-        return this._addItem(
-            tracer,
-            batchContext,
+        return context.batch.execute(this, {
+            tracer: context.tracer.getTracer(),
             tableName,
             key,
-            {action: "Put", item},
-            false,
+            input: {action: "Put", item},
+            expectsStrongReadConsistency: false,
             debugItemType,
-        );
+        });
     }
 
     public deleteItem(
-        tracer: TracerBase,
-        batchContext: DynamoClientBatchContext,
+        context: Context<{batch: BatchContextModule; tracer: TracerContextModule}>,
         tableName: string,
         key: SchemaSerializedObjectValue,
         debugItemType: DynamoClientDebugItemType,
     ): Promise<void> {
-        return this._addItem(
-            tracer,
-            batchContext,
+        return context.batch.execute(this, {
+            tracer: context.tracer.getTracer(),
             tableName,
             key,
-            {action: "Delete"},
-            false,
+            input: {action: "Delete"},
+            expectsStrongReadConsistency: false,
             debugItemType,
-        );
+        });
     }
 
     protected override _reorganizeBatch(

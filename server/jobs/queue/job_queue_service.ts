@@ -24,7 +24,6 @@ import {
     SchedulerContextModule,
     UnimplementedSchedulerContextModule,
 } from "~/server/deploy/data/scheduler_context_module.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {FileEntityContextModule} from "~/server/files/entity/file_entity_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
@@ -60,6 +59,7 @@ import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_module.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -301,7 +301,7 @@ export async function run({
                     {
                         tracer: new TracerContextModule(context.tracer.getTracer()),
                         cache: context.cache.forkForChangedActor(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        batch: new BatchContextModule(),
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             context.actor.serviceName,
                             spaceId,
@@ -361,7 +361,7 @@ export async function run({
                     {
                         tracer: new TracerContextModule(context.tracer.getTracer()),
                         cache: context.cache.forkForChangedActor(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        batch: new BatchContextModule(),
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             // Maintenance jobs don't have an actor. Escalating to a system context isn't
                             // actually dangerous, it's a de-escalation of permission. Say our actor's

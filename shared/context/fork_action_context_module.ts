@@ -9,7 +9,7 @@ import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_s
  * A context module that can be forked. Forking should create a completely new
  * module instance with new state but with the same underlying configuration.
  * For example, caches like `CacheContextModule` and batchers like
- * `DynamoBatchContextModule` don't share caches/batches with forked modules.
+ * `BatchContextModule` don't share caches/batches with forked modules.
  * However `WorkerSessionActorContextModule` does maintain its `accountId` and
  * `sessionId` in the fork.
  */

@@ -1,12 +1,12 @@
 import {Readable as ReadableStream} from "stream";
 import {isCloudflareR2NoSuchKeyError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {FileProcessorServiceProcessContext} from "~/server/files/processor/file_processor_service_context.js";
 import {resizeFile} from "~/server/files/processor/resize_file.js";
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {createDynamoActorContextModule} from "~/server/spaces/create_dynamo_actor_context_module.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -147,7 +147,7 @@ export function createFileProcessorServiceServer(
         const baseActionContext = processContext.clone({
             tracer: new TracerContextModule(span),
             cache: new CacheContextModule(),
-            dynamoBatchContext: new DynamoBatchContextModule(),
+            batch: new BatchContextModule(),
         });
 
         const actorContextModule = await createDynamoActorContextModule(

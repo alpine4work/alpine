@@ -1524,26 +1524,21 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const client = await this._getClient(context, false);
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
-        const serializedItem = await client.getItemIfExists(
-            context.tracer.getTracer(),
-            context.dynamoBatchContext?.batchContext ?? null,
-            {
+        const serializedItem = await client.getItemIfExists(context, {
+            tableName: this._name,
+            key: {partitionKey, sortKey},
+            // As a convenience, we support `DynamoCacheReadConsistency` even though this
+            // method doesn't consult any cache. `Strong` provides more guarantees than
+            // `StrongWithinCache` so it's safe to use without changing semantics.
+            consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
+            expectsStrongReadConsistency:
+                !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
+            debugItemType: {
                 tableName: this._name,
-                key: {partitionKey, sortKey},
-                // As a convenience, we support `DynamoCacheReadConsistency` even though this
-                // method doesn't consult any cache. `Strong` provides more guarantees than
-                // `StrongWithinCache` so it's safe to use without changing semantics.
-                consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
-                expectsStrongReadConsistency:
-                    !allowsEventualReadConsistency &&
-                    getDynamoExpectsStrongReadConsistency(context),
-                debugItemType: {
-                    tableName: this._name,
-                    partitionType: key.partitionType,
-                    sortRangeType: key.sortRangeType,
-                },
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
             },
-        );
+        });
 
         if (!serializedItem) return null;
 
@@ -1650,33 +1645,28 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             }
         }
 
-        const serializedItem = await client.getItemIfExists(
-            context.tracer.getTracer(),
-            context.dynamoBatchContext?.batchContext ?? null,
-            {
+        const serializedItem = await client.getItemIfExists(context, {
+            tableName: this._name,
+            key: {partitionKey, sortKey},
+            // As a convenience, we support `DynamoCacheReadConsistency` even though this
+            // method doesn't consult any cache. `Strong` provides more guarantees than
+            // `StrongWithinCache` so it's safe to use without changing semantics.
+            consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
+            projectionExpression:
+                projectionExpressionEntries.length !== 0
+                    ? projectionExpressionEntries.join(", ")
+                    : "partitionKey",
+            expressionAttributeNames: new Map(
+                mapIterable(expressionAttributeNames, ([key, value]) => [value, key]),
+            ),
+            expectsStrongReadConsistency:
+                !allowsEventualReadConsistency && getDynamoExpectsStrongReadConsistency(context),
+            debugItemType: {
                 tableName: this._name,
-                key: {partitionKey, sortKey},
-                // As a convenience, we support `DynamoCacheReadConsistency` even though this
-                // method doesn't consult any cache. `Strong` provides more guarantees than
-                // `StrongWithinCache` so it's safe to use without changing semantics.
-                consistency: consistency === "StrongWithinCache" ? "Strong" : consistency,
-                projectionExpression:
-                    projectionExpressionEntries.length !== 0
-                        ? projectionExpressionEntries.join(", ")
-                        : "partitionKey",
-                expressionAttributeNames: new Map(
-                    mapIterable(expressionAttributeNames, ([key, value]) => [value, key]),
-                ),
-                expectsStrongReadConsistency:
-                    !allowsEventualReadConsistency &&
-                    getDynamoExpectsStrongReadConsistency(context),
-                debugItemType: {
-                    tableName: this._name,
-                    partitionType: key.partitionType,
-                    sortRangeType: key.sortRangeType,
-                },
+                partitionType: key.partitionType,
+                sortRangeType: key.sortRangeType,
             },
-        );
+        });
 
         if (!serializedItem) return null;
 
@@ -2140,20 +2130,16 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema, serializedItem} = this._serializeItem(item);
 
         if (condition === undefined) {
-            return client.putItem(
-                context.tracer.getTracer(),
-                context.dynamoBatchContext?.batchContext ?? null,
-                {
+            return client.putItem(context, {
+                tableName: this._name,
+                key: {partitionKey, sortKey},
+                item: serializedItem,
+                debugItemType: {
                     tableName: this._name,
-                    key: {partitionKey, sortKey},
-                    item: serializedItem,
-                    debugItemType: {
-                        tableName: this._name,
-                        partitionType: item.partitionType,
-                        sortRangeType: item.sortRangeType,
-                    },
+                    partitionType: item.partitionType,
+                    sortRangeType: item.sortRangeType,
                 },
-            );
+            });
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
             const conditionExpression = DynamoConditionExpression.from(condition);
@@ -2162,30 +2148,24 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 conditionCompilationContext,
             );
 
-            return client.putItem(
-                context.tracer.getTracer(),
-                context.dynamoBatchContext?.batchContext ?? null,
-                {
+            return client.putItem(context, {
+                tableName: this._name,
+                key: {partitionKey, sortKey},
+                item: serializedItem,
+                conditionExpression: conditionExpressionString,
+                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+                expressionAttributeNames: new Map(
+                    conditionCompilationContext.iterateAttributeNames(),
+                ),
+                retryConditionCheckError: isConditionCheckErrorRetriable
+                    ? getDynamoRetryTransactionIfExists(context)
+                    : null,
+                debugItemType: {
                     tableName: this._name,
-                    key: {partitionKey, sortKey},
-                    item: serializedItem,
-                    conditionExpression: conditionExpressionString,
-                    expressionAttributeValues: new Map(
-                        conditionCompilationContext.iterateVariables(),
-                    ),
-                    expressionAttributeNames: new Map(
-                        conditionCompilationContext.iterateAttributeNames(),
-                    ),
-                    retryConditionCheckError: isConditionCheckErrorRetriable
-                        ? getDynamoRetryTransactionIfExists(context)
-                        : null,
-                    debugItemType: {
-                        tableName: this._name,
-                        partitionType: item.partitionType,
-                        sortRangeType: item.sortRangeType,
-                    },
+                    partitionType: item.partitionType,
+                    sortRangeType: item.sortRangeType,
                 },
-            );
+            });
         }
     }
 
@@ -2346,19 +2326,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         const {partitionKey, sortKey, attributesSchema} = this._serializeItemKey(key);
 
         if (condition === undefined) {
-            return client.deleteItem(
-                context.tracer.getTracer(),
-                context.dynamoBatchContext?.batchContext ?? null,
-                {
+            return client.deleteItem(context, {
+                tableName: this._name,
+                key: {partitionKey, sortKey},
+                debugItemType: {
                     tableName: this._name,
-                    key: {partitionKey, sortKey},
-                    debugItemType: {
-                        tableName: this._name,
-                        partitionType: key.partitionType,
-                        sortRangeType: key.sortRangeType,
-                    },
+                    partitionType: key.partitionType,
+                    sortRangeType: key.sortRangeType,
                 },
-            );
+            });
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
             const conditionExpression = DynamoConditionExpression.from(condition);
@@ -2369,29 +2345,21 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             const retryTransaction = getDynamoRetryTransactionIfExists(context);
 
-            return client.deleteItem(
-                context.tracer.getTracer(),
-                context.dynamoBatchContext?.batchContext ?? null,
-                {
+            return client.deleteItem(context, {
+                tableName: this._name,
+                key: {partitionKey, sortKey},
+                conditionExpression: conditionExpressionString,
+                expressionAttributeValues: new Map(conditionCompilationContext.iterateVariables()),
+                expressionAttributeNames: new Map(
+                    conditionCompilationContext.iterateAttributeNames(),
+                ),
+                retryConditionCheckError: isConditionCheckErrorRetriable ? retryTransaction : null,
+                debugItemType: {
                     tableName: this._name,
-                    key: {partitionKey, sortKey},
-                    conditionExpression: conditionExpressionString,
-                    expressionAttributeValues: new Map(
-                        conditionCompilationContext.iterateVariables(),
-                    ),
-                    expressionAttributeNames: new Map(
-                        conditionCompilationContext.iterateAttributeNames(),
-                    ),
-                    retryConditionCheckError: isConditionCheckErrorRetriable
-                        ? retryTransaction
-                        : null,
-                    debugItemType: {
-                        tableName: this._name,
-                        partitionType: key.partitionType,
-                        sortRangeType: key.sortRangeType,
-                    },
+                    partitionType: key.partitionType,
+                    sortRangeType: key.sortRangeType,
                 },
-            );
+            });
         }
     }
 

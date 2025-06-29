@@ -1,7 +1,4 @@
-import {
-    DynamoClient,
-    DynamoClientBatchContext,
-} from "~/server/dynamo/core/internal/dynamo_client.js";
+import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -189,25 +186,5 @@ export class DynamoContextModule extends ContextModuleBase implements ForkableCo
             retryTransaction: null,
             expectsStrongReadConsistency: this._expectsStrongReadConsistency,
         });
-    }
-}
-
-/**
- * When this module exists in a context. Any calls to `getItem()`,
- * `createOrReplaceItem()`, or `deleteItem()` in short succession on the
- * context are batched.
- *
- * We batch at the action level so that unrelated requests do not share IO.
- */
-export class DynamoBatchContextModule
-    extends ContextModuleBase
-    implements ForkableContextModuleBase
-{
-    public readonly batchContext = new DynamoClientBatchContext();
-
-    public fork() {
-        // Create a new batch context for our fork. Do not share IO with the
-        // parent action.
-        return new DynamoBatchContextModule();
     }
 }

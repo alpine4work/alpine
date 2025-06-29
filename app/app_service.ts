@@ -27,7 +27,6 @@ import {
 } from "~/server/apns/apns_context_module.js";
 import {createServiceCloudflareR2ContextModule} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
-import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
 import {FileEntityContextModule} from "~/server/files/entity/file_entity_context_module.js";
@@ -56,6 +55,7 @@ import {EdgeServiceContextModule} from "~/server/tokens/edge_service_context_mod
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -320,7 +320,7 @@ async function createAppService({
                         {
                             tracer: new TracerContextModule(context.tracer.getTracer()),
                             cache: context.cache.forkForChangedActor(),
-                            dynamoBatchContext: new DynamoBatchContextModule(),
+                            batch: new BatchContextModule(),
                             actor: DynamoSystemActorContextModule.dangerouslyNew(
                                 context.actor.serviceName,
                                 spaceId,
@@ -347,7 +347,7 @@ async function createAppService({
                         rpc: new LocalRpcContextModule(),
                         loader: loaderContextModule,
                         cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        batch: new BatchContextModule(),
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
                         tasks: new TaskContextModule({
                             router: taskRealtimeServiceRouter,

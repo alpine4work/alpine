@@ -20,10 +20,7 @@ import {ServerContentActionContext} from "~/server/context/server_content_action
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
-import {
-    DynamoBatchContextModule,
-    DynamoContextModule,
-} from "~/server/dynamo/core/dynamo_context_module.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {
     DynamoCacheReadConsistency,
@@ -75,6 +72,7 @@ import {
     validateAccessPolicyUpdate,
 } from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
+import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -1053,7 +1051,7 @@ export async function runIndexEveryTaskActionStep1Of2(
                 indexTaskActionTransactionAssumingItsCommitted(
                     context.clone({
                         cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        batch: new BatchContextModule(),
                         actor: DynamoSystemActorContextModule.dangerouslyNew(
                             serviceName,
                             item.spaceId,
@@ -1117,7 +1115,7 @@ export async function runIndexEveryTaskActionStep2Of2(
                     indexTaskActionTransactionAssumingItsCommitted(
                         context.clone({
                             cache: new CacheContextModule(),
-                            dynamoBatchContext: new DynamoBatchContextModule(),
+                            batch: new BatchContextModule(),
                             actor: DynamoSystemActorContextModule.dangerouslyNew(
                                 serviceName,
                                 item.spaceId,
