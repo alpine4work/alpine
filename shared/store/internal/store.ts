@@ -5,6 +5,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 let FlattenedMappedStore: typeof import("~/shared/store/internal/flattened_mapped_store.js").FlattenedMappedStore;
 let MappedStore: typeof import("~/shared/store/internal/mapped_store.js").MappedStore;
 let MappedManyStore: typeof import("~/shared/store/internal/mapped_many_store.js").MappedManyStore;
+let ReducedStore: typeof import("~/shared/store/internal/reduced_store.js").ReducedStore;
 
 export function setFlattenedMappedStore(value: typeof FlattenedMappedStore) {
     FlattenedMappedStore = value;
@@ -16,6 +17,10 @@ export function setMappedStore(value: typeof MappedStore) {
 
 export function setMappedManyStore(value: typeof MappedManyStore) {
     MappedManyStore = value;
+}
+
+export function setReducedStore(value: typeof ReducedStore) {
+    ReducedStore = value;
 }
 
 type StoreType<T extends Store<any>> = T extends Store<infer U> ? U : never;
@@ -257,5 +262,27 @@ export abstract class Store<Value> {
         if (this.isFinal()) return map(this.getSnapshot());
 
         return new FlattenedMappedStore(this, map);
+    }
+
+    /**
+     * A reduce combinator that lets you observe the previous store value when
+     * computing the next store value. It's similar conceptually to
+     * `Array.reduce()` and has a similar signature but instead of reducing an
+     * array of values we're reducing a store's values over time.
+     *
+     * The reduce function doesn't reliably observe every value from the base
+     * store! Like other stores we compute `getSnapshot()` lazily. So the reduce
+     * function only observes values from the base store when `getSnapshot()` is
+     * called. If whatever pulls values from our stores (e.g. `useStore()` hook)
+     * calls `getSnapshot()` whenever a changes is reported by a `subscribe()`
+     * listener the reduce function will end up seeing every base store value over
+     * time while the component is `subscribe()`d. If `getSnapshot()` is called
+     * less frequently the reduce function might not see every base store value.
+     */
+    public reduce<NewValue>(
+        reduce: (previousValue: NewValue, currentValue: Value) => NewValue,
+        initialValue: NewValue,
+    ): Store<NewValue> {
+        return new ReducedStore(this, reduce, initialValue);
     }
 }
