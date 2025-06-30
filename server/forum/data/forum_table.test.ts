@@ -543,7 +543,7 @@ test("can’t update a channel’s name if the name is too long", async () => {
             channelId: channel.id,
             name: "x".repeat(513),
         }),
-    ).rejects.toThrow("Expected string to have a length less than or equal to 512");
+    ).rejects.toThrow("Expected string to have a length less than or equal to 50");
 
     expect((await getChannel(session.action(), channel.id)).model.name).toEqual("Test 1");
 });

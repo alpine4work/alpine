@@ -3,7 +3,15 @@ import {Schema} from "~/shared/schema/schema.js";
 export const minLabelString = String.fromCharCode(0);
 export const maxLabelString = String.fromCharCode(0xffff);
 
-export const maxLabelStringLength = 512;
+/**
+ * Label strings are short, single-line, strings that can be rendered in the UI
+ * without truncation.
+ *
+ * Copied the max length of 50 from the [maximum Facebook name length][1].
+ *
+ * [1]: https://stackoverflow.com/questions/8078939/what-is-the-maximum-length-of-a-facebook-name
+ */
+export const maxLabelStringLength = 50;
 
 /**
  * A label string is a short, non-empty, single-line string.

@@ -8,7 +8,6 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
-import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {
     Schema,
     SchemaDeserializationError,
@@ -70,7 +69,7 @@ const TracerEventExceptionDataBaseWithCauseSchema = {
  * dependencies are a part of client bundles.
  */
 export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullData> = {
-    name: LabelStringSchema,
+    name: Schema.string.singleLine().minLength(1),
     durationMs: Schema.float,
     service: {
         name: IdentifierStringSchema,
@@ -98,27 +97,27 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         sock: {
             family: IdentifierStringSchema,
             peer: {
-                name: LabelStringSchema,
-                addr: LabelStringSchema,
-                port: LabelStringSchema,
+                name: Schema.string,
+                addr: Schema.string,
+                port: Schema.string,
             },
             host: {
-                name: LabelStringSchema,
-                addr: LabelStringSchema,
-                port: LabelStringSchema,
+                name: Schema.string,
+                addr: Schema.string,
+                port: Schema.string,
             },
         },
     },
     http: {
         method: IdentifierStringSchema,
         statusCode: Schema.integer,
-        flavor: LabelStringSchema,
-        userAgent: LabelStringSchema,
+        flavor: Schema.string,
+        userAgent: Schema.string,
         request: {
             header: Object.fromEntries(
                 mapIterable(tracerEventHttpHeaderNames, headerName => [
                     headerName,
-                    headerName === "content-length" ? Schema.integer : LabelStringSchema,
+                    headerName === "content-length" ? Schema.integer : Schema.string,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
             obfuscatedCookieHeader: Schema.string,
@@ -127,23 +126,23 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             header: Object.fromEntries(
                 mapIterable(tracerEventHttpHeaderNames, headerName => [
                     headerName,
-                    headerName === "content-length" ? Schema.integer : LabelStringSchema,
+                    headerName === "content-length" ? Schema.integer : Schema.string,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
             obfuscatedSetCookieHeader: Schema.string,
         },
-        url: LabelStringSchema,
+        url: Schema.string,
         resendCount: Schema.integer,
         scheme: IdentifierStringSchema,
-        target: LabelStringSchema,
-        route: LabelStringSchema,
+        target: Schema.string,
+        route: Schema.string,
         search: Object.fromEntries(
             mapIterable(tracerEventHttpSearchParamNames, searchParamName => [
                 searchParamName,
-                LabelStringSchema,
+                Schema.string,
             ]),
         ) as unknown as {[K in TracerEventHttpSearchParamName]: Schema<string>},
-        clientIp: LabelStringSchema,
+        clientIp: Schema.string,
         service: {
             name: Schema.string,
         },
@@ -199,7 +198,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     },
     dynamodb: {
         action: IdentifierStringSchema,
-        tableName: LabelStringSchema,
+        tableName: Schema.string,
         consistentRead: Schema.boolean,
         consumedCapacity: {
             ...Object.fromEntries(
@@ -257,7 +256,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             size: Schema.integer,
         },
         exception: {
-            type: LabelStringSchema,
+            type: Schema.string,
             cancellationReasons: Schema.string,
         },
     },
@@ -266,7 +265,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             expirationTime: DateStringSchema,
         },
         ses: {
-            source: LabelStringSchema,
+            source: Schema.string,
             messageId: Schema.string,
         },
         sqs: {

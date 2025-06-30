@@ -1165,7 +1165,7 @@ export const updateOurAccountNameBeforeExecuteTestCheckpoint = new TestCheckpoin
  * `//server/accounts/update_name` which brings together the account table
  * update with the task table update.
  */
-export async function internalUpdateOurAccountNameWithoutUpdatingTasks<
+export async function internalUpdateOurAccountName<
     Modules extends DynamoContextModules & {
         actor: DynamoSessionActorContextModule;
         jobs: JobsContextModule;
@@ -1195,6 +1195,10 @@ export async function internalUpdateOurAccountNameWithoutUpdatingTasks<
         ) => Array<DynamoTransactionEntry>;
     },
 ): Promise<AccountModelWithoutSpace> {
+    LabelStringSchema.validate?.(name, {
+        errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
+    });
+
     return context.dynamo.retryTransaction(async context => {
         const accountItem = await AccountsTable.getItem(context, {
             partitionType: "Account",

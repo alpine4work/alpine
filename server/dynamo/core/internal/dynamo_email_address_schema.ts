@@ -2,13 +2,10 @@ import {
     EmailAddress,
     validateEmailAddressWithoutCheckingDomainMxDnsRecords,
 } from "~/server/emails/email_address.js";
-import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
  * Schema for validating email addresses stored in DynamoDB.
- *
- * Extends the `LabelStringSchema`.
  *
  * This is an internal schema to DynamoDB! When deserializing we do not check
  * MX DNS records. We can trust the email address in the database has
@@ -19,18 +16,23 @@ import {SchemaDeserializationError} from "~/shared/schema/schema.js";
  * pass an `EmailAddress` in they did not validate the MX DNS records for which
  * would invalidate the assumptions of the `EmailAddress` type.
  */
-export const DynamoEmailAddressSchema = LabelStringSchema.transform<EmailAddress>({
-    serialize: emailAddress => emailAddress,
-    deserialize: emailAddress => {
-        // Email address is case-insensitive. So normalize email address.
-        emailAddress = emailAddress.toLowerCase();
+export const DynamoEmailAddressSchema = Schema.string
+    .minLength(1)
+    // https://stackoverflow.com/questions/386294/what-is-the-maximum-length-of-a-valid-email-address
+    .maxLength(254)
+    .singleLine()
+    .transform<EmailAddress>({
+        serialize: emailAddress => emailAddress,
+        deserialize: emailAddress => {
+            // Email address is case-insensitive. So normalize email address.
+            emailAddress = emailAddress.toLowerCase();
 
-        if (!validateEmailAddressWithoutCheckingDomainMxDnsRecords(emailAddress))
-            throw new SchemaDeserializationError("Expected string to be an email address");
+            if (!validateEmailAddressWithoutCheckingDomainMxDnsRecords(emailAddress))
+                throw new SchemaDeserializationError("Expected string to be an email address");
 
-        // Ok since we are deserializing from the database and we control all writers
-        // to the database. We force writers to the database to use the
-        // `EmailAddress` type.
-        return emailAddress as EmailAddress;
-    },
-});
+            // Ok since we are deserializing from the database and we control all writers
+            // to the database. We force writers to the database to use the
+            // `EmailAddress` type.
+            return emailAddress as EmailAddress;
+        },
+    });

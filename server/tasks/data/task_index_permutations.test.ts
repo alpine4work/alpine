@@ -1,5 +1,5 @@
 import fs from "fs";
-import {internalUpdateOurAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
+import {internalUpdateOurAccountName} from "~/server/accounts/accounts_table.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
@@ -67,7 +67,7 @@ testTaskActionPermutations({
             if (account.initialData.nameVersion === action.accountNameVersion) {
                 assert(account.initialData.name === action.accountName);
             } else if (account.initialData.nameVersion < action.accountNameVersion) {
-                await internalUpdateOurAccountNameWithoutUpdatingTasks(
+                await internalUpdateOurAccountName(
                     context.action(action.accountId === session2.accountId ? session2 : session1),
                     action.accountName,
                     {

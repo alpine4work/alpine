@@ -1,6 +1,6 @@
 import {
     deleteAccountAppleDeviceTokenIfExists,
-    internalUpdateOurAccountNameWithoutUpdatingTasks,
+    internalUpdateOurAccountName,
     registerOurAccountAppleDeviceToken,
 } from "~/server/accounts/accounts_table.js";
 import {
@@ -1326,7 +1326,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         null,
     );
 
-    await internalUpdateOurAccountNameWithoutUpdatingTasks(session2.action(), "Shawn Tyson", {
+    await internalUpdateOurAccountName(session2.action(), "Shawn Tyson", {
         getOurAccountSpaceIds,
         getTaskTransactionEntries: () => [],
     });
@@ -1400,7 +1400,7 @@ test("`getAccountIfExists()` will keep returning an old name when account is rem
         null,
     );
 
-    await internalUpdateOurAccountNameWithoutUpdatingTasks(session2.action(), "Shawn Meredith", {
+    await internalUpdateOurAccountName(session2.action(), "Shawn Meredith", {
         getOurAccountSpaceIds,
         getTaskTransactionEntries: () => [],
     });

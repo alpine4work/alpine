@@ -1,4 +1,4 @@
-import {internalUpdateOurAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
+import {internalUpdateOurAccountName} from "~/server/accounts/accounts_table.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/spaces_table.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
@@ -19,7 +19,7 @@ export async function updateOurAccountName(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     name: string,
 ): Promise<AccountModelWithoutSpace> {
-    const account = await internalUpdateOurAccountNameWithoutUpdatingTasks(context, name, {
+    const account = await internalUpdateOurAccountName(context, name, {
         getOurAccountSpaceIds,
         getTaskTransactionEntries: internalGetUpdateOurAccountNameTaskTransactionEntries,
     });
