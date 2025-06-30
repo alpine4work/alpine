@@ -45,6 +45,7 @@ ts_project(
         "//:node_modules/emoji-regex",
         "//:node_modules/escape-html",
         "//:node_modules/functional-red-black-tree",
+        "//:node_modules/grapheme-splitter",
         "//:node_modules/html-tags",
         "//:node_modules/tough-cookie",
         "//shared/error:error_core",

@@ -5,7 +5,6 @@ ts_project(
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@remix-run/router",
-        "//:node_modules/grapheme-splitter",
         "//shared/accounts",
         "//shared/documents",
         "//shared/dynamo",

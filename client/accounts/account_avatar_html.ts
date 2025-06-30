@@ -1,8 +1,8 @@
-import GraphemeSplitter from "grapheme-splitter";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 
 export const accountAvatarClassName = sprinkles({
@@ -25,8 +25,6 @@ export const accountAvatarInitialsClassName = sprinkles({
 });
 
 export function getAccountAvatarInitials(accountData: AccountModelData) {
-    const splitter = new GraphemeSplitter();
-
     // TODO(calebmer): If we ever support eastern name order of family name first
     // then given name, the initials should preserve that order. We shouldn't put
     // the given name initial first.
@@ -37,9 +35,9 @@ export function getAccountAvatarInitials(accountData: AccountModelData) {
     // split, but surrogate pairs will be preserved.
     //
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/@@iterator
-    const firstInitial: string = splitter.iterateGraphemes(givenName).next().value;
+    const firstInitial: string = iterateGraphemes(givenName).next().value;
     const lastInitial: string | null = familyName
-        ? splitter.iterateGraphemes(familyName).next().value
+        ? iterateGraphemes(familyName).next().value
         : null;
 
     return {firstInitial, lastInitial};

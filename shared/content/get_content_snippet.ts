@@ -1,9 +1,9 @@
-import GraphemeSplitter from "grapheme-splitter";
 import {Node, ResolvedPos} from "prosemirror-model";
 import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-word-boundary";
 import {ContentNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 
 /**
  * Get a snippet of content around the provided position. The snippet should
@@ -369,8 +369,6 @@ export function setDefaultMaxLineGraphemeCountForTest(newDefaultMaxLineGraphemeC
     defaultMaxLineGraphemeCount = newDefaultMaxLineGraphemeCount;
 }
 
-const graphemeSplitter = new GraphemeSplitter();
-
 /**
  * Does the provided text have enough lines to fill the desired line count? If
  * not we return how many lines we still need to meet our desired line count.
@@ -384,7 +382,7 @@ function consumeLinesOfText(
     let graphemeCount = 0;
     const maxGraphemeCount = maxLineGraphemeCount * remainingLineCount;
 
-    for (const grapheme of graphemeSplitter.iterateGraphemes(text)) {
+    for (const grapheme of iterateGraphemes(text)) {
         length += grapheme.length;
         graphemeCount++;
 

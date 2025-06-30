@@ -1,8 +1,8 @@
-import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {spaceAvatarBorderRadius} from "~/client/styles/space_settings_shared_styles.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
+import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
@@ -23,8 +23,7 @@ export function SpaceAvatar({space, size}: {space: SpaceModel; size: Spacing}) {
                 aria-hidden="true"
             >
                 {useMemo(() => {
-                    const splitter = new GraphemeSplitter();
-                    const graphemes = splitter.iterateGraphemes(space.name);
+                    const graphemes = iterateGraphemes(space.name);
                     return graphemes.next().value;
                 }, [space.name])}
             </Box>

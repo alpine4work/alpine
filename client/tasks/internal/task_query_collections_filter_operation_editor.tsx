@@ -1,5 +1,4 @@
 import _Fuse from "fuse.js";
-import GraphemeSplitter from "grapheme-splitter";
 import {Fragment, ReactNode, Ref, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
@@ -22,6 +21,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {splitGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryCollectionsFilter} from "~/shared/tasks/task_query_filter.js";
@@ -307,12 +307,10 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
     const routeLayout = useRouteLayout();
 
     const previewCollections = useMemo(() => {
-        const graphemeSplitter = new GraphemeSplitter();
-
         return Array.from(
             sliceIterable(collectionResults, 0, routeLayout === "narrow" ? 1 : 2),
             collectionResult => {
-                const collectionNameGraphemes = graphemeSplitter.splitGraphemes(
+                const collectionNameGraphemes = splitGraphemes(
                     collectionResult.collection.getName(),
                 );
                 const collectionNameGraphemeLimit = 30;

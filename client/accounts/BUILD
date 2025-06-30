@@ -10,7 +10,6 @@ ts_project(
     deps = [
         "//:node_modules/@types/react",
         "//:node_modules/@types/scheduler",
-        "//:node_modules/grapheme-splitter",
         "//:node_modules/react",
         "//:node_modules/scheduler",
         "//client/context",

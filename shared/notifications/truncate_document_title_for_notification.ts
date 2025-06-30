@@ -1,4 +1,4 @@
-import GraphemeSplitter from "grapheme-splitter";
+import {splitGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 
 /**
  * Function that'll truncate document titles for notification messages. Since
@@ -6,10 +6,8 @@ import GraphemeSplitter from "grapheme-splitter";
  * title in a notification.
  */
 export function truncateDocumentTitleForNotification(string: string) {
-    const splitter = new GraphemeSplitter();
-
     const maxGraphemeCount = 50;
-    const graphemes = splitter.splitGraphemes(string);
+    const graphemes = splitGraphemes(string);
 
     if (graphemes.length < maxGraphemeCount) return string;
 
