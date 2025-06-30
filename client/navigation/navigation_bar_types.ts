@@ -5,6 +5,7 @@ import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {RemLength, Spacing} from "~/shared/design/core/spacing.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
@@ -224,6 +225,12 @@ export type NavigationBarProps = {
      * mobile tab routes.
      */
     readonly withoutMobileBackButton?: boolean;
+
+    /**
+     * The cover of the document. If provided, it will be displayed in the
+     * navigation bar.
+     */
+    readonly contentCover?: DocumentContentCover | null;
 
     /**
      * By default, the navigation bar on mobile has a back button which calls

@@ -37,6 +37,7 @@ ts_project(
         "//:node_modules/react-stately",
         "//:node_modules/statuses",
         "//client/accounts",
+        "//client/blobs",
         "//client/content/state",
         "//client/design",
         "//client/dev",

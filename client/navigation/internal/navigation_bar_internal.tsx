@@ -16,8 +16,18 @@
 // and native code so we can use that. Touch events are more dicey.
 
 import {AnimationControls, timeline} from "motion";
-import {Memo, MutableRefObject, ReactNode, Ref, useImperativeHandle, useRef, useState} from "react";
+import {
+    Memo,
+    MutableRefObject,
+    ReactNode,
+    Ref,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {flushSync} from "react-dom";
+import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {
@@ -56,6 +66,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -159,6 +170,7 @@ export function NavigationBar({
     desktopTitleLeftSlop,
     desktopAdditionalActions,
     withoutMobileBackButton,
+    contentCover,
     onMobileClose,
     onMobileCancel,
 }: {
@@ -191,6 +203,7 @@ export function NavigationBar({
     desktopAdditionalActions: ReactNode;
     desktopTitleLeftSlop: Spacing | undefined;
     withoutMobileBackButton: boolean;
+    contentCover?: DocumentContentCover | null;
     onMobileClose: (() => void) | undefined;
     onMobileCancel: (() => void) | undefined;
 }) {
@@ -203,6 +216,7 @@ export function NavigationBar({
     const navigationBarContainerRef = useRef<HTMLDivElement>(null);
     const navigationBarRef = useRef<HTMLDivElement>(null);
     const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
+    const navigationBarContentCoverRef = useRef<HTMLDivElement>(null);
     const navigationBarBorderRef = useRef<HTMLDivElement>(null);
     const navigationBarContentRef = useRef<NavigationBarContentRef>(null);
 
@@ -477,7 +491,7 @@ export function NavigationBar({
                 // the reason, ignore scroll events that repeat a scroll offset.
                 if (scrollOffset === lastScrollOffsetRef.current) return;
 
-                const {scrollHeight, clientHeight} = element;
+                const {scrollHeight, clientHeight, scrollTop} = element;
 
                 // Immediately finish any animations when scrolling begins.
                 if (animationControlsRef.current) {
@@ -501,6 +515,12 @@ export function NavigationBar({
 
                 const lastScrollHeight = lastScrollHeightRef.current;
                 lastScrollHeightRef.current = scrollHeight;
+
+                // Since we duplicate the cover onto the nav bar, make sure it scrolls
+                // the same distance as the scroll view.
+                if (navigationBarContentCoverRef.current) {
+                    navigationBarContentCoverRef.current.style.transform = `translateY(${-scrollTop}px)`;
+                }
 
                 // - Edge case 1: If our scroll content resized and scrolled down at the same
                 //   time (and scrolled the same amount we resized) then we don't want our
@@ -984,6 +1004,18 @@ export function NavigationBar({
     const backgroundBorderMaxWidth =
         platform === "desktop" ? desktopMaxWidth ?? desktopTitleMaxWidth : undefined;
 
+    const blobsArtSettings = useMemo(
+        () =>
+            contentCover?.type === "Blobs"
+                ? {
+                      seed: contentCover.seed,
+                      themeColor: contentCover.themeColor,
+                      hueSpread: contentCover.hueSpread,
+                  }
+                : null,
+        [contentCover],
+    );
+
     return (
         <div
             ref={navigationBarContainerRef}
@@ -1058,6 +1090,13 @@ export function NavigationBar({
                                 height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
                         >
+                            {blobsArtSettings !== null ? (
+                                <Box width="full" height="full" overflow="hidden">
+                                    <Box ref={navigationBarContentCoverRef} position="relative">
+                                        <BlobsArt settings={blobsArtSettings} />
+                                    </Box>
+                                </Box>
+                            ) : null}
                             <Box
                                 ref={navigationBarBorderRef}
                                 // Start with `display: none`. `onScroll` will change it to `display: block`

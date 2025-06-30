@@ -62,7 +62,6 @@ export function SpaceLayoutSideBar({
                 display="flex"
                 flexDirection="column"
                 alignItems="center"
-                backgroundColor="grey-0"
                 style={{width: spaceLayoutStyles.sideBarWidth}}
             >
                 <Box

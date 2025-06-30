@@ -89,7 +89,7 @@ function DocumentContentCoverBlobsArtOption({
                     />
                 )}
                 <Box overflow="hidden" height="full" width="full">
-                    <BlobsArt settings={memoizedSettings} scale={0.2} />
+                    <BlobsArt settings={memoizedSettings} scale={0.35} />
                 </Box>
                 {isSelected && (
                     <Box

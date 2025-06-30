@@ -64,6 +64,7 @@ export function useNavigationBar({
     desktopTitleLeftSlop,
     desktopAdditionalActions,
     withoutMobileBackButton = false,
+    contentCover,
     onMobileClose,
     onMobileCancel,
 }: NavigationBarProps): NavigationBarResult {
@@ -192,6 +193,7 @@ export function useNavigationBar({
             desktopTitleLeftSlop={desktopTitleLeftSlop}
             desktopAdditionalActions={desktopAdditionalActions}
             withoutMobileBackButton={withoutMobileBackButton}
+            contentCover={contentCover}
             onMobileClose={onMobileClose}
             onMobileCancel={onMobileCancel}
         />

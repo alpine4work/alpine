@@ -27,6 +27,7 @@ import {BazelBuildIndicator} from "~/app/router/bazel_build_indicator.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {RootErrorBoundary} from "~/app/router/root_error_boundary.js";
+import {BlobsArtProvider} from "~/client/blobs/blobs_art_provider.js";
 import {handleCopyEventIfNotTextInputElement} from "~/client/content/handle_copy_event_if_not_text_input_element.js";
 import {handleDragStartEventIfNotTextInputElement} from "~/client/content/handle_drag_start_event_if_not_text_input_element.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
@@ -499,7 +500,7 @@ export default function Root() {
                                     <MobileFullScreenModalContextProvider>
                                         <TooltipCoordinationContextProvider>
                                             <ReporterContextProvider>
-                                                {nodes}
+                                                <BlobsArtProvider>{nodes}</BlobsArtProvider>
                                             </ReporterContextProvider>
                                         </TooltipCoordinationContextProvider>
                                     </MobileFullScreenModalContextProvider>

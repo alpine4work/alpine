@@ -25,6 +25,7 @@ import {
     useState,
 } from "react";
 import {flushSync} from "react-dom";
+import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/content/messaging/message_input_base.js";
@@ -123,6 +124,7 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -269,6 +271,8 @@ export function DocumentContentEditor({
         unpersistedResolutionStateByCommentThreadId,
         ensureCreateDocument,
     } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
+
+    const cover = content.doc.attrs.cover as DocumentContentCover | null;
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,
@@ -1531,6 +1535,7 @@ export function DocumentContentEditor({
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title,
+        contentCover: cover,
         getTitleBoundaryElement: useCallback(() => {
             // Assume the title `<h1>` element is always the first element in the
             // ProseMirror DOM.
@@ -1659,6 +1664,18 @@ export function DocumentContentEditor({
         [documentId],
     );
 
+    const blobsSettings = useMemo(
+        () =>
+            cover?.type === "Blobs"
+                ? {
+                      seed: cover.seed,
+                      themeColor: cover.themeColor,
+                      hueSpread: cover.hueSpread,
+                  }
+                : null,
+        [cover],
+    );
+
     return (
         <Box
             ref={containerResizeRef}
@@ -1691,6 +1708,7 @@ export function DocumentContentEditor({
                 }}
             >
                 <OverlayScopeContextProvider>
+                    {blobsSettings !== null && <BlobsArt settings={blobsSettings} />}
                     <Box className={contentEditorStyles.containerClassName}>
                         <GlobalKeyDownEvent
                             onGlobalKeyDown={event => {

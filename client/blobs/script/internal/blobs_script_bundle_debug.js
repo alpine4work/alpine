@@ -2655,6 +2655,32 @@ function cubehelix2(hue2) {
 var cubehelix_default = cubehelix2(hue);
 var cubehelixLong = cubehelix2(nogamma);
 
+// shared/helpers/array/create_array_with_length.js
+function createArrayWithLength(length, createItem) {
+    const array = [];
+    for (let index = 0; index < length; index++) {
+        array.push(createItem(index, length));
+    }
+    return array;
+}
+
+// shared/helpers/number/inv_lerp.js
+function invLerp(a, b, n) {
+    return (n - a) / (b - a);
+}
+
+// client/blobs/helpers/blobs_css_gradient.js
+function generateEasedGradient(from, to, easingFunction, stops = 6) {
+    const interpolate = hcl_default(from, to);
+    return createArrayWithLength(stops, index => {
+        const progress = invLerp(0, stops - 1, index);
+        return interpolate(easingFunction(progress));
+    });
+}
+function formatCssLinearGradient(sideOrCorner, stops) {
+    return `linear-gradient(${sideOrCorner}, ${stops.join(",")})`;
+}
+
 // client/helpers/gl/glsl.js
 var glsl = String.raw;
 
@@ -3568,6 +3594,9 @@ var GlResources = class {
     }
 };
 
+// client/styles/other/styles_other.js
+var blobsArtStyles = {containerClassName: "blobs_container", gradientClassName: "blobs_gradient"};
+
 // shared/design/core/colors.js
 var colors = {
     // Pure white background color is useful when embedding files since many files
@@ -3685,6 +3714,60 @@ var colors = {
     "pink-80": "#692467",
     "pink-90": "#3c154a",
 };
+
+// shared/design/core/easing.js
+var easeLinear = n => n;
+easeLinear.cubicBezier = "cubic-bezier(0.5, 0.5, 0.5, 0.5)";
+var easeInQuad = t => t * t;
+easeInQuad.cubicBezier = "cubic-bezier(0.11, 0, 0.5, 0)";
+var easeOutQuad = t => t * (2 - t);
+easeOutQuad.cubicBezier = "cubic-bezier(0.5, 1, 0.89, 1)";
+var easeInOutQuad = t => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+easeInOutQuad.cubicBezier = "cubic-bezier(0.45, 0, 0.55, 1)";
+var easeInCubic = t => t * t * t;
+easeInCubic.cubicBezier = "cubic-bezier(0.32, 0, 0.67, 0)";
+var easeOutCubic = t => --t * t * t + 1;
+easeOutCubic.cubicBezier = "cubic-bezier(0.33, 1, 0.68, 1)";
+var easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1);
+easeInOutCubic.cubicBezier = "cubic-bezier(0.65, 0, 0.35, 1)";
+var easeInQuart = t => t * t * t * t;
+easeInQuart.cubicBezier = "cubic-bezier(0.5, 0, 0.75, 0)";
+var easeOutQuart = t => 1 - --t * t * t * t;
+easeOutQuart.cubicBezier = "cubic-bezier(0.25, 1, 0.5, 1)";
+var easeInOutQuart = t => (t < 0.5 ? 8 * t * t * t * t : 1 - 8 * --t * t * t * t);
+easeInOutQuart.cubicBezier = "cubic-bezier(0.76, 0, 0.24, 1)";
+var easeInQuint = t => t * t * t * t * t;
+easeInQuint.cubicBezier = "cubic-bezier(0.64, 0, 0.78, 0)";
+var easeOutQuint = t => 1 + --t * t * t * t * t;
+easeOutQuint.cubicBezier = "cubic-bezier(0.22, 1, 0.36, 1)";
+var easeInOutQuint = t => (t < 0.5 ? 16 * t * t * t * t * t : 1 + 16 * --t * t * t * t * t);
+easeInOutQuint.cubicBezier = "cubic-bezier(0.83, 0, 0.17, 1)";
+var easeInSin = t => -1 * Math.cos(t * Math.PI * 0.5) + 1;
+easeInSin.cubicBezier = "cubic-bezier(0.12, 0, 0.39, 0)";
+var easeOutSin = t => Math.sin(t * Math.PI * 0.5);
+easeOutSin.cubicBezier = "cubic-bezier(0.61, 1, 0.88, 1)";
+var easeInOutSin = t => (-1 / 2) * (Math.cos(Math.PI * t) - 1);
+easeInOutSin.cubicBezier = "cubic-bezier(0.37, 0, 0.63, 1)";
+var easeInExpo = t => (t == 0 ? 0 : Math.pow(2, 10 * (t - 1)));
+easeInExpo.cubicBezier = "cubic-bezier(0.7, 0, 0.84, 0)";
+var easeOutExpo = t => (t == 1 ? 1 : -Math.pow(2, -10 * t) + 1);
+easeOutExpo.cubicBezier = "cubic-bezier(0.16, 1, 0.3, 1)";
+var easeInOutExpo = t => {
+    if (t == 0) return 0;
+    if (t == 1) return 1;
+    if ((t /= 1 / 2) < 1) return (1 / 2) * Math.pow(2, 10 * (t - 1));
+    return (1 / 2) * (-Math.pow(2, -10 * --t) + 2);
+};
+easeInOutExpo.cubicBezier = "cubic-bezier(0.87, 0, 0.13, 1)";
+var easeInCirc = t => -1 * (Math.sqrt(1 - t * t) - 1);
+easeInCirc.cubicBezier = "cubic-bezier(0.55, 0, 1, 0.45)";
+var easeOutCirc = t => Math.sqrt(1 - (t = t - 1) * t);
+easeOutCirc.cubicBezier = "cubic-bezier(0, 0.55, 0.45, 1)";
+var easeInOutCirc = t => {
+    if ((t /= 1 / 2) < 1) return (-1 / 2) * (Math.sqrt(1 - t * t) - 1);
+    return (1 / 2) * (Math.sqrt(1 - (t -= 2) * t) + 1);
+};
+easeInOutCirc.cubicBezier = "cubic-bezier(0.85, 0, 0.15, 1)";
 
 // shared/helpers/control/capture_result.js
 function captureResult(action) {
@@ -3869,11 +3952,6 @@ var Vector2 = class _Vector2 {
     }
 };
 
-// shared/helpers/number/inv_lerp.js
-function invLerp(a, b, n) {
-    return (n - a) / (b - a);
-}
-
 // client/blobs/helpers/draw_blobs_factory.js
 var blobFactory = new Lazy(() => {
     const canvas = document.createElement("canvas");
@@ -3952,16 +4030,36 @@ var blobFactory = new Lazy(() => {
         },
     };
 });
-function drawBlobFactoryToCanvas(canvas, scale, settings, blobs) {
+function drawBlobFactoryToCanvas(canvas, settings, blobs) {
+    var _a, _b;
     const blobKey = btoa(JSON.stringify(settings));
     if (canvas.getAttribute("data-drawn") === blobKey) return;
     const drawResult = blobFactory.get();
     if (!drawResult.isGlSupported) return;
+    const scale = 1;
     const size = new Vector2(canvas.width, canvas.height).div(scale);
     const result = drawResult.draw(size, scale, settings, blobs);
     const ctx = canvas.getContext("2d");
     ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
     canvas.setAttribute("data-drawn", blobKey);
+    const gradient = assertExists(
+        (_b =
+            (_a = canvas.parentElement) == null
+                ? void 0
+                : _a.getElementsByClassName(blobsArtStyles.gradientClassName)) == null
+            ? void 0
+            : _b[0],
+    );
+    const gradientBackground = formatCssLinearGradient(
+        "to bottom",
+        generateEasedGradient(
+            new import_color10.default(colors[settings.backgroundColor]).alpha(0).toString(),
+            colors[settings.backgroundColor],
+            easeInOutSin,
+            10,
+        ),
+    );
+    gradient.setAttribute("style", `background-image: ${gradientBackground}`);
 }
 var BlobFactoryBlob = class {
     static size = 12;
@@ -4033,15 +4131,6 @@ function interpolateColors(a, b, n) {
 
 // shared/design/core/theme_colors.js
 var themeColors = ["red", "orange", "yellow", "green", "cyan", "blue", "indigo", "purple", "pink"];
-
-// shared/helpers/array/create_array_with_length.js
-function createArrayWithLength(length, createItem) {
-    const array = [];
-    for (let index = 0; index < length; index++) {
-        array.push(createItem(index, length));
-    }
-    return array;
-}
 
 // shared/helpers/number/stable_random.js
 function cyrb53(baseString, keyString, seed = 0) {
@@ -4194,7 +4283,6 @@ function drawBlob(blobCanvasId, settings) {
     canvas.forEach(canvas2 => {
         drawBlobFactoryToCanvas(
             canvas2,
-            window.devicePixelRatio,
             {
                 ...settings,
                 hueBias,

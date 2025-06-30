@@ -58,7 +58,6 @@ function drawBlob(blobCanvasId: string, settings: BlobsSettings | true) {
     canvas.forEach(canvas => {
         drawBlobFactoryToCanvas(
             canvas as HTMLCanvasElement,
-            window.devicePixelRatio,
             {
                 ...settings,
                 hueBias,

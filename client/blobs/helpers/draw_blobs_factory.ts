@@ -1,5 +1,9 @@
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
+import {
+    formatCssLinearGradient,
+    generateEasedGradient,
+} from "~/client/blobs/helpers/blobs_css_gradient.js";
 import {blobFactoryShaderFragSource} from "~/client/blobs/helpers/blobs_shader_frag.js";
 import {blobFactoryShaderVertSource} from "~/client/blobs/helpers/blobs_shader_vert.js";
 import {
@@ -15,8 +19,11 @@ import {
     GlTextureInternalFormat,
     GlVertexAttribType,
 } from "~/client/helpers/gl/gl_types.js";
+import {blobsArtStyles} from "~/client/styles/other/styles_other.js";
 import {colors} from "~/shared/design/core/colors.js";
+import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
@@ -135,7 +142,6 @@ const blobFactory = new Lazy<
  */
 export function drawBlobFactoryToCanvas(
     canvas: HTMLCanvasElement,
-    scale: number,
     settings: BlobFactorySettings,
     blobs: BlobFactoryBlobs,
 ) {
@@ -145,6 +151,11 @@ export function drawBlobFactoryToCanvas(
 
     const drawResult = blobFactory.get();
     if (!drawResult.isGlSupported) return;
+
+    // NOTE(imjoshin): We're not using the devicePixelRatio here yet, there's a rendering bug
+    // when using the devicePixelRatio. We'll address that separately.
+    const scale = 1; // window.devicePixelRatio;
+
     const size = new Vector2(canvas.width, canvas.height).div(scale);
     const result = drawResult.draw(size, scale, settings, blobs);
     const ctx = canvas.getContext("2d")!;
@@ -152,6 +163,25 @@ export function drawBlobFactoryToCanvas(
 
     // Set the attribute to mark that we've drawn this blob
     canvas.setAttribute("data-drawn", blobKey);
+
+    // Create the gradient
+    // We create this here (as opposed to statically) to ensure we follow the colorScheme as
+    // as soon as possible. If we server side render the gradient, we won't know the colorScheme.
+    const gradient = assertExists(
+        canvas.parentElement?.getElementsByClassName(blobsArtStyles.gradientClassName)?.[0],
+    );
+
+    const gradientBackground = formatCssLinearGradient(
+        "to bottom",
+        generateEasedGradient(
+            new Color(colors[settings.backgroundColor]).alpha(0).toString(),
+            colors[settings.backgroundColor],
+            easeInOutSin,
+            10,
+        ),
+    );
+
+    gradient.setAttribute("style", `background-image: ${gradientBackground}`);
 }
 
 export class BlobFactoryBlob {

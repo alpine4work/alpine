@@ -19,6 +19,7 @@ ts_project(
         "//:node_modules/react-dom",
         "//:node_modules/react-stately",
         "//client/accounts",
+        "//client/blobs",
         "//client/content",
         "//client/design",
         "//client/helpers",
