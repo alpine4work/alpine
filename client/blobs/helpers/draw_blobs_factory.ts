@@ -19,6 +19,7 @@ import {
     GlTextureInternalFormat,
     GlVertexAttribType,
 } from "~/client/helpers/gl/gl_types.js";
+// import from other to avoid importing the entire client styles
 import {blobsArtStyles} from "~/client/styles/other/styles_other.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
@@ -181,7 +182,10 @@ export function drawBlobFactoryToCanvas(
         ),
     );
 
-    gradient.setAttribute("style", `background-image: ${gradientBackground}`);
+    gradient.setAttribute(
+        "style",
+        `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
+    );
 }
 
 export class BlobFactoryBlob {

@@ -3595,7 +3595,11 @@ var GlResources = class {
 };
 
 // client/styles/other/styles_other.js
-var blobsArtStyles = {containerClassName: "blobs_container", gradientClassName: "blobs_gradient"};
+var blobsArtStyles = {
+    canvasClassName: "blobs_canvas",
+    containerClassName: "blobs_container",
+    gradientClassName: "blobs_gradient",
+};
 
 // shared/design/core/colors.js
 var colors = {
@@ -4059,7 +4063,10 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
             10,
         ),
     );
-    gradient.setAttribute("style", `background-image: ${gradientBackground}`);
+    gradient.setAttribute(
+        "style",
+        `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
+    );
 }
 var BlobFactoryBlob = class {
     static size = 12;
@@ -4250,55 +4257,60 @@ function drawBlob(blobCanvasId, settings) {
     if (settings === true) {
         return drawBlob;
     }
-    const localStorageColorScheme = localStorage.getItem("colorScheme");
-    let colorScheme = "light";
-    if (localStorageColorScheme) {
-        colorScheme = localStorageColorScheme === "dark" ? "dark" : "light";
-    } else {
-        colorScheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-100";
-    const baseThemeColor = getInterpolatedThemeColor(
-        colorScheme === "dark" ? settings.colorLevelInsideDark : settings.colorLevelInsideLight,
-        settings.themeColor,
-    );
-    const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
-    const blobs = generateBlobsForContent({
-        contentWidthPx: blobsContentWidthPx,
-        screenWidthPx: blobsCanvasWidthPx,
-        randomSeed: settings.seed,
-        minBlobCount: settings.minBlobCount,
-        maxBlobCount: settings.maxBlobCount,
-        spreadLeft: settings.spreadLeft,
-        spreadRight: settings.spreadRight,
-        minY: settings.minY,
-        maxY: settings.maxY,
-        minRadiusFactor: settings.minRadiusFactor,
-        maxRadiusFactor: settings.maxRadiusFactor,
-        baseThemeColor: settings.themeColor,
-        colorSpread: settings.colorSpread,
-        hueSpread: settings.hueSpread,
-    });
-    canvas.forEach(canvas2 => {
-        drawBlobFactoryToCanvas(
-            canvas2,
-            {
-                ...settings,
-                hueBias,
-                colorLevelInside:
-                    colorScheme === "dark"
-                        ? settings.colorLevelInsideDark
-                        : settings.colorLevelInsideLight,
-                colorLevelOutside:
-                    colorScheme === "dark"
-                        ? settings.colorLevelOutsideDark
-                        : settings.colorLevelOutsideLight,
-                backgroundColor,
-            },
-            blobs,
+    const actuallyDrawBlobs = colorScheme => {
+        const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-100";
+        const baseThemeColor = getInterpolatedThemeColor(
+            colorScheme === "dark" ? settings.colorLevelInsideDark : settings.colorLevelInsideLight,
+            settings.themeColor,
         );
-    });
+        const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
+        const blobs = generateBlobsForContent({
+            contentWidthPx: blobsContentWidthPx,
+            screenWidthPx: blobsCanvasWidthPx,
+            randomSeed: settings.seed,
+            minBlobCount: settings.minBlobCount,
+            maxBlobCount: settings.maxBlobCount,
+            spreadLeft: settings.spreadLeft,
+            spreadRight: settings.spreadRight,
+            minY: settings.minY,
+            maxY: settings.maxY,
+            minRadiusFactor: settings.minRadiusFactor,
+            maxRadiusFactor: settings.maxRadiusFactor,
+            baseThemeColor: settings.themeColor,
+            colorSpread: settings.colorSpread,
+            hueSpread: settings.hueSpread,
+        });
+        canvas.forEach(canvas2 => {
+            drawBlobFactoryToCanvas(
+                canvas2,
+                {
+                    ...settings,
+                    hueBias,
+                    colorLevelInside:
+                        colorScheme === "dark"
+                            ? settings.colorLevelInsideDark
+                            : settings.colorLevelInsideLight,
+                    colorLevelOutside:
+                        colorScheme === "dark"
+                            ? settings.colorLevelOutsideDark
+                            : settings.colorLevelOutsideLight,
+                    backgroundColor,
+                },
+                blobs,
+            );
+        });
+    };
+    const localStorageColorScheme = localStorage.getItem("colorScheme");
+    let initialColorScheme = "light";
+    if (localStorageColorScheme) {
+        initialColorScheme = localStorageColorScheme === "dark" ? "dark" : "light";
+    } else {
+        initialColorScheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+    }
+    actuallyDrawBlobs(initialColorScheme);
 }
 drawBlob("", true);
 //# sourceMappingURL=blobs_script_bundle_debug_unminified.js.map

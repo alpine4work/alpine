@@ -1,6 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
+import {getBlobsHtmlGenerator} from "~/client/blobs/get_blobs_html_generator.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
 import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
@@ -14,6 +15,7 @@ import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -143,6 +145,12 @@ export function renderContentFileDocumentEntityPreview(
         doc: createDummyDocumentContent(fileEntity.titleWithoutFallback),
         references: emptyDocumentContentReferences,
     };
+
+    const cover: DocumentContentCover = content.doc.attrs.cover;
+    if (cover?.type === "Blobs") {
+        const canvasHtml = getBlobsHtmlGenerator(cover);
+        scaledDocHtml.appendChild(canvasHtml);
+    }
 
     const docHtml = scaledDocHtml.appendChild(new HtmlElementGenerator("div"));
     docHtml.setAttribute(

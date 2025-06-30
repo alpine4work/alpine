@@ -8,7 +8,7 @@ import {
 } from "~/client/blobs/helpers/blobs_settings.js";
 import {useColorScheme} from "~/client/helpers/color_scheme.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
-import {blobsArtStyles, sprinkles} from "~/client/styles/styles.js";
+import {blobsArtStyles} from "~/client/styles/styles.js";
 import {
     safe,
     safeFlatObjectString,
@@ -43,6 +43,7 @@ function BlobsArtComponent({
     // This must then translate to the same ID on the client.
     const canvasId = getBlobsCanvasId(settings);
 
+    // If our settings change, redraw the blobs.
     useEffect(() => {
         if (typeof window === "undefined") return;
         // @ts-expect-error __drawBlobs is defined in the blobs script.
@@ -66,24 +67,16 @@ function BlobsArtComponent({
             aria-hidden="true"
             style={{
                 height: blobsCanvasHeightPx,
+                width: blobsCanvasWidthPx,
+                left: `calc(50% - (${blobsCanvasWidthPx / 2}px))`,
+                transform: scale ? `scale(${scale})` : undefined,
             }}
         >
             <canvas
+                className={blobsArtStyles.canvasClassName}
                 data-blob-id={canvasId}
                 width={blobsCanvasWidthPx}
                 height={blobsCanvasHeightPx}
-                className={sprinkles({
-                    position: "absolute",
-                    inset: "0",
-                    width: "full",
-                    height: "full",
-                })}
-                style={{
-                    width: blobsCanvasWidthPx,
-                    left: `calc(50% - (${blobsCanvasWidthPx / 2}px))`,
-                    transform: scale ? `scale(${scale})` : undefined,
-                    transformOrigin: "center top",
-                }}
                 data-testid={process.env.NODE_ENV !== "production" ? `BlobArtCanvas` : undefined}
             />
             <div className={blobsArtStyles.gradientClassName} />

@@ -1,7 +1,9 @@
 import escapeHtml from "escape-html";
 import voidHtmlTagNames from "html-tags/void.js";
+import {FailedPreconditionError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {SafeString} from "~/shared/helpers/string/safe_string.js";
 
 export interface HtmlGenerator {
     /**
@@ -351,5 +353,56 @@ export class HtmlFragmentGenerator extends HtmlContainerGenerator {
         this._patchChildNodes(previous, node);
 
         return true;
+    }
+}
+
+export class HtmlScriptGenerator extends HtmlElementGenerator {
+    private readonly _scriptContent: string;
+
+    constructor(scriptContent: SafeString) {
+        super("script");
+        this._scriptContent = scriptContent.string;
+    }
+
+    public override generateHtml() {
+        return `<script>${this._scriptContent}</script>`;
+    }
+
+    public override generateNode() {
+        const script = document.createElement("script");
+        script.textContent = this._scriptContent;
+        return script;
+    }
+
+    public override patchNode(previous: HtmlGenerator | null, node: Node) {
+        if (!(node instanceof HTMLScriptElement)) return false;
+
+        if (node.textContent !== this._scriptContent) {
+            node.textContent = this._scriptContent;
+        }
+
+        return true;
+    }
+
+    private disallowedMethod() {
+        // We don't allow modifying the script tag's attributes.
+        throw new FailedPreconditionError("Cannot set attributes on HtmlScriptGenerator");
+    }
+
+    public override setAttribute() {
+        this.disallowedMethod();
+    }
+
+    public override appendChild<Node extends HtmlGenerator>(node: Node): Node {
+        this.disallowedMethod();
+        return node;
+    }
+
+    public override insertBefore() {
+        this.disallowedMethod();
+    }
+
+    public override removeAllChildren() {
+        this.disallowedMethod();
     }
 }

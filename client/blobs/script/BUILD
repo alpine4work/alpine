@@ -7,6 +7,7 @@ load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 ts_project(
     name = "script_lib",
     deps = [
+        "//client/helpers",
         "//client/blobs/helpers",
         "//shared/design",
     ],
