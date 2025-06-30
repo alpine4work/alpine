@@ -1,16 +1,4 @@
 import classNames from "classnames";
-import {
-    File,
-    Image,
-    ListBullets,
-    ListChecks,
-    ListNumbers,
-    Minus,
-    Table,
-    TextHOne,
-    TextHThree,
-    TextHTwo,
-} from "phosphor-react";
 import {closeHistory, history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
 import {Fragment, Node, Schema as ProsemirrorSchema, ResolvedPos, Slice} from "prosemirror-model";
 import {
@@ -92,6 +80,7 @@ import {
     ContentEditorFileDropTarget,
     getContentEditorFileDropTargets,
 } from "~/client/content/internal/get_content_editor_file_drop_targets.js";
+import {getContentEditorInsertMenuActions} from "~/client/content/internal/get_content_editor_insert_menu_actions.js";
 import {
     FileInfo,
     FileInfoWithEntity,
@@ -101,7 +90,6 @@ import {createContentEditorTableNodeView} from "~/client/content/internal/table/
 import {uploadFile} from "~/client/content/internal/upload_file.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
-import {selectFiles} from "~/client/content/select_files.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/content/state/content_editor_meta_keys.js";
 import {
     ContentEditorReferencesSharedAction,
@@ -143,10 +131,6 @@ import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboar
 import {flushSyncIfNotRendering} from "~/client/helpers/flush_sync_if_not_rendering.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
-import {CodeBlockIcon} from "~/client/icons/code_block_icon.js";
-import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";
-import {VideoIcon} from "~/client/icons/video_icon.js";
-import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {
@@ -185,11 +169,6 @@ import {DocumentContentCover} from "~/shared/documents/document_content_cover.js
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {
-    getFileAudioContentTypes,
-    getFileImageContentTypes,
-    getFileVideoContentTypes,
-} from "~/shared/files/file_content_type.js";
 import {FileEntityId, parseFileEntityIdFromUrl} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -4378,172 +4357,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         // document.
         if (!hasEditAccessLevel) return emptyArray;
 
-        const insertMenuActions: Array<Array<MenuAction>> = [];
-
-        if (schema.nodes.file) {
-            insertMenuActions.push([
-                {
-                    label: "Image",
-                    icon: <Image />,
-                    onPress: () => {
-                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
-                            multiple: true,
-                            acceptContentTypes: getFileImageContentTypes(),
-                        })
-                            .then(files => {
-                                if (files.length === 0) return;
-                                if (!viewRef.current) return;
-                                insertContentFiles(viewRef.current, files);
-                            })
-                            .catch(scheduleUncaughtError);
-                    },
-                },
-                {
-                    label: "Video",
-                    icon: <VideoIcon />,
-                    onPress: () => {
-                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
-                            multiple: true,
-                            acceptContentTypes: getFileVideoContentTypes(),
-                        })
-                            .then(files => {
-                                if (files.length === 0) return;
-                                if (!viewRef.current) return;
-                                insertContentFiles(viewRef.current, files);
-                            })
-                            .catch(scheduleUncaughtError);
-                    },
-                },
-                {
-                    label: "Audio",
-                    icon: <WaveformIcon />,
-                    onPress: () => {
-                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
-                            multiple: true,
-                            acceptContentTypes: getFileAudioContentTypes(),
-                        })
-                            .then(files => {
-                                if (files.length === 0) return;
-                                if (!viewRef.current) return;
-                                insertContentFiles(viewRef.current, files);
-                            })
-                            .catch(scheduleUncaughtError);
-                    },
-                },
-                {
-                    label: "File",
-                    icon: <File />,
-                    onPress: () => {
-                        selectFiles(assertExists(viewRef.current?.dom.parentElement), {
-                            multiple: true,
-                        })
-                            .then(files => {
-                                if (files.length === 0) return;
-                                if (!viewRef.current) return;
-                                insertContentFiles(viewRef.current, files);
-                            })
-                            .catch(scheduleUncaughtError);
-                    },
-                },
-            ]);
-        }
-
-        const insertListMenuActions: Array<MenuAction> = [];
-        insertMenuActions.push(insertListMenuActions);
-
-        insertListMenuActions.push(
-            {
-                label: "Bullet list",
-                icon: <ListBullets />,
-                onPress: () => {
-                    insertContentUnorderedListItem(assertExists(viewRef.current));
-                },
-            },
-            {
-                label: "Number list",
-                icon: <ListNumbers />,
-                onPress: () => {
-                    insertContentOrderedListItem(assertExists(viewRef.current));
-                },
-            },
-        );
-
-        if (schema.nodes.checkListItem) {
-            insertListMenuActions.push({
-                label: "Check list",
-                icon: <ListChecks />,
-                onPress: () => {
-                    insertContentCheckListItem(assertExists(viewRef.current));
-                },
-            });
-        }
-
-        if (schema.nodes.heading) {
-            insertMenuActions.push([
-                {
-                    label: "Heading 1",
-                    icon: <TextHOne />,
-                    onPress: () => {
-                        insertContentHeading(assertExists(viewRef.current), 1);
-                    },
-                },
-                {
-                    label: "Heading 2",
-                    icon: <TextHTwo />,
-                    onPress: () => {
-                        insertContentHeading(assertExists(viewRef.current), 2);
-                    },
-                },
-                {
-                    label: "Heading 3",
-                    icon: <TextHThree />,
-                    onPress: () => {
-                        insertContentHeading(assertExists(viewRef.current), 3);
-                    },
-                },
-            ]);
-        }
-
-        const insertOtherMenuActions: Array<MenuAction> = [];
-        insertMenuActions.push(insertOtherMenuActions);
-
-        if (process.env.NODE_ENV !== "production") {
-            insertOtherMenuActions.push({
-                label: "Table",
-                icon: <Table />,
-                onPress: () => {
-                    insertContentTable(assertExists(viewRef.current));
-                },
-            });
-        }
-
-        if (schema.nodes.divider) {
-            insertOtherMenuActions.push({
-                label: "Divider",
-                icon: <Minus />,
-                onPress: () => {
-                    insertContentDivider(assertExists(viewRef.current));
-                },
-            });
-        }
-
-        insertOtherMenuActions.push(
-            {
-                label: "Quote block",
-                icon: <QuoteBlockIcon />,
-                onPress: () => {
-                    insertContentQuoteBlock(assertExists(viewRef.current));
-                },
-            },
-            {
-                label: "Code block",
-                icon: <CodeBlockIcon />,
-                onPress: () => {
-                    insertContentCodeBlock(assertExists(viewRef.current));
-                },
-            },
-        );
-
         return [
             [
                 {
@@ -4570,20 +4383,11 @@ function ContentEditor<Content extends ContentWithReferences>(
                     hasChildren: true,
                     key: "insert",
                     label: "Insert",
-                    actions: insertMenuActions,
+                    actions: getContentEditorInsertMenuActions({schema, viewRef}),
                 },
             ],
         ];
-    }, [
-        canRedo,
-        canUndo,
-        clientInfo.isAppleDevice,
-        hasEditAccessLevel,
-        schema.nodes.checkListItem,
-        schema.nodes.divider,
-        schema.nodes.file,
-        schema.nodes.heading,
-    ]);
+    }, [canRedo, canUndo, clientInfo.isAppleDevice, hasEditAccessLevel, schema]);
 
     // Manually add context menu actions on `contextmenu` event since we can't
     // render a `<ContextMenu>` component which would break our

@@ -1,5 +1,5 @@
 import {Node, NodeType, ResolvedPos} from "prosemirror-model";
-import {Command, NodeSelection, Selection, TextSelection} from "prosemirror-state";
+import {Command, NodeSelection, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {createToggleBlockTypeCommand} from "~/client/content/internal/helpers/create_toggle_block_type_command.js";
 import {createToggleListItemsCommand} from "~/client/content/internal/helpers/create_toggle_list_items_command.js";
@@ -83,10 +83,15 @@ function getInsertPosOrSelection(selection: Selection, node: Node | NodeType): n
  *
  * @param commandIfNotEmpty is an optional command to run if the editor selection isn't empty
  */
-function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
+function insertNode(
+    view: EditorView,
+    selection: Selection,
+    node: Node,
+    commandIfNotEmpty?: {command: Command; alwaysDeleteSelection: boolean},
+) {
     const {state} = view;
 
-    const insertPosOrSelection = getInsertPosOrSelection(view.state.selection, node);
+    const insertPosOrSelection = getInsertPosOrSelection(selection, node);
 
     if (
         commandIfNotEmpty &&
@@ -95,7 +100,30 @@ function insertNode(view: EditorView, node: Node, commandIfNotEmpty?: Command) {
         insertPosOrSelection.from !== insertPosOrSelection.to
     ) {
         view.focus();
-        commandIfNotEmpty(state, view.dispatch, view);
+
+        const dispatch = (transaction: Transaction) => {
+            // Make sure we delete the selection regardless of what `commandIfNotEmpty()`'s
+            // implementation is.
+            if (
+                insertPosOrSelection instanceof Selection &&
+                !insertPosOrSelection.empty &&
+                commandIfNotEmpty.alwaysDeleteSelection
+            ) {
+                insertPosOrSelection.map(transaction.doc, transaction.mapping).replace(transaction);
+            }
+
+            view.dispatch(transaction);
+        };
+
+        if (commandIfNotEmpty.command(state, dispatch, view)) {
+            return;
+        }
+
+        if (commandIfNotEmpty.alwaysDeleteSelection) {
+            // If `commandIfNotEmpty.command()` did nothing, we still want to delete the
+            // selection if it's not empty.
+            dispatch(view.state.tr);
+        }
         return;
     }
 
@@ -158,56 +186,90 @@ export function findInsertedNodeAfterReplaceRangeWith(
     return null;
 }
 
-export function insertContentUnorderedListItem(view: EditorView) {
+export function insertContentUnorderedListItem(
+    view: EditorView,
+    selection: Selection = view.state.selection,
+    {alwaysDeleteSelection = false}: {alwaysDeleteSelection?: boolean} = {},
+) {
     const {schema} = view.state;
 
     const node = schema.node("unorderedListItem", {}, [schema.node("paragraph")]);
 
-    insertNode(view, node, createToggleListItemsCommand(node.type));
+    insertNode(view, selection, node, {
+        command: createToggleListItemsCommand(node.type),
+        alwaysDeleteSelection,
+    });
 }
 
-export function insertContentOrderedListItem(view: EditorView) {
+export function insertContentOrderedListItem(
+    view: EditorView,
+    selection: Selection = view.state.selection,
+    {alwaysDeleteSelection = false}: {alwaysDeleteSelection?: boolean} = {},
+) {
     const {schema} = view.state;
 
     const node = schema.node("orderedListItem", {}, [schema.node("paragraph")]);
 
-    insertNode(view, node, createToggleListItemsCommand(node.type));
+    insertNode(view, selection, node, {
+        command: createToggleListItemsCommand(node.type),
+        alwaysDeleteSelection,
+    });
 }
 
-export function insertContentCheckListItem(view: EditorView) {
+export function insertContentCheckListItem(
+    view: EditorView,
+    selection: Selection = view.state.selection,
+    {alwaysDeleteSelection = false}: {alwaysDeleteSelection?: boolean} = {},
+) {
     const {schema} = view.state;
 
     const node = schema.node("checkListItem", {}, [schema.node("paragraph")]);
 
-    insertNode(view, node, createToggleListItemsCommand(node.type));
+    insertNode(view, selection, node, {
+        command: createToggleListItemsCommand(node.type),
+        alwaysDeleteSelection,
+    });
 }
 
-export function insertContentHeading(view: EditorView, level: 1 | 2 | 3) {
+export function insertContentHeading(
+    view: EditorView,
+    level: 1 | 2 | 3,
+    selection: Selection = view.state.selection,
+    {alwaysDeleteSelection = false}: {alwaysDeleteSelection?: boolean} = {},
+) {
     const {schema} = view.state;
 
-    insertNode(
-        view,
-        schema.node("heading", {level}),
-        createToggleBlockTypeCommand(schema.nodes.heading!, {level}),
-    );
+    insertNode(view, selection, schema.node("heading", {level}), {
+        command: createToggleBlockTypeCommand(schema.nodes.heading!, {level}),
+        alwaysDeleteSelection,
+    });
 }
 
-export function insertContentDivider(view: EditorView) {
+export function insertContentDivider(
+    view: EditorView,
+    selection: Selection = view.state.selection,
+) {
     const {schema} = view.state;
 
-    insertNode(view, schema.node("divider"));
+    insertNode(view, selection, schema.node("divider"));
 }
 
-export function insertContentQuoteBlock(view: EditorView) {
+export function insertContentQuoteBlock(
+    view: EditorView,
+    selection: Selection = view.state.selection,
+) {
     const {schema} = view.state;
 
-    insertNode(view, schema.node("quoteBlock", {}, [schema.node("paragraph")]));
+    insertNode(view, selection, schema.node("quoteBlock", {}, [schema.node("paragraph")]));
 }
 
-export function insertContentCodeBlock(view: EditorView) {
+export function insertContentCodeBlock(
+    view: EditorView,
+    selection: Selection = view.state.selection,
+) {
     const {schema} = view.state;
 
-    insertNode(view, schema.node("codeBlock", {}, [schema.node("codeBlockLine")]));
+    insertNode(view, selection, schema.node("codeBlock", {}, [schema.node("codeBlockLine")]));
 }
 
 export function insertContentFiles(
@@ -215,16 +277,17 @@ export function insertContentFiles(
         insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
     },
     files: ReadonlyArray<File>,
+    selection: Selection = view.state.selection,
 ) {
     const insertPosOrSelection =
         // If the user has selected a file in a file row then let's try inserting our
         // files into the file row instead of below the file row.
-        view.state.selection instanceof NodeSelection &&
-        view.state.selection.node.type.name === "file" &&
-        view.state.selection.$anchor.parent.type.name === "fileRow"
-            ? view.state.selection.anchor + 1
+        selection instanceof NodeSelection &&
+        selection.node.type.name === "file" &&
+        selection.$anchor.parent.type.name === "fileRow"
+            ? selection.anchor + 1
             : getInsertPosOrSelection(
-                  view.state.selection,
+                  selection,
                   isInContentTable(view.state)
                       ? assertExists(view.state.schema.nodes.fileRowTable)
                       : assertExists(view.state.schema.nodes.fileRow),
@@ -233,10 +296,10 @@ export function insertContentFiles(
     view.insertFiles(insertPosOrSelection, files);
 }
 
-export function insertContentTable(view: EditorView) {
+export function insertContentTable(view: EditorView, selection: Selection = view.state.selection) {
     const {schema} = view.state;
     const tableCell = schema.node("tableCell", {}, [schema.node("paragraph")]);
     const tableRow = schema.node("tableRow", {}, [tableCell, tableCell]);
     const table = schema.node("table", {}, [tableRow, tableRow]);
-    insertNode(view, table);
+    insertNode(view, selection, table);
 }
