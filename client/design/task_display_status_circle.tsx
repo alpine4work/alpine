@@ -9,7 +9,7 @@ import {
     taskDisplayStatusPressedCircleClassNameByDisplayStatus,
     taskDisplayStatusUnpressedCircleClassNameByDisplayStatus,
 } from "~/client/design/task_display_status_circle_html.js";
-import {buttonStyles} from "~/client/styles/styles.js";
+import {buttonStyles, colorSchemeVars} from "~/client/styles/styles.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
@@ -59,7 +59,7 @@ export function TaskDisplayStatusCircle({
     const sprinkles = null;
 
     const sizeInt = parseInt(size, 10);
-    const activeHalfCircleMargin = getTaskDisplayStatusActiveHalfCircleMargin(sizeInt);
+    const activeHalfCircleMargin = getTaskDisplayStatusActiveHalfCircleMargin(sizeInt) + 1;
 
     let ariaLabel;
     switch (displayStatus) {
@@ -77,7 +77,7 @@ export function TaskDisplayStatusCircle({
     }
 
     return (
-        <div
+        <span
             role="img"
             aria-label={ariaLabel}
             className={
@@ -89,7 +89,14 @@ export function TaskDisplayStatusCircle({
                           displayStatus,
                       )
             }
-            style={{width: spacing[size], height: spacing[size]}}
+            style={{
+                width: spacing[size],
+                height: spacing[size],
+                boxShadow:
+                    displayStatus === "OpenInactive" || displayStatus === "OpenActive"
+                        ? `inset 0 0 0 1px ${colorSchemeVars["grey-40"]}`
+                        : undefined,
+            }}
         >
             {isPressed && displayStatus === "Closed" && (
                 // For accent buttons, instead of choosing a darker background color shade when
@@ -102,7 +109,7 @@ export function TaskDisplayStatusCircle({
                 // When we added this there was a happy accident. The text color also got
                 // darker! This is more fitting for the physical analogy of a button being
                 // pressed down.
-                <div
+                <span
                     className={taskDisplayStatusClosedPressedOverlayClassName}
                     style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                 />
@@ -119,16 +126,12 @@ export function TaskDisplayStatusCircle({
                 />
             )}
             {displayStatus === "OpenActive" && (
-                <div
+                <span
                     className={taskDisplayStatusActiveHalfCircleContainerClassName}
                     style={{
-                        width: `calc(${parseRemLength(size) / 2}rem - ${
-                            1 + activeHalfCircleMargin
-                        }px)`,
-                        height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
-                        transform: `translateY(${activeHalfCircleMargin}px) translateX(${
-                            parseRemLength(size) / 2
-                        }rem) translateX(-1px)`,
+                        width: `calc(${parseRemLength(size) / 2}rem - ${activeHalfCircleMargin}px)`,
+                        height: `calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
+                        transform: `translateY(${activeHalfCircleMargin}px) translateX(${-activeHalfCircleMargin}px)`,
                         // NOTE(calebmer): Safari appears to have a bug where `overflow: hidden` is not
                         // actually clipping our circle? After some research it's a known bug that
                         // Safari with `overflow: hidden` and `border-radius` doesn't always work. A
@@ -142,11 +145,11 @@ export function TaskDisplayStatusCircle({
                         maskImage: "linear-gradient(white, white)",
                     }}
                 >
-                    <div
+                    <span
                         className={taskDisplayStatusActiveHalfCircleClassName}
                         style={{
-                            width: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
-                            height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
+                            width: `calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
+                            height: `calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
                         }}
                     />
                     {isPressed && (
@@ -160,7 +163,7 @@ export function TaskDisplayStatusCircle({
                         // When we added this there was a happy accident. The text color also got
                         // darker! This is more fitting for the physical analogy of a button being
                         // pressed down.
-                        <div
+                        <span
                             className={taskDisplayStatusActivePressedOverlayClassName}
                             style={{
                                 opacity: buttonStyles.buttonPressedOverlayOpacity,
@@ -169,8 +172,8 @@ export function TaskDisplayStatusCircle({
                             }}
                         />
                     )}
-                </div>
+                </span>
             )}
-        </div>
+        </span>
     );
 }

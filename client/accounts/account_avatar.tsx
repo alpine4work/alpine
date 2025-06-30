@@ -43,7 +43,7 @@ export function AccountAvatar({
     // `renderAccountAvatar()` for code that needs to render avatars in
     // `<ContentEditor>`.
     return (
-        <div
+        <span
             className={accountAvatarClassName}
             style={{
                 width: spacing[size],
@@ -55,14 +55,14 @@ export function AccountAvatar({
                         : undefined,
             }}
         >
-            <div
+            <span
                 className={accountAvatarInitialsClassName}
                 style={{transform: `scale(${parseInt(size, 10) / 8})`}}
                 aria-hidden="true"
             >
                 {firstInitial.toUpperCase()}
                 {lastInitial?.toUpperCase()}
-            </div>
-        </div>
+            </span>
+        </span>
     );
 }

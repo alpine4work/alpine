@@ -87,6 +87,18 @@ export abstract class HtmlContainerGenerator implements HtmlGenerator {
         return null;
     }
 
+    // An API similar to `Element.children` that only returns child elements.
+    // Instead of a property this is a function that returns an iterable.
+    //
+    // https://developer.mozilla.org/en-US/docs/Web/API/Element/children
+    public *children(): Iterable<HtmlElementGenerator> {
+        for (const generator of this._children) {
+            if (generator instanceof HtmlElementGenerator) {
+                yield generator;
+            }
+        }
+    }
+
     public appendChild<Node extends HtmlGenerator>(node: Node): Node {
         this._children.push(node);
 

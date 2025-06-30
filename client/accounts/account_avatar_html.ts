@@ -1,8 +1,8 @@
+import GraphemeSplitter from "grapheme-splitter";
 import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
 import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 
 export const accountAvatarClassName = sprinkles({
@@ -17,6 +17,7 @@ export const accountAvatarClassName = sprinkles({
 });
 
 export const accountAvatarInitialsClassName = sprinkles({
+    display: "block",
     // These are default CSS styles but make sure we don't inherit other styles
     // when in a `navigation_bar.tsx` title for instance.
     fontSize: "50",
@@ -25,6 +26,8 @@ export const accountAvatarInitialsClassName = sprinkles({
 });
 
 export function getAccountAvatarInitials(accountData: AccountModelData) {
+    const splitter = new GraphemeSplitter();
+
     // TODO(calebmer): If we ever support eastern name order of family name first
     // then given name, the initials should preserve that order. We shouldn't put
     // the given name initial first.
@@ -35,9 +38,9 @@ export function getAccountAvatarInitials(accountData: AccountModelData) {
     // split, but surrogate pairs will be preserved.
     //
     // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/@@iterator
-    const firstInitial: string = iterateGraphemes(givenName).next().value;
+    const firstInitial: string = splitter.iterateGraphemes(givenName).next().value;
     const lastInitial: string | null = familyName
-        ? iterateGraphemes(familyName).next().value
+        ? splitter.iterateGraphemes(familyName).next().value
         : null;
 
     return {firstInitial, lastInitial};
@@ -61,7 +64,7 @@ export function renderAccountAvatar({
 
     const {firstInitial, lastInitial} = getAccountAvatarInitials(accountData);
 
-    const outerHtml = new HtmlElementGenerator("div");
+    const outerHtml = new HtmlElementGenerator("span");
 
     outerHtml.setAttribute("class", accountAvatarClassName);
 
@@ -73,7 +76,7 @@ export function renderAccountAvatar({
 
     outerHtml.setAttribute("style", outerStyleString);
 
-    const innerHtml = outerHtml.appendChild(new HtmlElementGenerator("div"));
+    const innerHtml = outerHtml.appendChild(new HtmlElementGenerator("span"));
 
     innerHtml.setAttribute("class", accountAvatarInitialsClassName);
     innerHtml.setAttribute("style", `transform: scale(${parseInt(size, 10) / 8})`);

@@ -1,12 +1,14 @@
 // Since we can't import `shared/tasks` from `client/design`, manually inline
 // the `TaskDisplayStatus` type. This component lives in `client/design` so we
 // can use it anywhere in the product without needing to depend on all the
+// `client/tasks` code.
 
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {
     accentThemeBackgroundColor,
     accentThemeForegroundColor,
+    colorSchemeVars,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
@@ -14,7 +16,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 
-// `client/tasks` code.
 type TaskDisplayStatus = "OpenInactive" | "OpenActive" | "Closed";
 
 export type TaskDisplayStatusCircleSize = "3" | "4" | "5" | "6" | "7";
@@ -30,10 +31,6 @@ const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boo
         justifyContent: "center",
         alignItems: "center",
         overflow: "hidden",
-        border:
-            displayStatus === "OpenInactive" || displayStatus === "OpenActive"
-                ? "grey-40"
-                : undefined,
         color: displayStatus === "Closed" ? accentThemeForegroundColor : undefined,
         backgroundColor:
             displayStatus === "Closed"
@@ -52,6 +49,7 @@ export const taskDisplayStatusPressedCircleClassNameByDisplayStatus = new Defaul
 );
 
 export const taskDisplayStatusClosedPressedOverlayClassName = sprinkles({
+    display: "block",
     position: "absolute",
     zIndex: "10",
     inset: "0",
@@ -60,13 +58,15 @@ export const taskDisplayStatusClosedPressedOverlayClassName = sprinkles({
 });
 
 export const taskDisplayStatusActiveHalfCircleContainerClassName = sprinkles({
+    display: "block",
     position: "absolute",
     top: "0",
-    left: "0",
+    right: "0",
     overflow: "hidden",
 });
 
 export const taskDisplayStatusActiveHalfCircleClassName = sprinkles({
+    display: "block",
     position: "absolute",
     top: "0",
     right: "0",
@@ -75,6 +75,7 @@ export const taskDisplayStatusActiveHalfCircleClassName = sprinkles({
 });
 
 export const taskDisplayStatusActivePressedOverlayClassName = sprinkles({
+    display: "block",
     position: "absolute",
     zIndex: "10",
     top: "0",
@@ -105,12 +106,15 @@ export function getTaskDisplayStatusActiveHalfCircleMargin(sizeInt: number) {
 export function renderTaskDisplayStatusCircle({
     displayStatus,
     size,
+    scale = 1,
 }: {
     displayStatus: TaskDisplayStatus;
     size: TaskDisplayStatusCircleSize;
+    scale?: number;
 }) {
     const sizeInt = parseInt(size, 10);
-    const activeHalfCircleMargin = getTaskDisplayStatusActiveHalfCircleMargin(sizeInt);
+    const activeHalfCircleMargin =
+        (getTaskDisplayStatusActiveHalfCircleMargin(sizeInt * scale) + 1) / scale;
 
     let ariaLabel;
     switch (displayStatus) {
@@ -127,7 +131,7 @@ export function renderTaskDisplayStatusCircle({
             throw exhaustive(displayStatus);
     }
 
-    const html = new HtmlElementGenerator("div");
+    const html = new HtmlElementGenerator("span");
 
     html.setAttribute("role", "img");
     html.setAttribute("aria-label", ariaLabel);
@@ -136,6 +140,15 @@ export function renderTaskDisplayStatusCircle({
         taskDisplayStatusUnpressedCircleClassNameByDisplayStatus.getOrSetDefault(displayStatus),
     );
     html.setAttribute("style", `width: ${spacing[size]}; height: ${spacing[size]}`);
+
+    if (displayStatus === "OpenInactive" || displayStatus === "OpenActive") {
+        html.setAttribute(
+            "style",
+            `${html.getAttribute("style")}; box-shadow: inset 0 0 0 ${1 / scale}px ${
+                colorSchemeVars["grey-40"]
+            }`,
+        );
+    }
 
     if (displayStatus === "Closed") {
         html.appendChild(
@@ -150,7 +163,7 @@ export function renderTaskDisplayStatusCircle({
     }
 
     if (displayStatus === "OpenActive") {
-        const activeHalfCircleContainerHtml = html.appendChild(new HtmlElementGenerator("div"));
+        const activeHalfCircleContainerHtml = html.appendChild(new HtmlElementGenerator("span"));
 
         activeHalfCircleContainerHtml.setAttribute(
             "class",
@@ -160,11 +173,9 @@ export function renderTaskDisplayStatusCircle({
         activeHalfCircleContainerHtml.setAttribute(
             "style",
             [
-                `width: calc(${parseRemLength(size) / 2}rem - ${1 + activeHalfCircleMargin}px)`,
-                `height: calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
-                `transform: translateY(${activeHalfCircleMargin}px) translateX(${
-                    parseRemLength(size) / 2
-                }rem) translateX(-1px)`,
+                `width: calc(${parseRemLength(size) / 2}rem - ${activeHalfCircleMargin}px)`,
+                `height: calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
+                `transform: translateY(${activeHalfCircleMargin}px) translateX(${-activeHalfCircleMargin}px)`,
                 // NOTE(calebmer): Safari appears to have a bug where `overflow: hidden` is not
                 // actually clipping our circle? After some research it's a known bug that
                 // Safari with `overflow: hidden` and `border-radius` doesn't always work. A
@@ -180,7 +191,7 @@ export function renderTaskDisplayStatusCircle({
         );
 
         const activeHalfCircleHtml = activeHalfCircleContainerHtml.appendChild(
-            new HtmlElementGenerator("div"),
+            new HtmlElementGenerator("span"),
         );
 
         activeHalfCircleHtml.setAttribute("class", taskDisplayStatusActiveHalfCircleClassName);
@@ -188,8 +199,8 @@ export function renderTaskDisplayStatusCircle({
         activeHalfCircleHtml.setAttribute(
             "style",
             [
-                `width: calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
-                `height: calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
+                `width: calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
+                `height: calc(${spacing[size]} - ${activeHalfCircleMargin * 2}px)`,
             ].join("; "),
         );
     }

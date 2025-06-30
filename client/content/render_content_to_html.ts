@@ -35,6 +35,7 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -43,6 +44,7 @@ import {
     HtmlFragmentGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
+import {htmlPTagOmissionTagNames} from "~/shared/helpers/html/html_p_tag_omission_tag_names.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -260,7 +262,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         };
     };
 
-    return serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
+    const html = serializeProsemirrorFragmentToHtmlGenerator(content.doc.content, {
         withPosAttribute,
         startPos: 1,
         decorations,
@@ -717,4 +719,46 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
             },
         },
     });
+
+    // Run a development environment validation that `<p>` tags can't have nested
+    // `<div>` tags (or other block elements). On server side render, web browsers
+    // will parse:
+    //
+    // ```html
+    // <p>Hello, <div style="display: inline; font-weight: bold">world</div>!</p>
+    // ```
+    //
+    // ...as:
+    //
+    // ```html
+    // <p>Hello, </p><div style="display: inline; font-weight: bold">world</div>!
+    // ```
+    //
+    // To fix this, you should never put an element like `<div>` inside a `<p>`
+    // tag. Instead use `<span>`.
+    //
+    // We have a development validation to loudly error if you try to render a
+    // `<div>` (or other block element) inside a `<p>` instead of letting the
+    // browser silently perform tag omission logic.
+    if (process.env.NODE_ENV !== "production") {
+        const loop = (isParagraph: boolean, generator: HtmlElementGenerator) => {
+            if (isParagraph && htmlPTagOmissionTagNames.get().has(generator.tagName)) {
+                throw new InternalError(
+                    `Can’t render \`<p>\` tag to HTML with \`<${generator.tagName}>\` child`,
+                );
+            }
+
+            isParagraph ||= generator.tagName === "p";
+
+            for (const childGenerator of generator.children()) {
+                loop(isParagraph, childGenerator);
+            }
+        };
+
+        for (const childGenerator of html.children()) {
+            loop(false, childGenerator);
+        }
+    }
+
+    return html;
 }
