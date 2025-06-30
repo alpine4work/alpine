@@ -99,6 +99,8 @@ export async function getContentReferences(
     referencedIds: ContentReferencedIds,
     {withPreloadedFiles = false}: {withPreloadedFiles?: boolean} = {},
 ): Promise<ContentReferences> {
+    const searchEntityIds = Array.from(referencedIds.searchEntityIds);
+
     // IMPORTANT: This function may be called multiple times on the same content in
     // an action. So all data loading functions are cached.
     //
@@ -109,12 +111,19 @@ export async function getContentReferences(
     //
     // File preloading is not cached. If the caller explicitly opts in with
     // `withPreloadedFiles` then they shouldn't expect results to be cached.
-    const [accounts, fileReferences, fileEntities] = await runAllPromises([
+    const [accounts, searchEntities, fileReferences, fileEntities] = await runAllPromises([
         runAllPromises(
             mapIterable(referencedIds.accountIds, accountId => {
                 // You may have copy/pasted some content from a different space. In that case a
                 // mentioned user may not exist.
                 return getAccountIfExists(context, spaceId, accountId);
+            }),
+        ),
+        runAllPromises(
+            mapIterable(searchEntityIds, entityId => {
+                // You may have copy/pasted some content from a different space. In that case a
+                // mentioned entity may not exist.
+                return context.content.getSearchEntityIfPossible(spaceId, entityId);
             }),
         ),
         runAllPromises(
@@ -204,7 +213,10 @@ export async function getContentReferences(
             mapIterable(
                 referencedIds.fileEntityIds,
                 async (entityId): Promise<[FileEntityId, Result<FileEntityModel>] | null> => {
-                    const entityResult = await context.fileEntity.getIfPossible(spaceId, entityId);
+                    const entityResult = await context.content.getFileEntityIfPossible(
+                        spaceId,
+                        entityId,
+                    );
                     if (!entityResult) return null;
                     return [entityId, entityResult];
                 },
@@ -219,6 +231,14 @@ export async function getContentReferences(
         }),
     );
 
+    const searchEntityById = new Map(
+        filterMapIterable(searchEntities, (searchEntity, index) => {
+            if (!searchEntity) return;
+            const searchEntityId = searchEntityIds[index]!;
+            return [searchEntityId, searchEntity];
+        }),
+    );
+
     const fileById = new Map(
         filterMapIterable(fileReferences, fileReference => {
             if (!fileReference) return;
@@ -230,6 +250,7 @@ export async function getContentReferences(
 
     return {
         accountById,
+        searchEntityById,
         fileById: fileById.size > 0 ? fileById : undefined,
         fileEntityById: fileEntityById.size > 0 ? fileEntityById : undefined,
     };

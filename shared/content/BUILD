@@ -7,6 +7,7 @@ ts_project(
     deps = [
         "//:node_modules/@vanilla-extract/dynamic",
         "//:node_modules/classnames",
+        "//:node_modules/grapheme-splitter",
         "//:node_modules/phosphor-react",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
@@ -18,6 +19,7 @@ ts_project(
         "//shared/helpers",
         "//shared/prosemirror",
         "//shared/schema",
+        "//shared/search",
         "//shared/spaces",
     ],
 )

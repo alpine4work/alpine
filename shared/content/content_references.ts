@@ -9,6 +9,11 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {
+    SearchMentionEntityId,
+    SearchMentionEntityIdSchema,
+} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type ContentReferences = SchemaType<typeof ContentReferencesSchema>;
@@ -26,6 +31,18 @@ export const ContentReferencesSchema = Schema.object({
      * Accounts referenced in mentions.
      */
     accountById: Schema.map(Schema.id<ContentMentionAccountId>(), AccountModel.schema),
+
+    /**
+     * Search entities referenced in mentions.
+     */
+    searchEntityById: Schema.map(
+        SearchMentionEntityIdSchema,
+        Schema.booleanUnion(
+            "isPrivate",
+            Schema.object({isPrivate: Schema.value(true)}),
+            Schema.object({isPrivate: Schema.value(false), entity: SearchEntityModel.schema}),
+        ),
+    ),
 
     /**
      * Files attached to the content.
@@ -93,6 +110,7 @@ export type ContentWithReferences = {
 
 export const emptyContentReferences: ContentReferences = {
     accountById: emptyMap,
+    searchEntityById: emptyMap,
 };
 
 /**
@@ -101,10 +119,14 @@ export const emptyContentReferences: ContentReferences = {
 export function isEmptyContentReferences(references: ContentReferences): boolean {
     // If you add more data to `ContentReferences` in the future, you'll
     // need to come back and update this function.
-    assertEqualTypes<keyof ContentReferences, "accountById" | "fileById" | "fileEntityById">();
+    assertEqualTypes<
+        keyof ContentReferences,
+        "accountById" | "searchEntityById" | "fileById" | "fileEntityById"
+    >();
 
     return (
         references.accountById.size === 0 &&
+        references.searchEntityById.size === 0 &&
         (references.fileById?.size ?? 0) === 0 &&
         (references.fileEntityById?.size ?? 0) === 0
     );
@@ -135,8 +157,33 @@ export function mergeContentReferences(
         accountById.set(accountId, existingAccount ? existingAccount.merge(account) : account);
     }
 
+    const searchEntityById = new Map<
+        SearchMentionEntityId,
+        {isPrivate: false; entity: SearchEntityModel} | {isPrivate: true}
+    >();
+
+    // Merge search entities together...
+    for (const [entityId, entity] of concatIterables(
+        references1.searchEntityById,
+        references2.searchEntityById,
+    )) {
+        const existingEntity = searchEntityById.get(entityId);
+
+        if (!existingEntity || existingEntity.isPrivate) {
+            searchEntityById.set(entityId, entity);
+        } else if (entity.isPrivate) {
+            searchEntityById.set(entityId, existingEntity);
+        } else {
+            searchEntityById.set(entityId, {
+                isPrivate: false,
+                entity: existingEntity.entity.merge(entity.entity),
+            });
+        }
+    }
+
     return {
         accountById,
+        searchEntityById,
         fileById: mergeContentReferencesFileById(references1.fileById, references2.fileById),
         fileEntityById: mergeContentReferencesFileEntityById(
             references1.fileEntityById,

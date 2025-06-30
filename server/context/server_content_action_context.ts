@@ -1,5 +1,5 @@
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_module_base.js";
+import {ContentContextModuleBase} from "~/server/context/content_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
@@ -9,8 +9,8 @@ import {
 import {Context} from "~/shared/context/context.js";
 
 export type ServerContentExtraContextModules = {
+    content: ContentContextModuleBase;
     files: FilesContextModuleBase;
-    fileEntity: FileEntityContextModuleBase;
     r2: CloudflareR2ContextModule;
 };
 

@@ -1,6 +1,6 @@
 import {ApnsContextModuleBase} from "~/server/apns/apns_context_module.js";
 import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_context_module.js";
-import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_module_base.js";
+import {ContentContextModuleBase} from "~/server/context/content_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
@@ -24,8 +24,8 @@ type JobQueueServiceExtraContextModules = {
 };
 
 type JobQueueServiceActionExtraContextModules = {
+    content: ContentContextModuleBase;
     tasks: TaskContextModuleBase;
-    fileEntity: FileEntityContextModuleBase;
 };
 
 export type JobQueueServiceProcessContextModules = ServerProcessContextModules &

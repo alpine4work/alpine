@@ -9,7 +9,7 @@ import {
     getMentionCountByAccountIdInContent,
     getMentionedAccountIdsInContent,
 } from "~/server/content/get_mentioned_account_ids_in_content.js";
-import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_module_base.js";
+import {ContentContextModuleBase} from "~/server/context/content_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContext,
@@ -175,8 +175,8 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 
 type ForumActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
+    content: ContentContextModuleBase;
     files: FilesContextModuleBase;
-    fileEntity: FileEntityContextModuleBase;
     r2: CloudflareR2ContextModule;
 };
 

@@ -13,7 +13,7 @@ import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
-import {FileEntityContextModuleBase} from "~/server/context/file_entity_context_module_base.js";
+import {ContentContextModuleBase} from "~/server/context/content_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
     ServerActionContextModules,
@@ -70,6 +70,7 @@ import {
     NotificationCreateTaskCommentEvent,
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -168,8 +169,9 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 type InboxActionExtraBroadcastContextModules = {
     edge: EdgeServiceContextModuleBase;
+    content: ContentContextModuleBase;
+    opensearch: OpensearchContextModule;
     files: FilesContextModuleBase;
-    fileEntity: FileEntityContextModuleBase;
     r2: CloudflareR2ContextModule;
 };
 

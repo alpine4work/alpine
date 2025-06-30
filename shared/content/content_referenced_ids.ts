@@ -14,6 +14,10 @@ import {
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {
+    SearchMentionEntityId,
+    SearchMentionEntityIdSchema,
+} from "~/shared/search/search_entity_id.js";
 
 /**
  * Just the IDs we need for loading a `ContentReferences` object. Useful to
@@ -24,6 +28,7 @@ export type ContentReferencedIds = SchemaType<typeof ContentReferencedIdsSchema>
 
 export const ContentReferencedIdsSchema = Schema.object({
     accountIds: Schema.set(Schema.id<ContentMentionAccountId>()),
+    searchEntityIds: Schema.set(SearchMentionEntityIdSchema),
     fileIds: Schema.set(Schema.id<FileId>()),
     fileEntityIds: Schema.set(FileEntityIdSchema),
 });
@@ -34,10 +39,14 @@ export const ContentReferencedIdsSchema = Schema.object({
 export function isEmptyContentReferencedIds(referencedIds: ContentReferencedIds): boolean {
     // If you add more data to `ContentReferencedIds` in the future, you'll
     // need to come back and update this function.
-    assertEqualTypes<keyof ContentReferencedIds, "accountIds" | "fileIds" | "fileEntityIds">();
+    assertEqualTypes<
+        keyof ContentReferencedIds,
+        "accountIds" | "searchEntityIds" | "fileIds" | "fileEntityIds"
+    >();
 
     return (
         referencedIds.accountIds.size === 0 &&
+        referencedIds.searchEntityIds.size === 0 &&
         referencedIds.fileIds.size === 0 &&
         referencedIds.fileEntityIds.size === 0
     );
@@ -90,6 +99,7 @@ export function collectContentReferencedIds(
     extraVisitor: ProsemirrorVisitor = {},
 ): ContentReferencedIds {
     const accountIds = new Set<ContentMentionAccountId>();
+    const searchEntityIds = new Set<SearchMentionEntityId>();
     const fileIds = new Set<FileId>();
     const fileEntityIds = new Set<FileEntityId>();
 
@@ -104,6 +114,8 @@ export function collectContentReferencedIds(
         visitAttr: (attr, value) => {
             if (attr === "mention") {
                 const mention: ContentMention = value;
+
+                // TODO(calebmer): Will add to `searchEntityIds` here in the future.
                 accountIds.add(mention.accountId);
             }
 
@@ -123,5 +135,5 @@ export function collectContentReferencedIds(
         },
     });
 
-    return {accountIds, fileIds, fileEntityIds};
+    return {accountIds, searchEntityIds, fileIds, fileEntityIds};
 }

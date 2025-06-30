@@ -26,10 +26,10 @@ import {
     TestApnsContextModule,
 } from "~/server/apns/apns_context_module.js";
 import {createServiceCloudflareR2ContextModule} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
+import {ContentContextModule} from "~/server/content/context_module/content_context_module.js";
 import {FilesContextModule} from "~/server/context/files_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {SesEmailContextModule} from "~/server/emails/ses_email_context_module.js";
-import {FileEntityContextModule} from "~/server/files/entity/file_entity_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
@@ -349,12 +349,12 @@ async function createAppService({
                         cache: new CacheContextModule(),
                         batch: new BatchContextModule(),
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
+                        content: new ContentContextModule(),
                         tasks: new TaskContextModule({
                             router: taskRealtimeServiceRouter,
                             tokenAgent,
                             dangerouslyEscalateToSystemContext,
                         }),
-                        fileEntity: new FileEntityContextModule(),
                     },
                     context => {
                         // The first time our server process runs in development, seed DynamoDB with

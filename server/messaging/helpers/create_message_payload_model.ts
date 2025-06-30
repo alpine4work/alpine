@@ -69,7 +69,7 @@ export async function getMessageContentPayloadModelFile(
         if (!file) throw new NotFoundError("File not found");
         return file;
     } else {
-        const fileEntityResult = await context.fileEntity.getIfPossible(spaceId, fileId);
+        const fileEntityResult = await context.content.getFileEntityIfPossible(spaceId, fileId);
 
         // Only returns null if we've exceeded the file entity recursion depth. If the
         // entity doesn't exist we return a result object with a not found error.

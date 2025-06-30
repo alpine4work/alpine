@@ -1,4 +1,5 @@
 import {FileChatAuthorizer} from "~/server/chat/data/chat_table.js";
+import {getFileEntityIfPossible} from "~/server/content/context_module/get_file_entity_if_possible.js";
 import {FileDocumentAuthorizer} from "~/server/documents/data/documents_table.js";
 import {
     FileAuthorizer,
@@ -9,7 +10,6 @@ import {
     getFileFromAttachment,
     startUploadingFile,
 } from "~/server/files/data/files_table.js";
-import {getFileEntityIfPossible} from "~/server/files/entity/get_file_entity_if_possible.js";
 import {FilePostAuthorizer} from "~/server/forum/data/forum_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/task_table.js";
