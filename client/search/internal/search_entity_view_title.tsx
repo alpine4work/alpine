@@ -5,6 +5,7 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
+import {brandIconDefaultColor} from "~/client/icons/brand/brand_icon_default_color.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
@@ -12,7 +13,7 @@ import {
     searchEntityViewTitleFontSize,
     searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
-import {contentStyles, searchStyles} from "~/client/styles/styles.js";
+import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -79,18 +80,10 @@ export function SearchEntityViewTitlePrefix({
                     height: contentStyles.paragraphLineHeightPx[spacingScale],
                     verticalAlign: "top",
                 }}
-                // Brand icons only render in the `grey-80` shade and above. So we can maintain
-                // proper contrast between the icon line and color splash. However, here we
-                // want to render a lighter line color (e.g. `grey-60`) to not distract from
-                // the result title. We calculate the opacity to get us from `grey-80` to a
-                // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
-                // color splash also gets lighter to maintain proper contrast between the lines
-                // and the color splash.
-                className={searchStyles.brandIconOpacityClassName}
             >
                 <IconContext.Provider
                     value={{
-                        color: searchStyles.brandIconColor,
+                        color: colorSchemeVars[brandIconDefaultColor],
                         size: spacing[searchEntityViewMediaSize],
                     }}
                 >

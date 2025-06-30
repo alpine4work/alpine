@@ -13,6 +13,7 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {brandIconDefaultColor} from "~/client/icons/brand/brand_icon_default_color.js";
 import {
     getInboxEntryDisplay,
     renderInboxEntryDisplaySummary,
@@ -29,7 +30,6 @@ import {
     backgroundColorVar,
     colorSchemeVars,
     overlayFadeOutAnimationDurationMs,
-    searchStyles,
 } from "~/client/styles/styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
@@ -735,25 +735,14 @@ export function InboxEntryView({
                                     backgroundColor: backgroundColorVar,
                                 }}
                             >
-                                <Box
-                                    // Brand icons only render in the `grey-80` shade and above. So we can maintain
-                                    // proper contrast between the icon line and color splash. However, here we
-                                    // want to render a lighter line color (e.g. `grey-60`) to not distract from
-                                    // the result title. We calculate the opacity to get us from `grey-80` to a
-                                    // lighter line color (e.g. `grey-60`) and apply it. By applying opacity the
-                                    // color splash also gets lighter to maintain proper contrast between the lines
-                                    // and the color splash.
-                                    className={searchStyles.brandIconOpacityClassName}
+                                <IconContext.Provider
+                                    value={{
+                                        color: colorSchemeVars[brandIconDefaultColor],
+                                        size: spacing["4"],
+                                    }}
                                 >
-                                    <IconContext.Provider
-                                        value={{
-                                            color: searchStyles.brandIconColor,
-                                            size: spacing["4"],
-                                        }}
-                                    >
-                                        {entryDisplay.brandIcon}
-                                    </IconContext.Provider>
-                                </Box>
+                                    {entryDisplay.brandIcon}
+                                </IconContext.Provider>
                             </Box>
                             {entry.loudNotificationCount > 0 && (
                                 <LoudNotificationBadge

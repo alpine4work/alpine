@@ -1,5 +1,6 @@
 import {IconContext} from "phosphor-react";
 import {memo, useContext} from "react";
+import {brandIconDefaultColor} from "~/client/icons/brand/brand_icon_default_color.js";
 import {
     brandIconSplashColorOpacity,
     brandIconSplashColorShade,
@@ -19,7 +20,7 @@ function PostBrandIcon({size, withoutSplash = false}: {size?: Spacing; withoutSp
         contextColor === colorSchemeVars["grey-90"] ||
         contextColor === colorSchemeVars["grey-100"]
             ? contextColor
-            : colorSchemeVars["grey-80"];
+            : colorSchemeVars[brandIconDefaultColor];
 
     const splashColorClassName = sprinkles({
         fill: mapObjectValues(brandIconSplashColorShade, shade => `orange-${shade}` as const),
