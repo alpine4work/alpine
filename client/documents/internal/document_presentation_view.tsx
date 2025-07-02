@@ -1,4 +1,4 @@
-import {Memo, useState} from "react";
+import {Memo, ReactNode, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {DocumentPresentationSlide} from "~/client/documents/internal/document_presentation_slide.js";
@@ -18,11 +18,13 @@ export function DocumentPresentationView({
     references,
     initialSlideIndex,
     fileAttachmentTarget,
+    contentCover,
 }: {
     slides: ReadonlyArray<DocumentPresentationSlide>;
     references: DocumentContentReferences;
     initialSlideIndex: number;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
+    contentCover?: ReactNode;
 }) {
     const clientInfo = useClientInfo();
 
@@ -242,6 +244,7 @@ export function DocumentPresentationView({
                         references={references}
                         fileAttachmentTarget={fileAttachmentTarget}
                         size={size}
+                        contentCover={slideIndex === 0 ? contentCover : undefined}
                     />
                 )}
             </Box>

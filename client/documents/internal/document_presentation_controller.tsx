@@ -7,11 +7,13 @@ import {
     useEffect,
     useId,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
 } from "react";
 import {usePress} from "react-aria";
 import {flushSync} from "react-dom";
+import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ContentEditorState} from "~/client/content/state/content_editor_state.js";
@@ -50,6 +52,7 @@ import {
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {
     DocumentContentReferences,
     DocumentContentWithReferences,
@@ -210,6 +213,20 @@ function DocumentPresentationController(
         };
     }, [presentationState]);
 
+    const cover = editorState.getContent().doc.attrs.cover as DocumentContentCover | null;
+
+    const blobsSettings = useMemo(
+        () =>
+            cover?.type === "Blobs"
+                ? {
+                      seed: cover.seed,
+                      themeColor: cover.themeColor,
+                      hueSpread: cover.hueSpread,
+                  }
+                : null,
+        [cover],
+    );
+
     if (!presentationState) return null;
 
     switch (presentationState.type) {
@@ -244,6 +261,11 @@ function DocumentPresentationController(
                                 references={presentationState.references}
                                 initialSlideIndex={presentationState.initialSlideIndex}
                                 fileAttachmentTarget={fileAttachmentTarget}
+                                contentCover={
+                                    blobsSettings ? (
+                                        <BlobsArt settings={blobsSettings} />
+                                    ) : undefined
+                                }
                             />
                         </GlobalKeyDownEventModal>
                     </Box>

@@ -1,4 +1,4 @@
-import {Memo, useLayoutEffect, useMemo} from "react";
+import {Memo, ReactNode, useLayoutEffect, useMemo} from "react";
 import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -34,11 +34,13 @@ export function DocumentPresentationSlideView({
     references,
     fileAttachmentTarget,
     size,
+    contentCover,
 }: {
     slide: DocumentPresentationSlide;
     references: DocumentContentReferences;
     fileAttachmentTarget: Memo<FileAttachmentTarget>;
     size: {width: number; height: number};
+    contentCover?: ReactNode;
 }) {
     const spacingScale = useSpacingScale();
     const lineHeight = convertRemLengthToPx(fontSizes["100"].lineHeight, spacingScale);
@@ -137,6 +139,7 @@ export function DocumentPresentationSlideView({
             overflowY="auto"
         >
             <Box style={{padding: margin}} className={documentPresentationStyles.slideClassName}>
+                {contentCover}
                 {headingContent && (
                     <Box
                         style={{
