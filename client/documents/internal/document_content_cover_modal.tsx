@@ -1,5 +1,5 @@
 import {Check, DiceSix} from "phosphor-react";
-import {RefObject, useCallback, useEffect, useId, useMemo, useState} from "react";
+import {RefObject, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {ContentEditorRef} from "~/client/content/content_editor.js";
@@ -177,6 +177,13 @@ export function DocumentContentCoverModal({
         currentlySetDocumentContentCover ? 0 : null,
     );
 
+    // Keep a ref to the selected blob option so we can use it without running
+    // effects on change.
+    const selectedBlobOptionRef = useRef<typeof selectedBlobOption>(selectedBlobOption);
+    useEffect(() => {
+        selectedBlobOptionRef.current = selectedBlobOption;
+    }, [selectedBlobOption]);
+
     const [blobOptions, setBlobOptions] = useState(() => {
         const blobsCover =
             currentlySetDocumentContentCover?.type === "Blobs"
@@ -187,12 +194,16 @@ export function DocumentContentCoverModal({
 
     // If content cover changes on another client, update it here
     useEffect(() => {
+        if (isMobile) return;
+
         if (
-            isMobile ||
-            !currentlySetDocumentContentCover ||
+            currentlySetDocumentContentCover === null ||
             currentlySetDocumentContentCover.type !== "Blobs"
-        )
+        ) {
+            // If the cover is set to null or is not Blobs, we can just shortcut here.
+            setSelectedBlobOption(null);
             return;
+        }
 
         const currentlySetBlobOption = blobOptions.findIndex(
             blob =>
@@ -202,7 +213,7 @@ export function DocumentContentCoverModal({
         );
 
         // Nothing to do
-        if (currentlySetBlobOption === selectedBlobOption) return;
+        if (currentlySetBlobOption === selectedBlobOptionRef.current) return;
 
         // Somehow we randomly generated the same one, so just update it
         if (currentlySetBlobOption !== -1) {
@@ -229,7 +240,7 @@ export function DocumentContentCoverModal({
         });
 
         setSelectedBlobOption(firstIndexThatIsNotTheSameBlob);
-    }, [isMobile, currentlySetDocumentContentCover, blobOptions, selectedBlobOption]);
+    }, [isMobile, currentlySetDocumentContentCover, blobOptions]);
 
     const onRefresh = useCallback(() => {
         setBlobOptions(
@@ -243,7 +254,10 @@ export function DocumentContentCoverModal({
     const onSave = useCallback(
         (overrideSelectedBlobOption?: number | null) => {
             const editor = assertExists(editorRef.current);
-            const newBlobOption = overrideSelectedBlobOption ?? selectedBlobOption;
+            const newBlobOption =
+                overrideSelectedBlobOption !== undefined
+                    ? overrideSelectedBlobOption
+                    : selectedBlobOption;
 
             if (newBlobOption === null || newBlobOption >= blobOptions.length) {
                 editor.setCover(null);
