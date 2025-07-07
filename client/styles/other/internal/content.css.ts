@@ -70,7 +70,7 @@ import {
     unorderedListItemClassName,
 } from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/core/colors.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -91,6 +91,7 @@ import {
 } from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
@@ -407,6 +408,16 @@ const quoteBlockIndentationSpacing = "3";
 const quoteBlockIndentation = spacing[quoteBlockIndentationSpacing];
 const quoteBlockBorderWidth = "0.1875rem";
 
+export const brandIconDefaultColor = "grey-80";
+
+export const mentionEntityIconColorVar = createVar("mention-entity-icon-color");
+
+globalStyle(":root", {
+    vars: {
+        [mentionEntityIconColorVar]: colorSchemeVars[brandIconDefaultColor],
+    },
+});
+
 globalStyle(quoteBlockClassName, {
     ...omitObject(blockStyles, ["clear"]),
     position: "relative",
@@ -415,6 +426,9 @@ globalStyle(quoteBlockClassName, {
     marginBottom: standaloneBlockMargin,
     color: colorSchemeVars["grey-60"],
     caretColor: colorSchemeVars["grey-60"],
+    vars: {
+        [mentionEntityIconColorVar]: colorSchemeVars["grey-60"],
+    },
 });
 
 globalStyle(`${quoteBlockClassName}::before`, {
@@ -1590,6 +1604,18 @@ globalStyle(strikeClassName, {
     textDecorationThickness: 1,
 });
 
+globalStyle(`${headingLevel3ClassName} ${strikeClassName}`, {
+    textDecorationThickness: 1.49,
+});
+
+globalStyle(`${headingLevel2ClassName} ${strikeClassName}`, {
+    textDecorationThickness: 2,
+});
+
+globalStyle(`${headingLevel1ClassName} ${strikeClassName}`, {
+    textDecorationThickness: 2.49,
+});
+
 export const emojiClassName = style({
     fontFamily: emojiFontFamily,
 });
@@ -2033,6 +2059,18 @@ globalStyle(linkClassName, {
     fontFeatureSettings: '"calt" off',
 });
 
+globalStyle(`${headingLevel3ClassName} ${linkClassName}`, {
+    textDecorationThickness: 2,
+});
+
+globalStyle(`${headingLevel2ClassName} ${linkClassName}`, {
+    textDecorationThickness: 2.49,
+});
+
+globalStyle(`${headingLevel1ClassName} ${linkClassName}`, {
+    textDecorationThickness: 3,
+});
+
 // Inert links use a `<span>` element.
 globalStyle(`a${linkClassName}`, {
     // Links use a pointer cursor. See:
@@ -2105,11 +2143,29 @@ globalStyle(
     },
 );
 
-export const mentionClassName = style({
-    position: "relative",
+export const mentionContainerClassName = style({
+    paddingTop: inlineBackgroundPadding.top,
+    paddingBottom: inlineBackgroundPadding.bottom,
+    selectors: {
+        "a&": {
+            cursor: "pointer",
+        },
+        "&.ProseMirror-selectednode": {
+            backgroundColor: colorSchemeVars["theme-selection"],
+        },
+    },
 });
 
-export const currentAccountMentionBackgroundOpacity = 0.6;
+export const mentionClassName = style({
+    position: "relative",
+    // We add the same padding top/bottom here as `mentionContainerClassName`.
+    // Since `currentAccountMentionClassName` needs this padding. Padding on
+    // `display: inline` elements only changes how `background-color` is rendered.
+    paddingTop: inlineBackgroundPadding.top,
+    paddingBottom: inlineBackgroundPadding.top,
+});
+
+export const mentionPressedClassName = style({});
 
 export const currentAccountMentionClassName = style({
     color: colorSchemeVars["theme-60"],
@@ -2122,11 +2178,16 @@ export const currentAccountMentionClassName = style({
             zIndex: -10,
             top: 0,
             bottom: 0,
-            left: `-${spacing["0.5"]}`,
-            right: `-${spacing["0.5"]}`,
+            // The +0.5px is necessary for proper positioning given the
+            // `position: absolute; left: 1px` we set on the account avatar.
+            left: `calc(-1 * ${inlineBackgroundPadding.top} + 0.5px)`,
+            right: `calc(-1 * ${inlineBackgroundPadding.top} + 0.5px)`,
             backgroundColor: colorSchemeVars["theme-10"],
-            opacity: currentAccountMentionBackgroundOpacity,
-            borderRadius: borderRadius["1"],
+            opacity: 0.6,
+            borderTopLeftRadius: "0.75em",
+            borderBottomLeftRadius: "0.75em",
+            borderTopRightRadius: "0.5em",
+            borderBottomRightRadius: "0.5em",
         },
         [`${darkColorSchemeSelector} &`]: {
             color: colorSchemeVars["theme-80"],
@@ -2138,13 +2199,10 @@ export const currentAccountMentionClassName = style({
     },
 });
 
-export const mentionAtClassName = style({
-    fontFeatureSettings: '"case" 1',
-});
-
 export const mentionTextClassName = style({
     fontWeight: fontStyles["semi-bold"].fontWeight,
     selectors: {
+        [`${mentionPressedClassName} &`]: {opacity: 0.6},
         // Inherit font weight if we are in a container that is bolder than us.
         [`${boldClassName} &`]: {fontWeight: "inherit"},
         [`${headingLevel1ClassName} &`]: {fontWeight: "inherit"},
@@ -2152,6 +2210,94 @@ export const mentionTextClassName = style({
         [`${headingLevel3ClassName} &`]: {fontWeight: "inherit"},
     },
 });
+
+export const mentionIconSizeEm = 1.125;
+
+export const mentionIconContainerClassName = style({
+    position: "relative",
+});
+
+export const mentionIconClassName = style({
+    pointerEvents: "none",
+    userSelect: "none",
+    position: "absolute",
+    // Make sure we don't render over the blinking text cursor which renders at the
+    // start of the mention. The text cursor, in Chrome is 1px.
+    left: 1,
+    bottom: `${1 / fontSizesBySpacingScale["100"].medium.fontSize}em`,
+    transformOrigin: "bottom left",
+    selectors: {
+        [`${mentionPressedClassName} &`]: {opacity: 0.6},
+    },
+});
+
+export const mentionIconMonospaceSpaceClassName = style({
+    // Use our monospace font so the space created by no-break space characters has
+    // consistent width that aligns with our monospace font.
+    ...fontStyles.code,
+});
+
+const mentionIconWithScalingSizeSpacing = "7";
+const mentionIconWithScalingSize = spacing[mentionIconWithScalingSizeSpacing];
+export {mentionIconWithScalingSizeSpacing as mentionIconWithScalingSize};
+
+export const mentionIconWithScalingClassName = style({});
+
+// Scale the search entity media based on the font size of the parent.
+// Unfortunately we can't use em units in `transform: scale()` otherwise we'd
+// do that instead of manually enumerating all the different kinds of
+// font size.
+const mentionIconWithScalingFontSizes: Array<{selector: string | null; fontSize: FontSize}> = [
+    {
+        selector: null,
+        fontSize: paragraphActualFontSize,
+    },
+    {
+        selector: `${headingLevel3ClassName}`,
+        fontSize: headingLevel3FontSize.wide,
+    },
+    {
+        selector: `${narrowRouteLayoutDocClassName} ${headingLevel3ClassName}`,
+        fontSize: headingLevel3FontSize.narrow,
+    },
+    {
+        selector: `${headingLevel2ClassName}`,
+        fontSize: headingLevel2FontSize.wide,
+    },
+    {
+        selector: `${narrowRouteLayoutDocClassName} ${headingLevel2ClassName}`,
+        fontSize: headingLevel2FontSize.narrow,
+    },
+    {
+        selector: `${headingLevel1ClassName}`,
+        fontSize: headingLevel1FontSize.wide,
+    },
+    {
+        selector: `${narrowRouteLayoutDocClassName} ${headingLevel1ClassName}`,
+        fontSize: headingLevel1FontSize.narrow,
+    },
+];
+
+for (const {selector, fontSize} of mentionIconWithScalingFontSizes) {
+    for (const spacingScale of allSpacingScales) {
+        globalStyle(
+            [
+                spacingScale !== "small" ? selectorBySpacingScale[spacingScale] : null,
+                selector,
+                mentionIconWithScalingClassName,
+            ]
+                .filter(isNonNullable)
+                .join(" "),
+            {
+                transform: `scale(${
+                    (fontSizesBySpacingScale[fontSize][spacingScale].fontSize /
+                        convertRemLengthToPx(mentionIconWithScalingSize, spacingScale)) *
+                    mentionIconSizeEm
+                })`,
+            },
+        );
+    }
+}
 
 export const emptyTitleClassName = style({});
 

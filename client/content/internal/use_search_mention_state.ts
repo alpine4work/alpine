@@ -1,7 +1,7 @@
-// There's a fork of this file: `useSearchMentionState()`. We decided to fork
-// this file instead of creating a shared abstraction under the guidance of our
-// style guide which says: "No abstraction is better than the wrong
-// abstraction".
+// This file is a fork of `useSearchState()`. We decided to fork the
+// `useSearchState()` file instead of creating a shared abstraction under the
+// guidance of our style guide which says: "No abstraction is better than the
+// wrong abstraction".
 //
 // IMPORTANT: If you make an update to this file, you also may want to make
 // that update in `useSearchState()`.
@@ -15,66 +15,61 @@
 // but unlike `useSearchState()` it filters out non-mentionable entities and
 // merges favorites back into the result list.
 
-import {Memo, useCallback, useEffect, useMemo, useReducer, useRef} from "react";
-import {useSearchParams} from "react-router-dom";
+import {Memo, useCallback, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {searchWordTypingDebounceMs} from "~/client/search/core/search_word_typing_debounce_ms.js";
-import {
-    ExecuteSearchOutput,
-    executeSearch,
-    pendingExecuteSearchOutput,
-} from "~/client/search/internal/execute_search.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
-import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchEntityId, SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
+import {searchByAffinity, searchMentionByKeywords} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchEntityId, isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
-import {
-    SearchAffinityEntityResultModel,
-    SearchEntityResultModel,
-    SearchFavoriteEntityResultModel,
-} from "~/shared/search/search_entity_result_model.js";
-import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
-import {searchStaticEntityIndex} from "~/shared/search/search_static_entity.js";
+import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
+import {standardSearchOptions} from "~/shared/search/search_options.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {ConstStore} from "~/shared/store/const_store.js";
+import {createPromiseStore} from "~/shared/store/promise_store.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
-type SearchState = {
+/**
+ * The maximum number of mentions that `useSearchMentionState()` will return.
+ */
+const searchMentionLimit = 10;
+
+type SearchMentionState = {
     readonly queryText: string;
     readonly trimmedQueryText: string;
-    readonly updatingSearchParams: URLSearchParams | null;
     readonly queryWords: ReadonlyArray<string>;
     readonly wordTypingTimeoutTime: number | null;
-    readonly executionStack: SearchStateExecutionStack;
+    readonly executionStack: SearchMentionStateExecutionStack;
 };
 
-function getInitialSearchState(initialQueryText: string): SearchState {
+function getInitialSearchMentionState(initialQueryText: string): SearchMentionState {
     const initialTrimmedQueryText = initialQueryText.trim();
     const initialQueryWords = splitUnicodeDefaultWordBoundary(initialTrimmedQueryText);
 
     return {
         queryText: initialQueryText,
         trimmedQueryText: initialTrimmedQueryText,
-        updatingSearchParams: null,
         queryWords: initialQueryWords,
         wordTypingTimeoutTime: null,
-        executionStack: createSearchStateExecutionStack([
-            createSearchStateExecution({
+        executionStack: createSearchMentionStateExecutionStack([
+            createSearchMentionStateExecution({
                 queryText: initialTrimmedQueryText,
                 queryTime: new Date(),
             }),
@@ -87,7 +82,6 @@ type SearchAction =
           readonly type: "ChangeQueryText";
           readonly time: Date;
           readonly queryText: string;
-          readonly updatingSearchParams: URLSearchParams | null;
           readonly wordTypingDebounceMs: number;
       }
     | {
@@ -95,7 +89,10 @@ type SearchAction =
           readonly time: Date;
       };
 
-function reduceSearchState(state: SearchState, action: SearchAction): SearchState {
+function reduceSearchMentionState(
+    state: SearchMentionState,
+    action: SearchAction,
+): SearchMentionState {
     switch (action.type) {
         case "ChangeQueryText": {
             const oldTrimmedQueryText = state.trimmedQueryText;
@@ -110,14 +107,14 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 oldQueryWords.length === newQueryWords.length - 1 &&
                 oldQueryWords.every((oldQueryWord, i) => oldQueryWord === newQueryWords[i]);
 
-            let newExecutionStack: SearchStateExecutionStack;
+            let newExecutionStack: SearchMentionStateExecutionStack;
             let newWordTypingTimeoutTime: number | null;
 
             // If the user deletes their query, we can immediately push a new execution
             // which should resolve synchronously.
             if (newTrimmedQueryText.length === 0) {
                 newExecutionStack = state.executionStack.push(
-                    createSearchStateExecution({
+                    createSearchMentionStateExecution({
                         queryText: newTrimmedQueryText,
                         queryTime: action.time,
                     }),
@@ -140,7 +137,7 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 oldTrimmedQueryText !== state.executionStack.latestExecution.queryText
             ) {
                 newExecutionStack = state.executionStack.push(
-                    createSearchStateExecution({
+                    createSearchMentionStateExecution({
                         queryText: oldTrimmedQueryText,
                         queryTime: action.time,
                     }),
@@ -158,7 +155,6 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 ...state,
                 queryText: newQueryText,
                 trimmedQueryText: newTrimmedQueryText,
-                updatingSearchParams: action.updatingSearchParams,
                 queryWords: newQueryWords,
                 wordTypingTimeoutTime: newWordTypingTimeoutTime,
                 executionStack: newExecutionStack,
@@ -171,7 +167,7 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
                 executionStack:
                     state.executionStack.latestExecution.queryText !== state.trimmedQueryText
                         ? state.executionStack.push(
-                              createSearchStateExecution({
+                              createSearchMentionStateExecution({
                                   queryText: state.trimmedQueryText,
                                   queryTime: action.time,
                               }),
@@ -185,48 +181,26 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
 }
 
 /**
- * Preload affinitive search entities when we have some idle time so that they
- * are immediately available when the search modal opens.
- */
-export function usePreloadSearchByAffinity() {
-    const {space} = useSpaceContext();
-
-    useIdlyPreloadRpc(searchByAffinity, {spaceId: space.id});
-}
-
-/**
- * Manage state for our search experience.
+ * Manage state for our mention search experience.
  *
  * - Loads affinitive search results
  * - Runs, debounced, search queries whenever the query text changes
  * - Maintains the old search result while waiting on new results
  */
-export function useSearchState({
-    isSearchParamControlled,
-    debugOptions,
+export function useSearchMentionState({
+    initialQueryText,
     initialAffinitySearch,
 }: {
-    isSearchParamControlled: boolean;
-    debugOptions: SearchOptions | null;
+    initialQueryText?: string;
     initialAffinitySearch?: RpcDefinitionOutputType<typeof searchByAffinity>;
 }): {
-    output: SearchStateExecutionOutput;
+    output: SearchMentionStateExecutionOutput;
     queryText: string;
     onQueryTextChange: Memo<(queryText: string) => void>;
 } {
     const context = useAppContext();
     const {space} = useSpaceContext();
     const platform = usePlatform();
-
-    const [searchParams, setSearchParams] = useSearchParams();
-    const searchParamsRef = useRef(searchParams);
-    const queryTextFromSearchParams = searchParams.get("search") ?? "";
-
-    useEffect(() => {
-        searchParamsRef.current = searchParams;
-    }, [searchParams]);
-
-    const options = debugOptions ?? standardSearchOptions;
 
     const affinitySearch = useLazyLoadRpc(
         searchByAffinity,
@@ -249,42 +223,14 @@ export function useSearchState({
     }, [affinitySearch.output?.favoriteResults, affinitySearch.output?.results]);
 
     const [state, dispatch] = useReducer(
-        reduceSearchState,
-        queryTextFromSearchParams,
-        getInitialSearchState,
+        reduceSearchMentionState,
+        initialQueryText ?? "",
+        getInitialSearchMentionState,
     );
 
-    // When the search param changes we need to update our search state.
-    if (
-        isSearchParamControlled &&
-        state.queryText !== queryTextFromSearchParams &&
-        // Remix updates `searchParams` asynchronously. So we don't want to reset
-        // `searchState.queryText` after `searchState.queryText` has been updated but
-        // before `queryTextFromSearchParams` has been updated.
-        state.updatingSearchParams !== searchParams
-    ) {
-        dispatch({
-            type: "ChangeQueryText",
-            time: new Date(),
-            queryText: queryTextFromSearchParams,
-            updatingSearchParams: null,
-            wordTypingDebounceMs: searchWordTypingDebounceMs[platform],
-        });
-    }
-
     useEffect(() => {
-        state.executionStack.latestExecution.execute(context, {
-            spaceId: space.id,
-            debugOptions,
-            isTyping: state.wordTypingTimeoutTime !== null,
-        });
-    }, [
-        context,
-        debugOptions,
-        state.executionStack.latestExecution,
-        state.wordTypingTimeoutTime,
-        space.id,
-    ]);
+        state.executionStack.latestExecution.execute(context, {spaceId: space.id});
+    }, [context, state.executionStack.latestExecution, state.wordTypingTimeoutTime, space.id]);
 
     useEffect(() => {
         if (state.wordTypingTimeoutTime === null) return;
@@ -298,7 +244,7 @@ export function useSearchState({
 
     const queryOutput = useStore(state.executionStack);
 
-    const output = useMemo((): SearchStateExecutionOutput => {
+    const output = useMemo((): SearchMentionStateExecutionOutput => {
         // If we have an empty query returning no results from our search execution
         // stack then show search entities the account has some affinity for.
         if (
@@ -308,19 +254,44 @@ export function useSearchState({
         ) {
             if (!affinitySearch.output) {
                 return {
-                    type: "EmptyQuery",
                     key: "searchByAffinity",
                     queryText: "",
                     queryTime: queryOutput.queryTime,
                     isPending: true,
                     isError: false,
-                    hasMoreFavoriteResults: false,
-                    favoriteResults: null,
                     results: null,
                 };
             } else {
+                // 1. Merge the `favoriteResults` and `results` array
+                // 2. Filter out non-mentionable entities
+                // 3. Only return entities up to the search mention limit
+                const results = Array.from(
+                    flatIterable(
+                        [affinitySearch.output.favoriteResults, affinitySearch.output.results].map(
+                            results =>
+                                sliceIterable(
+                                    filterMapIterable(results, result => {
+                                        if (!isSearchMentionEntityId(result.id)) return;
+
+                                        // Accounts can't be search mention entities. So we should never have an
+                                        // `AccountModel` here if `isSearchMentionEntityId()` returns true.
+                                        assert(!(result.model instanceof AccountModel));
+
+                                        return {
+                                            score: result.score,
+                                            model: result.model,
+                                        };
+                                    }),
+                                    0,
+                                    searchMentionLimit,
+                                ),
+                        ),
+                    ),
+                )
+                    .sort((result1, result2) => result2.score - result1.score)
+                    .slice(0, searchMentionLimit);
+
                 return {
-                    type: "EmptyQuery",
                     key: "searchByAffinity",
                     queryText: "",
                     queryTime: queryOutput.queryTime,
@@ -329,17 +300,11 @@ export function useSearchState({
                         affinitySearch.isValidating ||
                         queryOutput.isPending,
                     isError: false,
-                    hasMoreFavoriteResults: affinitySearch.output.hasMoreFavoriteResults,
-                    favoriteResults: affinitySearch.output.favoriteResults,
-                    results: affinitySearch.output.results,
+                    results,
                 };
             }
-        } else if (
-            queryOutput.type === "Query" &&
-            queryOutput.results &&
-            affinityResultById.size > 0
-        ) {
-            const interpolation = options.affinityToKeywordScoreInterpolation;
+        } else if (queryOutput.results && affinityResultById.size > 0) {
+            const interpolation = standardSearchOptions.affinityToKeywordScoreInterpolation;
 
             const slope =
                 (interpolation.point2.keywordScore - interpolation.point1.keywordScore) /
@@ -348,37 +313,10 @@ export function useSearchState({
             const intercept =
                 interpolation.point2.keywordScore - slope * interpolation.point2.affinityScore;
 
-            let newResults: Array<SearchEntityResultModel> | null = null;
-
-            // Search for commands matching the query text and add them to the beginning of
-            // our results list if so.
-            const staticEntityIds = new Set<SearchStaticEntityId>();
-            const staticEntityMatches = searchStaticEntityIndex.get().search(queryOutput.queryText);
-            for (const match of staticEntityMatches) {
-                if (staticEntityIds.has(match.item.entityId)) continue;
-                staticEntityIds.add(match.item.entityId);
-
-                newResults ??= [];
-
-                // Only count close matches. Exclude search results with too high a score. This
-                // cutoff was picked so typing "Create t" doesn't match "Create chat" and
-                // "Create a" doesn't match "Create task". But "Create tsk" matches
-                // "Create task".
-                if (match.score! < 0.2) {
-                    newResults.push(
-                        new SearchEntityResultModel({
-                            model: new SearchEntityModel({
-                                id: match.item.entityId,
-                                title: match.item.entity.title,
-                                titleVersion: null,
-                                media: match.item.entity.media ?? null,
-                            }),
-                            score: Infinity,
-                            bodyTextSnippet: [],
-                        }),
-                    );
-                }
-            }
+            let newResults: Array<{
+                readonly score: number;
+                readonly model: SearchEntityModel;
+            }> | null = null;
 
             // If some search results match affinitive search entities we loaded then we
             // want to boost the search entities the user has an affinity for since it's
@@ -386,7 +324,7 @@ export function useSearchState({
             for (let i = 0; i < queryOutput.results.length; i++) {
                 const result = queryOutput.results[i]!;
 
-                const affinityResult = affinityResultById.get(result.id);
+                const affinityResult = affinityResultById.get(result.model.id);
                 if (!affinityResult) {
                     newResults?.push(result);
                     continue;
@@ -401,31 +339,6 @@ export function useSearchState({
                 newResults.push({
                     ...result,
                     score: result.score + additionalScore,
-                    explanation: result.explanation
-                        ? addSumOperandToOpensearchSearchHitExplanation(result.explanation, {
-                              value: additionalScore,
-                              // `\u2764\uFE0F` is the red heart emoji. It needs two Unicode
-                              // code points to render correctly.
-                              description: `\u2764\uFE0F interpolated affinity score, computed as (m * x) + b from:`,
-                              details: [
-                                  {
-                                      value: affinityResult.score,
-                                      description: "x, affinity score",
-                                      details: [],
-                                  },
-                                  {
-                                      value: slope,
-                                      description: "m, slope",
-                                      details: [],
-                                  },
-                                  {
-                                      value: intercept,
-                                      description: "b, intercept",
-                                      details: [],
-                                  },
-                              ],
-                          })
-                        : undefined,
                 });
             }
 
@@ -442,7 +355,6 @@ export function useSearchState({
         affinitySearch.output,
         affinitySearch.isLoading,
         affinitySearch.isValidating,
-        options.affinityToKeywordScoreInterpolation,
     ]);
 
     return {
@@ -454,31 +366,10 @@ export function useSearchState({
                     type: "ChangeQueryText",
                     time: new Date(),
                     queryText,
-                    updatingSearchParams: isSearchParamControlled ? searchParamsRef.current : null,
                     wordTypingDebounceMs: searchWordTypingDebounceMs[platform],
                 });
-
-                if (isSearchParamControlled) {
-                    setSearchParams(
-                        oldSearchParams => {
-                            if (oldSearchParams.get("search") === queryText) return oldSearchParams;
-
-                            const newSearchParams = new URLSearchParams(oldSearchParams);
-                            newSearchParams.set("search", queryText);
-                            return newSearchParams;
-                        },
-                        {
-                            replace: true,
-                            // Don't revalidate when updating search params from here. We can't use the
-                            // stable `shouldRevalidate` route function because we want ALL rendered routes
-                            // to skip revalidation. And updating all rendered routes `shouldRevalidate`
-                            // function to ignore `search` is too much of a burden.
-                            unstable_shouldRevalidate: false,
-                        },
-                    );
-                }
             },
-            [isSearchParamControlled, platform, setSearchParams],
+            [platform],
         ),
     };
 }
@@ -492,79 +383,64 @@ export function useSearchState({
  * The `execute()` function is idempotent. You can call it multiple times and
  * it only sends network requests once.
  */
-type SearchStateExecution = Store<SearchStateExecutionOutput> & {
+type SearchMentionStateExecution = Store<SearchMentionStateExecutionOutput> & {
     readonly queryText: string;
     readonly queryTime: Date;
-    execute(
-        context: AppContext,
-        options: {
-            spaceId: SpaceId;
-            debugOptions: SearchOptions | null;
-            isTyping: boolean;
-        },
-    ): void;
+    execute(context: AppContext, options: {spaceId: SpaceId}): void;
 };
 
-type ExecuteSearchByAffinityOutput =
+type ExecuteMentionSearchOutput =
     | {
           readonly isPending: true;
           readonly isError: false;
-          readonly hasMoreFavoriteResults: false;
-          readonly favoriteResults: null;
           readonly results: null;
       }
     | {
           readonly isPending: boolean;
           readonly isError: true;
           readonly error: unknown;
-          readonly hasMoreFavoriteResults: false;
-          readonly favoriteResults: null;
           readonly results: null;
       }
     | {
           readonly isPending: boolean;
           readonly isError: false;
-          readonly hasMoreFavoriteResults: boolean;
-          readonly favoriteResults: ReadonlyArray<SearchFavoriteEntityResultModel>;
-          readonly results: ReadonlyArray<SearchAffinityEntityResultModel>;
+          readonly results: ReadonlyArray<{
+              readonly score: number;
+              readonly model: SearchEntityModel;
+          }>;
       };
 
-export type SearchStateExecutionOutput =
-    | (ExecuteSearchByAffinityOutput & {
-          readonly type: "EmptyQuery";
-          readonly key: string;
-          readonly queryText: "";
-          readonly queryTime: Date;
-      })
-    | (ExecuteSearchOutput & {
-          readonly type: "Query";
-          readonly key: string;
-          readonly queryText: string;
-          readonly queryTime: Date;
-      });
+const pendingExecuteMentionSearchOutput: ExecuteMentionSearchOutput = {
+    isPending: true,
+    isError: false,
+    results: null,
+};
 
-function createSearchStateExecution({
+export type SearchMentionStateExecutionOutput = ExecuteMentionSearchOutput & {
+    readonly key: string;
+    readonly queryText: string;
+    readonly queryTime: Date;
+};
+
+function createSearchMentionStateExecution({
     queryText,
     queryTime,
 }: {
     queryText: string;
     queryTime: Date;
-}): SearchStateExecution {
+}): SearchMentionStateExecution {
     const key = generateId();
 
     // If the query text is empty, we don't have to wait for lazy execution to know
     // we'll get an empty result.
     if (queryText.length === 0) {
         return Object.assign(
-            new ConstStore<SearchStateExecutionOutput>({
-                type: "EmptyQuery",
+            new ConstStore<SearchMentionStateExecutionOutput>({
                 key,
                 queryText: "",
                 queryTime,
                 isPending: false,
                 isError: false,
-                hasMoreFavoriteResults: false,
-                favoriteResults: emptyArray,
                 results: emptyArray,
             }),
             {
@@ -576,77 +452,55 @@ function createSearchStateExecution({
         );
     }
 
-    let lastExecution: {
-        debugOptions: SearchOptions | null;
-    } | null = null;
+    let hasExecuted = false;
 
-    const store = new ValueStore<
-        Store<ExecuteSearchOutput> & {
-            executeSearchBySemantics?: () => void;
-        }
-    >(new ConstStore(pendingExecuteSearchOutput));
+    const store = new ValueStore<Store<ExecuteMentionSearchOutput>>(
+        new ConstStore(pendingExecuteMentionSearchOutput),
+    );
 
-    const execute = (
-        context: AppContext,
-        {
-            spaceId,
-            debugOptions,
-            isTyping,
-        }: {
-            spaceId: SpaceId;
-            debugOptions: SearchOptions | null;
-            isTyping: boolean;
-        },
-    ) => {
-        if (lastExecution === null) {
-            lastExecution = {debugOptions};
-
-            const nextStore = executeSearch(context, {
-                spaceId,
-                queryText,
-                debugOptions,
-            });
-
-            // If the user is actively typing, we want to delay sending
-            // `searchBySemantics()` until we have the final query. That way we reduce cost
-            // by avoiding executing semantic search on meaningless intermediate queries.
-            if (!isTyping) nextStore.executeSearchBySemantics();
-
-            store.set(nextStore);
-        }
-        // If debug options changed, we'll re-execute. We need to keep the last results
-        // around since once an execution has non-null `results` it should never return
-        // null `results` again.
-        else if (!isDeepEqual(lastExecution.debugOptions, debugOptions)) {
-            lastExecution = {debugOptions};
-
-            store.set(lastStore => {
-                const nextStore = executeSearch(context, {
+    const execute = (context: AppContext, {spaceId}: {spaceId: SpaceId}) => {
+        const actuallyExecute = () =>
+            createPromiseStore(
+                searchMentionByKeywords(context, {
                     spaceId,
                     queryText,
-                    debugOptions,
-                });
-
-                // Don't bother trying to debounce semantic search in debug mode.
-                nextStore.executeSearchBySemantics();
-
-                return Store.map(lastStore, nextStore, (lastResult, nextResult) => {
-                    if (nextResult.isPending) return {...lastResult, isPending: true};
-                    return nextResult;
-                });
+                    limit: searchMentionLimit,
+                }),
+            ).map((output): ExecuteMentionSearchOutput => {
+                switch (output.status) {
+                    case "pending": {
+                        return pendingExecuteMentionSearchOutput;
+                    }
+                    case "rejected": {
+                        return {
+                            isPending: false,
+                            isError: true,
+                            error: output.reason,
+                            results: null,
+                        };
+                    }
+                    case "fulfilled": {
+                        return {
+                            isPending: false,
+                            isError: false,
+                            results: output.value.results,
+                        };
+                    }
+                    default:
+                        throw exhaustive(output);
+                }
             });
-        } else if (!isTyping) {
-            // Once the user is done typing, we need to call `executeSearchBySemantics()`
-            // if we haven't already.
-            store.getSnapshot().executeSearchBySemantics?.();
+
+        if (!hasExecuted) {
+            hasExecuted = true;
+            store.set(actuallyExecute());
         }
     };
 
     return Object.assign(
         store.flat().map(
-            (result): SearchStateExecutionOutput => ({
+            (result): SearchMentionStateExecutionOutput => ({
                 ...result,
-                type: "Query",
                 key,
                 queryText,
                 queryTime,
@@ -674,22 +528,22 @@ function createSearchStateExecution({
  * The store returns the result of the latest execution in the stack with
  * search results. The `push()` function immutably creates a new stack.
  */
-type SearchStateExecutionStack = Store<SearchStateExecutionOutput> & {
-    readonly latestExecution: SearchStateExecution;
-    push(execution: SearchStateExecution): SearchStateExecutionStack;
+type SearchMentionStateExecutionStack = Store<SearchMentionStateExecutionOutput> & {
+    readonly latestExecution: SearchMentionStateExecution;
+    push(execution: SearchMentionStateExecution): SearchMentionStateExecutionStack;
 };
 
-function createSearchStateExecutionStack(
-    stack: ReadonlyArray<SearchStateExecution>,
-): SearchStateExecutionStack {
+function createSearchMentionStateExecutionStack(
+    stack: ReadonlyArray<SearchMentionStateExecution>,
+): SearchMentionStateExecutionStack {
     assert(stack.length > 0, "Stack should be non-empty");
     const latestExecution = stack[stack.length - 1]!;
 
-    const push = (execution: SearchStateExecution): SearchStateExecutionStack => {
-        return createSearchStateExecutionStack([...stack, execution]);
+    const push = (execution: SearchMentionStateExecution): SearchMentionStateExecutionStack => {
+        return createSearchMentionStateExecutionStack([...stack, execution]);
     };
 
-    const store = computeStore((get): SearchStateExecutionOutput => {
+    const store = computeStore((get): SearchMentionStateExecutionOutput => {
         for (let i = stack.length - 1; i >= 0; i--) {
             const execution = stack[i]!;
 

@@ -567,6 +567,15 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
                     if (!taskEntry?.task) return null;
                     const {task} = taskEntry;
 
+                    if (task.isDeleted()) {
+                        return {
+                            id: `Task:${task.id}`,
+                            title: null,
+                            titleVersion: null,
+                            media: null,
+                        };
+                    }
+
                     return {
                         id: `Task:${task.id}`,
                         title: task.getTitle().getText(),
@@ -587,6 +596,15 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
                 (collectionEntry): SearchEntityModelData | null => {
                     if (!collectionEntry?.collection) return null;
                     const {collection} = collectionEntry;
+
+                    if (collection.isDeleted()) {
+                        return {
+                            id: `TaskCollection:${collection.id}`,
+                            title: null,
+                            titleVersion: null,
+                            media: null,
+                        };
+                    }
 
                     return {
                         id: `TaskCollection:${collection.id}`,

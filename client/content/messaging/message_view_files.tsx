@@ -36,6 +36,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {messageViewMarginLeft} from "~/client/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
@@ -82,6 +83,7 @@ export function MessageViewFiles({
     const routeLayout = useRouteLayout();
     const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
     const currentDate = useCurrentDate();
@@ -197,12 +199,14 @@ export function MessageViewFiles({
                                 clientInfo,
                                 spaceId: space.id,
                                 accountRegistry,
+                                searchEntityRegistry,
                                 fileRegistry,
                                 currentAccount,
                                 blockWidth,
                                 transformScale: 1,
                                 platform,
                                 spacingScale,
+                                routeLayout,
                                 isInitialAppRender,
                                 currentDate,
                             });
@@ -249,6 +253,7 @@ export function MessageViewFiles({
             nodeByFileId,
             platform,
             routeLayout,
+            searchEntityRegistry,
             space.id,
             spacingScale,
         ]),

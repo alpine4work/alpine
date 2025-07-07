@@ -12,6 +12,8 @@ import {cast} from "~/shared/helpers/control/cast.js";
 
 const {context, services} = createTestServices();
 
+const mentionText = "SS\u00A0\u00A0\u202FSara";
+
 test("can toggle document sharing on/off with switch", async ({
     browser,
     context: browserContext2,
@@ -811,7 +813,7 @@ test("anonymous accounts can see document shared with url grant", async ({
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page2.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),
@@ -879,7 +881,7 @@ test("anonymous accounts can see document shared with url grant", async ({
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page1.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),
@@ -974,7 +976,7 @@ test("accounts from another space can see document shared with url grant", async
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page2.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),
@@ -1042,7 +1044,7 @@ test("accounts from another space can see document shared with url grant", async
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page1.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),
@@ -1135,7 +1137,7 @@ test("accounts from same space can see document shared with url grant", async ({
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page2.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),
@@ -1203,7 +1205,7 @@ test("accounts from same space can see document shared with url grant", async ({
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page1.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),
@@ -1308,7 +1310,7 @@ test("account that used to be a member of space but was removed can see document
     await expect(page2.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page2.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page2.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),
@@ -1382,7 +1384,7 @@ test("account that used to be a member of space but was removed can see document
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
     await expect(page1.getByRole("textbox", {name: "Document"})).toHaveText(
-        "Test DocumentHello, world! Hello, @Sara!",
+        `Test DocumentHello, world! Hello, ${mentionText}!`,
     );
     await expect(
         page1.getByRole("textbox", {name: "Document"}).getByTestId("ContentFilePreview:image/png"),

@@ -3,6 +3,7 @@ import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {renderContentMentionToTextForClient} from "~/client/content/render_content_mention_to_text_for_client.js";
 import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
+import {getSearchDynamicEntityPath} from "~/client/search/core/get_search_entity_path.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
@@ -10,7 +11,6 @@ import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -25,6 +25,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 // Augment with types for some internal methods from:
 // https://github.com/ProseMirror/prosemirror-model/blob/26c634ffff8ad6544fda12ed70c99f12a65959f3/src/to_dom.ts#L27
@@ -124,8 +125,27 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                     return dom;
                 }
 
+                // Serialize mention search entities as `<a>` tags. So when pasted in another
+                // app they link back to the mentioned content in Alpine.
                 case "SearchEntity": {
-                    throw new UnimplementedError("Implemented in next PR");
+                    const dom = document.createElement("a");
+
+                    dom.setAttribute(
+                        "href",
+                        new URL(
+                            getSearchDynamicEntityPath(
+                                spaceId,
+                                parseSearchDynamicEntityId(mention.entityId),
+                                "wide",
+                            ),
+                            window.location.href,
+                        ).toString(),
+                    );
+
+                    dom.setAttribute("data-cy-mention", "");
+
+                    dom.textContent = mentionText;
+                    return dom;
                 }
 
                 default:

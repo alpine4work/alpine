@@ -8,11 +8,13 @@ import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/conten
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/remix/route_layout_context.js";
+import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
@@ -42,11 +44,13 @@ export function renderContentFileDocumentEntityPreview(
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
         spacingScale,
+        routeLayout,
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
@@ -57,11 +61,13 @@ export function renderContentFileDocumentEntityPreview(
         clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
@@ -171,6 +177,7 @@ export function renderContentFileDocumentEntityPreview(
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         currentAccount,
         // If we render files/tables inside the preview make sure they have an
@@ -181,6 +188,7 @@ export function renderContentFileDocumentEntityPreview(
         transformScale: originalTransformScale * transformScale,
         platform,
         spacingScale,
+        routeLayout,
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,

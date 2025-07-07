@@ -4,11 +4,12 @@ import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {FileEntityId, parseFileEntityIdFromUrl} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 
 export type FileInfo =
     | {
@@ -52,10 +53,10 @@ export function* iterateFileInfosInElement(
         if (fileElement instanceof HTMLIFrameElement) {
             const spaceId = getSpaceId();
 
-            const fileEntityId = parseFileEntityIdFromUrl(spaceId, fileElement.src);
-            if (fileEntityId === null) continue;
+            const entityId = parseSearchEntityIdFromUrl(spaceId, fileElement.src);
+            if (entityId === null || !isFileEntityId(entityId)) continue;
 
-            yield {element, info: {type: "AttachFileEntity", spaceId, fileEntityId}};
+            yield {element, info: {type: "AttachFileEntity", spaceId, fileEntityId: entityId}};
             continue;
         }
 

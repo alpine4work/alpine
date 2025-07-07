@@ -5,7 +5,6 @@ import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {Box} from "~/client/design/box.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
-import {brandIconDefaultColor} from "~/client/icons/brand/brand_icon_default_color.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
@@ -83,7 +82,7 @@ export function SearchEntityViewTitlePrefix({
             >
                 <IconContext.Provider
                     value={{
-                        color: colorSchemeVars[brandIconDefaultColor],
+                        color: colorSchemeVars[contentStyles.brandIconDefaultColor],
                         size: spacing[searchEntityViewMediaSize],
                     }}
                 >

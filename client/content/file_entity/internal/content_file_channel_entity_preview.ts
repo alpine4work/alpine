@@ -14,6 +14,7 @@ import {bellIconSvg} from "~/client/icons/bell_icon_svg.js";
 import {bellRingingIconSvg} from "~/client/icons/bell_ringing_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {spinnerGapIconSvg} from "~/client/icons/spinner_gap_icon_svg.js";
+import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {
     channelViewHeaderSectionGap,
     channelViewMetadataSectionTitleColor,
@@ -29,6 +30,7 @@ import {
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -56,11 +58,13 @@ export function renderContentFileChannelEntityPreview(
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         currentAccount,
         transformScale: originalTransformScale,
         platform,
         spacingScale,
+        routeLayout,
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
@@ -71,11 +75,13 @@ export function renderContentFileChannelEntityPreview(
         clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
         currentAccount: AccountModel | null;
         transformScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
@@ -425,6 +431,7 @@ export function renderContentFileChannelEntityPreview(
                     clientInfo,
                     spaceId,
                     accountRegistry,
+                    searchEntityRegistry,
                     fileRegistry,
                     currentAccount,
                     // If we render files/tables inside the preview make sure they have an
@@ -435,6 +442,7 @@ export function renderContentFileChannelEntityPreview(
                     transformScale: originalTransformScale * transformScale,
                     platform,
                     spacingScale,
+                    routeLayout,
                     isInitialAppRender,
                     currentDate,
                     fileEntityRenderers,

@@ -18,9 +18,11 @@ import {defaultErrorDisplayMessage} from "~/client/design/default_error_display_
 import {Reporter} from "~/client/design/reporter.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
+import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
 import {ErrorCode} from "~/shared/error/error_code.js";
@@ -71,12 +73,14 @@ export function renderContentFileEntityPreview(
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         currentAccount,
         blockWidth,
         transformScale,
         platform,
         spacingScale,
+        routeLayout,
         isInitialAppRender,
         currentDate,
     }: {
@@ -89,12 +93,14 @@ export function renderContentFileEntityPreview(
         clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
         currentAccount: AccountModel | null;
         blockWidth: number;
         transformScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
     },
@@ -173,12 +179,14 @@ export function renderContentFileEntityPreview(
                 clientInfo,
                 spaceId,
                 accountRegistry,
+                searchEntityRegistry,
                 fileRegistry,
                 currentAccount,
                 blockWidth,
                 transformScale,
                 platform,
                 spacingScale,
+                routeLayout,
                 isInitialAppRender,
                 currentDate,
                 fileEntityRenderers,

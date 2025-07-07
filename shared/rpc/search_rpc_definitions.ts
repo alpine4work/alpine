@@ -83,7 +83,6 @@ export const searchMentionByKeywords = defineRpc({
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
         limit: Schema.integer,
-        debugOptions: SearchOptionsSchema.optional(),
     },
     output: {
         results: Schema.array(

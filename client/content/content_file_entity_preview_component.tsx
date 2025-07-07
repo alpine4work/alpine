@@ -15,9 +15,11 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStore} from "~/client/helpers/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -49,8 +51,10 @@ export function ContentFileEntityPreview({
     const navigate = useNavigate();
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
+    const routeLayout = useRouteLayout();
     const {space, currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
     const currentDate = useCurrentDate();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
@@ -74,12 +78,14 @@ export function ContentFileEntityPreview({
                 clientInfo,
                 spaceId: space.id,
                 accountRegistry,
+                searchEntityRegistry,
                 fileRegistry,
                 currentAccount,
                 blockWidth,
                 transformScale: 1,
                 platform,
                 spacingScale,
+                routeLayout,
                 isInitialAppRender,
                 currentDate,
             });
@@ -106,6 +112,8 @@ export function ContentFileEntityPreview({
         isInitialAppRender,
         node,
         platform,
+        routeLayout,
+        searchEntityRegistry,
         space.id,
         spacingScale,
         width,

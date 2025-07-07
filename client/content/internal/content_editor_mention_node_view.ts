@@ -1,71 +1,146 @@
-import classNames from "classnames";
+import {NodeSelection} from "prosemirror-state";
 import {NodeViewConstructor} from "prosemirror-view";
+import {To} from "react-router";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
-import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
+import {handleContentLinkClick} from "~/client/content/internal/handle_content_link_click.js";
+import {renderContentMentionToHtml} from "~/client/content/internal/render_content_mention_to_html.js";
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
+import {addParentScrollWhenPointerDownAndOverListener} from "~/client/content/state/parent_scroll_when_pointer_down_and_over_event.js";
+import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {getClientInfo} from "~/client/remix/client_info_context.js";
+import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
-
-const {mentionClassName, currentAccountMentionClassName, mentionAtClassName, mentionTextClassName} =
-    contentStyles;
+import {computeStore} from "~/shared/store/compute_store.js";
 
 export function createContentEditorMentionNodeViewConstructor({
+    getRouteLayout,
     getSpaceId,
     getCurrentAccountIfExists,
+    onNavigate,
 }: {
+    getRouteLayout: () => RouteLayout;
     getSpaceId: () => SpaceId;
     getCurrentAccountIfExists: () => AccountModel | null;
+    onNavigate: (to: To) => Promise<void>;
 }): NodeViewConstructor {
-    return (node, view) => {
+    return (node, view, getPos) => {
         const mention: ContentMention = node.attrs.mention;
 
-        if (mention.type !== "Account") {
-            throw new UnimplementedError("Implemented in next PR");
-        }
+        const routeLayout = getRouteLayout();
+        const spaceId = getSpaceId();
+        const currentAccount = getCurrentAccountIfExists();
+        const accountRegistry = getAccountRegistry(spaceId);
+        const searchEntityRegistry = getSearchEntityRegistry(spaceId);
+        const {references} = getContentEditorReferences(view.state);
 
-        const isCurrentAccountMention = getCurrentAccountIfExists()?.id === mention.accountId;
-        const contentReferences = getContentEditorReferences(view.state).references;
+        const htmlStore = computeStore(get => {
+            return renderContentMentionToHtml(get, {
+                accountRegistry,
+                searchEntityRegistry,
+                routeLayout,
+                spaceId,
+                currentAccount,
+                references,
+                mention,
+                isInert: false,
+            });
+        });
 
-        const contentMentionTextStore = createContentMentionTextStore(
-            getAccountRegistry(getSpaceId()),
-            contentReferences,
-            mention,
-        );
-
-        // We need a container element for highlight styles to be applied to. Our
-        // mention element may have a background color when mentioning the
-        // current account.
-        const containerElement = document.createElement("span");
-
-        const element = document.createElement("span");
-        containerElement.appendChild(element);
-        element.className = classNames(
-            mentionClassName,
-            isCurrentAccountMention && currentAccountMentionClassName,
-        );
-
-        const atElement = document.createElement("span");
-        element.appendChild(atElement);
-        atElement.className = mentionAtClassName;
-        atElement.textContent = "@";
-
-        const textElement = document.createElement("span");
-        element.appendChild(textElement);
-        textElement.className = mentionTextClassName;
+        let previousHtml = htmlStore.getSnapshot();
+        const dom = previousHtml.generateNode();
+        assert(dom instanceof HTMLElement);
 
         // Whenever the content mention text changes, we want to update our mention
         // node with the right value.
-        const unsubscribe = contentMentionTextStore.subscribe(() => {
-            textElement.textContent = contentMentionTextStore.getSnapshot();
+        const unsubscribe = htmlStore.subscribe(() => {
+            const nextHtml = htmlStore.getSnapshot();
+            assert(nextHtml.patchNode(previousHtml, dom));
+            previousHtml = nextHtml;
         });
 
-        textElement.textContent = contentMentionTextStore.getSnapshot();
+        let isPointerDownAndOver = false;
+
+        const maybeUpdateStyle = () => {
+            if (isPointerDownAndOver) {
+                dom.classList.add(contentStyles.mentionPressedClassName);
+            } else {
+                dom.classList.remove(contentStyles.mentionPressedClassName);
+            }
+        };
+
+        dom.addEventListener("click", event => {
+            // Must call prevent default here in addition to `pointerdown` to stop mobile
+            // WebKit from following a link after click.
+            event.preventDefault();
+        });
+
+        dom.addEventListener("pointerdown", event => {
+            isPointerDownAndOver =
+                event.button === 0 &&
+                (!isModifiedPointerEvent(event) ||
+                    isOpenLinkInSeparateTabPointerEvent(event, getClientInfo()));
+
+            maybeUpdateStyle();
+
+            // This will be a navigation click if the pointer stays over our element. Don't
+            // select the editable text.
+            event.preventDefault();
+
+            // If this is a shift click, select the mention.
+            if (event.shiftKey || event.altKey) {
+                view.focus();
+                view.dispatch(
+                    view.state.tr.setSelection(
+                        new NodeSelection(view.state.doc.resolve(assertExists(getPos()))),
+                    ),
+                );
+            }
+        });
+
+        dom.addEventListener("pointerup", event => {
+            const wasPointerDownAndOver = isPointerDownAndOver;
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+
+            // Only process pointer up events that started on our element.
+            if (!wasPointerDownAndOver) return;
+
+            if (event.shiftKey || event.altKey) {
+                // Do nothing. We selected the mention in `pointerdown`.
+            } else {
+                handleContentLinkClick(event, onNavigate);
+            }
+        });
+
+        dom.addEventListener("pointerleave", () => {
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+        });
+
+        dom.addEventListener("pointercancel", () => {
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+        });
+
+        dom.addEventListener("dragstart", () => {
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+        });
+
+        addParentScrollWhenPointerDownAndOverListener(dom, () => {
+            isPointerDownAndOver = false;
+            maybeUpdateStyle();
+        });
 
         return {
-            dom: containerElement,
+            dom,
             destroy: unsubscribe,
         };
     };

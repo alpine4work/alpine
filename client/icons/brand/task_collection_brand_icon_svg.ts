@@ -1,11 +1,10 @@
 /* eslint-disable string-quotes */
 
-import {brandIconDefaultColor} from "~/client/icons/brand/brand_icon_default_color.js";
 import {
     brandIconSplashColorOpacity,
     brandIconSplashColorShade,
 } from "~/client/icons/brand/internal/brand_icon_splash_color.js";
-import {colorSchemeVars, sprinkles} from "~/client/styles/styles.js";
+import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
@@ -16,7 +15,7 @@ export const taskCollectionBrandIconSvg = ({
     size?: Spacing | `${string}em`;
     color?: string;
 }) => {
-    const color = colorFromProps ?? colorSchemeVars[brandIconDefaultColor];
+    const color = colorFromProps ?? colorSchemeVars[contentStyles.brandIconDefaultColor];
 
     const splashColorClassName = sprinkles({
         fill: mapObjectValues(brandIconSplashColorShade, shade => `green-${shade}` as const),

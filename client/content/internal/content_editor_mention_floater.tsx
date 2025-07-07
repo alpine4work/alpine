@@ -5,10 +5,12 @@ import {
     setInteractionModality,
 } from "@react-aria/interactions";
 import _Fuse from "fuse.js";
-import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {EditorState} from "prosemirror-state";
+import {IconContext, MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
+    Fragment,
+    ReactNode,
     RefObject,
     useEffect,
     useImperativeHandle,
@@ -22,6 +24,11 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
+    ContentEditorInsertMenuAction,
+    getContentEditorInsertMenuActions,
+} from "~/client/content/internal/get_content_editor_insert_menu_actions.js";
+import {useSearchMentionState} from "~/client/content/internal/use_search_mention_state.js";
+import {
     setContentEditorQuickUndo,
     updateContentEditorReferences,
 } from "~/client/content/state/content_editor_state.js";
@@ -31,33 +38,64 @@ import {Menu} from "~/client/design/menu.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useStore} from "~/client/helpers/use_store.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
+import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {
+    useSearchEntityModel,
+    useSearchEntityRegistry,
+} from "~/client/search/core/search_entity_registry_context.js";
+import {getSearchEntityTypeDisplay} from "~/client/search/core/search_entity_type_display.js";
+import {SearchEntityViewTitlePrefix} from "~/client/search/core/search_entity_view_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
+    colorSchemeVars,
+    contentStyles,
     greyElevated2ClassName,
     overlayFadeOutAnimationDurationMs,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
+
+const maxAccountCount = 5;
+
+/**
+ * If we have a Fuse.js score below this when parsing a name then we consider
+ * the name a match.
+ *
+ * We maintain a stricter score cutoff than Fuse.js since it would be odd to
+ * show fuse matched items with very few similar characters next to results
+ * from our search backend.
+ */
+const fuseScoreMatchCutoff = 0.35;
 
 export function ContentEditorMentionFloater({
     state,
@@ -67,11 +105,15 @@ export function ContentEditorMentionFloater({
     handleKeyDownRef,
     isFocused,
     isClosing,
-    onCloseWithoutAnimation: _onCloseWithoutAnimation,
-    onCloseWithAnimation: _onCloseWithAnimation,
+    onCloseWithoutAnimation: onCloseWithoutAnimationFromProps,
+    onCloseWithAnimation: onCloseWithAnimationFromProps,
 }: {
     state: EditorState;
-    viewRef: RefObject<EditorView | null>;
+    viewRef: RefObject<
+        EditorView & {
+            insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+        }
+    >;
     range: {from: number; to: number};
     searchQuery: string;
     handleKeyDownRef: RefObject<((event: KeyboardEvent) => void) | null>;
@@ -81,15 +123,116 @@ export function ContentEditorMentionFloater({
     onCloseWithAnimation: () => void;
 }) {
     const platform = usePlatform();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const overlayRef = useRef<OverlayRef>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const mergedMenuRef = useMergedRefs(menuRef, useScrollbar());
 
-    const {onCloseWithoutAnimation, onCloseWithAnimation} = useEvents({
-        onCloseWithoutAnimation: _onCloseWithoutAnimation,
-        onCloseWithAnimation: _onCloseWithAnimation,
+    const {
+        onCloseWithoutAnimation,
+        onCloseWithAnimation,
+        saveAccountMention,
+        saveSearchEntityMention,
+    } = useEvents({
+        onCloseWithoutAnimation: onCloseWithoutAnimationFromProps,
+        onCloseWithAnimation: onCloseWithAnimationFromProps,
+
+        saveAccountMention: (accountData: AccountModelData) => {
+            const view = assertExists(viewRef.current);
+
+            // If the account's short name is not ambiguous when searching all account
+            // names then we will insert a short mention by default. The user can undo
+            // (cmd-z) to get the long version of the mention.
+            const isShortNameAmbiguous = allAccountsFuse
+                ? allAccountsFuse
+                      .search(getAccountShortNameWithoutFullNameTooltip(accountData))
+                      .filter(result => typeof result.score !== "number" || result.score < 0.25)
+                      .length > 1
+                : true;
+
+            const mention: ContentMention = {
+                type: "Account",
+                accountId: accountData.id,
+                // Only use short name for a non-ambiguous name on desktop. Since on mobile the
+                // quick undo capability doesn't really exist. Instead the user may tap delete
+                // to get a short name.
+                isShort: platform !== "mobile" && !isShortNameAmbiguous,
+            };
+
+            let transaction = updateContentEditorReferences(
+                view.state.tr.replaceRangeWith(
+                    range.from,
+                    range.to,
+                    view.state.schema.node("mention", {mention}),
+                ),
+                {
+                    type: "SetAccount",
+                    account: new AccountModel(accountData),
+                },
+            );
+
+            // If, as a convenience, we shortened the mention then we want undo (cmd-z) to
+            // expand the mention back out so register a quick undo transaction.
+            if (mention.isShort) {
+                const newMention: ContentMention = {
+                    ...mention,
+                    isShort: false,
+                };
+
+                transaction = setContentEditorQuickUndo(
+                    transaction,
+                    "Mod-z",
+                    range.from,
+                    (state, dispatch, pos) => {
+                        // If `pos` no longer represents the mention, return.
+                        const $pos = state.doc.resolve(pos);
+
+                        const node = $pos.node();
+                        if (node.childCount === 0) return false;
+
+                        const childNode = node.child($pos.index());
+                        if (childNode.type.name !== "mention") return false;
+
+                        dispatch?.(state.tr.setNodeAttribute(pos, "mention", newMention));
+                        return true;
+                    },
+                );
+            }
+
+            view.dispatch(transaction);
+
+            onCloseWithoutAnimation();
+        },
+
+        saveSearchEntityMention: (entityData: SearchEntityModelData) => {
+            assert(isSearchMentionEntityId(entityData.id));
+
+            const view = assertExists(viewRef.current);
+
+            const mention: ContentMention = {type: "SearchEntity", entityId: entityData.id};
+
+            const transaction = updateContentEditorReferences(
+                view.state.tr.replaceRangeWith(
+                    range.from,
+                    range.to,
+                    view.state.schema.node("mention", {mention}),
+                ),
+                {
+                    type: "SetSearchEntity",
+                    entityId: entityData.id,
+                    entity: {
+                        isPrivate: false,
+                        entity: new SearchEntityModel(entityData),
+                    },
+                },
+            );
+
+            view.dispatch(transaction);
+
+            onCloseWithoutAnimation();
+        },
     });
 
     useLayoutEffect(() => {
@@ -114,6 +257,85 @@ export function ContentEditorMentionFloater({
         }
     }, [isClosing, onCloseWithoutAnimation]);
 
+    const {
+        output: searchMentionOutput,
+        queryText: searchStateQueryText,
+        onQueryTextChange: onSearchStateQueryTextChange,
+    } = useSearchMentionState({initialQueryText: searchQuery});
+
+    // `searchQuery` is controlled by a prop. Make sure we keep the state internal
+    // to keep `useSearchMentionState()` in sync with the `searchQuery` prop.
+    if (searchQuery !== searchStateQueryText) {
+        onSearchStateQueryTextChange(searchQuery);
+    }
+
+    const lastSearchKeyRef = useRef(searchMentionOutput.key);
+
+    // Reset scroll position whenever the search key changes.
+    useLayoutEffect(() => {
+        if (lastSearchKeyRef.current === searchMentionOutput.key) return;
+        lastSearchKeyRef.current = searchMentionOutput.key;
+
+        if (menuRef.current) menuRef.current.scrollTop = 0;
+    }, [searchMentionOutput.key]);
+
+    const getInsertMenuSelection = useEvent(() => {
+        const view = assertExists(viewRef.current);
+
+        let $to = view.state.doc.resolve(range.to);
+        let $from = view.state.doc.resolve(range.from);
+
+        // As a convenience, if we have "foo @divider bar" then we want to trim the
+        // space at the start of " bar" when inserting our divider.
+        if ($to.nodeAfter?.isText) {
+            const newText = $to.nodeAfter.text!.trimStart();
+            $to = view.state.doc.resolve($to.pos + ($to.nodeAfter.text!.length - newText.length));
+        }
+
+        // As a convenience, if we have "foo @divider bar" then we want to trim the
+        // space at the end of "foo " when inserting our divider.
+        if ($from.nodeBefore?.isText) {
+            const newText = $from.nodeBefore.text!.trimEnd();
+            $from = view.state.doc.resolve(
+                $from.pos - ($from.nodeBefore.text!.length - newText.length),
+            );
+        }
+
+        return TextSelection.between($to, $from);
+    });
+
+    const insertMenuActions = useMemo(
+        () =>
+            getContentEditorInsertMenuActions({
+                schema: state.schema,
+                viewRef,
+                getSelection: getInsertMenuSelection,
+                alwaysDeleteSelection: true,
+            }).flat(),
+        [getInsertMenuSelection, state.schema, viewRef],
+    );
+
+    const insertMenuActionsFuse = useMemo(() => {
+        return new Fuse(insertMenuActions, {keys: ["label"], includeScore: true});
+    }, [insertMenuActions]);
+
+    // We use `searchMentionOutput.queryText` for searching menu actions not the
+    // prop `searchQuery`. That's because we want our menu action search result to
+    // update at the same time as our entity mentions search result.
+    const searchedInsertMenuActions = useMemo(() => {
+        if (searchMentionOutput.queryText.length === 0) {
+            return insertMenuActions.filter(action => action.isSuggestedInMentionFloater);
+        }
+
+        return filterMapArray(
+            insertMenuActionsFuse.search(searchMentionOutput.queryText),
+            ({item, score}) => {
+                if (score! >= fuseScoreMatchCutoff) return;
+                return item;
+            },
+        );
+    }, [insertMenuActions, insertMenuActionsFuse, searchMentionOutput.queryText]);
+
     const accountRegistry = useAccountRegistry();
     const allAccounts = useLazyLoadRpc(expensivelyGetAllSpaceAccounts, {spaceId: space.id}).output
         ?.accounts;
@@ -124,7 +346,7 @@ export function ContentEditorMentionFloater({
                 allAccounts
                     ? Store.mapMany(
                           allAccounts.map(account => accountRegistry.getAccountStore(account)),
-                          accounts => accounts,
+                          accountDatas => accountDatas,
                       )
                     : null,
             [accountRegistry, allAccounts],
@@ -137,34 +359,158 @@ export function ContentEditorMentionFloater({
         return new Fuse(allAccountDatas, {keys: ["name"], includeScore: true});
     }, [allAccountDatas]);
 
+    // We use `searchMentionOutput.queryText` for searching accounts not the prop
+    // `searchQuery`. That's because we want our account search result to update at
+    // the same time as our entity mentions search result.
     const searchedAccountDatas = useMemo(() => {
         if (!allAccountDatas || !allAccountsFuse) return null;
-        if (searchQuery.length === 0) {
-            // Don't include removed accounts in the initial rendered account list.
-            //
-            // TODO(calebmer): When searching, removed accounts should rank lower. How do
-            // we give them a lower score while still allowing users to find them?
-            return allAccountDatas.filter(item => !item.space.removal);
-        }
-        return allAccountsFuse.search(searchQuery).map(({item}) => item);
-    }, [allAccountDatas, allAccountsFuse, searchQuery]);
 
-    const [_selectionState, setSelectionState] = useState<{
-        searchQuery: string;
+        // If the user hasn't typed any search text yet then show accounts in affinity
+        // order.
+        if (searchMentionOutput.queryText.length === 0) {
+            return Array.from(
+                sliceIterable(
+                    filterIterable(
+                        allAccountDatas ?? emptyArray,
+                        accountData =>
+                            // Don't include your account in the suggested mention list and don't include
+                            // removed accounts.
+                            accountData.id !== currentAccount?.id && !accountData.space.removal,
+                    ),
+                    0,
+                    maxAccountCount,
+                ),
+            );
+        }
+
+        return filterMapArray(
+            allAccountsFuse.search(searchMentionOutput.queryText),
+            ({item, score}) => {
+                if (score! >= fuseScoreMatchCutoff) return;
+                return item;
+            },
+        )
+            .sort((accountData1, accountData2) => {
+                // Sort removed accounts below all others when searching.
+                if (!accountData1.space.removal && accountData2.space.removal) return -1;
+                if (accountData1.space.removal && !accountData2.space.removal) return 1;
+
+                // Keep the relative order of all other items.
+                return 0;
+            })
+            .slice(0, maxAccountCount);
+    }, [allAccountDatas, allAccountsFuse, currentAccount?.id, searchMentionOutput.queryText]);
+
+    type Item =
+        | {
+              readonly type: "Insert";
+              readonly action: ContentEditorInsertMenuAction;
+              readonly onPress: () => void;
+          }
+        | {
+              readonly type: "Account";
+              readonly accountData: AccountModelData;
+              readonly onPress: () => void;
+          }
+        | {
+              readonly type: "SearchEntity";
+              readonly entity: SearchEntityModel;
+              readonly onPress: () => void;
+          };
+
+    const itemSections = useMemo((): ReadonlyArray<{
+        readonly title: string;
+        readonly items: ReadonlyArray<Item>;
+    }> => {
+        const hasSearchedAccountDatas =
+            searchedAccountDatas !== null && searchedAccountDatas.length > 0;
+        const hasSearchMentionResults =
+            searchMentionOutput.results !== null && searchMentionOutput.results.length > 0;
+        const hasSearchedInsertMenuActions = searchedInsertMenuActions.length > 0;
+        const isSearchedInsertMenuActionsFirst = searchMentionOutput.queryText.length > 0;
+
+        const itemSections: Array<{
+            title: string;
+            items: ReadonlyArray<Item>;
+        }> = [];
+
+        if (isSearchedInsertMenuActionsFirst && hasSearchedInsertMenuActions) {
+            itemSections.push({
+                title: "Insert",
+                items: searchedInsertMenuActions.map(action => ({
+                    type: "Insert",
+                    action,
+                    onPress: action.onPress,
+                })),
+            });
+        }
+
+        if (hasSearchedAccountDatas) {
+            itemSections.push({
+                title: "People",
+                items: searchedAccountDatas.map(accountData => ({
+                    type: "Account",
+                    accountData,
+                    onPress: () => saveAccountMention(accountData),
+                })),
+            });
+        }
+
+        if (hasSearchMentionResults) {
+            itemSections.push({
+                title: searchMentionOutput.queryText.length === 0 ? "Suggested" : "Other",
+                items: searchMentionOutput.results.map(result => ({
+                    type: "SearchEntity",
+                    entity: result.model,
+                    onPress: () =>
+                        saveSearchEntityMention(
+                            searchEntityRegistry.getEntityStore(result.model).getSnapshot(),
+                        ),
+                })),
+            });
+        }
+
+        if (!isSearchedInsertMenuActionsFirst && hasSearchedInsertMenuActions) {
+            itemSections.push({
+                title: "Insert",
+                items: searchedInsertMenuActions.map(action => ({
+                    type: "Insert",
+                    action,
+                    onPress: action.onPress,
+                })),
+            });
+        }
+
+        return itemSections;
+    }, [
+        saveAccountMention,
+        saveSearchEntityMention,
+        searchEntityRegistry,
+        searchMentionOutput.queryText.length,
+        searchMentionOutput.results,
+        searchedAccountDatas,
+        searchedInsertMenuActions,
+    ]);
+
+    const items = useMemo(() => itemSections.flatMap(section => section.items), [itemSections]);
+
+    const [actualSelectionState, setSelectionState] = useState<{
+        searchKey: string;
         index: number | null;
         isFocusVisible: boolean;
     }>({
-        searchQuery,
+        searchKey: searchMentionOutput.key,
         index: null,
         isFocusVisible: false,
     });
 
     const selectionState =
-        _selectionState.searchQuery !== searchQuery ||
-        !searchedAccountDatas ||
-        (_selectionState.index !== null && _selectionState.index >= searchedAccountDatas.length)
-            ? {searchQuery, index: null, isFocusVisible: false}
-            : _selectionState;
+        actualSelectionState.searchKey !== searchMentionOutput.key ||
+        (actualSelectionState.index !== null && actualSelectionState.index >= items.length)
+            ? {searchKey: searchMentionOutput.key, index: null, isFocusVisible: false}
+            : actualSelectionState;
+
+    if (selectionState !== actualSelectionState) setSelectionState(selectionState);
 
     const hasSelection: boolean = selectionState.index !== null;
 
@@ -192,73 +538,6 @@ export function ContentEditorMentionFloater({
         };
     }, [hasSelection]);
 
-    const saveMention = (accountData: AccountModelData) => {
-        const view = assertExists(viewRef.current);
-
-        // If the account's short name is not ambiguous when searching all account
-        // names then we will insert a short mention by default. The user can undo
-        // (cmd-z) to get the long version of the mention.
-        const isShortNameAmbiguous = allAccountsFuse
-            ? allAccountsFuse
-                  .search(getAccountShortNameWithoutFullNameTooltip(accountData))
-                  .filter(result => typeof result.score !== "number" || result.score < 0.25)
-                  .length > 1
-            : true;
-
-        const mention: ContentMention = {
-            type: "Account",
-            accountId: accountData.id,
-            // Only use short name for a non-ambiguous name on desktop. Since on mobile the
-            // quick undo capability doesn't really exist. Instead the user may tap delete
-            // to get a short name.
-            isShort: platform !== "mobile" && !isShortNameAmbiguous,
-        };
-
-        let transaction = updateContentEditorReferences(
-            view.state.tr.replaceRangeWith(
-                range.from,
-                range.to,
-                view.state.schema.node("mention", {mention}),
-            ),
-            {
-                type: "SetAccount",
-                account: new AccountModel(accountData),
-            },
-        );
-
-        // If, as a convenience, we shortened the mention then we want undo (cmd-z) to
-        // expand the mention back out so register a quick undo transaction.
-        if (mention.isShort) {
-            const newMention: ContentMention = {
-                ...mention,
-                isShort: false,
-            };
-
-            transaction = setContentEditorQuickUndo(
-                transaction,
-                "Mod-z",
-                range.from,
-                (state, dispatch, pos) => {
-                    // If `pos` no longer represents the mention, return.
-                    const $pos = state.doc.resolve(pos);
-
-                    const node = $pos.node();
-                    if (node.childCount === 0) return false;
-
-                    const childNode = node.child($pos.index());
-                    if (childNode.type.name !== "mention") return false;
-
-                    dispatch?.(state.tr.setNodeAttribute(pos, "mention", newMention));
-                    return true;
-                },
-            );
-        }
-
-        view.dispatch(transaction);
-
-        onCloseWithoutAnimation();
-    };
-
     useImperativeHandle(handleKeyDownRef, () => event => {
         switch (event.key) {
             // Moves focus to the next item, optionally wrapping from the last to
@@ -269,15 +548,15 @@ export function ContentEditorMentionFloater({
                 event.preventDefault(); // Don't scroll or move cursor
                 event.stopPropagation();
 
-                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                if (items.length > 0) {
                     originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
-                        searchQuery,
+                        searchKey: searchMentionOutput.key,
                         index:
                             selectionState.index === null ||
-                            selectionState.index === searchedAccountDatas.length - 1
+                            selectionState.index === items.length - 1
                                 ? 0
                                 : selectionState.index + 1,
                         isFocusVisible: getIsFocusVisible(),
@@ -293,15 +572,15 @@ export function ContentEditorMentionFloater({
                 event.preventDefault(); // Don't scroll or move cursor
                 event.stopPropagation();
 
-                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                if (items.length > 0) {
                     originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
-                        searchQuery,
+                        searchKey: searchMentionOutput.key,
                         index:
                             selectionState.index === null || selectionState.index === 0
-                                ? searchedAccountDatas.length - 1
+                                ? items.length - 1
                                 : selectionState.index - 1,
                         isFocusVisible: getIsFocusVisible(),
                     });
@@ -317,12 +596,12 @@ export function ContentEditorMentionFloater({
                 event.preventDefault(); // Don't scroll
                 event.stopPropagation();
 
-                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                if (items.length > 0) {
                     originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
-                        searchQuery,
+                        searchKey: searchMentionOutput.key,
                         index: 0,
                         isFocusVisible: getIsFocusVisible(),
                     });
@@ -338,13 +617,13 @@ export function ContentEditorMentionFloater({
                 event.preventDefault(); // Don't scroll
                 event.stopPropagation();
 
-                if (searchedAccountDatas && searchedAccountDatas.length > 0) {
+                if (items.length > 0) {
                     originalInteractionModalityRef.current ??= getInteractionModality();
                     setInteractionModality("keyboard");
 
                     setSelectionState({
-                        searchQuery,
-                        index: searchedAccountDatas.length - 1,
+                        searchKey: searchMentionOutput.key,
+                        index: items.length - 1,
                         isFocusVisible: getIsFocusVisible(),
                     });
                 }
@@ -371,20 +650,15 @@ export function ContentEditorMentionFloater({
                 event.preventDefault();
                 event.stopPropagation();
 
-                if (
-                    searchedAccountDatas &&
-                    selectionState.index !== null &&
-                    selectionState.index < searchedAccountDatas.length
-                ) {
-                    const accountData = searchedAccountDatas[selectionState.index]!;
-                    saveMention(accountData);
-                }
+                if (selectionState.index === null) break;
+
+                items[selectionState.index]!.onPress();
                 break;
             }
         }
     });
 
-    const isLoading = allAccountDatas === null;
+    const isLoading = allAccountDatas === null || searchMentionOutput.results === null;
     const wasInitiallyLoading = useConstant(() => isLoading);
     const [shouldShowLoadingIndicatorIfLoading, setShouldShowLoadingIndicatorIfLoading] =
         useState(false);
@@ -400,9 +674,147 @@ export function ContentEditorMentionFloater({
         };
     }, [isLoading, shouldShowLoadingIndicatorIfLoading]);
 
+    const shouldShowSearchMentionLoadingIndicator = useDelayLoadingIndicator(
+        searchMentionOutput.isPending,
+    );
+
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
-    const {width} = Menu.sizeConstants.base[platform];
+    const handleSelect = (index: number) => {
+        setSelectionState({
+            searchKey: searchMentionOutput.key,
+            index,
+            isFocusVisible: getIsFocusVisible(),
+        });
+    };
+
+    const handleDeselect = (index: number) => {
+        setSelectionState(selectionState => {
+            if (
+                selectionState.searchKey !== searchMentionOutput.key ||
+                selectionState.index !== index
+            ) {
+                return selectionState;
+            }
+            return {
+                searchKey: searchMentionOutput.key,
+                index: null,
+                isFocusVisible: false,
+            };
+        });
+    };
+
+    let overlayItemIndex = 0;
+
+    const overlay = isLoading ? (
+        <Box paddingX="1.5" paddingY="1.5" display="flex" justifyContent="center">
+            <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+        </Box>
+    ) : (
+        <>
+            {shouldShowSearchMentionLoadingIndicator && (
+                <Box position="absolute" top="2" right="2">
+                    <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                </Box>
+            )}
+            {items.length === 0 ? (
+                <Box
+                    paddingX="1.5"
+                    paddingY="1.5"
+                    display="flex"
+                    alignItems="center"
+                    gap="2"
+                    color="grey-70"
+                >
+                    <Box padding="1">
+                        <MagnifyingGlass size={spacing["4"]} />
+                    </Box>
+                    <Box>No results</Box>
+                </Box>
+            ) : (
+                itemSections.map((itemSection, itemSectionIndex) => {
+                    return (
+                        <Fragment key={itemSection.title}>
+                            {itemSectionIndex !== 0 && (
+                                <Box paddingX="1" paddingY="1">
+                                    <Box width="full" borderBottom="grey-5" />
+                                </Box>
+                            )}
+                            <Box
+                                paddingTop="1.5"
+                                paddingBottom="1"
+                                paddingX="1.5"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                {itemSection.title}
+                            </Box>
+                            {itemSection.items.map(item => {
+                                const index = overlayItemIndex;
+                                overlayItemIndex++;
+
+                                switch (item.type) {
+                                    case "Insert": {
+                                        return (
+                                            <ContentEditorMentionFloaterInsertItem
+                                                key={item.action.label}
+                                                menuRef={menuRef}
+                                                isFirst={index === 0}
+                                                isLast={index === items.length - 1}
+                                                isClosing={isClosing}
+                                                isFocusVisible={selectionState.isFocusVisible}
+                                                isSelected={selectionState.index === index}
+                                                action={item.action}
+                                                onSelect={() => handleSelect(index)}
+                                                onDeselect={() => handleDeselect(index)}
+                                                onPress={item.onPress}
+                                            />
+                                        );
+                                    }
+                                    case "Account": {
+                                        return (
+                                            <ContentEditorMentionFloaterAccountItem
+                                                key={item.accountData.id}
+                                                menuRef={menuRef}
+                                                isFirst={index === 0}
+                                                isLast={index === items.length - 1}
+                                                isClosing={isClosing}
+                                                isFocusVisible={selectionState.isFocusVisible}
+                                                isSelected={selectionState.index === index}
+                                                accountData={item.accountData}
+                                                onSelect={() => handleSelect(index)}
+                                                onDeselect={() => handleDeselect(index)}
+                                                onPress={item.onPress}
+                                            />
+                                        );
+                                    }
+                                    case "SearchEntity": {
+                                        return (
+                                            <ContentEditorMentionFloaterSearchEntityResultItem
+                                                key={item.entity.id}
+                                                menuRef={menuRef}
+                                                isFirst={index === 0}
+                                                isLast={index === items.length - 1}
+                                                isClosing={isClosing}
+                                                isFocusVisible={selectionState.isFocusVisible}
+                                                isSelected={selectionState.index === index}
+                                                entity={item.entity}
+                                                onSelect={() => handleSelect(index)}
+                                                onDeselect={() => handleDeselect(index)}
+                                                onPress={item.onPress}
+                                            />
+                                        );
+                                    }
+                                    default:
+                                        throw exhaustive(item);
+                                }
+                            })}
+                        </Fragment>
+                    );
+                })
+            )}
+        </>
+    );
 
     return (
         <OverlayAnimated
@@ -425,13 +837,11 @@ export function ContentEditorMentionFloater({
             overflowBottom={platform === "mobile" ? "18rem" : undefined}
             offset="3"
             overlay={
-                // TODO(calebmer): This should eventually be virtualized. Probably at the same
-                // time we add a proper search backend for mentions?
                 <Box
                     data-testid="ContentEditorMentionFloater"
                     ref={mergedMenuRef}
                     position="relative"
-                    width={width}
+                    width={Menu.sizeConstants.lg[platform].width}
                     // Hide the scrollbar while animating closed by setting overflow to `hidden`
                     // while animating.
                     overflowX="hidden"
@@ -444,81 +854,10 @@ export function ContentEditorMentionFloater({
                     style={{
                         // On mobile the height needs to be less than half of the available space when
                         // the keyboard and navigation bar are open.
-                        maxHeight: platform === "mobile" ? "10rem" : spacing["64"],
+                        maxHeight: platform === "mobile" ? spacing["48"] : spacing["96"],
                     }}
                 >
-                    <Box
-                    // Container div which:
-                    //
-                    // 1. Means `useScrollbar()` doesn't insert an item after our last element
-                    //    messing up our scroll logic. See `!itemElement.nextSibling` check in
-                    //    scroll layout effect above.
-                    //
-                    // 2. Means `useScrollbar()` on the parent `<Box>` doesn't need to add a resize
-                    //    listener to each account.
-                    >
-                        {isLoading && shouldShowLoadingIndicatorIfLoading ? (
-                            <Box
-                                paddingX="1.5"
-                                paddingY="1.5"
-                                display="flex"
-                                justifyContent="center"
-                            >
-                                <SpinnerGap
-                                    className={spinAnimationClassName}
-                                    size={spacing["4"]}
-                                />
-                            </Box>
-                        ) : !searchedAccountDatas || searchedAccountDatas.length === 0 ? (
-                            <Box
-                                paddingX="1.5"
-                                paddingY="1.5"
-                                display="flex"
-                                alignItems="center"
-                                gap="2"
-                                color="grey-70"
-                            >
-                                <Box padding="1">
-                                    <MagnifyingGlass size={spacing["4"]} />
-                                </Box>
-                                <Box>No results</Box>
-                            </Box>
-                        ) : (
-                            searchedAccountDatas?.map((accountData, index) => (
-                                <ContentEditorMentionAccountItem
-                                    key={accountData.id}
-                                    accountData={accountData}
-                                    menuRef={menuRef}
-                                    isClosing={isClosing}
-                                    isFocusVisible={selectionState.isFocusVisible}
-                                    isSelected={selectionState.index === index}
-                                    onSelect={() =>
-                                        setSelectionState({
-                                            searchQuery,
-                                            index,
-                                            isFocusVisible: getIsFocusVisible(),
-                                        })
-                                    }
-                                    onDeselect={() =>
-                                        setSelectionState(selectionState => {
-                                            if (
-                                                selectionState.searchQuery !== searchQuery ||
-                                                selectionState.index !== index
-                                            ) {
-                                                return selectionState;
-                                            }
-                                            return {
-                                                searchQuery,
-                                                index: null,
-                                                isFocusVisible: false,
-                                            };
-                                        })
-                                    }
-                                    onPress={() => saveMention(accountData)}
-                                />
-                            ))
-                        )}
-                    </Box>
+                    <OverlayScopeContextProvider>{overlay}</OverlayScopeContextProvider>
                 </Box>
             }
         >
@@ -532,25 +871,31 @@ export function ContentEditorMentionFloater({
     );
 }
 
-function ContentEditorMentionAccountItem({
-    accountData,
+function ContentEditorMentionFloaterItemBase({
     menuRef,
-    isClosing,
-    isFocusVisible,
+    isFirst,
+    isLast,
     isSelected,
+    isFocusVisible,
+    isClosing,
+    children,
     onSelect,
     onDeselect,
     onPress,
 }: {
-    accountData: AccountModelData;
     menuRef: RefObject<HTMLDivElement>;
-    isClosing: boolean;
-    isFocusVisible: boolean;
+    isFirst: boolean;
+    isLast: boolean;
     isSelected: boolean;
+    isFocusVisible: boolean;
+    isClosing: boolean;
+    children: ReactNode | ((props: {isPressed: boolean}) => ReactNode);
     onSelect: () => void;
     onDeselect: () => void;
     onPress: () => void;
 }) {
+    const spacingScale = useSpacingScale();
+
     const itemRef = useRef<HTMLDivElement>(null);
 
     const {isHovered, hoverProps} = useHover({
@@ -581,7 +926,7 @@ function ContentEditorMentionAccountItem({
 
             if (itemElement.offsetTop < menuElement.scrollTop) {
                 // First item scrolls us all the way to the top.
-                if (!itemElement.previousSibling) {
+                if (isFirst) {
                     menuElement.scrollTop = 0;
                 } else {
                     menuElement.scrollTop = itemElement.offsetTop;
@@ -591,7 +936,7 @@ function ContentEditorMentionAccountItem({
                 menuElement.scrollTop + menuElement.clientHeight
             ) {
                 // Last item scrolls us all the way to the end.
-                if (!itemElement.nextSibling) {
+                if (isLast) {
                     menuElement.scrollTop = menuElement.scrollHeight - menuElement.clientHeight;
                 } else {
                     menuElement.scrollTop =
@@ -609,11 +954,11 @@ function ContentEditorMentionAccountItem({
         return () => {
             isCancelled = true;
         };
-    }, [isFocusVisible, isSelected, menuRef]);
+    }, [isFirst, isFocusVisible, isLast, isSelected, menuRef]);
 
     return (
         <FocusRing
-            offset="0"
+            offset="inset"
             isVisible={isSelected && isFocusVisible && !isClosing}
             shouldIgnoreFocusEvents={true}
         >
@@ -625,12 +970,159 @@ function ContentEditorMentionAccountItem({
                 borderRadius="1"
                 display="flex"
                 alignItems="center"
-                gap="2"
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
+                style={{
+                    height:
+                        contentStyles.paragraphLineHeightPx[spacingScale] +
+                        convertRemLengthToPx("1.5", spacingScale) * 2,
+                }}
             >
-                <AccountAvatar account={accountData} size="6" />
-                <Box fontStyle="truncate">{accountData.name}</Box>
+                {typeof children === "function" ? children({isPressed}) : children}
             </Box>
         </FocusRing>
+    );
+}
+
+function ContentEditorMentionFloaterAccountItem({
+    menuRef,
+    isFirst,
+    isLast,
+    isSelected,
+    isFocusVisible,
+    isClosing,
+    accountData,
+    onSelect,
+    onDeselect,
+    onPress,
+}: {
+    menuRef: RefObject<HTMLDivElement>;
+    isFirst: boolean;
+    isLast: boolean;
+    isSelected: boolean;
+    isFocusVisible: boolean;
+    isClosing: boolean;
+    accountData: AccountModelData;
+    onSelect: () => void;
+    onDeselect: () => void;
+    onPress: () => void;
+}) {
+    return (
+        <ContentEditorMentionFloaterItemBase
+            menuRef={menuRef}
+            isFirst={isFirst}
+            isLast={isLast}
+            isSelected={isSelected}
+            isFocusVisible={isFocusVisible}
+            isClosing={isClosing}
+            onSelect={onSelect}
+            onDeselect={onDeselect}
+            onPress={onPress}
+        >
+            <AccountAvatar account={accountData} size="5" />
+            <Box paddingLeft="2" fontStyle="truncate">
+                {accountData.name}
+            </Box>
+        </ContentEditorMentionFloaterItemBase>
+    );
+}
+
+function ContentEditorMentionFloaterSearchEntityResultItem({
+    menuRef,
+    isFirst,
+    isLast,
+    isSelected,
+    isFocusVisible,
+    isClosing,
+    entity,
+    onSelect,
+    onDeselect,
+    onPress,
+}: {
+    menuRef: RefObject<HTMLDivElement>;
+    isFirst: boolean;
+    isLast: boolean;
+    isSelected: boolean;
+    isFocusVisible: boolean;
+    isClosing: boolean;
+    entity: SearchEntityModel;
+    onSelect: () => void;
+    onDeselect: () => void;
+    onPress: () => void;
+}) {
+    const entityData = useSearchEntityModel(entity);
+    const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(entity.id), [entity.id]);
+
+    return (
+        <ContentEditorMentionFloaterItemBase
+            menuRef={menuRef}
+            isFirst={isFirst}
+            isLast={isLast}
+            isSelected={isSelected}
+            isFocusVisible={isFocusVisible}
+            isClosing={isClosing}
+            onSelect={onSelect}
+            onDeselect={onDeselect}
+            onPress={onPress}
+        >
+            <SearchEntityViewTitlePrefix icon={typeDisplay.icon} media={entityData.media} />
+            <Box fontStyle="truncate">{renderTextWithEmojiFontFamily(entityData.title ?? "")}</Box>
+        </ContentEditorMentionFloaterItemBase>
+    );
+}
+
+function ContentEditorMentionFloaterInsertItem({
+    menuRef,
+    isFirst,
+    isLast,
+    isSelected,
+    isFocusVisible,
+    isClosing,
+    action,
+    onSelect,
+    onDeselect,
+    onPress,
+}: {
+    menuRef: RefObject<HTMLDivElement>;
+    isFirst: boolean;
+    isLast: boolean;
+    isSelected: boolean;
+    isFocusVisible: boolean;
+    isClosing: boolean;
+    action: ContentEditorInsertMenuAction;
+    onSelect: () => void;
+    onDeselect: () => void;
+    onPress: () => void;
+}) {
+    return (
+        <ContentEditorMentionFloaterItemBase
+            menuRef={menuRef}
+            isFirst={isFirst}
+            isLast={isLast}
+            isSelected={isSelected}
+            isFocusVisible={isFocusVisible}
+            isClosing={isClosing}
+            onSelect={onSelect}
+            onDeselect={onDeselect}
+            onPress={onPress}
+        >
+            {({isPressed}) => (
+                <>
+                    <IconContext.Provider
+                        value={{
+                            color: isPressed
+                                ? colorSchemeVars["grey-100"]
+                                : colorSchemeVars["grey-80"],
+                            size: spacing["4"],
+                            weight: "regular",
+                        }}
+                    >
+                        {action.icon}
+                    </IconContext.Provider>
+                    <Box paddingLeft="2" fontStyle="truncate">
+                        {action.label}
+                    </Box>
+                </>
+            )}
+        </ContentEditorMentionFloaterItemBase>
     );
 }

@@ -149,6 +149,7 @@ import {colorSchemeVars, contentEditorStyles, contentStyles} from "~/client/styl
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     getContentReferencedIdsForSlice,
     isEmptyContentReferencedIds,
@@ -169,7 +170,7 @@ import {DocumentContentCover} from "~/shared/documents/document_content_cover.js
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {FileEntityId, parseFileEntityIdFromUrl} from "~/shared/files/file_entity_id.js";
+import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -183,6 +184,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -200,7 +202,7 @@ import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_saf
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
 import {Id, generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
@@ -209,7 +211,10 @@ import {
     attachFileFromAttachment,
     getFileFromAttachment,
 } from "~/shared/rpc/files_rpc_definitions.js";
+import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
+import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 // TODO(calebmer, #mobile-webkit-weirdness): Safari doesn't support
 // `ascent-override` and `descent-override` which means our phantom selection
@@ -661,16 +666,24 @@ function ContentEditorWrapper<Content extends ContentWithReferences>(
     const isInitialAppRender = useIsInitialAppRender();
     const spaceContext = useSpaceContextIfExists();
 
-    // Preload space accounts so when the user tries to mention one they
-    // are available.
+    // Preload space accounts and search affinity items so when the user tries to
+    // mention one they are available.
     //
-    // Only preload space accounts outside of Jest unit tests! That way we don't
-    // depend on space context in unit tests.
+    // Only preload outside of Jest unit tests! That way we don't depend on space
+    // context in unit tests.
     if (!import.meta.jest) {
         // eslint-disable-next-line react-compiler/react-compiler, react-hooks/rules-of-hooks
         useIdlyPreloadRpc(
             expensivelyGetAllSpaceAccounts,
             // If the actor doesn't have space access then don't preload all space accounts
+            // since we'll get a `PermissionDeniedError` anyway.
+            spaceContext?.currentAccount ? {spaceId: spaceContext.space.id} : null,
+        );
+
+        // eslint-disable-next-line react-compiler/react-compiler, react-hooks/rules-of-hooks
+        useIdlyPreloadRpc(
+            searchByAffinity,
+            // If the actor doesn't have space access then don't preload the affinity list
             // since we'll get a `PermissionDeniedError` anyway.
             spaceContext?.currentAccount ? {spaceId: spaceContext.space.id} : null,
         );
@@ -1226,8 +1239,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 },
             }),
             mention: createContentEditorMentionNodeViewConstructor({
+                getRouteLayout: () => routeLayoutRef.current,
                 getSpaceId: () => assertExists(spaceContextRef.current).space.id,
                 getCurrentAccountIfExists: () => spaceContextRef.current?.currentAccount ?? null,
+                onNavigate: to => navigateRef.current(to),
             }),
             fileRow: createContentEditorFileRowLikeNodeViewConstructor({
                 getRouteLayout: () => routeLayoutRef.current,
@@ -1682,6 +1697,32 @@ function ContentEditor<Content extends ContentWithReferences>(
                     }
                 }
             }
+
+            // Go through all entity mentions and remove the `data-cy-mention` attribute
+            // for any that come from a different space then the one we're currently in.
+            // By removing the `data-cy-mention` attribute, mentions from a different space
+            // will be parsed as links instead of mentions.
+            for (const mentionElement of element.querySelectorAll("a[data-cy-mention]")) {
+                const href = mentionElement.getAttribute("href");
+                if (!href) {
+                    mentionElement.removeAttribute("data-cy-mention");
+                    continue;
+                }
+
+                const spaceIdMatch = href.match(/\/s\/([^/]+)/);
+                if (!spaceIdMatch) {
+                    mentionElement.removeAttribute("data-cy-mention");
+                    continue;
+                }
+
+                if (
+                    !spaceContextRef.current ||
+                    spaceIdMatch[1] !== spaceContextRef.current.space.id
+                ) {
+                    mentionElement.removeAttribute("data-cy-mention");
+                    continue;
+                }
+            }
         };
 
         /**
@@ -2098,39 +2139,37 @@ function ContentEditor<Content extends ContentWithReferences>(
                 }
             }
 
-            // If we're pasting a URL for a `FileEntityId` in an empty paragraph then
+            // If we're pasting a URL for a `SearchEntityId` in an empty paragraph then
             // instead of pasting the URL text we want to paste a file node.
             if (spaceContextRef.current && selection.from === selection.to) {
-                const node = selection.$from.node();
-                const parentNode = selection.$from.node(-1);
+                const entityId = parseSearchEntityIdFromUrl(
+                    spaceContextRef.current.space.id,
+                    event.clipboardData?.getData("text/plain") ?? "",
+                );
+                if (entityId !== null) {
+                    const node = selection.$from.node();
+                    const parentNode = selection.$from.node(-1);
 
-                const isEmptyParagraphInDoc =
-                    node.type.name === "paragraph" &&
-                    node.childCount === 0 &&
-                    (parentNode.type.name === "doc" || parentNode.type.name === "tableCell");
+                    const isEmptyParagraphInDoc =
+                        node.type.name === "paragraph" &&
+                        node.childCount === 0 &&
+                        (parentNode.type.name === "doc" || parentNode.type.name === "tableCell");
 
-                // The selection should be in an empty paragraph directly in the `doc` node
-                // (or `tableCell`). The paragraph shouldn't be in a list item or quote
-                // block node.
-                if (isEmptyParagraphInDoc) {
-                    const fileEntityId = parseFileEntityIdFromUrl(
-                        spaceContextRef.current.space.id,
-                        event.clipboardData?.getData("text/plain") ?? "",
-                    );
-
-                    if (fileEntityId !== null) {
+                    // If the selection is in an empty paragraph directly in the `doc` node
+                    // (or `tableCell`) then replace the paragraph with a file entity. Otherwise
+                    // we insert a mention.
+                    if (isEmptyParagraphInDoc && isFileEntityId(entityId)) {
                         if (schema.nodes.fileRow && schema.nodes.file) {
                             slice = new Slice(
                                 Fragment.from(
                                     schema.nodes.fileRow.create(null, [
-                                        schema.nodes.file.create({fileId: fileEntityId}),
+                                        schema.nodes.file.create({fileId: entityId}),
                                     ]),
                                 ),
                                 0,
                                 0,
                             );
                         }
-
                         // If our parent component provided an `onPasteOrDropFiles` prop when we don't
                         // have `fileRow` or `file` nodes then empty `slice` (so the link isn't pasted)
                         // and add the file entity to the `onPasteOrDropFiles` call.
@@ -2149,8 +2188,41 @@ function ContentEditor<Content extends ContentWithReferences>(
                             temporaryPastedFileInfosForParent.push({
                                 type: "AttachFileEntity",
                                 spaceId: spaceContextRef.current.space.id,
-                                fileEntityId,
+                                fileEntityId: entityId,
                             });
+                        }
+                    }
+                    // If we're not in an empty paragraph then insert a mention when pasting
+                    // a link.
+                    else {
+                        if (isSearchMentionEntityId(entityId)) {
+                            const mention: ContentMention = {
+                                type: "SearchEntity",
+                                entityId,
+                            };
+
+                            slice = new Slice(
+                                Fragment.from(schema.nodes.mention!.create({mention})),
+                                0,
+                                0,
+                            );
+                        } else {
+                            const accountId = cast<`Account:${AccountId}`>(entityId).slice(
+                                "Account:".length,
+                            );
+                            assert(isId<AccountId>(accountId));
+
+                            const mention: ContentMention = {
+                                type: "Account",
+                                accountId,
+                                isShort: false,
+                            };
+
+                            slice = new Slice(
+                                Fragment.from(schema.nodes.mention!.create({mention})),
+                                0,
+                                0,
+                            );
                         }
                     }
                 }
@@ -3376,10 +3448,14 @@ function ContentEditor<Content extends ContentWithReferences>(
             }
         }
 
+        const selection = state.getSelection();
+
         // Keep track of the element ProseMirror marks as selected with the
         // `ProseMirror-selectednode` CSS class so that we can render our own custom
         // ring around it.
-        if (!(state.getSelection() instanceof NodeSelection)) {
+        //
+        // Don't render a `<FocusRing>` for selected mentions.
+        if (!(selection instanceof NodeSelection) || selection.node.type.name === "mention") {
             setSelectedNodeState(null);
         } else {
             const selectedNodeElement = viewElement.getElementsByClassName(
@@ -3956,7 +4032,12 @@ function ContentEditor<Content extends ContentWithReferences>(
                     // We have this code here in addition to in the state update `useLayoutEffect()`
                     // because we've observed sometimes ProseMirror doesn't set the
                     // `ProseMirror-selectednode` class until after a focus event.
-                    if (!(view.state.selection instanceof NodeSelection)) {
+                    //
+                    // Don't render a `<FocusRing>` for selected mentions.
+                    if (
+                        !(view.state.selection instanceof NodeSelection) ||
+                        view.state.selection.node.type.name === "mention"
+                    ) {
                         setSelectedNodeState(null);
                     } else {
                         const selectedNodeElement = viewElement.getElementsByClassName(

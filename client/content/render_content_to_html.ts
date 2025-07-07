@@ -2,11 +2,11 @@ import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
-import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
 import {renderContentFileEntityPreview} from "~/client/content/internal/content_file_entity_preview.js";
 import {renderContentFilePreview} from "~/client/content/internal/content_file_preview.js";
+import {renderContentMentionToHtml} from "~/client/content/internal/render_content_mention_to_html.js";
 import {
     layoutContentFile,
     layoutContentFileParent,
@@ -17,6 +17,7 @@ import {AppContext} from "~/client/context/app_context.js";
 import {checkIconSvg} from "~/client/icons/check_icon_svg.js";
 import {clipboardTextIconSvg} from "~/client/icons/clipboard_text_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
+import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
@@ -35,7 +36,7 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -71,6 +72,7 @@ export function renderContentToHtmlStore(
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         currentAccount,
         spacingScale,
@@ -86,6 +88,7 @@ export function renderContentToHtmlStore(
         clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
         currentAccount: AccountModel | null;
         spacingScale: SpacingScale;
@@ -103,6 +106,7 @@ export function renderContentToHtmlStore(
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         currentAccount,
         blockWidth: getContentBlockWidth({
@@ -114,6 +118,7 @@ export function renderContentToHtmlStore(
         transformScale: 1,
         platform,
         spacingScale,
+        routeLayout,
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
@@ -160,17 +165,19 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         currentAccount,
         blockWidth,
         transformScale,
         platform,
         spacingScale,
+        routeLayout,
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
         withPosAttribute,
-        isInert,
+        isInert = false,
         placeholder,
         decorations,
         shouldHighlightComment,
@@ -179,12 +186,14 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         clientInfo: ClientInfo;
         spaceId: SpaceId | null;
         accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
         fileRegistry: FileRegistry;
         currentAccount: AccountModel | null;
         blockWidth: number;
         transformScale: number;
         platform: Platform;
         spacingScale: SpacingScale;
+        routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
@@ -402,48 +411,18 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
             mention: node => {
                 const mention: ContentMention = node.attrs.mention;
 
-                if (mention.type !== "Account") {
-                    throw new UnimplementedError("Implemented in next PR");
-                }
+                const html = renderContentMentionToHtml(get, {
+                    accountRegistry,
+                    searchEntityRegistry,
+                    routeLayout,
+                    spaceId,
+                    currentAccount,
+                    references: content.references,
+                    mention,
+                    isInert,
+                });
 
-                const isCurrentAccountMention = currentAccount?.id === mention.accountId;
-
-                // We need a container element for highlight styles to be applied to. Our
-                // mention element may have a background color when mentioning the
-                // current account.
-                const containerElement = new HtmlElementGenerator("span");
-
-                const element = new HtmlElementGenerator("span");
-                containerElement.appendChild(element);
-                element.setAttribute(
-                    "class",
-                    classNames(
-                        contentStyles.mentionClassName,
-                        isCurrentAccountMention && contentStyles.currentAccountMentionClassName,
-                    ),
-                );
-
-                const atElement = new HtmlElementGenerator("span");
-                element.appendChild(atElement);
-                atElement.setAttribute("class", contentStyles.mentionAtClassName);
-                atElement.appendChild(new HtmlTextGenerator("@"));
-
-                const textElement = new HtmlElementGenerator("span");
-                element.appendChild(textElement);
-                textElement.setAttribute("class", contentStyles.mentionTextClassName);
-                textElement.appendChild(
-                    new HtmlTextGenerator(
-                        get(
-                            createContentMentionTextStore(
-                                accountRegistry,
-                                content.references,
-                                mention,
-                            ),
-                        ),
-                    ),
-                );
-
-                return {html: containerElement};
+                return {html};
             },
             fileRow: fileRowLikeNodeRenderer,
             fileRowTable: fileRowLikeNodeRenderer,
@@ -548,12 +527,14 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                         clientInfo,
                         spaceId: assertExists(spaceId),
                         accountRegistry,
+                        searchEntityRegistry,
                         fileRegistry,
                         currentAccount,
                         blockWidth: currentBlockWidth,
                         transformScale,
                         platform,
                         spacingScale,
+                        routeLayout,
                         isInitialAppRender,
                         currentDate,
                     });

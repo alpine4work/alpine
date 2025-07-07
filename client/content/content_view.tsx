@@ -58,6 +58,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContextIfExists} from "~/client/spaces/space_context.js";
 import {contentStyles, contentViewStyles, sprinkles} from "~/client/styles/styles.js";
 import {ContentCodeBlockIncrementalParser} from "~/shared/content/code/content_code_block_incremental_parser.js";
@@ -284,6 +285,7 @@ export function ContentView<Content extends ContentWithReferences>({
     const isInitialAppRender = useIsInitialAppRender();
     const canPrimaryInputHover = useCanPrimaryInputHover();
     const accountRegistry = useAccountRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
     const reporter = useReporter();
     const fileEntityRenderers = useContext(ContentFileEntityRenderersContext);
@@ -491,12 +493,14 @@ export function ContentView<Content extends ContentWithReferences>({
                     clientInfo,
                     spaceId,
                     accountRegistry,
+                    searchEntityRegistry,
                     fileRegistry,
                     currentAccount: spaceContext?.currentAccount ?? null,
                     blockWidth,
                     transformScale,
                     platform,
                     spacingScale,
+                    routeLayout,
                     isInitialAppRender,
                     currentDate,
                     fileEntityRenderers,
@@ -528,12 +532,14 @@ export function ContentView<Content extends ContentWithReferences>({
                 clientInfo,
                 spaceId,
                 accountRegistry,
+                searchEntityRegistry,
                 fileRegistry,
                 currentAccount: spaceContext?.currentAccount ?? null,
                 blockWidth,
                 transformScale,
                 platform,
                 spacingScale,
+                routeLayout,
                 isInitialAppRender,
                 currentDate,
                 fileEntityRenderers,
@@ -564,12 +570,14 @@ export function ContentView<Content extends ContentWithReferences>({
         clientInfo,
         spaceId,
         accountRegistry,
+        searchEntityRegistry,
         fileRegistry,
         spaceContext?.currentAccount,
         blockWidth,
         transformScale,
         platform,
         spacingScale,
+        routeLayout,
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
@@ -680,6 +688,7 @@ export function ContentView<Content extends ContentWithReferences>({
             contentViewStyles.seeButtonClassName,
             contentStyles.codeBlockCopyButtonClassName,
             fileClassName,
+            contentStyles.mentionContainerClassName,
         ];
 
         for (const element of parentElement.querySelectorAll(
@@ -695,7 +704,8 @@ export function ContentView<Content extends ContentWithReferences>({
 
             if (
                 !isInert &&
-                element.classList.contains(linkClassName) &&
+                (element.classList.contains(linkClassName) ||
+                    element.classList.contains(contentStyles.mentionContainerClassName)) &&
                 element instanceof HTMLAnchorElement
             ) {
                 let isPointerDownAndOver = false;

@@ -42,8 +42,10 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {isId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
+import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.
@@ -427,10 +429,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         mention: {
             inline: true,
             group: "inline",
-            // Don't allow selecting with a `NodeSelection`. The default is `true` but
-            // there's only a small number of nodes (e.g. `divider`) we actually want to
-            // let be selectable.
-            selectable: false,
+            selectable: true,
             // Allow all marks on `mention`.
             marks: "_",
             attrs: {
@@ -448,14 +447,47 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                         if (!(node instanceof HTMLElement)) return false;
 
                         const accountId = node.getAttribute("data-cy-mention");
-                        const isShort = node.getAttribute("data-cy-mention-short") !== null;
+                        if (!accountId) return false;
+                        if (!isId<AccountId>(accountId)) return false;
 
-                        if (!accountId || !isId<AccountId>(accountId)) return false;
+                        const isShort = node.getAttribute("data-cy-mention-short") !== null;
 
                         const mention: ContentMention = {
                             type: "Account",
                             accountId,
                             isShort,
+                        };
+
+                        return {mention};
+                    },
+                },
+                {
+                    priority: 100,
+                    tag: "a[data-cy-mention]",
+                    getAttrs: node => {
+                        if (!(node instanceof HTMLElement)) return false;
+
+                        const href = node.getAttribute("href");
+                        if (!href) return false;
+
+                        const spaceIdMatch = href.match(/\/s\/([^/]+)/);
+                        if (!spaceIdMatch) return false;
+                        if (!isId<SpaceId>(spaceIdMatch[1]!)) return false;
+
+                        const spaceId = spaceIdMatch[1];
+
+                        // We parse the `SearchEntityId` in `data-cy-mention` using whatever `SpaceId`
+                        // is in the URL. It's the responsibility of `<ContentEditor>`'s
+                        // `transformPastedDOM` to remove the `data-cy-mention` attribute from any
+                        // mentions in the wrong space. Since only `<ContentEditor>` will know if we're
+                        // in the right space.
+                        const entityId = parseSearchEntityIdFromUrl(spaceId, href);
+                        if (!entityId) return false;
+                        if (!isSearchMentionEntityId(entityId)) return false;
+
+                        const mention: ContentMention = {
+                            type: "SearchEntity",
+                            entityId,
                         };
 
                         return {mention};

@@ -18,6 +18,8 @@ import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_fi
 
 const {context, services} = createTestServices();
 
+const mentionText = "SS\u00A0\u00A0\u202FSara";
+
 test("can toggle task collection sharing on/off with switch", async ({
     browser,
     context: browserContext2,
@@ -869,7 +871,7 @@ test("anonymous accounts can see task collection shared with url grant", async (
         .first()
         .click();
 
-    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page2.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -932,7 +934,7 @@ test("anonymous accounts can see task collection shared with url grant", async (
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page1.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -1036,7 +1038,7 @@ test("accounts from another space can see task collection shared with url grant"
         .first()
         .click();
 
-    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page2.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -1099,7 +1101,7 @@ test("accounts from another space can see task collection shared with url grant"
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page1.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -1201,7 +1203,7 @@ test("accounts from same space can see task collection shared with url grant", a
         .first()
         .click();
 
-    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page2.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -1264,7 +1266,7 @@ test("accounts from same space can see task collection shared with url grant", a
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page1.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -1371,7 +1373,7 @@ test("account that used to be a member of space but was removed can see task col
         .first()
         .click();
 
-    await expect(page2.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page2.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page2.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();
@@ -1434,7 +1436,7 @@ test("account that used to be a member of space but was removed can see task col
     await expect(page1.getByText("Couldn’t open task")).toBeHidden();
     await expect(page1.getByRole("img", {name: "Error icon"})).toBeHidden();
 
-    await expect(page1.getByLabel("Notes")).toHaveText("Hello, world! Hello, @Sara!");
+    await expect(page1.getByLabel("Notes")).toHaveText(`Hello, world! Hello, ${mentionText}!`);
     await expect(
         page1.getByLabel("Notes").getByTestId("ContentFilePreview:image/png"),
     ).toBeVisible();

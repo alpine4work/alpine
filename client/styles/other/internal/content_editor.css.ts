@@ -3,7 +3,7 @@ import {darkColorSchemeSelector} from "~/client/styles/core/styles_core.js";
 import {
     checkListItemCheckboxContainerClassName,
     docClassName,
-    mentionClassName,
+    mentionContainerClassName,
     narrowRouteLayoutDocClassName,
 } from "~/client/styles/other/internal/content.css.js";
 import {
@@ -101,6 +101,13 @@ globalStyle(`${shiftKeyOrAltKeyDownClassName} a${linkClassName}`, {
     cursor: "inherit",
 });
 
+// When the shift or alt key is down then clicking on a mention will select the
+// underlying mention instead of opening it as a link. So show a default
+// cursor instead of a pointer cursor.
+globalStyle(`${shiftKeyOrAltKeyDownClassName} a${mentionContainerClassName}`, {
+    cursor: "default",
+});
+
 globalStyle(
     `${narrowRouteLayoutDocClassName} ${shiftKeyOrAltKeyDownClassName} ${commentClassName}`,
     {
@@ -112,12 +119,6 @@ globalStyle(
 // file viewer.
 globalStyle(`${shiftKeyOrAltKeyDownClassName} ${fileClassName}`, {
     cursor: "default",
-});
-
-// Mentions must be selected all at once when in an editor. You may not select
-// in the middle of a mention.
-globalStyle(`${containerClassName} ${mentionClassName}`, {
-    userSelect: "all",
 });
 
 export const canNotPrimaryInputHoverContainerClassName = style({});

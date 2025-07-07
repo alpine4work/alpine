@@ -4,6 +4,7 @@ import {CalendarDate} from "@internationalized/date";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {renderContentToHtmlStore} from "~/client/content/render_content_to_html.js";
+import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/content/content_styles.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
@@ -101,6 +102,7 @@ test("will properly number list items", () => {
                     getContext,
                     spaceId: null,
                     accountRegistry: getAccountRegistry(spaceId),
+                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
@@ -197,6 +199,7 @@ test("will properly number list items with indentation", () => {
                     getContext,
                     spaceId: null,
                     accountRegistry: getAccountRegistry(spaceId),
+                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
@@ -251,6 +254,7 @@ test("will properly number list items in quote blocks", () => {
                     getContext,
                     spaceId: null,
                     accountRegistry: getAccountRegistry(spaceId),
+                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",
@@ -310,6 +314,7 @@ test("will render code block", () => {
                     getContext,
                     spaceId: null,
                     accountRegistry: getAccountRegistry(spaceId),
+                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
                     fileRegistry: getFileRegistry(spaceId),
                     currentAccount: null,
                     platform: "desktop",

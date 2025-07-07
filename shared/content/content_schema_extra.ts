@@ -11,14 +11,12 @@ import {
     headingLevel2ClassName,
     headingLevel3ClassName,
 } from "~/shared/content/content_styles.js";
-import {
-    FileIdOrFileEntityIdSchema,
-    parseFileEntityIdFromUrl,
-} from "~/shared/files/file_entity_id.js";
+import {FileIdOrFileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 
 /**
  * TypeScript convenience function for creating a `NodeSpec`. Forces us to
@@ -229,10 +227,10 @@ export const createContentFileProsemirrorNodeSpecs = ({
                         const spaceId = spaceIdMatch[1]!;
                         if (!isId<SpaceId>(spaceId)) return false;
 
-                        const fileEntityId = parseFileEntityIdFromUrl(spaceId, node.src);
-                        if (fileEntityId === null) return false;
+                        const entityId = parseSearchEntityIdFromUrl(spaceId, node.src);
+                        if (entityId === null || !isFileEntityId(entityId)) return false;
 
-                        return {fileId: fileEntityId};
+                        return {fileId: entityId};
                     },
                 },
             ],

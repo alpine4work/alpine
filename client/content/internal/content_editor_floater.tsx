@@ -1,6 +1,6 @@
 import {useHover} from "@react-aria/interactions";
 import {Mark} from "prosemirror-model";
-import {EditorState} from "prosemirror-state";
+import {EditorState, Selection} from "prosemirror-state";
 import {DecorationSet, EditorView} from "prosemirror-view";
 import {
     Dispatch,
@@ -56,7 +56,11 @@ export function ContentEditorFloater({
     platform: Platform;
     state: EditorState & {schema: ContentProsemirrorSchema};
     accessLevel: AccessLevel;
-    viewRef: RefObject<EditorView | null>;
+    viewRef: RefObject<
+        EditorView & {
+            insertFiles: (posOrSelection: number | Selection, files: ReadonlyArray<File>) => void;
+        }
+    >;
     floaterState: ContentEditorFloaterState;
     setFloaterState: (floaterState: ContentEditorFloaterState) => void;
     isFocused: boolean;

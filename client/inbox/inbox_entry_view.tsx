@@ -13,7 +13,6 @@ import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
-import {brandIconDefaultColor} from "~/client/icons/brand/brand_icon_default_color.js";
 import {
     getInboxEntryDisplay,
     renderInboxEntryDisplaySummary,
@@ -29,6 +28,7 @@ import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {
     backgroundColorVar,
     colorSchemeVars,
+    contentStyles,
     overlayFadeOutAnimationDurationMs,
 } from "~/client/styles/styles.js";
 import {easeOutExpo, parseCubicBezier} from "~/shared/design/core/easing.js";
@@ -737,7 +737,7 @@ export function InboxEntryView({
                             >
                                 <IconContext.Provider
                                     value={{
-                                        color: colorSchemeVars[brandIconDefaultColor],
+                                        color: colorSchemeVars[contentStyles.brandIconDefaultColor],
                                         size: spacing["4"],
                                     }}
                                 >

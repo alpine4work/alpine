@@ -39,6 +39,7 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
 import {NavigateFunction} from "~/client/remix/use_navigate.js";
+import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
@@ -223,12 +224,14 @@ export function createContentEditorFileNodeViewConstructor({
                             clientInfo,
                             spaceId,
                             accountRegistry: getAccountRegistry(spaceId),
+                            searchEntityRegistry: getSearchEntityRegistry(spaceId),
                             fileRegistry: getFileRegistry(spaceId),
                             currentAccount: getCurrentAccount(),
                             blockWidth: blockWidthPx,
                             transformScale: 1,
                             platform,
                             spacingScale,
+                            routeLayout: getRouteLayout(),
                             isInitialAppRender: false,
                             currentDate: today(clientInfo.timeZone),
                         });

@@ -49,6 +49,8 @@ import {
     FileId,
 } from "~/shared/id/types/id_types.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const createContentCommentThreadMetaKey = "createCommentThread";
@@ -662,6 +664,8 @@ function contentEditorFloaterStatePlugin() {
 
                     // If the mention no longer starts with `@` then close our floater.
                     if (
+                        !$from.parent.inlineContent ||
+                        $from.parentOffset === $from.parent.content.size ||
                         $from.parent.textBetween($from.parentOffset, $from.parentOffset + 1) !== "@"
                     ) {
                         floaterState = {...floaterState, isClosing: true};
@@ -829,6 +833,7 @@ export type ContentEditorReferencesAction<References extends ContentReferences> 
 export type ContentEditorReferencesSharedAction =
     | ContentEditorReferencesMergeBaseAction
     | ContentEditorReferencesSetAccountAction
+    | ContentEditorReferencesSetSearchEntityAction
     | ContentEditorReferencesSetFileAction
     | ContentEditorReferencesSetFileSignedUrlSearchAction;
 
@@ -845,6 +850,14 @@ export type ContentEditorReferencesMergeBaseAction = {
 export type ContentEditorReferencesSetAccountAction = {
     readonly type: "SetAccount";
     readonly account: AccountModel;
+};
+
+export type ContentEditorReferencesSetSearchEntityAction = {
+    readonly type: "SetSearchEntity";
+    readonly entityId: SearchMentionEntityId;
+    readonly entity:
+        | {readonly isPrivate: false; readonly entity: SearchEntityModel}
+        | {readonly isPrivate: true};
 };
 
 export type ContentEditorReferencesSetFileAction = {
@@ -905,6 +918,29 @@ export function reduceContentReferencesShared<References extends ContentReferenc
             const newAccountById = new Map(references.accountById);
             newAccountById.set(newAccount.id, newAccount);
             return {...references, accountById: newAccountById};
+        }
+        case "SetSearchEntity": {
+            const oldEntity = references.searchEntityById.get(action.entityId);
+
+            let newEntity: {isPrivate: false; entity: SearchEntityModel} | {isPrivate: true};
+            if (!oldEntity) {
+                newEntity = action.entity;
+            } else if (action.entity.isPrivate) {
+                newEntity = oldEntity;
+            } else if (oldEntity.isPrivate) {
+                newEntity = action.entity;
+            } else {
+                newEntity = {
+                    isPrivate: false,
+                    entity: oldEntity.entity.merge(action.entity.entity),
+                };
+            }
+
+            if (oldEntity === newEntity) return references;
+
+            const newEntityById = new Map(references.searchEntityById);
+            newEntityById.set(action.entityId, newEntity);
+            return {...references, searchEntityById: newEntityById};
         }
         case "SetFile": {
             const oldFileReference = references.fileById?.get(action.file.id);

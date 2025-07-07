@@ -16,6 +16,7 @@ let parentScrollWhenPointerDownAndOverEventEmitterByElement:
 export const parentScrollWhenPointerDownAndOverClassNames = [
     linkClassName,
     commentClassName,
+    contentStyles.mentionContainerClassName,
     contentStyles.checkListItemCheckboxContainerClassName,
     contentStyles.codeBlockLanguagePickerClassName,
     contentStyles.codeBlockCopyButtonClassName,

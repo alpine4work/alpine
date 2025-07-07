@@ -193,7 +193,7 @@ export function getSearchEntityPath({
     }
 }
 
-function getSearchDynamicEntityPath(
+export function getSearchDynamicEntityPath(
     spaceId: SpaceId,
     entityId: SearchDynamicEntityIdObject,
     routeLayout: RouteLayout,

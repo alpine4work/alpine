@@ -86,7 +86,10 @@ export const searchAffinityEntityViewMinHeightPx = createObjectFromKeys(
         convertRemLengthToPx(searchEntityViewPaddingY, spacingScale) * 2,
 );
 
-export const searchEntityViewTitleTypeDisplayGap = "1.5";
+// Intentionally the same value as the gap between icons and text in
+// `<MenuItem>`. Since in the mention overlay you'll see search entities mixed
+// with regular `<MenuItem>`s and we want their text to be aligned.
+export const searchEntityViewTitleTypeDisplayGap = "2";
 
 export const searchEntityHeaderFontSize = "50";
 export const searchEntityHeaderLineHeight = "4";

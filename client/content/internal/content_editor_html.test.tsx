@@ -50,7 +50,7 @@ import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_k
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {assertId} from "~/shared/id/id.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId, DocumentId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -58,6 +58,8 @@ import {
 import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
@@ -349,7 +351,7 @@ function stripHtml(originalElement: HTMLElement): HTMLElement {
     }
 
     for (const childElement of element.querySelectorAll("[style]")) {
-        assert(childElement instanceof HTMLElement);
+        assert(childElement instanceof HTMLElement || childElement instanceof SVGElement);
 
         const removeProperties: Array<string> = [];
 
@@ -641,7 +643,11 @@ async function expectClipboardRoundtripToWork(expectedPastedDoc?: Node) {
                 <ContentEditor
                     aria-label="Test"
                     state={state}
-                    onChange={setState}
+                    onChange={state => {
+                        act(() => {
+                            setState(state);
+                        });
+                    }}
                     // Use a different file attachment target to exercise `<ContentEditor>`s ability
                     // to create a new attachment.
                     fileAttachmentTarget={otherFileAttachmentTarget}
@@ -1487,6 +1493,119 @@ test("unknown account mention", async () => {
 
     const contentReferences: ContentReferences = {
         ...emptyContentReferences,
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("search entity mention", async () => {
+    const documentId = assertId<DocumentId>("qkanxhj066jh311428tsr0psp4");
+
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {
+                mention: {type: "SearchEntity", entityId: `Document:${documentId}`},
+            }),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        searchEntityById: new Map([
+            [
+                cast<SearchMentionEntityId>(`Document:${documentId}`),
+                {
+                    isPrivate: false,
+                    entity: new SearchEntityModel({
+                        id: `Document:${documentId}`,
+                        title: "foobar",
+                        titleVersion: null,
+                        media: null,
+                    }),
+                },
+            ],
+        ]),
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("unknown search entity mention", async () => {
+    const documentId = assertId<DocumentId>("qkanxhj066jh311428tsr0psp4");
+
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {
+                mention: {type: "SearchEntity", entityId: `Document:${documentId}`},
+            }),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+    };
+
+    render(
+        <TestContextProvider>
+            <ContentEditor
+                aria-label="Test"
+                state={ContentEditorState.create({doc: content, references: contentReferences})}
+                onChange={() => {}}
+                fileAttachmentTarget={fileAttachmentTarget}
+                commentFileAttachmentTarget={commentFileAttachmentTarget}
+            />
+        </TestContextProvider>,
+    );
+
+    expect(stripHtml(screen.getByRole("textbox"))).toMatchSnapshot();
+
+    await expectClipboardRoundtripToWork();
+});
+
+test("private search entity mention", async () => {
+    const documentId = assertId<DocumentId>("qkanxhj066jh311428tsr0psp4");
+
+    const content = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.node("mention", {
+                mention: {type: "SearchEntity", entityId: `Document:${documentId}`},
+            }),
+        ]),
+    ]);
+
+    const contentReferences: ContentReferences = {
+        ...emptyContentReferences,
+        searchEntityById: new Map([
+            [cast<SearchMentionEntityId>(`Document:${documentId}`), {isPrivate: true}],
+        ]),
     };
 
     render(

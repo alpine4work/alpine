@@ -2831,16 +2831,33 @@ exports[`account long mention 1`] = `
   <p
     class="content_paragraph"
   >
-    <span>
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/chat/with/nyghmwnpt2pwy22qrn9b6j9254"
+    >
       <span>
         <span>
-          @
+          <span>
+            <span
+              style="width: 1.75rem; height: 1.75rem; background-color: #a6a6ab"
+            >
+              <span
+                aria-hidden="true"
+                style="transform: scale(0.875)"
+              >
+                SS
+              </span>
+            </span>
+          </span>
+          <span>
+              
+          </span>
+           
         </span>
         <span>
           Sara Smith
         </span>
       </span>
-    </span>
+    </a>
     <img
       alt=""
     />
@@ -2875,16 +2892,33 @@ exports[`account short mention 1`] = `
   <p
     class="content_paragraph"
   >
-    <span>
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/chat/with/nyghmwnpt2pwy22qrn9b6j9254"
+    >
       <span>
         <span>
-          @
+          <span>
+            <span
+              style="width: 1.75rem; height: 1.75rem; background-color: #a6a6ab"
+            >
+              <span
+                aria-hidden="true"
+                style="transform: scale(0.875)"
+              >
+                SS
+              </span>
+            </span>
+          </span>
+          <span>
+              
+          </span>
+           
         </span>
         <span>
           Sara
         </span>
       </span>
-    </span>
+    </a>
     <img
       alt=""
     />
@@ -6723,6 +6757,77 @@ exports[`paragraph strike: clipboard 1`] = `
 
 exports[`paragraph strike: clipboard text 1`] = `"Hello world!"`;
 
+exports[`private search entity mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
+      <span>
+        <span>
+          <span>
+            <svg
+              fill="none"
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span>
+          <span>
+            <svg
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 256 256"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span>
+          Private document
+        </span>
+      </span>
+    </a>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`private search entity mention: clipboard 1`] = `
+<div>
+  <p>
+    <a
+      data-cy-mention=""
+      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
+      Private document
+    </a>
+  </p>
+</div>
+`;
+
+exports[`private search entity mention: clipboard text 1`] = `"Private document"`;
+
 exports[`quote bold: clipboard 1`] = `
 <div>
   <blockquote>
@@ -6867,6 +6972,64 @@ exports[`quote strike: clipboard 1`] = `
 `;
 
 exports[`quote strike: clipboard text 1`] = `"Hello world!"`;
+
+exports[`search entity mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
+      <span>
+        <span>
+          <span>
+            <svg
+              fill="none"
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span>
+          foobar
+        </span>
+      </span>
+    </a>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`search entity mention: clipboard 1`] = `
+<div>
+  <p>
+    <a
+      data-cy-mention=""
+      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
+      foobar
+    </a>
+  </p>
+</div>
+`;
+
+exports[`search entity mention: clipboard text 1`] = `"foobar"`;
 
 exports[`strike 1`] = `
 <div
@@ -8689,16 +8852,15 @@ exports[`unknown account mention 1`] = `
   <p
     class="content_paragraph"
   >
-    <span>
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/chat/with/nyghmwnpt2pwy22qrn9b6j9254"
+    >
       <span>
-        <span>
-          @
-        </span>
         <span>
           Unknown
         </span>
       </span>
-    </span>
+    </a>
     <img
       alt=""
     />
@@ -8721,6 +8883,62 @@ exports[`unknown account mention: clipboard 1`] = `
 `;
 
 exports[`unknown account mention: clipboard text 1`] = `"Unknown"`;
+
+exports[`unknown search entity mention 1`] = `
+<div
+  aria-label="Test"
+  aria-multiline="true"
+  contenteditable="true"
+  role="textbox"
+  spellcheck="false"
+  translate="no"
+>
+  <p
+    class="content_paragraph"
+  >
+    <span>
+      <span>
+        <span>
+          <span>
+            <svg
+              fill="none"
+              style="width: 1.125em; height: 1.125em"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            />
+          </span>
+          <span>
+              
+          </span>
+           
+        </span>
+        <span>
+          Unknown document
+        </span>
+      </span>
+    </span>
+    <img
+      alt=""
+    />
+    <br />
+  </p>
+</div>
+`;
+
+exports[`unknown search entity mention: clipboard 1`] = `
+<div>
+  <p>
+    <a
+      data-cy-mention=""
+      href="http://localhost/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
+      Unknown document
+    </a>
+  </p>
+</div>
+`;
+
+exports[`unknown search entity mention: clipboard text 1`] = `"Unknown document"`;
 
 exports[`will serialize table(3x3) with no headers 1`] = `
 <div
