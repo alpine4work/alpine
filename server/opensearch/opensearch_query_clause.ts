@@ -34,6 +34,7 @@ export type OpensearchQueryClause<FlattenedKeys extends string> =
     | OpensearchTermQueryClause<FlattenedKeys>
     | OpensearchTermsQueryClause<FlattenedKeys>
     | OpensearchExistsQueryClause<FlattenedKeys>
+    | OpensearchPrefixQueryClause<FlattenedKeys>
     | OpensearchRangeQueryClause<FlattenedKeys>
     | OpensearchMatchQueryClause<FlattenedKeys>
     | OpensearchMatchBooleanPrefixQueryClause<FlattenedKeys>
@@ -77,6 +78,22 @@ export type OpensearchTermsQueryClause<FlattenedKeys extends string> = {
  */
 export type OpensearchExistsQueryClause<FlattenedKeys extends string> = {
     exists: {field: FlattenedKeys};
+};
+
+/**
+ * Searches for terms that begin with a specific prefix.
+ *
+ * https://docs.opensearch.org/docs/latest/query-dsl/term/prefix/
+ */
+export type OpensearchPrefixQueryClause<FlattenedKeys extends string> = {
+    prefix: OpensearchQueryClauseField<
+        FlattenedKeys,
+        {
+            value: OpensearchQueryValue<string>;
+            boost?: number;
+            case_insensitive?: boolean;
+        }
+    >;
 };
 
 /**
@@ -233,6 +250,7 @@ export type OpensearchBooleanQueryClause<FlattenedKeys extends string> = {
  */
 export type OpensearchMustBooleanQueryClause<FlattenedKeys extends string> = {
     must: Array<OpensearchQueryClause<FlattenedKeys>>;
+    must_not?: OpensearchQueryClause<FlattenedKeys> | Array<OpensearchQueryClause<FlattenedKeys>>;
 };
 
 /**

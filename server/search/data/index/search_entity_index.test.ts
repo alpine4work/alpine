@@ -4383,14 +4383,14 @@ test(
             ]);
             expect(await testSearch("the")).toEqual([
                 "The Preservationist",
-                "The Book of Samson",
-                "The Grand Design",
-                "The Book of Lies",
-                "The Lost Symbol",
                 "The Silmarillion",
-                "The DaVinci Code",
                 "The Code of the Wooster",
+                "The Grand Design",
+                "The Lost Symbol",
+                "The DaVinci Code",
                 "The Lock Artist",
+                "The Book of Samson",
+                "The Book of Lies",
             ]);
 
             // Testing word position swaps
@@ -4462,9 +4462,45 @@ test(
 
             // Testing typos in prefix
             expect(await testSearch("Preserv")).toEqual(["The Preservationist"]);
+            expect(await testSearch("preserv")).toEqual(["The Preservationist"]);
             expect(await testSearch("Presevr")).toEqual([]);
             expect(await testSearch("Perserv")).toEqual([]);
             expect(await testSearch("rPeserv")).toEqual([]);
+
+            // Testing two word prefix match
+            expect(await testSearch("The Preserv")).toEqual([
+                "The Preservationist",
+                "The Silmarillion",
+                "The Code of the Wooster",
+                "The Grand Design",
+                "The Lost Symbol",
+                "The DaVinci Code",
+                "The Lock Artist",
+                "The Book of Samson",
+                "The Book of Lies",
+            ]);
+            expect(await testSearch("the preserv")).toEqual([
+                "The Preservationist",
+                "The Silmarillion",
+                "The Code of the Wooster",
+                "The Grand Design",
+                "The Lost Symbol",
+                "The DaVinci Code",
+                "The Lock Artist",
+                "The Book of Samson",
+                "The Book of Lies",
+            ]);
+            expect(await testSearch("the dav")).toEqual([
+                "The DaVinci Code",
+                "The Preservationist",
+                "The Silmarillion",
+                "The Code of the Wooster",
+                "The Grand Design",
+                "The Lost Symbol",
+                "The Lock Artist",
+                "The Book of Samson",
+                "The Book of Lies",
+            ]);
 
             // Testing identifiers are analyzed properly
             expect(await testSearch("2024")).toEqual([
@@ -4494,8 +4530,8 @@ test(
             ]);
             expect(await testSearch("Q3FY2024")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2023Q3",
                 "Core Product FY2024Q2",
+                "Core Product FY2023Q3",
             ]);
             expect(await testSearch("FY2024 Q3")).toEqual([
                 "Core Product FY2024Q3",
@@ -4504,19 +4540,14 @@ test(
             ]);
             expect(await testSearch("Q3 FY2024")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2023Q3",
                 "Core Product FY2024Q2",
+                "Core Product FY2023Q3",
             ]);
 
             // Testing search as user types
             expect(await testSearch("pl")).toEqual(["Playground"]);
             expect(await testSearch("pla")).toEqual(["Playground"]);
-            // TODO(calebmer): "play" after applying the stemmer is "plai" which doesn't
-            // match "playground". We should see if there's still a way to make this
-            // search. Maybe by detecting stemmed words in the prefix match (so fuzzy
-            // search doesn't apply) and search once with stemming and once without? Would
-            // like to see more cases before writing a fix.
-            expect(await testSearch("play")).toEqual([]);
+            expect(await testSearch("play")).toEqual(["Playground"]);
             expect(await testSearch("playg")).toEqual(["Playground"]);
             expect(await testSearch("playgr")).toEqual(["Playground"]);
             expect(await testSearch("playgro")).toEqual(["Playground"]);
@@ -5242,11 +5273,11 @@ test("searching mentions has effective name fuzzy searching", async () => {
         "The Silmarillion",
         "The Code of the Wooster",
         "The Lock Artist",
-        "The Book of Samson",
         "The Grand Design",
-        "The Book of Lies",
         "The Lost Symbol",
         "The DaVinci Code",
+        "The Book of Samson",
+        "The Book of Lies",
     ]);
 
     // Testing word position swaps
@@ -5262,8 +5293,8 @@ test("searching mentions has effective name fuzzy searching", async () => {
 
     // Testing word in different positions
     expect(await testSearch("code")).toEqual([
-        "The Code of the Wooster",
         "The DaVinci Code",
+        "The Code of the Wooster",
         "Core Product FY2024Q3",
         "Core Product FY2024Q2",
         "Core Product FY2023Q3",
@@ -5298,9 +5329,45 @@ test("searching mentions has effective name fuzzy searching", async () => {
 
     // Testing typos in prefix
     expect(await testSearch("Preserv")).toEqual(["The Preservationist"]);
+    expect(await testSearch("preserv")).toEqual(["The Preservationist"]);
     expect(await testSearch("Presevr")).toEqual([]);
     expect(await testSearch("Perserv")).toEqual([]);
     expect(await testSearch("rPeserv")).toEqual([]);
+
+    // Testing two word prefix match
+    expect(await testSearch("The Preserv")).toEqual([
+        "The Preservationist",
+        "The Silmarillion",
+        "The Code of the Wooster",
+        "The Lock Artist",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The DaVinci Code",
+        "The Book of Samson",
+        "The Book of Lies",
+    ]);
+    expect(await testSearch("the preserv")).toEqual([
+        "The Preservationist",
+        "The Silmarillion",
+        "The Code of the Wooster",
+        "The Lock Artist",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The DaVinci Code",
+        "The Book of Samson",
+        "The Book of Lies",
+    ]);
+    expect(await testSearch("the dav")).toEqual([
+        "The DaVinci Code",
+        "The Preservationist",
+        "The Silmarillion",
+        "The Code of the Wooster",
+        "The Lock Artist",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The Book of Samson",
+        "The Book of Lies",
+    ]);
 
     // Testing identifiers are analyzed properly
     expect(await testSearch("2024")).toEqual([
@@ -5330,8 +5397,8 @@ test("searching mentions has effective name fuzzy searching", async () => {
     ]);
     expect(await testSearch("Q3FY2024")).toEqual([
         "Core Product FY2024Q3",
-        "Core Product FY2023Q3",
         "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
     ]);
     expect(await testSearch("FY2024 Q3")).toEqual([
         "Core Product FY2024Q3",
@@ -5340,8 +5407,8 @@ test("searching mentions has effective name fuzzy searching", async () => {
     ]);
     expect(await testSearch("Q3 FY2024")).toEqual([
         "Core Product FY2024Q3",
-        "Core Product FY2023Q3",
         "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
     ]);
 });
 

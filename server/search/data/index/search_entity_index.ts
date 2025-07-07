@@ -110,6 +110,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId} from "~/shared/id/id.js";
@@ -1149,13 +1150,20 @@ export async function searchByKeywords(
                     //   Which effectively provides a 2x boost to the phrase match.
                     // - Matches in title fields are boosted above matches in body fields.
                     should: [
+                        ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
+                            field: "title",
+                            query: queryText,
+                            fuzziness: 0,
+                            boost: options.titleBoost * boost,
+                        }),
                         {
                             multi_match: {
                                 query: new OpensearchQueryValue(queryText),
-                                // Perform prefix matching when searching titles. Body searching should match
-                                // entire words.
-                                type: "bool_prefix",
-                                fields: ["title", "title._2gram", "title._3gram"],
+                                // Sum the score from matches. This means a 3gram match will have a much higher
+                                // score than a 1gram match. Since a 3gram match's score is the 3gram match
+                                // score plus a 2gram match score plus three 1gram match scores.
+                                type: "most_fields",
+                                fields: ["title._2gram", "title._3gram"],
                                 fuzziness: 0,
                                 boost: options.titleBoost * boost,
                             },
@@ -1163,9 +1171,9 @@ export async function searchByKeywords(
                         {
                             multi_match: {
                                 query: new OpensearchQueryValue(queryText),
-                                // Sum the score from matches instead of picking the one best score.
-                                // `type: "bool_prefix"` has the same behavior but also does prefix matching on
-                                // the last word.
+                                // Sum the score from matches. This means a 3gram match will have a much higher
+                                // score than a 1gram match. Since a 3gram match's score is the 3gram match
+                                // score plus a 2gram match score plus three 1gram match scores.
                                 type: "most_fields",
                                 fields: ["body", "body._2gram", "body._3gram"],
                                 fuzziness: 0,
@@ -1549,7 +1557,11 @@ export async function searchByKeywords(
                 score: hit.score,
                 bodyTextSnippet,
                 explanation: hit.explanation
-                    ? enrichOpensearchSearchHitExplanation(hit.explanation)
+                    ? enrichOpensearchSearchHitExplanation(
+                          options,
+                          isLowConfidence,
+                          hit.explanation,
+                      )
                     : undefined,
             });
         }),
@@ -1558,7 +1570,125 @@ export async function searchByKeywords(
     return results;
 }
 
+/**
+ * Manually creates a `match_bool_prefix` query equivalent. `match_bool_prefix`
+ * performs a `match` on everything but the last word. For the last word
+ * OpenSearch runs a prefix query. However, the problem is OpenSearch's prefix
+ * query returns a constant score (the `boost` value) instead of a score based
+ * on IDF we'd get using the `match` query.
+ *
+ * An example from tests:
+ *
+ * - We search for the word "Help"
+ * - `match_bool_prefix` runs a prefix query for the only word "Help" which
+ *   returns a doc with a score of ~1.8
+ * - `match` returns a doc with a score of ~8
+ *
+ * The test failed since "Help"'s score of 1.8 (for a title match) was lower
+ * than some other body match using an IDF score so our title match ranked
+ * lower than the body match!
+ *
+ * So instead of using `match_bool_prefix` we manually create an equivalent
+ * query. Except the last word takes the higher score of `match` or `prefix`
+ * (instead of always taking the `prefix` score). So if `match` returns a score
+ * of 8 and `prefix` returns a score of 1.8 we'll use the score 8.
+ *
+ * IMPORTANT: These query clauses must go inside a `should` query with
+ * `minimum_should_match: 1`.
+ */
+function getManualMatchBoolPrefixOpensearchShouldQueryClauses<FlattenedKeys extends string>({
+    field,
+    query,
+    fuzziness,
+    prefix_length,
+    boost,
+}: {
+    field: FlattenedKeys;
+    query: string;
+    fuzziness?: "AUTO" | number;
+    prefix_length?: number;
+    boost?: number;
+}): Array<OpensearchQueryClause<FlattenedKeys>> {
+    const queryClauses: Array<OpensearchQueryClause<string>> = [];
+
+    const matches = Array.from(query.trimEnd().matchAll(/\p{White_Space}+/gu));
+
+    if (matches.length === 0) {
+        queryClauses.push({
+            dis_max: {
+                queries: [
+                    {
+                        match: {
+                            [field]: {
+                                query: new OpensearchQueryValue(query),
+                                fuzziness,
+                                prefix_length,
+                                boost,
+                            },
+                        },
+                    },
+                    {
+                        prefix: {
+                            [field]: {
+                                value: new OpensearchQueryValue(query),
+                                boost,
+                                case_insensitive: true,
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+    } else {
+        const lastMatch = matches[matches.length - 1]!;
+
+        const queryStart = query.slice(0, lastMatch.index);
+        const queryEnd = query.slice(lastMatch.index! + lastMatch[0].length);
+
+        queryClauses.push({
+            match: {
+                [field]: {
+                    query: new OpensearchQueryValue(queryStart),
+                    fuzziness,
+                    prefix_length,
+                    boost,
+                },
+            },
+        });
+
+        queryClauses.push({
+            dis_max: {
+                queries: [
+                    {
+                        match: {
+                            [field]: {
+                                query: new OpensearchQueryValue(queryEnd),
+                                fuzziness,
+                                prefix_length,
+                                boost,
+                            },
+                        },
+                    },
+                    {
+                        prefix: {
+                            [field]: {
+                                value: new OpensearchQueryValue(queryEnd),
+                                boost,
+                                case_insensitive: true,
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+    }
+
+    return queryClauses as Array<OpensearchQueryClause<FlattenedKeys>>;
+}
+
 function enrichOpensearchSearchHitExplanation(
+    options: SearchOptions,
+    isLowConfidence: boolean,
     explanation: OpensearchSearchHitExplanation,
 ): OpensearchSearchHitExplanation {
     // If we have a `ConstantScore` in our explanation the means we parsed a
@@ -1566,7 +1696,20 @@ function enrichOpensearchSearchHitExplanation(
     // matched!
     //
     // We only use constant score queries for natural language filters currently.
-    if (/ConstantScore/i.test(explanation.description)) {
+    if (
+        explanation.description.startsWith("ConstantScore(") &&
+        new RegExp(
+            "^ConstantScore\\(.*\\)\\^" +
+                escapeRegExp(
+                    String(
+                        isLowConfidence
+                            ? options.naturalLanguage.filterConstantScoreIfLowConfidence
+                            : options.naturalLanguage.filterConstantScore,
+                    ),
+                ) +
+                "(?:\\.\\d+)?$",
+        ).test(explanation.description)
+    ) {
         return {
             value: explanation.value,
             description: "\u2699\uFE0F natural language filter match:",
@@ -1577,7 +1720,11 @@ function enrichOpensearchSearchHitExplanation(
     let hasChildExplanationChanged = false;
 
     const newChildExplanations = explanation.details.map(childExplanation => {
-        const newChildExplanation = enrichOpensearchSearchHitExplanation(childExplanation);
+        const newChildExplanation = enrichOpensearchSearchHitExplanation(
+            options,
+            isLowConfidence,
+            childExplanation,
+        );
 
         if (childExplanation !== newChildExplanation) {
             hasChildExplanationChanged = true;
@@ -2397,12 +2544,27 @@ export async function searchMentionByKeywords(
                         dis_max: {
                             queries: [
                                 {
-                                    multi_match: {
-                                        query: new OpensearchQueryValue(queryText),
-                                        type: "bool_prefix",
-                                        fields: ["title", "title._2gram", "title._3gram"],
-                                        fuzziness: 0,
-                                        boost: 1,
+                                    bool: {
+                                        minimum_should_match: 1,
+                                        should: [
+                                            ...getManualMatchBoolPrefixOpensearchShouldQueryClauses(
+                                                {
+                                                    field: "title",
+                                                    query: queryText,
+                                                    fuzziness: 0,
+                                                    boost: 1,
+                                                },
+                                            ),
+                                            {
+                                                multi_match: {
+                                                    query: new OpensearchQueryValue(queryText),
+                                                    type: "most_fields",
+                                                    fields: ["title._2gram", "title._3gram"],
+                                                    fuzziness: 0,
+                                                    boost: 1,
+                                                },
+                                            },
+                                        ],
                                     },
                                 },
 
@@ -2556,12 +2718,27 @@ export async function searchChannelsByKeywords(
                         dis_max: {
                             queries: [
                                 {
-                                    multi_match: {
-                                        query: new OpensearchQueryValue(queryText),
-                                        type: "bool_prefix",
-                                        fields: ["title", "title._2gram", "title._3gram"],
-                                        fuzziness: 0,
-                                        boost: 1,
+                                    bool: {
+                                        minimum_should_match: 1,
+                                        should: [
+                                            ...getManualMatchBoolPrefixOpensearchShouldQueryClauses(
+                                                {
+                                                    field: "title",
+                                                    query: queryText,
+                                                    fuzziness: 0,
+                                                    boost: 1,
+                                                },
+                                            ),
+                                            {
+                                                multi_match: {
+                                                    query: new OpensearchQueryValue(queryText),
+                                                    type: "most_fields",
+                                                    fields: ["title._2gram", "title._3gram"],
+                                                    fuzziness: 0,
+                                                    boost: 1,
+                                                },
+                                            },
+                                        ],
                                     },
                                 },
 
@@ -2762,12 +2939,27 @@ export async function searchTaskCollectionsByKeywords(
                         dis_max: {
                             queries: [
                                 {
-                                    multi_match: {
-                                        query: new OpensearchQueryValue(queryText),
-                                        type: "bool_prefix",
-                                        fields: ["title", "title._2gram", "title._3gram"],
-                                        fuzziness: 0,
-                                        boost: 1,
+                                    bool: {
+                                        minimum_should_match: 1,
+                                        should: [
+                                            ...getManualMatchBoolPrefixOpensearchShouldQueryClauses(
+                                                {
+                                                    field: "title",
+                                                    query: queryText,
+                                                    fuzziness: 0,
+                                                    boost: 1,
+                                                },
+                                            ),
+                                            {
+                                                multi_match: {
+                                                    query: new OpensearchQueryValue(queryText),
+                                                    type: "most_fields",
+                                                    fields: ["title._2gram", "title._3gram"],
+                                                    fuzziness: 0,
+                                                    boost: 1,
+                                                },
+                                            },
+                                        ],
                                     },
                                 },
 

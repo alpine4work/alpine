@@ -2014,15 +2014,15 @@ test("effective task collection name fuzzy searching", async () => {
         "The Lock Artist",
     ]);
     expect(await testSearch("the")).toEqual([
-        "The Preservationist",
-        "The Book of Samson",
-        "The Grand Design",
-        "The Book of Lies",
-        "The Lost Symbol",
-        "The Silmarillion",
-        "The DaVinci Code",
         "The Code of the Wooster",
+        "The Preservationist",
+        "The Silmarillion",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The DaVinci Code",
         "The Lock Artist",
+        "The Book of Samson",
+        "The Book of Lies",
     ]);
 
     // Testing word position swaps
@@ -2074,9 +2074,45 @@ test("effective task collection name fuzzy searching", async () => {
 
     // Testing typos in prefix
     expect(await testSearch("Preserv")).toEqual(["The Preservationist"]);
+    expect(await testSearch("preserv")).toEqual(["The Preservationist"]);
     expect(await testSearch("Presevr")).toEqual([]);
     expect(await testSearch("Perserv")).toEqual([]);
     expect(await testSearch("rPeserv")).toEqual([]);
+
+    // Testing two word prefix match
+    expect(await testSearch("The Preserv")).toEqual([
+        "The Preservationist",
+        "The Code of the Wooster",
+        "The Silmarillion",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The DaVinci Code",
+        "The Lock Artist",
+        "The Book of Samson",
+        "The Book of Lies",
+    ]);
+    expect(await testSearch("the preserv")).toEqual([
+        "The Preservationist",
+        "The Code of the Wooster",
+        "The Silmarillion",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The DaVinci Code",
+        "The Lock Artist",
+        "The Book of Samson",
+        "The Book of Lies",
+    ]);
+    expect(await testSearch("the dav")).toEqual([
+        "The DaVinci Code",
+        "The Code of the Wooster",
+        "The Preservationist",
+        "The Silmarillion",
+        "The Grand Design",
+        "The Lost Symbol",
+        "The Lock Artist",
+        "The Book of Samson",
+        "The Book of Lies",
+    ]);
 
     // Testing identifiers are analyzed properly
     expect(await testSearch("2024")).toEqual([
@@ -2106,8 +2142,8 @@ test("effective task collection name fuzzy searching", async () => {
     ]);
     expect(await testSearch("Q3FY2024")).toEqual([
         "Core Product FY2024Q3",
-        "Core Product FY2023Q3",
         "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
     ]);
     expect(await testSearch("FY2024 Q3")).toEqual([
         "Core Product FY2024Q3",
@@ -2116,8 +2152,8 @@ test("effective task collection name fuzzy searching", async () => {
     ]);
     expect(await testSearch("Q3 FY2024")).toEqual([
         "Core Product FY2024Q3",
-        "Core Product FY2023Q3",
         "Core Product FY2024Q2",
+        "Core Product FY2023Q3",
     ]);
 });
 
