@@ -1,12 +1,14 @@
 import {Node} from "prosemirror-model";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     getContentSnippet,
     setDefaultMaxLineGraphemeCountForTest,
 } from "~/shared/content/get_content_snippet.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 
 // NOTE(calebmer): These tests were written with the constant 237. Instead of
 // updating the tests to work with the new constant I'm hardcoding the old one
@@ -875,8 +877,8 @@ test("snips a single line in the middle of a single paragraph with marks", () =>
 });
 
 test("snips a single line in the middle of a single paragraph with marks and doesn’t treat mentions as line breaks", () => {
-    const accountId1 = generateId();
-    const accountId2 = generateId();
+    const accountId1 = generateId<AccountId>();
+    const accountId2 = generateId<AccountId>();
 
     expectSnippet(
         {pos: 0.5, lines: 1},
@@ -885,13 +887,25 @@ test("snips a single line in the middle of a single paragraph with marks and doe
                 text(
                     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi.",
                 ),
-                node("mention", {mention: {accountId: accountId1}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId1,
+                        isShort: false,
+                    }),
+                }),
                 text("Curabitur", [mark("bold")]),
                 text(
                     "pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque.",
                 ),
                 text("Mauris", [mark("bold")]),
-                node("mention", {mention: {accountId: accountId2}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId2,
+                        isShort: false,
+                    }),
+                }),
                 text(
                     "vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed sodales convallis libero, vitae egestas dolor fringilla ut. Ut suscipit et velit pretium aliquam.",
                 ),
@@ -902,13 +916,25 @@ test("snips a single line in the middle of a single paragraph with marks and doe
                 text(
                     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi.",
                 ),
-                node("mention", {mention: {accountId: accountId1}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId1,
+                        isShort: false,
+                    }),
+                }),
                 text("Curabitur", [mark("bold")]),
                 text(
                     "pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque.",
                 ),
                 text("Mauris", [mark("bold")]),
-                node("mention", {mention: {accountId: accountId2}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId2,
+                        isShort: false,
+                    }),
+                }),
                 text(
                     "vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed sodales convallis libero, vitae egestas dolor fringilla ut. Ut suscipit et velit pretium aliquam.",
                 ),
@@ -923,13 +949,25 @@ test("snips a single line in the middle of a single paragraph with marks and doe
                 text(
                     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi.",
                 ),
-                node("mention", {mention: {accountId: accountId1}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId1,
+                        isShort: false,
+                    }),
+                }),
                 text("Curabitur", [mark("bold")]),
                 text(
                     "pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque.",
                 ),
                 text("Mauris", [mark("bold")]),
-                node("mention", {mention: {accountId: accountId2}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId2,
+                        isShort: false,
+                    }),
+                }),
                 text(
                     "vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed sodales convallis libero, vitae egestas dolor fringilla ut. Ut suscipit et velit pretium aliquam.",
                 ),
@@ -940,13 +978,25 @@ test("snips a single line in the middle of a single paragraph with marks and doe
                 text(
                     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis erat mi, malesuada vel aliquet porta, finibus et nisi.",
                 ),
-                node("mention", {mention: {accountId: accountId1}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId1,
+                        isShort: false,
+                    }),
+                }),
                 text("Curabitur", [mark("bold")]),
                 text(
                     "pretium suscipit porta. Curabitur pellentesque turpis ante, ac condimentum erat convallis vel. Nullam vehicula urna libero, non volutpat diam dignissim at. Aliquam tempus pretium finibus. Maecenas condimentum dictum urna sit amet pretium. Vestibulum id libero elit. Nulla tristique sollicitudin quam, vitae accumsan quam tempor sed. Suspendisse eleifend lectus molestie eros placerat scelerisque.",
                 ),
                 text("Mauris", [mark("bold")]),
-                node("mention", {mention: {accountId: accountId2}}),
+                node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: accountId2,
+                        isShort: false,
+                    }),
+                }),
                 text(
                     "vel semper sem. Quisque congue urna ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames",
                 ),

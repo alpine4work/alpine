@@ -1,18 +1,19 @@
 import {Mark, Node} from "prosemirror-model";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
+import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentBlockNodeTypeName,
     ContentInlineNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {renderContentMentionToText} from "~/shared/content/render_content_mention_to_text.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Match different new-line formats. [Same newline regex that's in
@@ -29,9 +30,39 @@ const newLineRegExp = /(?:(?:\r?\n|\r)+)/g;
  *
  * `getContentSnippet()` can be used to extract some piece of content and this
  * function can be used for printing that content to a plain text preview.
+ *
+ * Doesn't take `ContentReferences` and instead takes individual
+ * `getAccountIfExists` and `getSearchEntityIfExists` functions to load
+ * referenced data. Since different callers need to provide content references
+ * in different ways. For example, on the client we want to use
+ * `AccountRegistry` and `SearchEntityRegistry` to make sure we're rendering
+ * up-to-date data whereas on the server we don't have a normalized registry
+ * and may want to use the directly available `AccountModel.initialData` or
+ * `SearchEntityModel.initialData`.
+ *
+ * On the client, generally you should call
+ * `printContentSingleLineTextSnippetForClient()` which provides a more
+ * convenient interface.
  */
-export function printContentSingleLineTextSnippet(content: ContentWithReferences): string {
-    const segments = printContentSingleLineTextSnippetPreservingMarks(content, () => false);
+export function printContentSingleLineTextSnippet(
+    content: Node,
+    {
+        getAccountIfExists,
+        getSearchEntityIfExists,
+    }: {
+        getAccountIfExists: (
+            accountId: ContentMentionAccountId,
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+    },
+): string {
+    const segments = printContentSingleLineTextSnippetPreservingMarks(content, {
+        shouldPreserveMark: () => false,
+        getAccountIfExists,
+        getSearchEntityIfExists,
+    });
 
     if (segments.length === 0) return "";
     if (segments.length === 1) return segments[0]!.text;
@@ -50,11 +81,30 @@ export function printContentSingleLineTextSnippet(content: ContentWithReferences
  * function) but we preserve the styling for marks where
  * `shouldPreserveMark()` returns true. Used for showing search result content
  * previews since we need to highlight matched words.
+ *
+ * Doesn't take `ContentReferences` and instead takes individual
+ * `getAccountIfExists` and `getSearchEntityIfExists` functions to load
+ * referenced data. Since different callers need to provide content references
+ * in different ways. For example, on the client we want to use
+ * `AccountRegistry` and `SearchEntityRegistry` to make sure we're rendering
+ * up-to-date data whereas on the server we don't have a normalized registry
+ * and may want to use the directly available `AccountModel.initialData` or
+ * `SearchEntityModel.initialData`.
  */
 export function printContentSingleLineTextSnippetPreservingMarks(
-    content: ContentWithReferences,
-    shouldPreserveMark: (mark: Mark) => boolean,
+    content: Node,
+    options: {
+        shouldPreserveMark: (mark: Mark) => boolean;
+        getAccountIfExists: (
+            accountId: ContentMentionAccountId,
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+    },
 ): Array<{marks: ReadonlyArray<Mark>; text: string}> {
+    const {shouldPreserveMark} = options;
+
     const segments: Array<{marks: ReadonlyArray<Mark>; text: string}> = [];
     let breakPunctuation: string | null = null;
     let preservedMarks: ReadonlyArray<Mark> = emptyArray;
@@ -223,17 +273,9 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             }
             case "mention": {
                 const mention: ContentMention = node.attrs.mention;
-                const account = content.references.accountById.get(mention.accountId);
-                if (!account) {
-                    print(`@${missingAccountName}`);
-                    break;
-                }
 
-                const accountName = mention.isShort
-                    ? getAccountShortNameWithoutFullNameTooltip(account.initialData)
-                    : account.initialData.name;
-
-                print(`@${accountName}`);
+                const mentionText = renderContentMentionToText(mention, options);
+                print(mentionText);
                 break;
             }
             default:
@@ -243,8 +285,8 @@ export function printContentSingleLineTextSnippetPreservingMarks(
         preservedMarks = emptyArray;
     };
 
-    for (const node of content.doc.content.content) {
-        printBlockNode(content.doc, node);
+    for (const node of content.content.content) {
+        printBlockNode(content, node);
     }
 
     return segments;

@@ -42,6 +42,7 @@ ts_project(
         "//client/design",
         "//client/dev",
         "//client/helpers",
+        "//client/search/core",
         "//client/spaces",
         "//client/styles",
         "//client/tracer",

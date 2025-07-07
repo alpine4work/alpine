@@ -11,6 +11,7 @@ import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_no
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     codeBlockLineContentClassName,
     fileClassName,
@@ -32,6 +33,7 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {FileId} from "~/shared/id/types/id_types.js";
@@ -149,7 +151,16 @@ const testDocument: DocumentContentWithReferences = {
                     type: "paragraph",
                     content: [
                         {type: "text", text: "This is a test paragraph with a "},
-                        {type: "mention", attrs: {mention: {accountId: account.id, isShort: true}}},
+                        {
+                            type: "mention",
+                            attrs: {
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: account.id,
+                                    isShort: true,
+                                }),
+                            },
+                        },
                         {type: "text", text: " mention. After that there’s some "},
                         {type: "text", marks: [{type: "bold"}], text: "bold"},
                         {type: "text", text: " text and then some "},
@@ -419,8 +430,8 @@ test("can copy when selection is entirely in content view", () => {
             focusOffset: 5,
         }),
     ).toEqual({
-        text: "est paragraph with a @Sarah ment",
-        html: `<p data-pm-slice="1 1 []">est paragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">@Sarah</span> ment</p>`,
+        text: "est paragraph with a Sarah ment",
+        html: `<p data-pm-slice="1 1 []">est paragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">Sarah</span> ment</p>`,
     });
 
     expect(
@@ -436,8 +447,8 @@ test("can copy when selection is entirely in content view", () => {
             focusOffset: 3,
         }),
     ).toEqual({
-        text: "ragraph with a @Sarah",
-        html: `<p data-pm-slice="1 1 []">ragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">@Sarah</span></p>`,
+        text: "ragraph with a Sarah",
+        html: `<p data-pm-slice="1 1 []">ragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">Sarah</span></p>`,
     });
 
     expect(
@@ -454,8 +465,8 @@ test("can copy when selection is entirely in content view", () => {
             focusOffset: 25,
         }),
     ).toEqual({
-        text: "@Sarah mention. After that ther",
-        html: `<p data-pm-slice="1 1 []"><span data-cy-mention="${account.id}" data-cy-mention-short="">@Sarah</span> mention. After that ther</p>`,
+        text: "Sarah mention. After that ther",
+        html: `<p data-pm-slice="1 1 []"><span data-cy-mention="${account.id}" data-cy-mention-short="">Sarah</span> mention. After that ther</p>`,
     });
 
     expect(
@@ -469,8 +480,8 @@ test("can copy when selection is entirely in content view", () => {
             focusOffset: 18,
         }),
     ).toEqual({
-        text: "st Document\n\nThis is a test paragraph with a @Sarah mention. After that there’s some bold text and then som",
-        html: `<h1 data-pm-slice="1 1 []">st Document</h1><p>This is a test paragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">@Sarah</span> mention. After that there’s some <strong>bold</strong> text and then som</p>`,
+        text: "st Document\n\nThis is a test paragraph with a Sarah mention. After that there’s some bold text and then som",
+        html: `<h1 data-pm-slice="1 1 []">st Document</h1><p>This is a test paragraph with a <span data-cy-mention="${account.id}" data-cy-mention-short="">Sarah</span> mention. After that there’s some <strong>bold</strong> text and then som</p>`,
     });
 
     expect(

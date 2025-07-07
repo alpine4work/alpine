@@ -70,7 +70,7 @@ export class TestPost extends TestCommentRoomBase {
     public static async _create(
         session: TestSpaceSession,
         channel: TestChannel,
-        content: PostContent | string,
+        content: Node | string,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public static async _create(
@@ -81,10 +81,10 @@ export class TestPost extends TestCommentRoomBase {
     public static async _create(
         session: TestSpaceSession,
         channel: TestChannel,
-        contentOrOptions?: PostContent | string | TestPostCreateOptions,
+        contentOrOptions?: Node | string | TestPostCreateOptions,
         options?: TestPostCreateOptions,
     ): Promise<TestPost> {
-        let content: PostContent | string =
+        let content: Node | string =
             typeof contentOrOptions === "string" || contentOrOptions instanceof Node
                 ? contentOrOptions
                 : `Test Post ${testPostCount++}`;
@@ -170,7 +170,7 @@ export class TestPost extends TestCommentRoomBase {
         const post = await createPost(session.action(), {
             channelId: channel.id,
             draftId,
-            content,
+            content: assertPostContent(content),
         });
 
         return new TestPost(session.context, session.space, post.id, post.createdTime, channel);

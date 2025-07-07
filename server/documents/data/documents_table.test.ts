@@ -40,7 +40,7 @@ import {
     getDocumentContentWithOptionalComments,
     getDocumentPreview,
     getDocumentPreviewIfExists,
-    getDocumentTitle,
+    getDocumentTitleIfExists,
     getDocumentWithOptionalComments,
     getDocumentWithOptionalCommentsIfExists,
     getDocumentsTableForTest,
@@ -61,6 +61,7 @@ import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -252,7 +253,9 @@ test("can read a created document", async () => {
         version: 0,
         content: content.toJSON(),
     });
-    expect(await getDocumentTitle(session.action(), documentId)).toEqual("Foo bar");
+    expect((await getDocumentTitleIfExists(session.action(), documentId))?.title).toEqual(
+        "Foo bar",
+    );
     expect((await getDocumentContent(session.action(), documentId)).content.toJSON()).toEqual(
         content.toJSON(),
     );
@@ -2445,7 +2448,7 @@ test("can not read a created document in a different space", async () => {
     await expect(getDocumentWithOptionalComments(session.action(), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
-    await expect(getDocumentTitle(session.action(), documentId)).rejects.toThrow(
+    await expect(getDocumentTitleIfExists(session.action(), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
     await expect(getDocumentContent(session.action(), documentId)).rejects.toThrow(
@@ -5591,13 +5594,13 @@ test("getting document without comments requires view access level", async () =>
     }
 
     {
-        await getDocumentTitle(session1.action(), document.id);
-        await getDocumentTitle(session2.action(), document.id);
-        await getDocumentTitle(session3.action(), document.id);
-        await expect(getDocumentTitle(session4.action(), document.id)).rejects.toThrow(
+        await getDocumentTitleIfExists(session1.action(), document.id);
+        await getDocumentTitleIfExists(session2.action(), document.id);
+        await getDocumentTitleIfExists(session3.action(), document.id);
+        await expect(getDocumentTitleIfExists(session4.action(), document.id)).rejects.toThrow(
             "Actor doesn’t have `View` access level to document",
         );
-        await expect(getDocumentTitle(otherSession.action(), document.id)).rejects.toThrow(
+        await expect(getDocumentTitleIfExists(otherSession.action(), document.id)).rejects.toThrow(
             "Account doesn’t have access to space",
         );
     }
@@ -7615,21 +7618,39 @@ test("can get a document with references as actors that don’t have access to t
     await document.type(session1, " Hello, ");
     await document.type(
         session1,
-        schema.node("mention", {mention: {accountId: session2.account.id, isShort: false}}),
+        schema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: session2.account.id,
+                isShort: false,
+            }),
+        }),
     );
     await document.type(session1, "!");
 
     await document.type(session1, " Hello, ");
     await document.type(
         session1,
-        schema.node("mention", {mention: {accountId: session3.account.id, isShort: false}}),
+        schema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: session3.account.id,
+                isShort: false,
+            }),
+        }),
     );
     await document.type(session1, "!");
 
     await document.type(session1, " Hello, ");
     await document.type(
         session1,
-        schema.node("mention", {mention: {accountId: otherSession.account.id, isShort: false}}),
+        schema.node("mention", {
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: otherSession.account.id,
+                isShort: false,
+            }),
+        }),
     );
     await document.type(session1, "!");
 
@@ -7661,15 +7682,27 @@ test("can get a document with references as actors that don’t have access to t
                             ]),
                             schema.text("! Hello, "),
                             schema.node("mention", {
-                                mention: {accountId: session2.account.id, isShort: false},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session2.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             schema.text("! Hello, "),
                             schema.node("mention", {
-                                mention: {accountId: session3.account.id, isShort: false},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session3.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             schema.text("! Hello, "),
                             schema.node("mention", {
-                                mention: {accountId: otherSession.account.id, isShort: false},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: otherSession.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             schema.text("!"),
                         ]),
@@ -7813,15 +7846,27 @@ test("can get a document with references as actors that don’t have access to t
                                 ]),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session2.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session2.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session3.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session3.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: otherSession.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("!"),
                             ]),
@@ -7910,15 +7955,27 @@ test("can get a document with references as actors that don’t have access to t
                             schema.node("paragraph", {}, [
                                 schema.text("Hello, world! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session2.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session2.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session3.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session3.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: otherSession.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("!"),
                             ]),
@@ -7997,15 +8054,27 @@ test("can get a document with references as actors that don’t have access to t
                             schema.node("paragraph", {}, [
                                 schema.text("Hello, world! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session2.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session2.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session3.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session3.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: otherSession.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("!"),
                             ]),
@@ -8085,15 +8154,27 @@ test("can get a document with references as actors that don’t have access to t
                             schema.node("paragraph", {}, [
                                 schema.text("Hello, world! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session2.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session2.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session3.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session3.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: otherSession.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("!"),
                             ]),
@@ -8174,15 +8255,27 @@ test("can get a document with references as actors that don’t have access to t
                             schema.node("paragraph", {}, [
                                 schema.text("Hello, world! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session2.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session2.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: session3.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: session3.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("! Hello, "),
                                 schema.node("mention", {
-                                    mention: {accountId: otherSession.account.id, isShort: false},
+                                    mention: cast<ContentMention>({
+                                        type: "Account",
+                                        accountId: otherSession.account.id,
+                                        isShort: false,
+                                    }),
                                 }),
                                 schema.text("!"),
                             ]),
@@ -12270,7 +12363,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: session4.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session4.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -12401,7 +12498,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: unknownAccountId},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: unknownAccountId,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -12520,7 +12621,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: otherSession.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: otherSession.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -12649,7 +12754,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: session4.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session4.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -12833,7 +12942,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: session4.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session4.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -13048,7 +13161,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: session4.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session4.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -13135,7 +13252,11 @@ describe("Comments", () => {
                                 MessageContentProsemirrorSchema.node("paragraph", {}, [
                                     MessageContentProsemirrorSchema.text("Hello, "),
                                     MessageContentProsemirrorSchema.node("mention", {
-                                        mention: {accountId: session2.account.id},
+                                        mention: cast<ContentMention>({
+                                            type: "Account",
+                                            accountId: session2.account.id,
+                                            isShort: false,
+                                        }),
                                     }),
                                     MessageContentProsemirrorSchema.text("!"),
                                 ]),
@@ -13269,7 +13390,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: session1.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session1.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -13347,7 +13472,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: session4.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session4.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -13429,7 +13558,11 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: session6.account.id},
+                                mention: cast<ContentMention>({
+                                    type: "Account",
+                                    accountId: session6.account.id,
+                                    isShort: false,
+                                }),
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),

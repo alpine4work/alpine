@@ -3,6 +3,7 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -14,6 +15,10 @@ export function createContentMentionTextStore(
     references: ContentReferences,
     mention: ContentMention,
 ): Store<string> {
+    if (mention.type !== "Account") {
+        throw new UnimplementedError("Implemented in next PR");
+    }
+
     const account = references.accountById.get(mention.accountId);
 
     if (!account) return new ConstStore(missingAccountName);

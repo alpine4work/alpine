@@ -1,3 +1,4 @@
+import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
@@ -35,16 +36,41 @@ export abstract class ContentContextModuleBase<
     public abstract fork(): ContentContextModuleBase;
 }
 
-export class TestContentContextModule extends ContentContextModuleBase {
-    constructor() {
+export type TestContentContextModuleOptions<Modules extends {[key: string]: ContextModuleBase}> = {
+    getSearchEntityIfPossible?:
+        | ((
+              context: Context<Modules>,
+              spaceId: SpaceId,
+              entityId: SearchMentionEntityId,
+          ) => Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null>)
+        | null;
+};
+
+export class TestContentContextModule<
+    Modules extends {[key: string]: ContextModuleBase} = {},
+> extends ContentContextModuleBase<Modules> {
+    private readonly _getSearchEntityIfPossible:
+        | ((
+              context: Context<Modules>,
+              spaceId: SpaceId,
+              entityId: SearchMentionEntityId,
+          ) => Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null>)
+        | null;
+
+    constructor({getSearchEntityIfPossible = null}: TestContentContextModuleOptions<Modules> = {}) {
         super();
         assert(process.env.NODE_ENV === "test");
+
+        this._getSearchEntityIfPossible = getSearchEntityIfPossible;
     }
 
-    public override getSearchEntityIfPossible(): never {
-        throw new UnimplementedError(
-            "`TestContentContextModule.getSearchEntityIfPossible()` can’t be implemented in unit tests because we want to limit unit test dependencies to just what we need",
-        );
+    public override getSearchEntityIfPossible(spaceId: SpaceId, entityId: SearchMentionEntityId) {
+        if (this._getSearchEntityIfPossible === null) {
+            throw new UnimplementedError(
+                "`TestContentContextModule.getSearchEntityIfPossible()` can’t be implemented in unit tests because we want to limit unit test dependencies to just what we need",
+            );
+        }
+        return this._getSearchEntityIfPossible(this._context, spaceId, entityId);
     }
 
     public override getFileEntityIfPossible(): never {

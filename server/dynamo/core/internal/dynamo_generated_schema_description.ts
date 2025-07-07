@@ -943,21 +943,53 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         "propertySchemaByKey": {
                                                                                                             "mention": {
                                                                                                                 "valueSchema": {
-                                                                                                                    "type": "Object",
-                                                                                                                    "propertySchemaByKey": {
-                                                                                                                        "accountId": {
-                                                                                                                            "valueSchema": {
-                                                                                                                                "type": "Id"
-                                                                                                                            },
-                                                                                                                            "optional": false
+                                                                                                                    "type": "Union",
+                                                                                                                    "typeKey": "type",
+                                                                                                                    "variantSchemaByTypeValue": {
+                                                                                                                        "Account": {
+                                                                                                                            "type": "Object",
+                                                                                                                            "propertySchemaByKey": {
+                                                                                                                                "type": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Value",
+                                                                                                                                        "value": "Account"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                },
+                                                                                                                                "accountId": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Id"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                },
+                                                                                                                                "isShort": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Boolean"
+                                                                                                                                    },
+                                                                                                                                    "optional": true
+                                                                                                                                }
+                                                                                                                            }
                                                                                                                         },
-                                                                                                                        "isShort": {
-                                                                                                                            "valueSchema": {
-                                                                                                                                "type": "Boolean"
-                                                                                                                            },
-                                                                                                                            "optional": true
+                                                                                                                        "SearchEntity": {
+                                                                                                                            "type": "Object",
+                                                                                                                            "propertySchemaByKey": {
+                                                                                                                                "type": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "Value",
+                                                                                                                                        "value": "SearchEntity"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                },
+                                                                                                                                "entityId": {
+                                                                                                                                    "valueSchema": {
+                                                                                                                                        "type": "String"
+                                                                                                                                    },
+                                                                                                                                    "optional": false
+                                                                                                                                }
+                                                                                                                            }
                                                                                                                         }
                                                                                                                     },
+                                                                                                                    "defaultTypeValue": "Account",
                                                                                                                     "referenceId": "b2c0eadd"
                                                                                                                 },
                                                                                                                 "optional": false
@@ -965,6 +997,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                         }
                                                                                                     },
                                                                                                     "optional": false
+                                                                                                },
+                                                                                                "marks": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Reference",
+                                                                                                        "reuseReferenceId": "60ea27f1"
+                                                                                                    },
+                                                                                                    "optional": true
                                                                                                 }
                                                                                             }
                                                                                         },
@@ -2075,6 +2114,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     }
                                                                                 },
                                                                                 "optional": false
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "7b24f36a"
+                                                                                },
+                                                                                "optional": true
                                                                             }
                                                                         },
                                                                         "referenceId": "5936f7af"
@@ -3903,6 +3949,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                                     }
                                                                                                 },
                                                                                                 "optional": false
+                                                                                            },
+                                                                                            "marks": {
+                                                                                                "valueSchema": {
+                                                                                                    "type": "Reference",
+                                                                                                    "reuseReferenceId": "01cde0d4"
+                                                                                                },
+                                                                                                "optional": true
                                                                                             }
                                                                                         }
                                                                                     },
@@ -6590,6 +6643,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     }
                                                                                 },
                                                                                 "optional": false
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "a5c113a5"
+                                                                                },
+                                                                                "optional": true
                                                                             }
                                                                         }
                                                                     },
@@ -10838,6 +10898,13 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     }
                                                                                 },
                                                                                 "optional": false
+                                                                            },
+                                                                            "marks": {
+                                                                                "valueSchema": {
+                                                                                    "type": "Reference",
+                                                                                    "reuseReferenceId": "1a56ca4e"
+                                                                                },
+                                                                                "optional": true
                                                                             }
                                                                         }
                                                                     },

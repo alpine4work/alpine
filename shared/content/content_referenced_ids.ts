@@ -4,6 +4,7 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {FileEntityId, FileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {
@@ -114,9 +115,16 @@ export function collectContentReferencedIds(
         visitAttr: (attr, value) => {
             if (attr === "mention") {
                 const mention: ContentMention = value;
-
-                // TODO(calebmer): Will add to `searchEntityIds` here in the future.
-                accountIds.add(mention.accountId);
+                switch (mention.type) {
+                    case "Account":
+                        accountIds.add(mention.accountId);
+                        break;
+                    case "SearchEntity":
+                        searchEntityIds.add(mention.entityId);
+                        break;
+                    default:
+                        throw exhaustive(mention);
+                }
             }
 
             if (attr === "fileId") {

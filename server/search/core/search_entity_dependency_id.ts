@@ -44,13 +44,15 @@ import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 export type SearchEntityDependencyId =
     | `Account:${AccountId | ContentMentionAccountId}`
     | `Account:${AccountId | ContentMentionAccountId}:WithoutSpace`
-    | `Document:${DocumentId}:Title`
     | `Document:${DocumentId}:Authorization`
-    | `Channel:${ChannelId}:Preview`
+    | `Document:${DocumentId}:Title`
     | `Channel:${ChannelId}:Authorization`
+    | `Channel:${ChannelId}:Preview`
     | `Chat:${ChatId}`
     | `Task:${TaskId}:Authorization`
-    | `TaskCollection:${TaskCollectionId}:Authorization`;
+    | `Task:${TaskId}:Title`
+    | `TaskCollection:${TaskCollectionId}:Authorization`
+    | `TaskCollection:${TaskCollectionId}:Name`;
 
 type RemoveSearchEntityDependencyIdAttribute<Id> =
     Id extends `${infer IdType}:${infer IdPayload}:${string}` ? `${IdType}:${IdPayload}` : Id;

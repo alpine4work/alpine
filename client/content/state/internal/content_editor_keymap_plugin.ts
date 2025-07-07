@@ -863,7 +863,7 @@ export function buildContentEditorKeymapPlugin(
             if (!isSelectionBeforeMentionNode) return false;
 
             const mention: ContentMention = $from.nodeBefore.attrs.mention;
-            if (mention.isShort) return false;
+            if (mention.type !== "Account" || mention.isShort) return false;
 
             if (dispatch) {
                 const newMention: ContentMention = {...mention, isShort: true};

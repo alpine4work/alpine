@@ -16,8 +16,6 @@ import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -27,7 +25,6 @@ import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
-    createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
 import {InboxTaskEntryModel} from "~/shared/notifications/inbox_model.js";
 
@@ -178,10 +175,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         createdTime: taskCommentFromSession1.createdTime,
                         author: await scenario.session1.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 1"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 1",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.get(),
@@ -216,10 +210,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         createdTime: taskCommentFromSession2.createdTime,
                         author: await scenario.session2.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.get(),
@@ -256,10 +247,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         createdTime: taskCommentFromSession2.createdTime,
                         author: await scenario.session2.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.get(),
@@ -294,10 +282,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         createdTime: taskCommentFromSession3.createdTime,
                         author: await scenario.session3.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 3"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 3",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session2.get(),
@@ -325,10 +310,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         createdTime: taskCommentFromSession3.createdTime,
                         author: await scenario.session3.get(),
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 3"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 3",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session1.get(),
@@ -400,10 +382,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: taskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.get(),
@@ -445,10 +424,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: taskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.get(),
@@ -476,10 +452,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session1.get(),
                         createdTime: taskCommentFromSession1.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 1"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 1",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -507,10 +480,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session1.get(),
                         createdTime: taskCommentFromSession1.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from session 1"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from session 1",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session2.get(),
@@ -572,15 +542,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: taskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount3MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session3.account.id, await scenario.session3.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -608,15 +570,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: taskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount3MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session3.account.id, await scenario.session3.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherCommentAuthor: null,
@@ -659,15 +613,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session1.get(),
                         createdTime: taskCommentFromSession1.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount2MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session2.account.id, await scenario.session2.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherCommentAuthor: null,
@@ -695,15 +641,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session1.get(),
                         createdTime: taskCommentFromSession1.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount2MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session2.account.id, await scenario.session2.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session2.get(),
@@ -760,10 +698,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: firstTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("1st task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "1st task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.get(),
@@ -800,10 +735,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: firstTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("1st task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "1st task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -838,15 +770,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: loudTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount2MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session2.account.id, await scenario.session2.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.get(),
@@ -883,15 +807,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: loudTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount2MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session2.account.id, await scenario.session2.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session2.account.initialName}!`,
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -926,10 +842,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: secondTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("2nd task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "2nd task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: await scenario.session3.get(),
@@ -966,10 +879,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: secondTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("2nd task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "2nd task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -1064,10 +974,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: firstTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("1st task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "1st task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -1095,12 +1002,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.sharedSessionInOtherSpace.get(),
                         createdTime: taskCommentFromSharedSessionInOtherSession.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent(
-                                "task comment from shared session in other session",
-                            ),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from shared session in other session",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -1135,10 +1037,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: firstTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("1st task comment from session 2"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "1st task comment from session 2",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -1166,10 +1065,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.otherSession.get(),
                         createdTime: taskCommentFromOtherSession.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: createSimpleMessageContent("task comment from other session"),
-                            references: emptyContentReferences,
-                        }),
+                        contentTextSnippet: "task comment from other session",
                         isStickyMention: false,
                     },
                     otherCommentAuthor: null,
@@ -1246,15 +1142,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: loudTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount3MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session3.account.id, await scenario.session3.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherCommentAuthor: null,
@@ -1298,15 +1186,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         author: await scenario.session2.get(),
                         createdTime: loudTaskCommentFromSession2.createdTime,
-                        contentTextSnippet: printContentSingleLineTextSnippet({
-                            doc: scenario.mentionAccount3MessageContent,
-                            references: {
-                                ...emptyContentReferences,
-                                accountById: new Map([
-                                    [scenario.session3.account.id, await scenario.session3.get()],
-                                ]),
-                            },
-                        }),
+                        contentTextSnippet: `Hello ${scenario.session3.account.initialName}!`,
                         isStickyMention: true,
                     },
                     otherCommentAuthor: null,
@@ -1407,6 +1287,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             MessageContentProsemirrorSchema.text("Hello "),
                             MessageContentProsemirrorSchema.node("mention", {
                                 mention: cast<ContentMention>({
+                                    type: "Account",
                                     accountId: session2.account.id,
                                     isShort: false,
                                 }),
@@ -1439,7 +1320,7 @@ for (const [currentProcessingType, processingMultiple] of [
                     latestComment: {
                         createdTime: comment.createdTime,
                         author: await session1.get(),
-                        contentTextSnippet: `Hello @${session2.account.initialName}`,
+                        contentTextSnippet: `Hello ${session2.account.initialName}`,
                         isStickyMention: true,
                     },
                     otherCommentAuthor: null,
@@ -1655,6 +1536,7 @@ for (const [currentProcessingType, processingMultiple] of [
                             MessageContentProsemirrorSchema.text("Hello "),
                             MessageContentProsemirrorSchema.node("mention", {
                                 mention: cast<ContentMention>({
+                                    type: "Account",
                                     accountId: session2.account.id,
                                     isShort: false,
                                 }),

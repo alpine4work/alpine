@@ -23,6 +23,7 @@ import {TestEmptyCloudflareR2Client} from "~/server/cloudflare/r2/test_empty_clo
 import {
     ContentContextModuleBase,
     TestContentContextModule,
+    TestContentContextModuleOptions,
 } from "~/server/context/content_context_module_base.js";
 import {
     FilesContextModuleBase,
@@ -235,27 +236,31 @@ type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase}> = {
  *   add your jobs to a local SQS server so a `JobConsumer` can process them
  *   instead of processing them locally.
  */
-export function createTestContext({
-    shouldStartOpensearch = false,
-    shouldSendJobsToSqs = false,
-    processJob,
-}: {
-    shouldStartOpensearch?: boolean;
-} & (
-    | {
-          shouldSendJobsToSqs: true;
-          processJob?: undefined;
-      }
-    | {
-          shouldSendJobsToSqs?: false;
-          processJob?: (
-              context: Context<TestSystemActionContextModules & {apns: ApnsContextModuleBase}>,
-              job: JobDescription,
-              jobStartTime: Date,
-              span: TracerSpan,
-          ) => Promise<void>;
-      }
-) = {}): TestContext {
+export function createTestContext(
+    options: {
+        shouldStartOpensearch?: boolean;
+    } & TestContentContextModuleOptions<TestContextModules> &
+        (
+            | {
+                  shouldSendJobsToSqs: true;
+                  processJob?: undefined;
+              }
+            | {
+                  shouldSendJobsToSqs?: false;
+                  processJob?: (
+                      context: Context<
+                          TestSystemActionContextModules & {apns: ApnsContextModuleBase}
+                      >,
+                      job: JobDescription,
+                      jobStartTime: Date,
+                      span: TracerSpan,
+                  ) => Promise<void>;
+              }
+        ) = {},
+): TestContext {
+    const {shouldStartOpensearch = false, shouldSendJobsToSqs = false} = options;
+    let {processJob} = options;
+
     // Increase Jest timeout for tests using a test context since these tests
     // need to interact with the database which may be slow.
     //
@@ -501,7 +506,7 @@ export function createTestContext({
         opensearch: opensearchContextModule,
         jobs: jobsContextModule,
         edge: new TestLocalEdgeServiceContextModule(),
-        content: new TestContentContextModule(),
+        content: new TestContentContextModule(options),
         files: new TestFilesContextModule(),
         r2: new CloudflareR2ContextModule(new TestEmptyCloudflareR2Client()),
     });

@@ -13,6 +13,7 @@ import {
     getContentReferencesForNode,
     getMessageContentReferencesForNode,
 } from "~/server/content/get_content_references.js";
+import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {ContentContextModuleBase} from "~/server/context/content_context_module_base.js";
 import {FilesContextModuleBase} from "~/server/context/files_context_module.js";
 import {
@@ -87,10 +88,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {EdgeServiceContextModuleBase} from "~/server/tokens/edge_service_context_module.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {
-    isTextEndedWithPunctuation,
-    printContentSingleLineTextSnippet,
-} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {isTextEndedWithPunctuation} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Context} from "~/shared/context/context.js";
 import {printPrettyNumber} from "~/shared/design/print_pretty_number.js";
 import {
@@ -786,7 +784,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         latestMessage: {
                             author,
                             createdTime: item.latestMessage.createdTime,
-                            contentTextSnippet: printContentSingleLineTextSnippet({
+                            contentTextSnippet: printContentSingleLineTextSnippetForServer({
                                 doc: item.latestMessage.contentSnippet,
                                 references,
                             }),
@@ -887,7 +885,9 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             // removing another user's access from a channel would probably expect the
                             // content to be hidden.
                             hasPostAccess && postContentSnippetIfMentioned
-                                ? printContentSingleLineTextSnippet(postContentSnippetIfMentioned)
+                                ? printContentSingleLineTextSnippetForServer(
+                                      postContentSnippetIfMentioned,
+                                  )
                                 : null,
                         latestComment: latestComment
                             ? {
@@ -903,7 +903,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                         // We continue returning the author, created time, and whether the last comment
                                         // was a mention because the user has already theoretically seen these things
                                         // (via push notification) and otherwise the notification loses all structure.
-                                        printContentSingleLineTextSnippet({
+                                        printContentSingleLineTextSnippetForServer({
                                             doc: latestComment.comment.contentSnippet,
                                             references: latestComment.references,
                                         })
@@ -969,7 +969,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                             author: latestPostAuthor,
                             createdTime: item.latestPost.createdTime,
                             contentTextSnippet: channelResult.ok
-                                ? printContentSingleLineTextSnippet({
+                                ? printContentSingleLineTextSnippetForServer({
                                       doc: item.latestPost.contentSnippet,
                                       references: latestPostContentSnippetReferences,
                                   })
@@ -1028,7 +1028,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   // We continue returning the author, created time, and whether the last comment
                                   // was a mention because the user has already theoretically seen these things
                                   // (via push notification) and otherwise the notification loses all structure.
-                                  printContentSingleLineTextSnippet({
+                                  printContentSingleLineTextSnippetForServer({
                                       doc: item.latestComment.contentSnippet,
                                       references: latestCommentContentSnippetReferences,
                                   })
@@ -1092,7 +1092,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   // We continue returning the author, created time, and whether the last comment
                                   // was a mention because the user has already theoretically seen these things
                                   // (via push notification) and otherwise the notification loses all structure.
-                                  printContentSingleLineTextSnippet({
+                                  printContentSingleLineTextSnippetForServer({
                                       doc: item.firstComment.contentSnippet,
                                       references: firstCommentContentSnippetReferences,
                                   })
@@ -1153,7 +1153,7 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                                   // We continue returning the author, created time, and whether the last comment
                                   // was a mention because the user has already theoretically seen these things
                                   // (via push notification) and otherwise the notification loses all structure.
-                                  printContentSingleLineTextSnippet({
+                                  printContentSingleLineTextSnippetForServer({
                                       doc: latestComment.comment.contentSnippet,
                                       references: latestComment.references,
                                   })
@@ -2802,7 +2802,7 @@ async function printNotificationEventAlertContentBody(
         event.contentSnippet,
     );
 
-    let body = printContentSingleLineTextSnippet({
+    let body = printContentSingleLineTextSnippetForServer({
         doc: event.contentSnippet,
         references: contentReferences,
     });

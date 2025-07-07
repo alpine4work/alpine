@@ -99,7 +99,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Document"),
             documentId: Schema.id<DocumentId>(),
         }),
-        updatableTraits: ["Title", "Authorization"],
+        updatableTraits: ["Authorization", "Title"],
     },
     DocumentComment: {
         schema: Schema.object({
@@ -115,7 +115,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Channel"),
             channelId: Schema.id<ChannelId>(),
         }),
-        updatableTraits: ["Preview", "Authorization"],
+        updatableTraits: ["Authorization", "Preview"],
     },
     Post: {
         schema: Schema.object({
@@ -152,14 +152,14 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Task"),
             taskId: Schema.id<TaskId>(),
         }),
-        updatableTraits: ["Authorization"],
+        updatableTraits: ["Authorization", "Title"],
     },
     TaskCollection: {
         schema: Schema.object({
             type: Schema.value("TaskCollection"),
             collectionId: Schema.id<TaskCollectionId>(),
         }),
-        updatableTraits: ["Authorization"],
+        updatableTraits: ["Authorization", "Name"],
     },
     TaskComment: {
         schema: Schema.object({

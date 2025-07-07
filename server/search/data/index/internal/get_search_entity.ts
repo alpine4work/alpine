@@ -1,13 +1,15 @@
+import {Node} from "prosemirror-model";
 import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_table.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
     DocumentStepCountByAccountId,
     getDocumentCommentPayload,
     getDocumentContent,
-    getDocumentTitle,
+    getDocumentTitleIfExists,
 } from "~/server/documents/data/documents_table.js";
 import {
     getChannelNameAndDescriptionContentAndContributors,
+    getChannelPreviewIfExists,
     getPostCommentPayload,
     getPostContentAndChannelPreview,
     maxChannelContributionCount,
@@ -28,7 +30,12 @@ import {SearchEntityMedia} from "~/server/search/data/index/internal/search_enti
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {SearchSystemActionContext} from "~/server/search/data/index/search_action_context.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
-import {getTaskCollectionFromIndex, getTaskFromIndex} from "~/server/tasks/data/task_index.js";
+import {
+    getTaskCollectionFromIndex,
+    getTaskCollectionFromIndexIfExists,
+    getTaskFromIndex,
+    getTaskFromIndexIfExists,
+} from "~/server/tasks/data/task_index.js";
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
 import {
     TaskStepCountByAccountId,
@@ -36,8 +43,8 @@ import {
     getTaskNotesContentWithoutReferences,
 } from "~/server/tasks/data/task_table.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
-import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {isContentEmpty} from "~/shared/content/is_content_empty.js";
+import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
+import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
@@ -50,9 +57,11 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -75,6 +84,8 @@ import {MessagePayload} from "~/shared/messaging/message_model.js";
 import {
     SearchDynamicEntityId,
     SearchDynamicEntityIdObject,
+    SearchMentionEntityId,
+    parseSearchMentionEntityId,
     printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
@@ -82,7 +93,7 @@ import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
-import {addFallbackToTaskTitle} from "~/shared/tasks/title/task_title.js";
+import {TaskTitleModel, addFallbackToTaskTitle} from "~/shared/tasks/title/task_title.js";
 
 const searchEntityMajorContributorCutOff = 0.2;
 
@@ -187,7 +198,7 @@ class SearchEntityReadState {
     // from the `getAccount()` cache we don't have that guarantee.
     private readonly _accountPromiseById = new Map<
         AccountId | ContentMentionAccountId,
-        Promise<AccountModelWithoutSpace | null>
+        Promise<AccountModelWithoutSpaceData | null>
     >();
 
     constructor(
@@ -258,9 +269,9 @@ class SearchEntityReadState {
      */
     // Arrow function form so we can pass as a function parameter
     // (e.g. `chunkSearchContent(content, {getAccountIfExists: state.getAccountIfExists}))`)
-    public readonly getAccountIfExists = (
+    public getAccountIfExists(
         accountId: AccountId | ContentMentionAccountId,
-    ): Promise<AccountModelWithoutSpace | null> => {
+    ): Promise<AccountModelWithoutSpaceData | null> {
         this._recordDependencyId(`Account:${accountId}:WithoutSpace`);
 
         return getOrSetDefaultMapValue(this._accountPromiseById, accountId, async () => {
@@ -272,11 +283,11 @@ class SearchEntityReadState {
             );
             if (!account) return null;
 
-            return new AccountModelWithoutSpace(omitObject(account.initialData, ["space"]));
+            return omitObject(account.initialData, ["space"]);
         });
-    };
+    }
 
-    public async getAccount(accountId: AccountId): Promise<AccountModelWithoutSpace> {
+    public async getAccount(accountId: AccountId): Promise<AccountModelWithoutSpaceData> {
         const account = await this.getAccountIfExists(accountId);
         if (!account) throw new NotFoundError("Account not found");
         return account;
@@ -305,10 +316,14 @@ class SearchEntityReadState {
         });
     }
 
-    public getDocumentTitle(documentId: DocumentId): Promise<string> {
+    public getDocumentTitleIfExists(documentId: DocumentId): Promise<{
+        title: string;
+        accessPolicy: AccessPolicy;
+    } | null> {
+        this._recordDependencyId(`Document:${documentId}:Authorization`);
         this._recordDependencyId(`Document:${documentId}:Title`);
 
-        return getDocumentTitle(this._context, documentId, {
+        return getDocumentTitleIfExists(this._context, documentId, {
             consistency: "StrongWithinCache",
         });
     }
@@ -352,6 +367,18 @@ class SearchEntityReadState {
         });
     }
 
+    public getChannelPreviewIfExists(channelId: ChannelId): Promise<{
+        name: string;
+        accessPolicy: AccessPolicy;
+    } | null> {
+        this._recordDependencyId(`Channel:${channelId}:Authorization`);
+        this._recordDependencyId(`Channel:${channelId}:Preview`);
+
+        return getChannelPreviewIfExists(this._context, channelId, {
+            consistency: "StrongWithinCache",
+        });
+    }
+
     /**
      * When we load a post, we also load the channel the post is in. This marks the
      * channel as a dependency of our search entity.
@@ -364,7 +391,6 @@ class SearchEntityReadState {
         authorId: AccountId;
         content: PostContent;
         channel: ChannelPreviewModel;
-        channelAccessPolicy: AccessPolicy;
     }> {
         this._recordDependencyId(`Post:${postId}`);
 
@@ -372,7 +398,11 @@ class SearchEntityReadState {
             consistency: "StrongWithinCache",
         });
 
+        // If the access policy on the channel changes we need to re-index posts so
+        // they have the new access policy.
+        this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Authorization`);
         this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Preview`);
+
         return contentAndChannel;
     }
 
@@ -530,6 +560,49 @@ class SearchEntityReadState {
         };
     }
 
+    public async getTaskTitleIfExists(taskId: TaskId): Promise<{
+        title: TaskTitleModel;
+        task: TaskModelForAuthorization;
+        referencedTaskById: ReadonlyMap<TaskId, TaskModelForAuthorization>;
+        referencedCollectionById: ReadonlyMap<
+            TaskCollectionId,
+            TaskCollectionModelForAuthorization
+        >;
+    } | null> {
+        this._recordDependencyId(`Task:${taskId}:Authorization`);
+        this._recordDependencyId(`Task:${taskId}:Title`);
+
+        const taskResult = await getTaskFromIndexIfExists(
+            this._context,
+            this._context.actor.getSpaceId(),
+            taskId,
+        );
+        if (!taskResult) return null;
+        const {task, referencedTasks, referencedCollections} = taskResult;
+
+        const referencedTaskById = new Map<TaskId, TaskModel>(
+            referencedTasks.map(task => {
+                this._recordDependencyId(`Task:${task.id}:Authorization`);
+
+                return [task.id, task];
+            }),
+        );
+        const referencedCollectionById = new Map<TaskCollectionId, TaskCollectionModel>(
+            referencedCollections.map(collection => {
+                this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
+
+                return [collection.id, collection];
+            }),
+        );
+
+        return {
+            title: task.getTitle(),
+            task,
+            referencedTaskById,
+            referencedCollectionById,
+        };
+    }
+
     public async getTaskCollection(collectionId: TaskCollectionId): Promise<TaskCollectionModel> {
         this._recordDependencyId(`TaskCollection:${collectionId}`);
 
@@ -540,6 +613,28 @@ class SearchEntityReadState {
         );
 
         return collection;
+    }
+
+    public async getTaskCollectionNameIfExists(collectionId: TaskCollectionId): Promise<{
+        name: string;
+        accessPolicy: AccessPolicy;
+        isDeleted: boolean;
+    } | null> {
+        this._recordDependencyId(`TaskCollection:${collectionId}:Authorization`);
+        this._recordDependencyId(`TaskCollection:${collectionId}:Name`);
+
+        const collection = await getTaskCollectionFromIndexIfExists(
+            this._context,
+            this._context.actor.getSpaceId(),
+            collectionId,
+        );
+        if (!collection) return null;
+
+        return {
+            name: collection.getName(),
+            accessPolicy: collection.getAccessPolicy(),
+            isDeleted: collection.isDeleted(),
+        };
     }
 }
 
@@ -558,6 +653,193 @@ function getSearchEntityIndexAccessPolicy(
     }
 
     return {accountGrantAccountIds, defaultGrantType};
+}
+
+export function isSearchEntityIndexAccessPolicySubset(
+    supersetAccessPolicy: SearchEntityIndexAccessPolicy,
+    subsetAccessPolicy: SearchEntityIndexAccessPolicy,
+): boolean {
+    // If the superset is shared with everyone in the space then it'll include
+    // whatever is inside the subset.
+    if (supersetAccessPolicy.defaultGrantType === "Space") return true;
+
+    // If the subset is shared with everyone in the space but the superset was NOT
+    // shared with everyone in the space then the subset is shared with more people
+    // than the superset.
+    if (subsetAccessPolicy.defaultGrantType === "Space") return false;
+
+    // Use TypeScript to make sure `defaultGrantType` is `null` by this point.
+    cast<null>(supersetAccessPolicy.defaultGrantType);
+    cast<null>(subsetAccessPolicy.defaultGrantType);
+
+    // Make sure every subset account is also in the superset. It's fine if the
+    // superset has more accounts than the subset but every subset account must be
+    // in the superset.
+    for (const accountId of subsetAccessPolicy.accountGrantAccountIds) {
+        if (!supersetAccessPolicy.accountGrantAccountIds.has(accountId)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+async function getSearchContentReferences(
+    state: SearchEntityReadState,
+    accessPolicy: SearchEntityIndexAccessPolicy,
+    content: Node,
+): Promise<{
+    getAccountIfExists: (
+        accountId: AccountId | ContentMentionAccountId,
+    ) => AccountModelWithoutSpaceData | null;
+    getSearchEntityIfExists: (
+        entityId: SearchMentionEntityId,
+    ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+}> {
+    const referencedIds = getContentReferencedIdsForNode(content);
+
+    const [accounts, searchEntityEntries] = await runAllPromises([
+        runAllPromises(
+            mapIterable(referencedIds.accountIds, accountId => state.getAccountIfExists(accountId)),
+        ),
+        runAllPromises(
+            mapIterable(
+                referencedIds.searchEntityIds,
+                async (
+                    entityId,
+                ): Promise<
+                    | [
+                          SearchMentionEntityId,
+                          {isPrivate: true} | {isPrivate: false; title: string | null},
+                      ]
+                    | null
+                > => {
+                    const entity = await getSearchMentionEntityIfExists(state, entityId);
+                    if (!entity) return null;
+
+                    const entityAccessPolicy =
+                        "defaultGrantType" in entity.accessPolicy
+                            ? entity.accessPolicy
+                            : getSearchEntityIndexAccessPolicy(entity.accessPolicy);
+
+                    // For the purposes of our search index, we consider an entity to be private if
+                    // anyone with access to the entity we're indexing can't view the entity that's
+                    // been referenced.
+                    //
+                    // Let's say we have document 1 that's referencing document 2:
+                    //
+                    // ```
+                    // # Document 1
+                    //
+                    // Check out @Document 2.
+                    // ```
+                    //
+                    // ```
+                    // # Document 2
+                    //
+                    // Not much going on here.
+                    // ```
+                    //
+                    // Let's say document 1 is shared with Alice and Bob but document 2 is only
+                    // shared with Alice. In this case we'll index document 1 as "Check out Private
+                    // document" instead of "Check out Document 2". That's because Bob can't view
+                    // "Document 2" so we can't put the name "Document 2" in the search index since
+                    // Bob would be able to search for "Document 1" and see the name of the private
+                    // document through search!
+                    //
+                    // This behavior is unfortunate for Alice since when she searches for
+                    // "Document 1" she'll also see "Check out Private document" in search but then
+                    // when clicking to open the document she'll see the name "Document 2" since
+                    // she has access to "Document 2".
+                    //
+                    // We believe this is an acceptable trade-off. Most of the time, if you're
+                    // mentioning an entity it'll be shared with everyone else who has access to
+                    // the thing you're referencing the entity from. Otherwise some of your
+                    // coworkers might complain they don't have access.
+                    //
+                    // We also want to eventually build a modal when you try referencing something
+                    // not everyone has access to which asks whether you want to broaden the
+                    // permissions of the entity you're sharing. This modal would make the edge
+                    // case where you reference something with fewer permissions than the entity
+                    // you're referencing from less common.
+                    if (!isSearchEntityIndexAccessPolicySubset(entityAccessPolicy, accessPolicy)) {
+                        return [entityId, {isPrivate: true}];
+                    }
+
+                    return [entityId, {isPrivate: false, title: entity.title}];
+                },
+            ),
+        ),
+    ]);
+
+    const accountById = new Map<ContentMentionAccountId, AccountModelWithoutSpaceData>(
+        filterMapIterable(accounts, account => {
+            if (!account) return;
+            return [account.id, account];
+        }),
+    );
+
+    const searchEntityById = new Map<
+        SearchMentionEntityId,
+        {isPrivate: true} | {isPrivate: false; title: string | null}
+    >(searchEntityEntries.filter(isNonNullable));
+
+    return {
+        getAccountIfExists: accountId => accountById.get(accountId) ?? null,
+        getSearchEntityIfExists: entityId => searchEntityById.get(entityId) ?? null,
+    };
+}
+
+async function getSearchMentionEntityIfExists(
+    state: SearchEntityReadState,
+    entityId: SearchMentionEntityId,
+): Promise<{
+    accessPolicy: AccessPolicy | SearchEntityIndexAccessPolicy;
+    title: string | null;
+} | null> {
+    const entityIdObject = parseSearchMentionEntityId(entityId);
+
+    switch (entityIdObject.type) {
+        case "Document": {
+            const document = await state.getDocumentTitleIfExists(entityIdObject.documentId);
+            if (!document) return null;
+            return {accessPolicy: document.accessPolicy, title: document.title};
+        }
+        case "Channel": {
+            const channel = await state.getChannelPreviewIfExists(entityIdObject.channelId);
+            if (!channel) return null;
+            return {accessPolicy: channel.accessPolicy, title: channel.name};
+        }
+        case "Task": {
+            const task = await state.getTaskTitleIfExists(entityIdObject.taskId);
+            if (!task) return null;
+
+            const accessPolicy = getTaskSearchEntityAccessPolicy({
+                ...task,
+                expectedAccessLevel: "View",
+            });
+
+            if (task.task.isDeleted()) return {accessPolicy, title: null};
+
+            const title = addFallbackToTaskTitle(task.title.getText());
+
+            return {accessPolicy, title};
+        }
+        case "TaskCollection": {
+            const collection = await state.getTaskCollectionNameIfExists(
+                entityIdObject.collectionId,
+            );
+            if (!collection) return null;
+            if (collection.isDeleted) return {accessPolicy: collection.accessPolicy, title: null};
+            return {accessPolicy: collection.accessPolicy, title: collection.name};
+        }
+        case "Post": {
+            // TODO(calebmer, #search-entity-mentions): Implement posts.
+            return null;
+        }
+        default:
+            throw exhaustive(entityIdObject);
+    }
 }
 
 /**
@@ -679,10 +961,15 @@ async function getDocumentSearchEntity(
 
     await getDocumentSearchEntityTestCheckpoint.waitForTest(documentId);
 
-    const {title, getFullText, getEmbeddingChunks} = await chunkDocumentSearchContent(
-        content,
-        state,
-    );
+    const accessPolicy = getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy);
+
+    const contentReferences = await getSearchContentReferences(state, accessPolicy, content);
+
+    const {title, getFullText, getEmbeddingChunks} = chunkDocumentSearchContent(content, {
+        tokenizer: state.tokenizer,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+    });
 
     const contributorIds = new Map<AccountId, "Major" | "Minor">();
     let stepCountByNonCreatorAccounts = 0;
@@ -707,7 +994,7 @@ async function getDocumentSearchEntity(
 
     return {
         id: `Document:${documentId}`,
-        accessPolicy: getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy),
+        accessPolicy,
         createdTime,
         title,
         titleVersion: {type: "Integer", version},
@@ -719,16 +1006,20 @@ async function getDocumentSearchEntity(
     };
 }
 
-export async function chunkDocumentSearchContent(
+export function chunkDocumentSearchContent(
     content: DocumentContent,
     {
         tokenizer,
         getAccountIfExists,
+        getSearchEntityIfExists,
     }: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
     },
 ) {
     const title = getDocumentContentTitle(content);
@@ -750,9 +1041,10 @@ export async function chunkDocumentSearchContent(
         content.content.content.slice(1),
     );
 
-    const {getFullText, getEmbeddingChunks} = await chunkSearchContent(contentWithoutTitle, {
+    const {getFullText, getEmbeddingChunks} = chunkSearchContent(contentWithoutTitle, {
         tokenizer,
         getAccountIfExists,
+        getSearchEntityIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
 
@@ -789,25 +1081,40 @@ async function getDocumentCommentSearchEntity(
         documentAccessPolicy,
     } = await state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex);
 
-    const content =
-        commentPayload.type === "Content"
-            ? await chunkSearchContent(commentPayload.content, {
-                  tokenizer: state.tokenizer,
-                  getAccountIfExists: state.getAccountIfExists,
-                  getChunkPreamble: ({isInitialChunk}) => {
-                      return {
-                          text: `This is${
-                              isInitialChunk ? " a " : " from a "
-                          }comment on a document:`,
-                          lineMarginBottom: 2,
-                      };
-                  },
-              })
-            : null;
+    const accessPolicy = getSearchEntityIndexAccessPolicy(documentAccessPolicy);
+
+    let content: {
+        getFullText: () => string;
+        getEmbeddingChunks: () => Array<{
+            preambleEndIndex: number;
+            tokenCountWithoutPreamble: number;
+            text: string;
+        }>;
+    } | null = null;
+
+    if (commentPayload.type === "Content") {
+        const contentReferences = await getSearchContentReferences(
+            state,
+            accessPolicy,
+            commentPayload.content,
+        );
+
+        content = chunkSearchContent(commentPayload.content, {
+            tokenizer: state.tokenizer,
+            getAccountIfExists: contentReferences.getAccountIfExists,
+            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+            getChunkPreamble: ({isInitialChunk}) => {
+                return {
+                    text: `This is${isInitialChunk ? " a " : " from a "}comment on a document:`,
+                    lineMarginBottom: 2,
+                };
+            },
+        });
+    }
 
     return {
         id: `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
-        accessPolicy: getSearchEntityIndexAccessPolicy(documentAccessPolicy),
+        accessPolicy,
         createdTime,
         title: null,
         titleVersion: null,
@@ -829,9 +1136,18 @@ async function getChannelSearchEntity(
         truncateTokens(state.tokenizer, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
-    const {getFullText, getEmbeddingChunks} = await chunkSearchContent(channel.description, {
+    const accessPolicy = getSearchEntityIndexAccessPolicy(channel.accessPolicy);
+
+    const contentReferences = await getSearchContentReferences(
+        state,
+        accessPolicy,
+        channel.description,
+    );
+
+    const {getFullText, getEmbeddingChunks} = chunkSearchContent(channel.description, {
         tokenizer: state.tokenizer,
-        getAccountIfExists: state.getAccountIfExists,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
         getChunkPreamble: ({isInitialChunk}) => {
             return {
                 text: `This is${
@@ -844,7 +1160,7 @@ async function getChannelSearchEntity(
 
     return {
         id: `Channel:${channelId}`,
-        accessPolicy: getSearchEntityIndexAccessPolicy(channel.accessPolicy),
+        accessPolicy,
         createdTime: channel.createdTime,
         title: channel.name,
         titleVersion: {type: "Integer", version: channel.version},
@@ -891,9 +1207,14 @@ async function getPostSearchEntity(
         ),
     );
 
-    const {getFullText, getEmbeddingChunks} = await chunkSearchContent(post.content, {
+    const accessPolicy = getSearchEntityIndexAccessPolicy(post.channel.accessPolicy);
+
+    const contentReferences = await getSearchContentReferences(state, accessPolicy, post.content);
+
+    const {getFullText, getEmbeddingChunks} = chunkSearchContent(post.content, {
         tokenizer: state.tokenizer,
-        getAccountIfExists: state.getAccountIfExists,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             return {
                 text: `This is${isInitialChunk ? " a " : " from a "}post${
@@ -910,7 +1231,7 @@ async function getPostSearchEntity(
 
     return {
         id: `Post:${postId}`,
-        accessPolicy: getSearchEntityIndexAccessPolicy(post.channelAccessPolicy),
+        accessPolicy,
         createdTime: post.createdTime,
         title: null,
         titleVersion: null,
@@ -933,23 +1254,40 @@ async function getPostCommentSearchEntity(
         channelAccessPolicy,
     } = await state.getPostCommentPayload(postId, commentIndex);
 
-    const content =
-        commentPayload.type === "Content"
-            ? await chunkSearchContent(commentPayload.content, {
-                  tokenizer: state.tokenizer,
-                  getAccountIfExists: state.getAccountIfExists,
-                  getChunkPreamble: ({isInitialChunk}) => {
-                      return {
-                          text: `This is${isInitialChunk ? " a " : " from a "}comment on a post:`,
-                          lineMarginBottom: 2,
-                      };
-                  },
-              })
-            : null;
+    const accessPolicy = getSearchEntityIndexAccessPolicy(channelAccessPolicy);
+
+    let content: {
+        getFullText: () => string;
+        getEmbeddingChunks: () => Array<{
+            preambleEndIndex: number;
+            tokenCountWithoutPreamble: number;
+            text: string;
+        }>;
+    } | null = null;
+
+    if (commentPayload.type === "Content") {
+        const contentReferences = await getSearchContentReferences(
+            state,
+            accessPolicy,
+            commentPayload.content,
+        );
+
+        content = chunkSearchContent(commentPayload.content, {
+            tokenizer: state.tokenizer,
+            getAccountIfExists: contentReferences.getAccountIfExists,
+            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+            getChunkPreamble: ({isInitialChunk}) => {
+                return {
+                    text: `This is${isInitialChunk ? " a " : " from a "}comment on a post:`,
+                    lineMarginBottom: 2,
+                };
+            },
+        });
+    }
 
     return {
         id: `PostComment:${postId}-${commentIndex}`,
-        accessPolicy: getSearchEntityIndexAccessPolicy(channelAccessPolicy),
+        accessPolicy,
         createdTime,
         title: null,
         titleVersion: null,
@@ -1004,7 +1342,7 @@ async function getChatSearchEntity(
     const accounts = await runAllPromises(accountIds.map(accountId => state.getAccount(accountId)));
 
     const accountNames = accounts
-        .map(account => account.initialData.name)
+        .map(account => account.name)
         .sort((accountName1, accountName2) => accountName1.localeCompare(accountName2));
 
     let title: string;
@@ -1076,35 +1414,49 @@ async function getChatMessageSearchEntity(
             state.getChatMessagePayload(chatId, messageIndex),
         ]);
 
-    const content =
-        messagePayload.type === "Content"
-            ? await chunkSearchContent(messagePayload.content, {
-                  tokenizer: state.tokenizer,
-                  getAccountIfExists: state.getAccountIfExists,
-                  getChunkPreamble: ({isInitialChunk}) => {
-                      return {
-                          text: `This is${isInitialChunk ? " a " : " from a "}message in a chat${
-                              chatAccountIds.length > 1
-                                  ? ` between ${
-                                        nameByNumber.get(chatAccountIds.length) ??
-                                        chatAccountIds.length
-                                    } people`
-                                  : ""
-                          }:`,
-                          lineMarginBottom: 2,
-                      };
-                  },
-              })
-            : null;
+    const accessPolicy: SearchEntityIndexAccessPolicy = {
+        accountGrantAccountIds: new Set(chatAccountIds),
+        defaultGrantType: null,
+    };
+
+    let content: {
+        getFullText: () => string;
+        getEmbeddingChunks: () => Array<{
+            preambleEndIndex: number;
+            tokenCountWithoutPreamble: number;
+            text: string;
+        }>;
+    } | null = null;
+
+    if (messagePayload.type === "Content") {
+        const contentReferences = await getSearchContentReferences(
+            state,
+            accessPolicy,
+            messagePayload.content,
+        );
+
+        content = chunkSearchContent(messagePayload.content, {
+            tokenizer: state.tokenizer,
+            getAccountIfExists: contentReferences.getAccountIfExists,
+            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+            getChunkPreamble: ({isInitialChunk}) => {
+                return {
+                    text: `This is${isInitialChunk ? " a " : " from a "}message in a chat${
+                        chatAccountIds.length > 1
+                            ? ` between ${
+                                  nameByNumber.get(chatAccountIds.length) ?? chatAccountIds.length
+                              } people`
+                            : ""
+                    }:`,
+                    lineMarginBottom: 2,
+                };
+            },
+        });
+    }
 
     return {
         id: `ChatMessage:${chatId}-${messageIndex}`,
-
-        accessPolicy: {
-            accountGrantAccountIds: new Set(chatAccountIds),
-            defaultGrantType: null,
-        },
-
+        accessPolicy,
         createdTime,
         title: null,
         titleVersion: null,
@@ -1206,11 +1558,18 @@ async function getTaskSearchEntity(
         notesContent,
     } = await state.getTask(taskId);
 
+    const accessPolicy = getTaskSearchEntityAccessPolicy({
+        task,
+        referencedTaskById,
+        referencedCollectionById,
+        expectedAccessLevel: "View",
+    });
+
     // Index no content for deleted tasks.
     if (task.isDeleted()) {
         return {
             id: `Task:${taskId}`,
-            accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
+            accessPolicy,
             createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
             title: null,
             titleVersion: null,
@@ -1221,13 +1580,6 @@ async function getTaskSearchEntity(
             contributorIds: emptyMap,
         };
     }
-
-    const accessPolicy = getTaskSearchEntityAccessPolicy({
-        task,
-        referencedTaskById,
-        referencedCollectionById,
-        expectedAccessLevel: "View",
-    });
 
     const title = addFallbackToTaskTitle(task.getTitle().getText());
 
@@ -1243,26 +1595,29 @@ async function getTaskSearchEntity(
         ),
     );
 
-    const notesChunkResult = !isContentEmpty(notesContent.content)
-        ? await chunkSearchContent(notesContent.content, {
-              tokenizer: state.tokenizer,
-              getAccountIfExists: state.getAccountIfExists,
-              getChunkPreamble: ({context, isInitialChunk}) => {
-                  if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
+    const contentReferences = await getSearchContentReferences(
+        state,
+        accessPolicy,
+        notesContent.content,
+    );
 
-                  return {
-                      text: `This is from the “${truncatedTitle.get()}” task${
-                          context.sectionHeading !== null
-                              ? ` in the “${truncatedSectionHeading.get(
-                                    context.sectionHeading,
-                                )}” section`
-                              : ""
-                      }:`,
-                      lineMarginBottom: 2,
-                  };
-              },
-          })
-        : null;
+    const notesChunkResult = chunkSearchContent(notesContent.content, {
+        tokenizer: state.tokenizer,
+        getAccountIfExists: contentReferences.getAccountIfExists,
+        getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+        getChunkPreamble: ({context, isInitialChunk}) => {
+            if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
+
+            return {
+                text: `This is from the “${truncatedTitle.get()}” task${
+                    context.sectionHeading !== null
+                        ? ` in the “${truncatedSectionHeading.get(context.sectionHeading)}” section`
+                        : ""
+                }:`,
+                lineMarginBottom: 2,
+            };
+        },
+    });
 
     // Calculate task contributors. For tasks we have discrete updates (update
     // assignee, update priority) and continuous updates (update title, update
@@ -1341,13 +1696,15 @@ async function getTaskSearchEntity(
         );
     }
 
+    const body = notesChunkResult.getFullText();
+
     return {
         id: `Task:${taskId}`,
         accessPolicy,
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
         titleVersion: {type: "TaskTitle", snapshot: task.getTitle().getSnapshot()},
-        body: notesChunkResult?.getFullText() ?? null,
+        body: body.length > 0 ? body : null,
         media: {
             type: "TaskDisplayStatus",
             displayStatus: task.getDisplayStatus(),
@@ -1356,7 +1713,7 @@ async function getTaskSearchEntity(
                 task.rawData.assigneeStatus.version,
             ),
         },
-        embeddingChunks: notesChunkResult?.getEmbeddingChunks() ?? [],
+        embeddingChunks: body.length > 0 ? notesChunkResult.getEmbeddingChunks() : emptyArray,
         creatorId: task.getCreator().accountId,
         contributorIds,
     };
@@ -1367,13 +1724,14 @@ async function getTaskCollectionSearchEntity(
     collectionId: TaskCollectionId,
 ): Promise<SearchEntity> {
     const collection = await state.getTaskCollection(collectionId);
-    const accessPolicy = collection.getAccessPolicy();
+
+    const accessPolicy = getSearchEntityIndexAccessPolicy(collection.getAccessPolicy());
 
     // Index no content for deleted collections.
     if (collection.isDeleted()) {
         return {
             id: `TaskCollection:${collectionId}`,
-            accessPolicy: {accountGrantAccountIds: emptySet, defaultGrantType: null},
+            accessPolicy,
             createdTime: new Date(collection.getCreatedTime()[0]),
             title: null,
             titleVersion: null,
@@ -1387,7 +1745,7 @@ async function getTaskCollectionSearchEntity(
 
     return {
         id: `TaskCollection:${collectionId}`,
-        accessPolicy: getSearchEntityIndexAccessPolicy(accessPolicy),
+        accessPolicy,
         createdTime: new Date(collection.getCreatedTime()[0]),
         title: collection.getName(),
         titleVersion: {type: "HybridLogicalTime", time: collection.rawData.name.version},
@@ -1424,19 +1782,34 @@ async function getTaskCommentSearchEntity(
         expectedAccessLevel: "Comment",
     });
 
-    const content =
-        commentPayload.type === "Content"
-            ? await chunkSearchContent(commentPayload.content, {
-                  tokenizer: state.tokenizer,
-                  getAccountIfExists: state.getAccountIfExists,
-                  getChunkPreamble: ({isInitialChunk}) => {
-                      return {
-                          text: `This is${isInitialChunk ? " a " : " from a "}comment on a task:`,
-                          lineMarginBottom: 2,
-                      };
-                  },
-              })
-            : null;
+    let content: {
+        getFullText: () => string;
+        getEmbeddingChunks: () => Array<{
+            preambleEndIndex: number;
+            tokenCountWithoutPreamble: number;
+            text: string;
+        }>;
+    } | null = null;
+
+    if (commentPayload.type === "Content") {
+        const contentReferences = await getSearchContentReferences(
+            state,
+            accessPolicy,
+            commentPayload.content,
+        );
+
+        content = chunkSearchContent(commentPayload.content, {
+            tokenizer: state.tokenizer,
+            getAccountIfExists: contentReferences.getAccountIfExists,
+            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+            getChunkPreamble: ({isInitialChunk}) => {
+                return {
+                    text: `This is${isInitialChunk ? " a " : " from a "}comment on a task:`,
+                    lineMarginBottom: 2,
+                };
+            },
+        });
+    }
 
     return {
         id: `TaskComment:${taskId}-${commentIndex}`,

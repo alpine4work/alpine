@@ -1,3 +1,4 @@
+import {Node} from "prosemirror-model";
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
@@ -12,7 +13,6 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
 import {
@@ -121,7 +121,7 @@ export class TestChannel {
 
     public createPost(
         session: TestSpaceSession,
-        content: PostContent | string,
+        content: Node | string,
         options?: TestPostCreateOptions,
     ): Promise<TestPost>;
     public createPost(
@@ -130,7 +130,7 @@ export class TestChannel {
     ): Promise<TestPost>;
     public createPost(
         session: TestSpaceSession,
-        contentOrOptions?: PostContent | string | TestPostCreateOptions,
+        contentOrOptions?: Node | string | TestPostCreateOptions,
         options?: TestPostCreateOptions,
     ): Promise<TestPost> {
         return TestPost._create(session, this, contentOrOptions as any, options);

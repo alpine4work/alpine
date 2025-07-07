@@ -31,6 +31,7 @@ import {Box} from "~/client/design/box.js";
 import {mobileBottomBarKeyboardToolbarHeight} from "~/client/design/mobile_bottom_bar.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -54,6 +55,8 @@ export function MessageInputMobileKeyboardToolbar({
     onLinkModalOpen: (linkModalState: ContentEditorMobileLinkModalState) => void;
     inputContainerRef: RefObject<HTMLDivElement | null>;
 }) {
+    const {space} = useSpaceContext();
+
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     const toolbarId = useId();
@@ -202,6 +205,8 @@ export function MessageInputMobileKeyboardToolbar({
 
                     const {text: selectionText, isEditable: isSelectionEditable} =
                         getContentEditorMobileLinkModalSelectionSliceText(
+                            store => store.getSnapshot(),
+                            space.id,
                             selection.content(),
                             getContentEditorReferences(view.state).references,
                         );

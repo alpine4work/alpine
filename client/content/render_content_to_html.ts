@@ -35,7 +35,7 @@ import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -401,6 +401,11 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
             },
             mention: node => {
                 const mention: ContentMention = node.attrs.mention;
+
+                if (mention.type !== "Account") {
+                    throw new UnimplementedError("Implemented in next PR");
+                }
+
                 const isCurrentAccountMention = currentAccount?.id === mention.accountId;
 
                 // We need a container element for highlight styles to be applied to. Our

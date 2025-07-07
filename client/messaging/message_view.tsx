@@ -35,6 +35,7 @@ import {scheduleAfterNavigationAnimation} from "~/client/design/schedule_after_n
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/messaging/format_message_view_timestamp_divider_date.js";
 import {MessageDeleteConfirmationDialog} from "~/client/messaging/internal/message_delete_confirmation_dialog.js";
@@ -109,6 +110,7 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 
 /**
  * The buffered height we use for virtualized message views.
@@ -1389,14 +1391,20 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     onJumpToMessage: Memo<(message: Message) => void>;
 }) {
     const spacingScale = useSpacingScale();
+    const {space} = useSpaceContext();
 
-    const truncatedContent = useMemo(
-        () =>
-            getTruncatedMessageContentForReplyPreview({
-                message: parentMessage,
-                messageNoun,
-            }),
-        [messageNoun, parentMessage],
+    const truncatedContent = useStore(
+        useMemo(
+            () =>
+                computeStore(get =>
+                    getTruncatedMessageContentForReplyPreview(get, {
+                        spaceId: space.id,
+                        message: parentMessage,
+                        messageNoun,
+                    }),
+                ),
+            [messageNoun, parentMessage, space.id],
+        ),
     );
 
     const marginTop = "2";

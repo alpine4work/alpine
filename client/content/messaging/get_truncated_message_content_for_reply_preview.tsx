@@ -1,4 +1,5 @@
 import {Fragment, ReactNode} from "react";
+import {printContentSingleLineTextSnippetPreservingMarksForClient} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {
     boldClassName,
     codeClassName,
@@ -6,25 +7,33 @@ import {
     strikeClassName,
 } from "~/shared/content/content_styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * Get the content to render in a reply preview of a message. A content payload
  * will be truncated to enough content to fill a single line. A deleted payload
  * will show a placeholder informing the user the message is deleted.
  */
-export function getTruncatedMessageContentForReplyPreview({
-    message,
-    messageNoun,
-}: {
-    message: MessageModel;
-    messageNoun: string;
-}): ReactNode {
+export function getTruncatedMessageContentForReplyPreview(
+    get: <Value>(store: Store<Value>) => Value,
+    {
+        spaceId,
+        message,
+        messageNoun,
+    }: {
+        spaceId: SpaceId;
+        message: MessageModel;
+        messageNoun: string;
+    },
+): ReactNode {
     switch (message.payload.type) {
         case "Content": {
-            const segments = printContentSingleLineTextSnippetPreservingMarks(
+            const segments = printContentSingleLineTextSnippetPreservingMarksForClient(
+                get,
+                spaceId,
                 {
                     doc: getContentSnippet(message.payload.content.doc.resolve(0), 1),
                     references: message.payload.content.references,

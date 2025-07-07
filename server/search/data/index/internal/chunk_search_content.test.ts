@@ -9,9 +9,9 @@ import {chunkDocumentSearchContent} from "~/server/search/data/index/internal/ge
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
+import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {renderContentMentionToText} from "~/shared/content/render_content_mention_to_text.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -19,29 +19,32 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
-import {AccountModel} from "~/shared/spaces/account_model.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 const context = createTestContext();
 
-async function testGetFullSearchContentChunk(
+function testGetFullSearchContentChunk(
     content: Node,
     options: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
         skipParseCorrectnessTests?: boolean;
     },
 ) {
-    const chunk = await getFullSearchContentChunk(content, options);
+    const chunk = getFullSearchContentChunk(content, options);
 
     const text = printSearchContentChunk({
         preamble: {text: "", lineMarginBottom: 0},
@@ -51,7 +54,7 @@ async function testGetFullSearchContentChunk(
     if (!options.skipParseCorrectnessTests) {
         const content2 = parseSearchContent(text);
 
-        const chunk2 = await getFullSearchContentChunk(content2, options);
+        const chunk2 = getFullSearchContentChunk(content2, options);
 
         const text2 = printSearchContentChunk({
             preamble: {text: "", lineMarginBottom: 0},
@@ -61,12 +64,11 @@ async function testGetFullSearchContentChunk(
         // Content we get after parsing should equal the content we printed with some
         // acceptable lossiness.
         expect(content2.toJSON()).toEqual(
-            (
-                await dropIgnoredSearchContent(content, {
-                    getAccountIfExists: options.getAccountIfExists,
-                    withoutMarks: false,
-                })
-            )?.toJSON(),
+            dropIgnoredSearchContent(content, {
+                getAccountIfExists: options.getAccountIfExists,
+                getSearchEntityIfExists: options.getSearchEntityIfExists,
+                withoutMarks: false,
+            })?.toJSON(),
         );
         expect(text2).toEqual(text);
 
@@ -87,27 +89,23 @@ async function testGetFullSearchContentChunk(
 /**
  * Drop styles that aren't preserved by chunking.
  */
-async function dropIgnoredSearchContent(
+function dropIgnoredSearchContent(
     node: Node,
     options: {
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModel | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
         withoutMarks: boolean;
     },
-): Promise<Node | null> {
+): Node | null {
     if (node.type.name === "fileRow" || node.type.name === "fileFloat") return null;
 
     if (node.type.name === "mention") {
         const mention: ContentMention = node.attrs.mention;
-        const account = await options.getAccountIfExists(mention.accountId);
-        if (!account) return node.type.schema.text(`@${missingAccountName}`);
-
-        const accountName = mention.isShort
-            ? getAccountShortNameWithoutFullNameTooltip(account.initialData)
-            : account.initialData.name;
-
-        return node.type.schema.text(`@${accountName}`);
+        return node.type.schema.text(renderContentMentionToText(mention, options));
     }
 
     const marks = !options.withoutMarks
@@ -129,12 +127,8 @@ async function dropIgnoredSearchContent(
         options = {...options, withoutMarks: true};
     }
 
-    const content = (
-        await runAllPromises(
-            createArrayWithLength(node.content.childCount, index =>
-                dropIgnoredSearchContent(node.content.child(index), options),
-            ),
-        )
+    const content = createArrayWithLength(node.content.childCount, index =>
+        dropIgnoredSearchContent(node.content.child(index), options),
     ).filter(isNonNullable);
 
     if (node.type.name === "checkListItem") {
@@ -151,10 +145,11 @@ async function dropIgnoredSearchContent(
 
 test("discovers paragraph and sentence structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text(
@@ -172,7 +167,7 @@ test("discovers paragraph and sentence structure", async () => {
                     ),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -316,10 +311,11 @@ Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut d
 
 test("discovers heading structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             // C+ content generated by yours truly, ChatGPT.
             schema.node("doc", {}, [
                 schema.node("heading", {level: 1}, [
@@ -353,7 +349,7 @@ test("discovers heading structure", async () => {
                     ),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -563,10 +559,11 @@ To realize a sustainable future, a collective effort is necessary. Governments, 
 
 test("discovers bullet list structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             // C+ content generated by yours truly, ChatGPT.
             schema.node("doc", {}, [
                 schema.node("heading", {level: 1}, [
@@ -667,7 +664,7 @@ test("discovers bullet list structure", async () => {
                     ]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -993,10 +990,11 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
 
 test("discovers long ordered list structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             // C+ content generated by yours truly, ChatGPT.
             schema.node("doc", {}, [
                 ...createArrayWithLength(110, index =>
@@ -1011,7 +1009,7 @@ test("discovers long ordered list structure", async () => {
                     schema.node("paragraph", {}, [schema.text("b")]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2040,10 +2038,11 @@ test("discovers long ordered list structure", async () => {
 
 test("discovers paragraph introduction structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("This is a paragraph.")]),
                 schema.node("paragraph", {}, [
@@ -2060,7 +2059,7 @@ test("discovers paragraph introduction structure", async () => {
                 ]),
                 schema.node("paragraph", {}, [schema.text("This is another paragraph.")]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2150,10 +2149,11 @@ This is another paragraph.`,
 
 test("discovers quote block structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text(
@@ -2199,7 +2199,7 @@ test("discovers quote block structure", async () => {
                     ]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2322,10 +2322,11 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis 
 
 test("empty quote blocks and list items", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("Test 1:")]),
                 schema.node("quoteBlock", {}, [schema.node("paragraph", {}, [])]),
@@ -2342,7 +2343,7 @@ test("empty quote blocks and list items", async () => {
                     schema.node("paragraph", {}, [schema.text("b")]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2488,10 +2489,11 @@ Test 4:
 
 test("discovers code block structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text(
@@ -2524,7 +2526,7 @@ test("discovers code block structure", async () => {
                     schema.node("codeBlockLine", [], [schema.text("return;")]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2639,10 +2641,11 @@ return;
 
 test("prints a list item with line breaks", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("checkListItem", {indent: 0, checked: true}, [
                     schema.node("paragraph", {}, [
@@ -2656,7 +2659,7 @@ test("prints a list item with line breaks", async () => {
                     ]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2694,7 +2697,7 @@ test("prints a list item with line breaks", async () => {
     });
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("checkListItem", {indent: 0, checked: true}, [
                     schema.node("paragraph", {}, [
@@ -2709,7 +2712,7 @@ test("prints a list item with line breaks", async () => {
                     ]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2752,10 +2755,11 @@ test("prints a list item with line breaks", async () => {
 
 test("prints a heading with line breaks", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("heading", {level: 3}, [
                     schema.text(
@@ -2767,7 +2771,7 @@ test("prints a heading with line breaks", async () => {
                     ),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2802,7 +2806,7 @@ test("prints a heading with line breaks", async () => {
     });
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("heading", {level: 3}, [
                     schema.text(
@@ -2815,7 +2819,7 @@ test("prints a heading with line breaks", async () => {
                     ),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -2855,10 +2859,11 @@ test("prints a heading with line breaks", async () => {
 
 test("prints chunk text with inline styles", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("test1 "),
@@ -2923,7 +2928,7 @@ test("prints chunk text with inline styles", async () => {
                     schema.text("qux", [schema.mark("code")]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: "test1 **test2** *test3* ***test4*** `test5` **`test6`** *`test7`* *`test7.1`* ***`test7.2`*** ~~test8~~ **~~test9~~** \\*test10\\* `test`**`test`**`test` **test*****test*****test** `foobarqux` `foo`*`bar`*`qux` `foo`**`bar`**`qux` `fo`**`ob`**`arqux`",
@@ -2941,7 +2946,7 @@ test("prints chunk text with inline styles", async () => {
     });
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("test", [schema.mark("italic")]),
@@ -2952,6 +2957,7 @@ test("prints chunk text with inline styles", async () => {
             {
                 tokenizer,
                 getAccountIfExists,
+                getSearchEntityIfExists,
                 // TODO(calebmer): There's a bug in our Markdown parser which means we can't
                 // correctly handle this case. We should get the Markdown parser fixed.
                 //
@@ -2979,10 +2985,11 @@ test("prints chunk text with inline styles", async () => {
 
 test("escapes markdown characters", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("multiple  spaces   between      words"),
@@ -3051,7 +3058,7 @@ test("escapes markdown characters", async () => {
                     ),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -3381,66 +3388,83 @@ test("prints mentions", async () => {
 
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
+    const account = await getAccountIfExists(session.action(), space.id, session.account.id);
+
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("hello "),
                     schema.node("mention", {
-                        mention: {accountId: session.account.id, isShort: false},
+                        mention: cast<ContentMention>({
+                            type: "Account",
+                            accountId: session.account.id,
+                            isShort: false,
+                        }),
                     }),
                 ]),
                 schema.node("paragraph", {}, [
                     schema.text("hello "),
                     schema.node("mention", {
-                        mention: {accountId: session.account.id, isShort: true},
+                        mention: cast<ContentMention>({
+                            type: "Account",
+                            accountId: session.account.id,
+                            isShort: true,
+                        }),
                     }),
                 ]),
                 schema.node("paragraph", {}, [
                     schema.text("hello "),
                     schema.node("mention", {
-                        mention: {accountId: generateId(), isShort: false},
+                        mention: cast<ContentMention>({
+                            type: "Account",
+                            accountId: generateId(),
+                            isShort: false,
+                        }),
                     }),
                 ]),
             ]),
             {
                 tokenizer,
-                getAccountIfExists: accountId =>
-                    getAccountIfExists(session.action(), space.id, accountId),
+                getAccountIfExists: accountId => {
+                    if (accountId === account?.id) return account.initialData;
+                    return null;
+                },
+                getSearchEntityIfExists: () => null,
             },
         ),
     ).toEqual({
         text: `\
-hello @Caleb Meredith
+hello Caleb Meredith
 
-hello @Caleb
+hello Caleb
 
-hello @Unknown`,
+hello Unknown`,
         isGroup: true,
-        tokenCount: 10,
+        tokenCount: 7,
         context: {sectionHeading: null},
         childChunks: [
             {
                 isGroup: false,
-                tokenCount: 4,
+                tokenCount: 3,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "hello @Caleb Meredith", tokenCount: 4}],
+                sentenceChunks: [{text: "hello Caleb Meredith", tokenCount: 3}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
             {
                 isGroup: false,
-                tokenCount: 3,
+                tokenCount: 2,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "hello @Caleb", tokenCount: 3}],
+                sentenceChunks: [{text: "hello Caleb", tokenCount: 2}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
             {
                 isGroup: false,
-                tokenCount: 3,
+                tokenCount: 2,
                 context: {sectionHeading: null},
-                sentenceChunks: [{text: "hello @Unknown", tokenCount: 3}],
+                sentenceChunks: [{text: "hello Unknown", tokenCount: 2}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -3450,10 +3474,11 @@ hello @Unknown`,
 
 test("correctly chunks document content", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await chunkDocumentSearchContent(
+        chunkDocumentSearchContent(
             DocumentContentProsemirrorSchema.nodeFromJSON({
                 type: "doc",
                 content: [
@@ -4237,8 +4262,8 @@ test("correctly chunks document content", async () => {
                     },
                 ],
             }) as DocumentContent,
-            {tokenizer, getAccountIfExists},
-        ).then(({getEmbeddingChunks}) => getEmbeddingChunks()),
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+        ).getEmbeddingChunks(),
     ).toEqual([
         // Chunk 1:
         {
@@ -4416,10 +4441,11 @@ To learn how we plan to build this product read our 1–2 year execution plan. W
 
 test("correctly chunks long document content by sentences", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await chunkDocumentSearchContent(
+        chunkDocumentSearchContent(
             DocumentContentProsemirrorSchema.nodeFromJSON({
                 type: "doc",
                 content: [
@@ -4435,8 +4461,8 @@ test("correctly chunks long document content by sentences", async () => {
                     },
                 ],
             }) as DocumentContent,
-            {tokenizer, getAccountIfExists},
-        ).then(({getEmbeddingChunks}) => getEmbeddingChunks()),
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+        ).getEmbeddingChunks(),
     ).toEqual([
         {
             preambleEndIndex: 15,
@@ -4458,10 +4484,11 @@ test("correctly chunks long document content by sentences", async () => {
 
 test("correctly chunks mathematical looking content", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.nodeFromJSON({
                 type: "doc",
                 content: [
@@ -4503,7 +4530,7 @@ test("correctly chunks mathematical looking content", async () => {
                     },
                 ],
             }),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -4599,10 +4626,11 @@ where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in
 
 test("properly escapes the ampersand character", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("a & b &amp; c &#38; d &#x0026; e"),
@@ -4610,7 +4638,7 @@ test("properly escapes the ampersand character", async () => {
                     schema.text("a & b &amp; c &#38; d &#x0026; e", [schema.mark("code")]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: "a & b \\&amp; c \\&#38; d \\&#x0026; e `a & b &amp; c &#38; d &#x0026; e`",
@@ -4630,10 +4658,11 @@ test("properly escapes the ampersand character", async () => {
 
 test("properly escapes content in inline code", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("content_view.tsx", [schema.mark("code")]),
@@ -4644,7 +4673,7 @@ test("properly escapes content in inline code", async () => {
                     schema.text(") which is actually generating the view-only HTML."),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: "`content_view.tsx` is the main entrypoint into the view-only code. It calls into `renderContentFragmentToHtmlStore()` (in the file `render_content_to_html.ts`) which is actually generating the view-only HTML.",
@@ -4666,7 +4695,7 @@ test("properly escapes content in inline code", async () => {
     });
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("_", [schema.mark("code")]),
@@ -4730,7 +4759,7 @@ test("properly escapes content in inline code", async () => {
                     schema.text("`ends with 3 spaces`   ", [schema.mark("code")]),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: "`_` `*` `` ` `` ``` `` ``` ```` ``` ```` `\\` `foo_bar` `foo*bar` ``foo`bar`` ```foo``bar``` ````foo```bar```` ````fo`o```b`ar```` `foo\\bar` `[]()` `[foo](bar)` `foo[]()bar` `foo[foo](bar)bar` `\\<em>content\\</em>` `\\<em>content\\</em>_view.tsx` `<strong>content</strong>` `<strong>content</strong>_view.tsx` ` ` ` starts with space` `ends with space ` `   starts with 3 spaces` `ends with 3 spaces   ` ``  `starts with space` `` `` `ends with space`  `` ``    `starts with 3 spaces` `` `` `ends with 3 spaces`    ``",
@@ -4750,10 +4779,11 @@ test("properly escapes content in inline code", async () => {
 
 test("ignores files in file rows", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("The quick brown")]),
                 schema.node("fileRow", {}, [
@@ -4773,7 +4803,7 @@ test("ignores files in file rows", async () => {
                     schema.node("file", {fileId: null}),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -4826,10 +4856,11 @@ lazy dog`,
 
 test("ignores files in file floats", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("The quick brown")]),
                 schema.node("fileFloat", {direction: "right"}, [
@@ -4851,7 +4882,7 @@ test("ignores files in file floats", async () => {
                     schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -4904,13 +4935,15 @@ lazy dog`,
 
 test("chunks doc that is only files", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
-            schema.node("doc", {}, [schema.node("paragraph", {}, [])]),
-            {tokenizer, getAccountIfExists},
-        ),
+        testGetFullSearchContentChunk(schema.node("doc", {}, [schema.node("paragraph", {}, [])]), {
+            tokenizer,
+            getAccountIfExists,
+            getSearchEntityIfExists,
+        }),
     ).toEqual({
         text: "",
         isGroup: false,
@@ -4922,7 +4955,7 @@ test("chunks doc that is only files", async () => {
     });
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("fileRow", {}, [
                     schema.node("file", {fileId: generateChronologicalId<FileId>()}),
@@ -4934,7 +4967,7 @@ test("chunks doc that is only files", async () => {
                     schema.node("file", {fileId: generateChronologicalId<FileId>()}),
                 ]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: "",
@@ -4949,10 +4982,11 @@ test("chunks doc that is only files", async () => {
 
 test("ignores files in file rows when file row is in quote block or list item", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("The quick brown fox jumps")]),
                 // NOTE(calebmer, 2024-09-23): Currently we don't allow file rows in quote
@@ -4979,7 +5013,7 @@ test("ignores files in file rows when file row is in quote block or list item", 
                 ]),
                 schema.node("paragraph", {}, [schema.text("lazy dog")]),
             ]),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -5042,10 +5076,11 @@ lazy dog`,
 
 test("drops inline formatting within a code block", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.nodeFromJSON({
                 type: "doc",
                 content: [
@@ -5123,7 +5158,7 @@ test("drops inline formatting within a code block", async () => {
                     },
                 ],
             }),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -5153,7 +5188,7 @@ test("drops inline formatting within a code block", async () => {
     });
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.nodeFromJSON({
                 type: "doc",
                 content: [
@@ -5205,7 +5240,7 @@ test("drops inline formatting within a code block", async () => {
                     },
                 ],
             }),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\
@@ -5279,10 +5314,11 @@ This means you won’t have to manually rewrite a test file path into a Bazel la
 
 test("properly escapes text within inline code block", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-    const getAccountIfExists = async () => null;
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
 
     expect(
-        await testGetFullSearchContentChunk(
+        testGetFullSearchContentChunk(
             schema.nodeFromJSON({
                 type: "doc",
                 content: [
@@ -5314,7 +5350,7 @@ test("properly escapes text within inline code block", async () => {
                     },
                 ],
             }),
-            {tokenizer, getAccountIfExists},
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
         ),
     ).toEqual({
         text: `\

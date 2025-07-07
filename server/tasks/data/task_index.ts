@@ -72,6 +72,7 @@ import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {areHybridLogicalTimesEqual} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -362,13 +363,37 @@ export async function getTaskFromIndex(
     referencedCollections: ReadonlyArray<TaskCollectionModel>;
     approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
 }> {
+    const taskResult = await getTaskFromIndexIfExists(context, spaceId, taskId);
+    if (!taskResult) throw new NotFoundError("Task not found");
+    return taskResult;
+}
+
+/**
+ * Get a task and any referenced tasks/collections from their OpenSearch index.
+ * This doesn't rely on an OpenSearch refresh to be up-to-date since we read
+ * individual OpenSearch documents.
+ *
+ * This will give you read-after-write consistency after successful index
+ * writes. Not after the `commitTaskActionTransaction()` function which writes
+ * to the index in the background.
+ */
+export async function getTaskFromIndexIfExists(
+    context: TaskSystemActionContext,
+    spaceId: SpaceId,
+    taskId: TaskId,
+): Promise<{
+    task: TaskModel;
+    referencedTasks: ReadonlyArray<TaskModel>;
+    referencedCollections: ReadonlyArray<TaskCollectionModel>;
+    approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
+} | null> {
     // We don't verify that the account is allowed to load this task. We
     // require a system actor with access to the entire space.
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
     const task = await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
-    if (!task) throw new NotFoundError("Task not found");
+    if (!task) return null;
 
     const approximateActionCountByAccountId = task.approximateActionCountByAccountId;
 
@@ -452,6 +477,25 @@ export async function getTaskCollectionFromIndex(
     spaceId: SpaceId,
     collectionId: TaskCollectionId,
 ): Promise<TaskCollectionModel> {
+    const collection = await getTaskCollectionFromIndexIfExists(context, spaceId, collectionId);
+    if (!collection) throw new NotFoundError("Task collection not found");
+    return collection;
+}
+
+/**
+ * Get a task collection from their OpenSearch index. This doesn't rely on an
+ * OpenSearch refresh to be up-to-date since we read individual OpenSearch
+ * documents.
+ *
+ * This will give you read-after-write consistency after successful index
+ * writes. Not after the `commitTaskActionTransaction()` function which writes
+ * to the index in the background.
+ */
+export async function getTaskCollectionFromIndexIfExists(
+    context: TaskSystemActionContext,
+    spaceId: SpaceId,
+    collectionId: TaskCollectionId,
+): Promise<TaskCollectionModel | null> {
     // We don't verify that the account is allowed to load this task. We
     // require a system actor with access to the entire space.
     context.actor.authorizeSystem();
@@ -462,8 +506,7 @@ export async function getTaskCollectionFromIndex(
         spaceId,
         collectionId,
     );
-
-    if (!collection) throw new NotFoundError("Task collection not found");
+    if (!collection) return null;
 
     return prepareTaskCollectionForClient(collection);
 }
@@ -814,7 +857,7 @@ class TaskActionTransactionIndexState {
                             },
                         });
                     } else {
-                        const updatedTraits: Array<"Authorization"> = [];
+                        const updatedTraits: Array<"Authorization" | "Title"> = [];
 
                         const isCreatorAccountUnchanged =
                             oldTask.creator.accountId === newTask.creator.accountId;
@@ -874,6 +917,10 @@ class TaskActionTransactionIndexState {
                             !isParentTaskUnchanged
                         ) {
                             updatedTraits.push("Authorization");
+                        }
+
+                        if (!areUint8ArraysEqual(oldTask.title.raw, newTask.title.raw)) {
+                            updatedTraits.push("Title");
                         }
 
                         const areUpdatedTraitsInLastIndexSearchEntityJob =
@@ -1058,7 +1105,7 @@ class TaskActionTransactionIndexState {
                             },
                         });
                     } else {
-                        const updatedTraits: Array<"Authorization"> = [];
+                        const updatedTraits: Array<"Authorization" | "Name"> = [];
 
                         const isRawDeletedTimeUnchanged =
                             oldCollection.rawDeletedTime === newCollection.rawDeletedTime ||
@@ -1089,6 +1136,10 @@ class TaskActionTransactionIndexState {
                             !isAccessPolicyUnchanged
                         ) {
                             updatedTraits.push("Authorization");
+                        }
+
+                        if (oldCollection.name.value !== newCollection.name.value) {
+                            updatedTraits.push("Name");
                         }
 
                         // We reindex collections every time they update, instead of throttling like we

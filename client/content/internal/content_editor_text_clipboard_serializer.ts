@@ -1,7 +1,5 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
-import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
-import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
-import {ContentMention} from "~/shared/content/content_mention.js";
+import {renderContentMentionToTextForClient} from "~/client/content/render_content_mention_to_text_for_client.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -78,14 +76,14 @@ export function contentEditorTextClipboardSerializer(
         "\n\n",
         node => {
             if (node.type.name === "mention") {
-                const contentReferences = getContentReferences();
-                const mention: ContentMention = node.attrs.mention;
-                const mentionText = createContentMentionTextStore(
-                    getAccountRegistry(getSpaceId()),
-                    contentReferences,
-                    mention,
-                ).getSnapshot();
-                return `@${mentionText}`;
+                const spaceId = getSpaceId();
+
+                return renderContentMentionToTextForClient(
+                    store => store.getSnapshot(),
+                    spaceId,
+                    node.attrs.mention,
+                    getContentReferences(),
+                );
             }
 
             return "";

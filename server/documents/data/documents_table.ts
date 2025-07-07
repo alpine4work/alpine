@@ -1874,16 +1874,17 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
 }
 
 /**
- * Get only the document's title. Very fast since this does not load the
- * document's full content.
+ * Get only the document's title and access policy. Very fast since this does
+ * not load the document's full content.
  */
-export async function getDocumentTitle(
+export async function getDocumentTitleIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<string> {
-    const documentPreview = await getDocumentPreview(context, documentId, options);
-    return documentPreview.getTitle();
+): Promise<{title: string; accessPolicy: AccessPolicy} | null> {
+    const documentPreview = await getDocumentPreviewIfExists(context, documentId, options);
+    if (!documentPreview) return null;
+    return {title: documentPreview.getTitle(), accessPolicy: documentPreview.accessPolicy};
 }
 
 /**

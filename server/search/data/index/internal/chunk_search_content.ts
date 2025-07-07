@@ -1,9 +1,7 @@
 import nlp from "compromise/one";
 import {Fragment, Mark, Node} from "prosemirror-model";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
-import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
+import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -14,18 +12,20 @@ import {
 } from "~/shared/content/content_node_type_name.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
+import {renderContentMentionToText} from "~/shared/content/render_content_mention_to_text.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
+import {isIterable} from "~/shared/helpers/iterable/is_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 type RecursiveIterable<T> = Iterable<T | RecursiveIterable<T>>;
 
@@ -94,31 +94,39 @@ export const newLineRegExpWithoutRepetitionOrCapture = /(?:\r?\n|\r)/g;
  * [2]: https://www.pinecone.io/learn/chunking-strategies/
  * [3]: https://community.openai.com/t/the-length-of-the-embedding-contents/111471/7
  */
-export async function chunkSearchContent(
+export function chunkSearchContent(
     content: Node,
     {
         tokenizer,
         getAccountIfExists,
+        getSearchEntityIfExists,
         getChunkPreamble = () => ({text: "", lineMarginBottom: 0}),
     }: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
         getChunkPreamble?: (options: {
             context: SearchContentChunkContext;
             isInitialChunk: boolean;
         }) => {text: string; lineMarginBottom: number};
     },
-): Promise<{
+): {
     getFullText: () => string;
     getEmbeddingChunks: () => Array<{
         preambleEndIndex: number;
         tokenCountWithoutPreamble: number;
         text: string;
     }>;
-}> {
-    const chunk = await getFullSearchContentChunk(content, {tokenizer, getAccountIfExists});
+} {
+    const chunk = getFullSearchContentChunk(content, {
+        tokenizer,
+        getAccountIfExists,
+        getSearchEntityIfExists,
+    });
 
     return {
         getFullText: () => {
@@ -171,29 +179,31 @@ export type SearchContentChunkContext = {
  * sentences (printed to Markdown formatted text). Each level of the tree
  * represents a different level of structure.
  */
-export async function getFullSearchContentChunk(
+export function getFullSearchContentChunk(
     content: Node,
     {
         tokenizer,
         getAccountIfExists,
+        getSearchEntityIfExists,
     }: {
         tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
     },
-): Promise<SearchContentChunk> {
+): SearchContentChunk {
     // Take our content and divide it into structured chunks of any size. We use
     // the structure of the content to chunk. Headings create sections, child list
     // items stay with their parent list item, and sentences are chunked together.
-    const chunkIterable: RecursiveIterable<
-        Promise<{
-            sentenceChunks: Array<string>;
-            lineMarginTop: number;
-            lineMarginBottom: number;
-            sectionHeading: string | null;
-        } | null>
-    > = mapIterable(chunkSearchContentBySections(content.content), contentChunk => {
+    const chunkIterable: RecursiveIterable<{
+        sentenceChunks: Array<string>;
+        lineMarginTop: number;
+        lineMarginBottom: number;
+        sectionHeading: string | null;
+    } | null> = mapIterable(chunkSearchContentBySections(content.content), contentChunk => {
         // The heading fragment should not get `sectionHeading` context. Only the
         // content below it.
         return contentChunk.headingFragment
@@ -204,9 +214,10 @@ export async function getFullSearchContentChunk(
             : next(contentChunk.fragment, contentChunk.sectionHeadingNode);
 
         function next(fragment: Fragment, sectionHeadingNode: Node | null) {
-            const sectionHeadingPromise = sectionHeadingNode
+            const sectionHeading = sectionHeadingNode
                 ? printSearchTextForInlineFragment(sectionHeadingNode.content, {
                       getAccountIfExists,
+                      getSearchEntityIfExists,
                       context: "heading",
                   })
                 : null;
@@ -214,70 +225,68 @@ export async function getFullSearchContentChunk(
             return mapRecursiveIterable(
                 chunkSearchContentByIntroduction(chunkSearchContentByParagraphs(fragment)),
                 fragment =>
-                    mapRecursiveIterable(chunkSearchContentByListItems(fragment), fragment =>
-                        runAllPromises([
-                            sectionHeadingPromise,
-                            chunkSearchContentBySentenceForBlockFragment(content, fragment, {
+                    mapRecursiveIterable(chunkSearchContentByListItems(fragment), fragment => {
+                        const chunk = chunkSearchContentBySentenceForBlockFragment(
+                            content,
+                            fragment,
+                            {
                                 orderListItemNumberByNode: new Map(),
                                 getAccountIfExists,
-                            }),
-                        ]).then(([sectionHeading, chunk]) =>
-                            chunk ? {...chunk, sectionHeading} : null,
-                        ),
-                    ),
+                                getSearchEntityIfExists,
+                            },
+                        );
+                        if (!chunk) return null;
+                        return {...chunk, sectionHeading};
+                    }),
             );
         }
     });
 
     // Consumes the structured chunk iterable recursively and turns it into a tree
     // object. We also product a token count at each level of the tree.
-    const processChunkIterable = async (
-        chunkIterable: RecursiveIterable<
-            Promise<{
-                sentenceChunks: Array<string>;
-                lineMarginTop: number;
-                lineMarginBottom: number;
-                sectionHeading: string | null;
-            } | null>
-        >,
-    ): Promise<SearchContentChunk | null> => {
+    const processChunkIterable = (
+        chunkIterable: RecursiveIterable<{
+            sentenceChunks: Array<string>;
+            lineMarginTop: number;
+            lineMarginBottom: number;
+            sectionHeading: string | null;
+        } | null>,
+    ): SearchContentChunk | null => {
         let tokenCount1 = 0;
 
-        const chunks = (
-            await runAllPromises(
-                mapIterable(
-                    chunkIterable,
-                    async (chunkPromise): Promise<SearchContentChunk | null> => {
-                        if (!(chunkPromise instanceof Promise)) {
-                            const chunk = await processChunkIterable(chunkPromise);
-                            if (chunk) tokenCount1 += chunk.tokenCount;
-                            return chunk;
-                        }
+        const chunks = filterMapArray(
+            chunkIterable,
+            (chunkIterable): SearchContentChunk | undefined => {
+                if (chunkIterable === null) return;
 
-                        const chunk = await chunkPromise;
-                        if (!chunk) return null;
+                if (isIterable(chunkIterable)) {
+                    const chunk = processChunkIterable(chunkIterable);
+                    if (chunk === null) return;
+                    tokenCount1 += chunk.tokenCount;
+                    return chunk;
+                }
 
-                        let tokenCount2 = 0;
+                const chunk = chunkIterable;
 
-                        const sentenceChunks = chunk.sentenceChunks.map(sentenceChunk => {
-                            const tokenCount = tokenizer.countTokens(sentenceChunk);
-                            tokenCount1 += tokenCount;
-                            tokenCount2 += tokenCount;
-                            return {text: sentenceChunk, tokenCount};
-                        });
+                let tokenCount2 = 0;
 
-                        return {
-                            isGroup: false,
-                            tokenCount: tokenCount2,
-                            context: {sectionHeading: chunk.sectionHeading},
-                            sentenceChunks,
-                            lineMarginTop: chunk.lineMarginTop,
-                            lineMarginBottom: chunk.lineMarginBottom,
-                        };
-                    },
-                ),
-            )
-        ).filter(isNonNullable);
+                const sentenceChunks = chunk.sentenceChunks.map(sentenceChunk => {
+                    const tokenCount = tokenizer.countTokens(sentenceChunk);
+                    tokenCount1 += tokenCount;
+                    tokenCount2 += tokenCount;
+                    return {text: sentenceChunk, tokenCount};
+                });
+
+                return {
+                    isGroup: false,
+                    tokenCount: tokenCount2,
+                    context: {sectionHeading: chunk.sectionHeading},
+                    sentenceChunks,
+                    lineMarginTop: chunk.lineMarginTop,
+                    lineMarginBottom: chunk.lineMarginBottom,
+                };
+            },
+        );
 
         // If there are no child chunks then return null.
         if (chunks.length === 0) {
@@ -312,7 +321,7 @@ export async function getFullSearchContentChunk(
     };
 
     return (
-        (await processChunkIterable(chunkIterable)) ?? {
+        processChunkIterable(chunkIterable) ?? {
             isGroup: false,
             tokenCount: 0,
             context: {sectionHeading: null},
@@ -836,24 +845,25 @@ function* chunkSearchContentByListItems(
     }
 }
 
-async function chunkSearchContentBySentenceForBlockFragment(
+function chunkSearchContentBySentenceForBlockFragment(
     parentNode: Node,
     fragment: Fragment,
     options: {
         orderListItemNumberByNode: Map<Node, number>;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
     },
-): Promise<{
+): {
     sentenceChunks: Array<string>;
     lineMarginTop: number;
     lineMarginBottom: number;
-} | null> {
-    const chunks = await runAllPromises(
-        fragment.content.map(node =>
-            chunkSearchContentBySentenceForBlockNode(parentNode, node, options),
-        ),
+} | null {
+    const chunks = fragment.content.map(node =>
+        chunkSearchContentBySentenceForBlockNode(parentNode, node, options),
     );
 
     if (chunks.every(chunk => !chunk)) {
@@ -905,34 +915,34 @@ async function chunkSearchContentBySentenceForBlockFragment(
     };
 }
 
-async function chunkSearchContentBySentenceForBlockNode(
+function chunkSearchContentBySentenceForBlockNode(
     parentNode: Node,
     node: Node,
     options: {
         orderListItemNumberByNode: Map<Node, number>;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
     },
-): Promise<{
+): {
     sentenceChunks: Array<string>;
     lineMarginTop: number;
     lineMarginBottom: number;
-} | null> {
+} | null {
     const typeName = node.type.name as ContentBlockNodeTypeName | "title";
 
     switch (typeName) {
         case "paragraph":
         case "heading":
         case "title": {
-            const sentenceChunks = await chunkSearchContentBySentenceForTextblockNode(
-                node,
-                options,
-            );
+            const sentenceChunks = chunkSearchContentBySentenceForTextblockNode(node, options);
             return {sentenceChunks, lineMarginTop: 2, lineMarginBottom: 2};
         }
         case "quoteBlock": {
-            const result = await chunkSearchContentBySentenceForBlockFragment(
+            const result = chunkSearchContentBySentenceForBlockFragment(
                 node,
                 node.content,
                 options,
@@ -972,7 +982,7 @@ async function chunkSearchContentBySentenceForBlockNode(
         case "checkListItem": {
             const indent = clampListItemIndentation(node.attrs.indent);
 
-            const result = await chunkSearchContentBySentenceForBlockFragment(
+            const result = chunkSearchContentBySentenceForBlockFragment(
                 node,
                 node.content,
                 options,
@@ -1048,12 +1058,10 @@ async function chunkSearchContentBySentenceForBlockNode(
             };
         }
         case "codeBlock": {
-            const codeBlockLines = await runAllPromises(
-                createArrayWithLength(node.childCount, async i => {
-                    const childNode = node.child(i);
-                    return chunkSearchContentBySentenceForTextblockNode(childNode, options);
-                }),
-            );
+            const codeBlockLines = createArrayWithLength(node.childCount, i => {
+                const childNode = node.child(i);
+                return chunkSearchContentBySentenceForTextblockNode(childNode, options);
+            });
 
             return {
                 sentenceChunks: Array.from(
@@ -1141,20 +1149,23 @@ function chunkSearchContentBySentenceForText(text: string): Array<string> {
  *
  * [1]: https://www.pinecone.io/learn/chunking-strategies/
  */
-async function chunkSearchContentBySentenceForTextblockNode(
+function chunkSearchContentBySentenceForTextblockNode(
     node: Node,
     options: {
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
     },
-): Promise<Array<string>> {
+): Array<string> {
     assert(node.isTextblock);
     const typeName = node.type.name as ContentTextblockNodeTypeName;
 
     switch (typeName) {
         case "paragraph": {
-            const text = await printSearchTextForInlineFragment(node.content, {
+            const text = printSearchTextForInlineFragment(node.content, {
                 ...options,
                 context: null,
             });
@@ -1163,7 +1174,7 @@ async function chunkSearchContentBySentenceForTextblockNode(
         }
         case "title":
         case "heading": {
-            const text = await printSearchTextForInlineFragment(node.content, {
+            const text = printSearchTextForInlineFragment(node.content, {
                 ...options,
                 context: "heading",
             });
@@ -1192,7 +1203,7 @@ async function chunkSearchContentBySentenceForTextblockNode(
             });
         }
         case "codeBlockLine": {
-            const text = await printSearchTextForInlineFragment(node.content, {
+            const text = printSearchTextForInlineFragment(node.content, {
                 ...options,
                 context: "codeBlock",
             });
@@ -1204,15 +1215,18 @@ async function chunkSearchContentBySentenceForTextblockNode(
     }
 }
 
-async function printSearchTextForInlineFragment(
+function printSearchTextForInlineFragment(
     fragment: Fragment,
     options: {
         context: "heading" | "codeBlock" | null;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
     },
-): Promise<string> {
+): string {
     const content: Array<Node> = [];
 
     // Remove `link`, `comment`, and `highlight` marks and merge text nodes with
@@ -1252,9 +1266,7 @@ async function printSearchTextForInlineFragment(
         }
     }
 
-    const texts = await runAllPromises(
-        content.map(node => printSearchTextForInlineNode(node, options)),
-    );
+    const texts = content.map(node => printSearchTextForInlineNode(node, options));
 
     return texts.join("");
 }
@@ -1309,15 +1321,18 @@ const printSearchEmbeddingTextForMarkByTypeName: {
  * In the UI `*How is this text formatted?*` is displayed without asterisks and
  * with italics.
  */
-async function printSearchTextForInlineNode(
+function printSearchTextForInlineNode(
     node: Node,
     options: {
         context: "heading" | "codeBlock" | null;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
-        ) => Promise<AccountModelWithoutSpace | null>;
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
     },
-): Promise<string> {
+): string {
     assert(node.isInline);
     const typeName = node.type.name as ContentInlineNodeTypeName;
 
@@ -1335,14 +1350,7 @@ async function printSearchTextForInlineNode(
         }
         case "mention": {
             const mention: ContentMention = node.attrs.mention;
-            const account = await options.getAccountIfExists(mention.accountId);
-            if (!account) return `@${missingAccountName}`;
-
-            const accountName = mention.isShort
-                ? getAccountShortNameWithoutFullNameTooltip(account.initialData)
-                : account.initialData.name;
-
-            return `@${accountName}`;
+            return renderContentMentionToText(mention, options);
         }
         case "text": {
             const codeMark = node.marks.find(mark => mark.type.name === "code");

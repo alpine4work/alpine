@@ -415,7 +415,7 @@ const TaskIndexSearchEntityJobSchema = Schema.object({
         None: Schema.object({type: Schema.value("None")}),
         Some: Schema.object({
             type: Schema.value("Some"),
-            traits: Schema.array(Schema.enum(["Authorization"])),
+            traits: Schema.array(Schema.enum(["Authorization", "Title"])),
         }),
     }),
 });

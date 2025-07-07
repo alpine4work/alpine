@@ -57,6 +57,7 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
@@ -80,6 +81,7 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ChannelId, PostDraftId, PostId} from "~/shared/id/types/id_types.js";
@@ -6330,7 +6332,11 @@ describe("Notification subscribers", () => {
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -6359,7 +6365,11 @@ describe("Notification subscribers", () => {
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: missingAccountId},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: missingAccountId,
+                                isShort: false,
+                            }),
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -6390,7 +6400,11 @@ describe("Notification subscribers", () => {
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: otherSession.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: otherSession.account.id,
+                                isShort: false,
+                            }),
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -6420,7 +6434,11 @@ describe("Notification subscribers", () => {
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -6485,7 +6503,11 @@ describe("Notification subscribers", () => {
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -6605,7 +6627,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session3.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session3.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6646,7 +6672,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: missingAccountId},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: missingAccountId,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6687,7 +6717,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: otherSession.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: otherSession.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6727,7 +6761,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session3.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session3.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6785,7 +6823,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session3.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session3.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6854,7 +6896,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session3.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session3.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6888,7 +6934,11 @@ describe("Notification subscribers", () => {
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session2.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session2.account.id,
+                                isShort: false,
+                            }),
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -6926,7 +6976,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session1.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session1.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6947,7 +7001,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session4.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session4.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -6976,7 +7034,11 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: session5.account.id},
+                            mention: cast<ContentMention>({
+                                type: "Account",
+                                accountId: session5.account.id,
+                                isShort: false,
+                            }),
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),

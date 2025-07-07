@@ -77,7 +77,6 @@ import {
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {contentBaseProsemirrorSchemaSpec} from "~/shared/content/content_schema.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -93,6 +92,7 @@ import {
     allSpacingScales,
     remPxBySpacingScale,
 } from "~/shared/design/core/spacing_scale.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -2050,9 +2050,16 @@ function handleTaskRowTitleInputPaste(
         if (!doesNodeHaveText(node)) continue;
 
         const pastedTask: PastedTask = {
-            title: printContentSingleLineTextSnippet({
-                doc: schema.node("doc", {}, [node]),
-                references: emptyContentReferences,
+            title: printContentSingleLineTextSnippet(schema.node("doc", {}, [node]), {
+                // The `schema` object we create above and use to parse `node` doesn't contain
+                // `mention` nodes. So we expect these functions to never be called. Throw an
+                // error to make that assumption clear.
+                getAccountIfExists: () => {
+                    throw new UnimplementedError("Should be unreachable");
+                },
+                getSearchEntityIfExists: () => {
+                    throw new UnimplementedError("Should be unreachable");
+                },
             }),
             childTasks: [],
         };

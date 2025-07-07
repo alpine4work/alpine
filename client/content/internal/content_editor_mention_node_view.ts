@@ -5,6 +5,7 @@ import {createContentMentionTextStore} from "~/client/accounts/create_content_me
 import {getContentEditorReferences} from "~/client/content/state/content_editor_state.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -20,6 +21,11 @@ export function createContentEditorMentionNodeViewConstructor({
 }): NodeViewConstructor {
     return (node, view) => {
         const mention: ContentMention = node.attrs.mention;
+
+        if (mention.type !== "Account") {
+            throw new UnimplementedError("Implemented in next PR");
+        }
+
         const isCurrentAccountMention = getCurrentAccountIfExists()?.id === mention.accountId;
         const contentReferences = getContentEditorReferences(view.state).references;
 

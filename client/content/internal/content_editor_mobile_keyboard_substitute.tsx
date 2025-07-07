@@ -68,6 +68,7 @@ import {CodeBlockIcon} from "~/client/icons/code_block_icon.js";
 import {QuoteBlockIcon} from "~/client/icons/quote_block_icon.js";
 import {VideoIcon} from "~/client/icons/video_icon.js";
 import {WaveformIcon} from "~/client/icons/waveform_icon.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {buttonStyles, colorSchemeVars, greyElevated2ClassName} from "~/client/styles/styles.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {
@@ -372,6 +373,8 @@ function ContentEditorMobileKeyboardSubstituteStyles({
     onHighlightSelectorOpen: () => void;
     onSelectHighlightColor: (highlightColor: HighlightColor | null) => void;
 }) {
+    const {space} = useSpaceContext();
+
     const {schema} = state;
 
     const {isBoldActive, isItalicActive, isStrikeActive, isCodeActive} = useMemo(() => {
@@ -507,6 +510,8 @@ function ContentEditorMobileKeyboardSubstituteStyles({
 
                     const {text: selectionText, isEditable: isSelectionEditable} =
                         getContentEditorMobileLinkModalSelectionSliceText(
+                            store => store.getSnapshot(),
+                            space.id,
                             selection.content(),
                             getContentEditorReferences(view.state).references,
                         );

@@ -1,8 +1,10 @@
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {DynamoGeneralRealtimeIndexQueryResult} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -33,7 +35,11 @@ export async function createNotificationsScenario(context: TestContext) {
             MessageContentProsemirrorSchema.node("paragraph", {}, [
                 MessageContentProsemirrorSchema.text("Hello "),
                 MessageContentProsemirrorSchema.node("mention", {
-                    mention: {accountId: session1.account.id, isShort: false},
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: session1.account.id,
+                        isShort: false,
+                    }),
                 }),
                 MessageContentProsemirrorSchema.text("!"),
             ]),
@@ -45,7 +51,11 @@ export async function createNotificationsScenario(context: TestContext) {
             MessageContentProsemirrorSchema.node("paragraph", {}, [
                 MessageContentProsemirrorSchema.text("Hello "),
                 MessageContentProsemirrorSchema.node("mention", {
-                    mention: {accountId: session2.account.id, isShort: false},
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: session2.account.id,
+                        isShort: false,
+                    }),
                 }),
                 MessageContentProsemirrorSchema.text("!"),
             ]),
@@ -57,7 +67,11 @@ export async function createNotificationsScenario(context: TestContext) {
             MessageContentProsemirrorSchema.node("paragraph", {}, [
                 MessageContentProsemirrorSchema.text("Hello "),
                 MessageContentProsemirrorSchema.node("mention", {
-                    mention: {accountId: session3.account.id, isShort: false},
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: session3.account.id,
+                        isShort: false,
+                    }),
                 }),
                 MessageContentProsemirrorSchema.text("!"),
             ]),
@@ -69,7 +83,11 @@ export async function createNotificationsScenario(context: TestContext) {
             MessageContentProsemirrorSchema.node("paragraph", {}, [
                 MessageContentProsemirrorSchema.text("Hello "),
                 MessageContentProsemirrorSchema.node("mention", {
-                    mention: {accountId: sharedSession.account.id, isShort: false},
+                    mention: cast<ContentMention>({
+                        type: "Account",
+                        accountId: sharedSession.account.id,
+                        isShort: false,
+                    }),
                 }),
                 MessageContentProsemirrorSchema.text("!"),
             ]),

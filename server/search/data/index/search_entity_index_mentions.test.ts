@@ -1,0 +1,2600 @@
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep} from "prosemirror-transform";
+import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {updateChannelName} from "~/server/forum/data/forum_table.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {
+    getSearchEntityIndexesForTest,
+    getSearchMentionEntityIfPossible,
+    processIndexSearchEntityDependentsJob,
+    processIndexSearchEntityEmbeddingChunksJob,
+    processIndexSearchEntityJob,
+} from "~/server/search/data/index/search_entity_index.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
+import {PostContentProsemirrorSchema as schema} from "~/shared/forum/post_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {generateId} from "~/shared/id/id.js";
+import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
+import {SearchMentionEntityId, SearchMentionEntityType} from "~/shared/search/search_entity_id.js";
+import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
+
+const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
+
+/**
+ * Run all timers and any promises passed until `context.process.waitUntil()`
+ * until there are no timers or `context.process.waitUntil()` promises.
+ */
+async function runAllTimersAndWaitForTestTasks() {
+    await ProcessContextModule.waitForTestTasks();
+
+    while (import.meta.jest.getTimerCount() > 0) {
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    }
+}
+
+beforeEach(() => {
+    import.meta.jest.useFakeTimers();
+});
+
+afterEach(() => {
+    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
+    import.meta.jest.clearAllTimers();
+    import.meta.jest.useRealTimers();
+    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
+});
+
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
+        return getSearchMentionEntityIfPossible(context as any, spaceId, entityId);
+    },
+    processJob: async (actionContext, job, jobStartTime, span) => {
+        switch (job.type) {
+            case "IndexSearchEntity": {
+                await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
+                break;
+            }
+            case "IndexSearchEntityDependents": {
+                await processIndexSearchEntityDependentsJob(actionContext, job);
+                break;
+            }
+            case "IndexSearchEntityEmbeddingChunks": {
+                await processIndexSearchEntityEmbeddingChunksJob(actionContext, job);
+                break;
+            }
+            default: {
+                // Ignore all other jobs...
+                break;
+            }
+        }
+    },
+});
+
+const testCaseByEntityType: Record<
+    // TODO(calebmer, #search-entity-mentions): Add tests for posts.
+    Exclude<SearchMentionEntityType, "Post">,
+    {
+        create: (options: {
+            session: TestSpaceSession;
+            title: string;
+            access: "Public" | "Private" | AccessPolicy;
+        }) => Promise<{
+            id: SearchMentionEntityId;
+            access: TestAccessPolicy;
+            updateTitle: (title: string) => Promise<void>;
+            delete: (() => Promise<void>) | "Unimplemented";
+            undelete: (() => Promise<void>) | "Unimplemented";
+        }>;
+    }
+> = {
+    Document: {
+        create: async ({session, title, access}) => {
+            const document = await TestDocument.create(session, {title, access});
+
+            return {
+                id: `Document:${document.id}`,
+                access: document.access,
+                updateTitle: async title => {
+                    const oldTitle = getDocumentContentTitle((await document.get()).content.doc);
+
+                    await document.update(session, [
+                        new ReplaceStep(
+                            1,
+                            1 + oldTitle.length,
+                            new Slice(
+                                Fragment.from(DocumentContentProsemirrorSchema.text(title)),
+                                0,
+                                0,
+                            ),
+                        ),
+                    ]);
+                },
+                // TODO: Implement this once documents can be deleted.
+                delete: "Unimplemented",
+                undelete: "Unimplemented",
+            };
+        },
+    },
+    Channel: {
+        create: async ({session, title, access}) => {
+            const channel = await TestChannel.create(session, {name: title, access});
+
+            return {
+                id: `Channel:${channel.id}`,
+                access: channel.access,
+                updateTitle: async title => {
+                    await updateChannelName(session.action(), {
+                        channelId: channel.id,
+                        name: title,
+                    });
+                },
+                // TODO: Implement this once channels can be deleted.
+                delete: "Unimplemented",
+                undelete: "Unimplemented",
+            };
+        },
+    },
+    Task: {
+        create: async ({session, title, access}) => {
+            const collection = await TestTaskCollection.create(session, {access});
+
+            const task = await TestTask.create(session, {title});
+            await task.addCollection(session, collection);
+
+            return {
+                id: `Task:${task.id}`,
+                access: collection.access,
+                updateTitle: async title => {
+                    const oldTitle = new TaskTitleModel((await task.getIndexDoc()).title.raw);
+
+                    await task.updateTitle(
+                        session,
+                        oldTitle.replace(0, oldTitle.getText().length, title).raw,
+                    );
+                },
+                delete: async () => {
+                    await task.delete(session);
+                },
+                undelete: async () => {
+                    await task.undelete(session);
+                },
+            };
+        },
+    },
+    TaskCollection: {
+        create: async ({session, title, access}) => {
+            const collection = await TestTaskCollection.create(session, {name: title, access});
+
+            return {
+                id: `TaskCollection:${collection.id}`,
+                access: collection.access,
+                updateTitle: async title => {
+                    await collection.updateName(session, title);
+                },
+                delete: async () => {
+                    await collection.delete(session);
+                },
+                undelete: async () => {
+                    await collection.undelete(session);
+                },
+            };
+        },
+    },
+};
+
+for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEntityType)) {
+    describe(`${entityType}`, () => {
+        test("can mention non-existent entity in public entity", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const channel = await TestChannel.create(session, {access: "Public"});
+
+            const post = await channel.createPost(
+                session,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: `${entityType}:${generateId()}` as any,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Unknown ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention non-existent entity in private entity (1 account grant)", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            const channel = await TestChannel.create(session, {access: "Private"});
+
+            const post = await channel.createPost(
+                session,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: `${entityType}:${generateId()}` as any,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Unknown ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention public entity in public entity", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Public",
+            });
+
+            const channel = await TestChannel.create(session2, {access: "Public"});
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention private entity (1 account grant) in public entity", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Private",
+            });
+
+            const channel = await TestChannel.create(session2, {access: "Public"});
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention public entity in private entity (1 account grant)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Public",
+            });
+
+            const channel = await TestChannel.create(session2, {access: "Private"});
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention private entity (1 account grant) in private entity (1 account grant)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Private",
+            });
+
+            const channel = await TestChannel.create(session2, {access: "Private"});
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention private entity (2 account grants) in public entity", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: "Public",
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention public entity in private entity (2 account grants)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Public",
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention private entity (2 account grants) in private entity (2 account grants)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention private entity (2 account grants) in private entity (3 account grants)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                        [session3.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention private entity (3 account grants) in private entity (2 account grants)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "View", generation: 1}],
+                        [session3.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention private entity (3 account grants) in private entity (3 account grants)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "View", generation: 1}],
+                        [session3.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                        [session3.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention private entity (3 account grants) in private entity (3 account grants, partially distinct)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3, session4] = await space.createSessions(4);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "View", generation: 1}],
+                        [session3.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                        [session4.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention private entity (2 account grants) in private entity (2 account grants, fully distinct)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3, session4] = await space.createSessions(4);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session3.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session4.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can mention public entity (2 manage account grants) in private entity (3 account grants)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "Manage", generation: 1}],
+                    ]),
+                    defaultGrant: {level: "View"},
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                        [session3.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention public entity (2 manage account grants) in private entity (2 account grants, fully distinct)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3, session4] = await space.createSessions(4);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session3.account.id, {level: "Manage", generation: 1}],
+                    ]),
+                    defaultGrant: {level: "View"},
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session4.account.id, {level: "View", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can mention public entity (3 manage account grants) in private entity (3 account grants, partially distinct)", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3, session4] = await space.createSessions(4);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: {
+                    accountGrantById: new Map([
+                        [session1.account.id, {level: "Manage", generation: 0}],
+                        [session2.account.id, {level: "Manage", generation: 1}],
+                        [session3.account.id, {level: "Manage", generation: 2}],
+                    ]),
+                    defaultGrant: {level: "View"},
+                    urlGrant: null,
+                },
+            });
+
+            const channel = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "View", generation: 1}],
+                        [session4.account.id, {level: "View", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can change originally public mentioned entity access", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Public",
+            });
+
+            const channel1 = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "Manage", generation: 1}],
+                        [session3.account.id, {level: "Manage", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel2 = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "Manage", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel3 = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel4 = await TestChannel.create(session1, {
+                access: "Private",
+            });
+
+            const channel5 = await TestChannel.create(session2, {
+                access: "Public",
+            });
+
+            const post1 = await channel1.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post2 = await channel2.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post3 = await channel3.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post4 = await channel4.createPost(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post5 = await channel5.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            await entity.access.revokeDefault(session1);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.grant(session1, session2);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.grant(session1, session3);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.revoke(session1, session2);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.grantDefault(session1);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can change originally private mentioned entity access", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2, session3] = await space.createSessions(3);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Private",
+            });
+
+            const channel1 = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "Manage", generation: 1}],
+                        [session3.account.id, {level: "Manage", generation: 2}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel2 = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                        [session1.account.id, {level: "Manage", generation: 1}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel3 = await TestChannel.create(session2, {
+                access: {
+                    accountGrantById: new Map([
+                        [session2.account.id, {level: "Manage", generation: 0}],
+                    ]),
+                    defaultGrant: null,
+                    urlGrant: null,
+                },
+            });
+
+            const channel4 = await TestChannel.create(session1, {
+                access: "Private",
+            });
+
+            const channel5 = await TestChannel.create(session2, {
+                access: "Public",
+            });
+
+            const post1 = await channel1.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post2 = await channel2.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post3 = await channel3.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post4 = await channel4.createPost(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post5 = await channel5.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.grant(session1, session2);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.grant(session1, session3);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.revoke(session1, session3);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            await entity.access.grantDefault(session1);
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post3.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post3.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post4.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post4.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post5.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post5.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+
+        test("can change the entity title", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Public",
+            });
+
+            const channel = await TestChannel.create(session2, {access: "Public"});
+
+            const post = await channel.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            await entity.updateTitle("Dolor Sit Amet");
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Dolor Sit Amet."]},
+            });
+
+            await entity.updateTitle("Consectetur Adipiscing Elit");
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Consectetur Adipiscing Elit."]},
+            });
+        });
+
+        test("can delete private entity", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Private",
+            });
+
+            const channel1 = await TestChannel.create(session1, {access: "Private"});
+            const channel2 = await TestChannel.create(session2, {access: "Public"});
+
+            const post1 = await channel1.createPost(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post2 = await channel2.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            if (entity.delete === "Unimplemented") return;
+            await entity.delete();
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Deleted ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            if (entity.undelete === "Unimplemented") return;
+            await entity.undelete();
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Private ${getSearchEntityNoun(entityType)}.`]},
+            });
+        });
+
+        test("can delete public entity", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const entity = await testCase.create({
+                session: session1,
+                title: "Lorem Ipsum",
+                access: "Public",
+            });
+
+            const channel1 = await TestChannel.create(session1, {access: "Private"});
+            const channel2 = await TestChannel.create(session2, {access: "Public"});
+
+            const post1 = await channel1.createPost(
+                session1,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            const post2 = await channel2.createPost(
+                session2,
+                schema.node("doc", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("Mention: "),
+                        schema.node("mention", {
+                            mention: cast<ContentMention>({
+                                type: "SearchEntity",
+                                entityId: entity.id,
+                            }),
+                        }),
+                        schema.text("."),
+                    ]),
+                ]),
+            );
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            if (entity.delete === "Unimplemented") return;
+            await entity.delete();
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Deleted ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: [`Mention: Deleted ${getSearchEntityNoun(entityType)}.`]},
+            });
+
+            if (entity.undelete === "Unimplemented") return;
+            await entity.undelete();
+
+            await runAllTimersAndWaitForTestTasks();
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post1.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post1.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    `Post:${post2.id}`,
+                    {storedFields: ["body"]},
+                ),
+            ).toEqual({
+                id: `Post:${post2.id}`,
+                routing: space.id,
+                version: expect.any(Object),
+                fields: {body: ["Mention: Lorem Ipsum."]},
+            });
+        });
+    });
+}

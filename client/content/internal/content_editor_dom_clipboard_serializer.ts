@@ -1,7 +1,6 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
-import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
-import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
+import {renderContentMentionToTextForClient} from "~/client/content/render_content_mention_to_text_for_client.js";
 import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {contentStyles} from "~/client/styles/styles.js";
@@ -11,6 +10,7 @@ import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
@@ -21,6 +21,7 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {FileEntityId, printFileEntityIdIntoPath} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {isId} from "~/shared/id/id.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -102,17 +103,34 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         }
 
         if (node.type.name === "mention") {
-            const dom = document.createElement("span");
             const mention: ContentMention = node.attrs.mention;
-            const mentionText = createContentMentionTextStore(
-                getAccountRegistry(this._getSpaceId()),
+            const spaceId = this._getSpaceId();
+
+            const mentionText = renderContentMentionToTextForClient(
+                store => store.getSnapshot(),
+                spaceId,
+                node.attrs.mention,
                 this._getContentReferences(),
-                mention,
-            ).getSnapshot();
-            dom.setAttribute("data-cy-mention", mention.accountId);
-            if (mention.isShort) dom.setAttribute("data-cy-mention-short", "");
-            dom.textContent = `@${mentionText}`;
-            return dom;
+            );
+
+            switch (mention.type) {
+                case "Account": {
+                    const dom = document.createElement("span");
+
+                    dom.setAttribute("data-cy-mention", mention.accountId);
+                    if (mention.isShort) dom.setAttribute("data-cy-mention-short", "");
+
+                    dom.textContent = mentionText;
+                    return dom;
+                }
+
+                case "SearchEntity": {
+                    throw new UnimplementedError("Implemented in next PR");
+                }
+
+                default:
+                    throw exhaustive(mention);
+            }
         }
 
         if (node.type.name === "codeBlock") {

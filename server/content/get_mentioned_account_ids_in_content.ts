@@ -25,6 +25,7 @@ export function getMentionCountByAccountIdInContent(
         visitNode: node => {
             if (node.type.name === "mention") {
                 const mention: ContentMention = node.attrs.mention;
+                if (mention.type !== "Account") return;
                 const lastMentionCount = mentionCountByAccountId.get(mention.accountId);
                 mentionCountByAccountId.set(mention.accountId, (lastMentionCount ?? 0) + 1);
             }

@@ -3,10 +3,15 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
-import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
+import {
+    getSearchEntity,
+    isSearchEntityIndexAccessPolicySubset,
+} from "~/server/search/data/index/internal/get_search_entity.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 const context = createTestContext();
@@ -212,7 +217,10 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     {tokenizer, registerAdditionalWrite: noop},
                 ),
             ).toEqual({
-                dependencyIds: new Set([`Channel:${channel.id}:Preview`]),
+                dependencyIds: new Set([
+                    `Channel:${channel.id}:Authorization`,
+                    `Channel:${channel.id}:Preview`,
+                ]),
                 entity: {
                     id: `Post:${post.id}`,
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
@@ -489,3 +497,478 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
 for (const testCases of Object.values(testCasesBySearchEntityType)) {
     testCases();
 }
+
+test("can check if one access policy is a subset of another", () => {
+    const account1Id = generateId<AccountId>();
+    const account2Id = generateId<AccountId>();
+    const account3Id = generateId<AccountId>();
+    const account4Id = generateId<AccountId>();
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account2Id, account3Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id, account3Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account2Id, account3Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account2Id, account3Id, account1Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account3Id, account4Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id, account3Id, account4Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account3Id, account4Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account3Id, account4Id, account3Id, account4Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account3Id]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: null,
+            },
+            {
+                accountGrantAccountIds: new Set([account3Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(false);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account2Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(true);
+
+    expect(
+        isSearchEntityIndexAccessPolicySubset(
+            {
+                accountGrantAccountIds: new Set([account3Id]),
+                defaultGrantType: "Space",
+            },
+            {
+                accountGrantAccountIds: new Set([account1Id, account2Id]),
+                defaultGrantType: "Space",
+            },
+        ),
+    ).toEqual(true);
+});

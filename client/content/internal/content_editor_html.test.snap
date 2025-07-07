@@ -2855,13 +2855,13 @@ exports[`account long mention: clipboard 1`] = `
     <span
       data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
     >
-      @Sara Smith
+      Sara Smith
     </span>
   </p>
 </div>
 `;
 
-exports[`account long mention: clipboard text 1`] = `"@Sara Smith"`;
+exports[`account long mention: clipboard text 1`] = `"Sara Smith"`;
 
 exports[`account short mention 1`] = `
 <div
@@ -2900,13 +2900,13 @@ exports[`account short mention: clipboard 1`] = `
       data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
       data-cy-mention-short=""
     >
-      @Sara
+      Sara
     </span>
   </p>
 </div>
 `;
 
-exports[`account short mention: clipboard text 1`] = `"@Sara"`;
+exports[`account short mention: clipboard text 1`] = `"Sara"`;
 
 exports[`bold 1`] = `
 <div
@@ -8714,13 +8714,13 @@ exports[`unknown account mention: clipboard 1`] = `
       data-cy-mention="nyghmwnpt2pwy22qrn9b6j9254"
       data-cy-mention-short=""
     >
-      @Unknown
+      Unknown
     </span>
   </p>
 </div>
 `;
 
-exports[`unknown account mention: clipboard text 1`] = `"@Unknown"`;
+exports[`unknown account mention: clipboard text 1`] = `"Unknown"`;
 
 exports[`will serialize table(3x3) with no headers 1`] = `
 <div

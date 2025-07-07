@@ -206,6 +206,7 @@ export function ContentEditorMentionFloater({
             : true;
 
         const mention: ContentMention = {
+            type: "Account",
             accountId: accountData.id,
             // Only use short name for a non-ambiguous name on desktop. Since on mobile the
             // quick undo capability doesn't really exist. Instead the user may tap delete

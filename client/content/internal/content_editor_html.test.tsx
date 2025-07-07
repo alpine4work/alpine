@@ -24,6 +24,7 @@ import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/content/content_styles.js";
 import {Context} from "~/shared/context/context.js";
@@ -1404,7 +1405,13 @@ test("multiple paragraphs inside list items", async () => {
 test("account long mention", async () => {
     const content = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
-            schema.node("mention", {mention: {accountId: otherAccount.id, isShort: false}}),
+            schema.node("mention", {
+                mention: cast<ContentMention>({
+                    type: "Account",
+                    accountId: otherAccount.id,
+                    isShort: false,
+                }),
+            }),
         ]),
     ]);
 
@@ -1433,7 +1440,13 @@ test("account long mention", async () => {
 test("account short mention", async () => {
     const content = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
-            schema.node("mention", {mention: {accountId: otherAccount.id, isShort: true}}),
+            schema.node("mention", {
+                mention: cast<ContentMention>({
+                    type: "Account",
+                    accountId: otherAccount.id,
+                    isShort: true,
+                }),
+            }),
         ]),
     ]);
 
@@ -1462,7 +1475,13 @@ test("account short mention", async () => {
 test("unknown account mention", async () => {
     const content = schema.node("doc", {}, [
         schema.node("paragraph", {}, [
-            schema.node("mention", {mention: {accountId: otherAccount.id, isShort: true}}),
+            schema.node("mention", {
+                mention: cast<ContentMention>({
+                    type: "Account",
+                    accountId: otherAccount.id,
+                    isShort: true,
+                }),
+            }),
         ]),
     ]);
 

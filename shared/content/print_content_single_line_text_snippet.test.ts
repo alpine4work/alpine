@@ -1,4 +1,3 @@
-import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 
@@ -22,7 +21,12 @@ test("headings collapse onto the same line", () => {
         schema.node("paragraph", {}, [schema.text("No extra punctuation added")]),
     ]);
 
-    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
         // eslint-disable-next-line string-quotes
         'This is a heading: Followed by a paragraph. This is another heading? Except that last heading had punctuation. This paragraph ends with a colon: And is followed by another heading. Nice. "This paragraph ends with a quote containing punctuation." No extra punctuation added',
     );
@@ -68,7 +72,12 @@ test("list items collapse onto the same line", () => {
         ]),
     ]);
 
-    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
         "1. a. 2. b. 1. b-a. 2. b-b. 3. b-c. b-c-a. 1. b-c-a-a. 2. b-c-a-b. b-c-b. b-c-c. b-c-d. 3. c",
     );
 });
@@ -84,7 +93,12 @@ test("code block collapses onto the same line", () => {
         schema.node("paragraph", {}, [schema.text("This paragraph follows the code block.")]),
     ]);
 
-    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
         "This is a code block. let a = 1; let b = 1; let c = a + b; console.log(c); This paragraph follows the code block.",
     );
 });
@@ -102,7 +116,12 @@ test("code block collapses multiple lines of text onto the same line", () => {
             schema.text("This paragraph follows."),
         ]),
     ]);
-    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
         "This paragraph precedes. codeBlockLine1 codeBlockLine2 codeBlockLine3 This paragraph follows.",
     );
 });
@@ -124,7 +143,12 @@ test("code block with marks collapses multiple lines of text onto the same line"
             schema.text("This paragraph follows."),
         ]),
     ]);
-    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
         "This paragraph precedes. codeBlockLine1 codeBlockLine2 codeBlockLine3 This paragraph follows.",
     );
 });
@@ -146,7 +170,12 @@ test("quote blocks collapse onto the same line", () => {
         schema.node("paragraph", {}, [schema.text("paragraph7")]),
     ]);
 
-    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
         "paragraph1. paragraph2. paragraph3. paragraph4. 1. paragraph5. paragraph6. paragraph7",
     );
 });
@@ -167,7 +196,10 @@ test("breaks collapse onto the same line", () => {
         ]),
     ]);
 
-    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
-        "foo bar. buz qux",
-    );
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual("foo bar. buz qux");
 });

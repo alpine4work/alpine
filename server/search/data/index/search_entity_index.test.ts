@@ -1,5 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {
@@ -33,7 +34,10 @@ import {
     markSearchAffinityEntityInteraction,
     unfavoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_table.js";
-import {updateSpaceAccountSettings} from "~/server/spaces/spaces_table.js";
+import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
+import {removeSpaceAccount, updateSpaceAccountSettings} from "~/server/spaces/spaces_table.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
@@ -5339,4 +5343,189 @@ test("searching mentions has effective name fuzzy searching", async () => {
         "Core Product FY2023Q3",
         "Core Product FY2024Q2",
     ]);
+});
+
+test("you can still search for removed accounts but you can’t see name updates", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+
+    await space1.createSession({role: "Owner"});
+    const session2 = await space2.createSession({role: "Owner"});
+
+    const sharedAccount = await TestAccount.create(context, {name: "Alice"});
+    const sharedSession = await TestSession.create(sharedAccount);
+
+    await space1.addAccount(sharedAccount);
+    await space2.addAccount(sharedAccount);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space1.id,
+            `Account:${sharedAccount.id}~${space1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space1.id}`,
+        routing: space1.id,
+        version: expect.any(Object),
+        fields: {title: ["Alice"]},
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space2.id,
+            `Account:${sharedAccount.id}~${space2.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space2.id}`,
+        routing: space2.id,
+        version: expect.any(Object),
+        fields: {title: ["Alice"]},
+    });
+
+    await updateOurAccountName(TestTask.action(sharedSession), "Bob");
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space1.id,
+            `Account:${sharedAccount.id}~${space1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space1.id}`,
+        routing: space1.id,
+        version: expect.any(Object),
+        fields: {title: ["Bob"]},
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space2.id,
+            `Account:${sharedAccount.id}~${space2.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space2.id}`,
+        routing: space2.id,
+        version: expect.any(Object),
+        fields: {title: ["Bob"]},
+    });
+
+    await removeSpaceAccount(session2.action(), {
+        spaceId: space2.id,
+        accountId: sharedAccount.id,
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space1.id,
+            `Account:${sharedAccount.id}~${space1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space1.id}`,
+        routing: space1.id,
+        version: expect.any(Object),
+        fields: {title: ["Bob"]},
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space2.id,
+            `Account:${sharedAccount.id}~${space2.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space2.id}`,
+        routing: space2.id,
+        version: expect.any(Object),
+        fields: {title: ["Bob"]},
+    });
+
+    await updateOurAccountName(TestTask.action(sharedSession), "Carol");
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space1.id,
+            `Account:${sharedAccount.id}~${space1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space1.id}`,
+        routing: space1.id,
+        version: expect.any(Object),
+        fields: {title: ["Carol"]},
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space2.id,
+            `Account:${sharedAccount.id}~${space2.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space2.id}`,
+        routing: space2.id,
+        version: expect.any(Object),
+        fields: {title: ["Bob"]},
+    });
+
+    await addSpaceAccount(session2.action(), {
+        spaceId: space2.id,
+        accountId: sharedAccount.id,
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space1.id,
+            `Account:${sharedAccount.id}~${space1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space1.id}`,
+        routing: space1.id,
+        version: expect.any(Object),
+        fields: {title: ["Carol"]},
+    });
+
+    // TODO: We shouldn't show the new name until the account accepts their invite
+    // when added back to the space.
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space2.id,
+            `Account:${sharedAccount.id}~${space2.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Account:${sharedAccount.id}~${space2.id}`,
+        routing: space2.id,
+        version: expect.any(Object),
+        fields: {title: ["Carol"]},
+    });
 });

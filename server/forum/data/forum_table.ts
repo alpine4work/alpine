@@ -2667,10 +2667,7 @@ async function updateChannelAccessPolicyBase(
         update: {
             type: "Channel",
             channelId,
-            // We include `Preview` in `updatedTraits` since anything that depends on the
-            // `Preview` trait also implicitly depends on the `AccessPolicy` since preview
-            // access is derived from the `AccessPolicy`.
-            updatedTraits: {type: "Some", traits: ["Preview", "Authorization"]},
+            updatedTraits: {type: "Some", traits: ["Authorization"]},
         },
     });
 

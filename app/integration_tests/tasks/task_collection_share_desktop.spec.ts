@@ -7,10 +7,12 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
@@ -834,7 +836,11 @@ test("anonymous accounts can see task collection shared with url grant", async (
     await task1.typeNotes(
         session,
         TaskNotesContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await task1.typeNotes(session, "!");
@@ -996,7 +1002,11 @@ test("accounts from another space can see task collection shared with url grant"
     await task1.typeNotes(
         session,
         TaskNotesContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await task1.typeNotes(session, "!");
@@ -1157,7 +1167,11 @@ test("accounts from same space can see task collection shared with url grant", a
     await task1.typeNotes(
         session,
         TaskNotesContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await task1.typeNotes(session, "!");
@@ -1323,7 +1337,11 @@ test("account that used to be a member of space but was removed can see task col
     await task1.typeNotes(
         session,
         TaskNotesContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await task1.typeNotes(session, "!");

@@ -5,8 +5,10 @@ import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 const {context, services} = createTestServices();
 
@@ -783,7 +785,11 @@ test("anonymous accounts can see document shared with url grant", async ({
     await document.type(
         session,
         DocumentContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await document.type(session, "!");
@@ -941,7 +947,11 @@ test("accounts from another space can see document shared with url grant", async
     await document.type(
         session,
         DocumentContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await document.type(session, "!");
@@ -1098,7 +1108,11 @@ test("accounts from same space can see document shared with url grant", async ({
     await document.type(
         session,
         DocumentContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await document.type(session, "!");
@@ -1267,7 +1281,11 @@ test("account that used to be a member of space but was removed can see document
     await document.type(
         session,
         DocumentContentProsemirrorSchema.node("mention", {
-            mention: {accountId: mentionSession.account.id, isShort: true},
+            mention: cast<ContentMention>({
+                type: "Account",
+                accountId: mentionSession.account.id,
+                isShort: true,
+            }),
         }),
     );
     await document.type(session, "!");

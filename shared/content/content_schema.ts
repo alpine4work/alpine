@@ -431,6 +431,8 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
             // there's only a small number of nodes (e.g. `divider`) we actually want to
             // let be selectable.
             selectable: false,
+            // Allow all marks on `mention`.
+            marks: "_",
             attrs: {
                 mention: {
                     schema: ContentMentionSchema,
@@ -451,6 +453,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                         if (!accountId || !isId<AccountId>(accountId)) return false;
 
                         const mention: ContentMention = {
+                            type: "Account",
                             accountId,
                             isShort,
                         };

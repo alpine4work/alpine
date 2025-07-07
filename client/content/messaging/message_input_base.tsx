@@ -63,6 +63,7 @@ import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {parseHtml} from "~/client/helpers/parse_html.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {VideoIcon} from "~/client/icons/video_icon.js";
 import {WaveformIcon} from "~/client/icons/waveform_icon.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -125,6 +126,7 @@ import {
     emptyMessageContentWithReferences,
 } from "~/shared/messaging/message_content_schema.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 
 export type MessageInputRef = {
     isFocused(): boolean;
@@ -1431,14 +1433,20 @@ function MessageInputReplyingToMessage<
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
+    const {space} = useSpaceContext();
 
-    const truncatedContent = useMemo(
-        () =>
-            getTruncatedMessageContentForReplyPreview({
-                message: replyingToMessage,
-                messageNoun,
-            }),
-        [messageNoun, replyingToMessage],
+    const truncatedContent = useStore(
+        useMemo(
+            () =>
+                computeStore(get =>
+                    getTruncatedMessageContentForReplyPreview(get, {
+                        spaceId: space.id,
+                        message: replyingToMessage,
+                        messageNoun,
+                    }),
+                ),
+            [messageNoun, replyingToMessage, space.id],
+        ),
     );
 
     const accountAvatarSizeRem = parseRemLength(messageViewAccountAvatarSize);

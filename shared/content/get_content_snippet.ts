@@ -253,7 +253,8 @@ export function getContentSnippet(
             to -= textIndex - newTextIndex;
         }
         // Expand our snippet to the nearest word boundary if the nearest word boundary
-        // is less than 10 characters away.
+        // is less than 14 characters away. According to Claude, 99% of English words
+        // are 14 characters or shorter.
         else {
             let newTextIndex = 0;
 
@@ -262,7 +263,7 @@ export function getContentSnippet(
                 if (newTextIndex >= textIndex) break;
             }
 
-            if (newTextIndex - textIndex <= 10) {
+            if (newTextIndex - textIndex <= 14) {
                 to += newTextIndex - textIndex;
             }
         }

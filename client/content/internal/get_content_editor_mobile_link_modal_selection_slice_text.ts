@@ -1,6 +1,8 @@
 import {Slice} from "prosemirror-model";
+import {printContentSingleLineTextSnippetForClient} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {Store} from "~/shared/store/store.js";
 
 /**
  * Is the slice (from a selection) editable? Returns a single line of text from
@@ -9,6 +11,8 @@ import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_
  * `printContentSingleLineTextSnippet()`.
  */
 export function getContentEditorMobileLinkModalSelectionSliceText(
+    get: <Value>(store: Store<Value>) => Value,
+    spaceId: SpaceId,
     selectionSlice: Slice,
     references: ContentReferences,
 ): {text: string; isEditable: boolean} {
@@ -28,7 +32,7 @@ export function getContentEditorMobileLinkModalSelectionSliceText(
 
     if (selectionSlice.openStart !== selectionSlice.openEnd || !textNode?.isText) {
         return {
-            text: printContentSingleLineTextSnippet({
+            text: printContentSingleLineTextSnippetForClient(get, spaceId, {
                 // Intentionally calling `create()` and not `createChecked()` since for some
                 // schemas (e.g. documents) our slice may not match the expected schema.
                 doc: schema.topNodeType.create({}, selectionSlice.content.content),

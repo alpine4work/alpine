@@ -3,11 +3,13 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "index",
     test_deps = [
+        "//server/accounts/update_name",
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/chat/test_helpers",
         "//server/forum/test_helpers",
         "//server/spaces/test_helpers",
+        "//server/spaces/add_account",
         "//server/tasks/test_helpers",
     ],
     tests = {
@@ -19,6 +21,12 @@ ts_project(
             "data": ["//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data_testonly"],
         },
         "search_entity_index_tasks_test": {
+            "size": "medium",
+            # Give this test at least three CPUs. Two for OpenSearch, one for the test
+            # process.
+            "tags": ["cpu:3"],
+        },
+        "search_entity_index_mentions_test": {
             "size": "medium",
             # Give this test at least three CPUs. Two for OpenSearch, one for the test
             # process.

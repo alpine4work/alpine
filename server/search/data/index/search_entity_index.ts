@@ -1,5 +1,6 @@
 import murmurhash from "murmurhash";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
+import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerContentSessionActionContextModules} from "~/server/context/server_content_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
@@ -82,12 +83,8 @@ import {
     getTaskCollectionSearchResultIfPossible,
 } from "~/server/tasks/data/task_table.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
-import {
-    printContentSingleLineTextSnippet,
-    printContentSingleLineTextSnippetPreservingMarks,
-} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ContextBatcher} from "~/shared/context/batch_context_module.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -1489,10 +1486,14 @@ export async function searchByKeywords(
                 : null;
 
             let bodyTextSnippet = bodySnippet
-                ? printContentSingleLineTextSnippetPreservingMarks(
-                      {doc: bodySnippet, references: emptyContentReferences},
-                      mark => mark.type.name === "highlight",
-                  ).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
+                ? printContentSingleLineTextSnippetPreservingMarks(bodySnippet, {
+                      shouldPreserveMark: mark => mark.type.name === "highlight",
+                      // We serialize mentions to search as their underlying text content. So we'll
+                      // never have any mentions when parsing the body text snippet from our search
+                      // index.
+                      getAccountIfExists: () => null,
+                      getSearchEntityIfExists: () => null,
+                  }).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : emptyArray;
 
             const hitMedia = hit.fields.media?.[0];
@@ -1839,10 +1840,14 @@ export async function searchBySemantics(
                 : null;
 
             const bodyTextSnippet = bodySnippet
-                ? printContentSingleLineTextSnippetPreservingMarks(
-                      {doc: bodySnippet, references: emptyContentReferences},
-                      mark => mark.type.name === "highlight",
-                  ).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
+                ? printContentSingleLineTextSnippetPreservingMarks(bodySnippet, {
+                      shouldPreserveMark: mark => mark.type.name === "highlight",
+                      // We serialize mentions to search as their underlying text content. So we'll
+                      // never have any mentions when parsing the body text snippet from our search
+                      // index.
+                      getAccountIfExists: () => null,
+                      getSearchEntityIfExists: () => null,
+                  }).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : [];
 
             const hitMedia = hit.fields["entity.media"]?.[0];
@@ -2495,7 +2500,7 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
 } {
     const descriptionContentSnippet = getContentSnippet(channel.description.doc.resolve(0), 3);
 
-    const descriptionTextSnippet = printContentSingleLineTextSnippet({
+    const descriptionTextSnippet = printContentSingleLineTextSnippetForServer({
         doc: descriptionContentSnippet,
         references: channel.description.references,
     });

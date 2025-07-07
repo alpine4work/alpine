@@ -1638,10 +1638,10 @@ test("will index a task twice if a notes update happens after last indexing", as
     import.meta.jest.advanceTimersByTime(5 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(indexSearchEntityJobCount).toEqual(1);
+    expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
-        body: "This is the title of a game show from BoJack",
+        body: "This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
     import.meta.jest.advanceTimersByTime(10 * 1000);
@@ -1765,6 +1765,15 @@ test("will not index a task twice if multiple notes updates and task updates hap
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
+    expect(await getIndexedSearchEntity(task)).toEqual({
+        title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
+        body: "This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
+    });
+
+    import.meta.jest.advanceTimersByTime(5 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(2);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
         body: "This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
