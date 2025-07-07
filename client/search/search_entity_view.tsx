@@ -12,11 +12,11 @@ import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_e
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSearchEntityModel} from "~/client/search/core/search_entity_registry_context.js";
-import {getSearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
+import {getSearchEntityTypeDisplay} from "~/client/search/core/search_entity_type_display.js";
 import {
     SearchEntityViewTitle,
     SearchEntityViewTitlePrefix,
-} from "~/client/search/internal/search_entity_view_title.js";
+} from "~/client/search/core/search_entity_view_title.js";
 import {
     searchEntityViewBodyTextSnippetFontSize,
     searchEntityViewBodyTextSnippetMinHeight,

@@ -15,8 +15,8 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
+import {getSearchEntityPath} from "~/client/search/core/get_search_entity_path.js";
 import {updateSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {getSearchEntityPath} from "~/client/search/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {

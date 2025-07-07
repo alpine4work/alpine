@@ -18,7 +18,7 @@ import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
-import {getSearchEntityPath} from "~/client/search/get_search_entity_path.js";
+import {getSearchEntityPath} from "~/client/search/core/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {

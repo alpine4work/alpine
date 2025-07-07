@@ -2,8 +2,8 @@ import {memo, useMemo} from "react";
 import {Box} from "~/client/design/box.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSearchEntityModel} from "~/client/search/core/search_entity_registry_context.js";
-import {getSearchEntityTypeDisplay} from "~/client/search/internal/search_entity_type_display.js";
-import {SearchEntityViewTitle} from "~/client/search/internal/search_entity_view_title.js";
+import {getSearchEntityTypeDisplay} from "~/client/search/core/search_entity_type_display.js";
+import {SearchEntityViewTitle} from "~/client/search/core/search_entity_view_title.js";
 import {
     searchAffinityEntityViewMinHeightPx,
     searchEntityViewPaddingY,

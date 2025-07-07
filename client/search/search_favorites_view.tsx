@@ -50,11 +50,11 @@ import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_round
 import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
 import {forceRevalidateSearchByAffinity} from "~/client/search/core/force_revalidate_search_by_affinity.js";
+import {getSearchEntityPath} from "~/client/search/core/get_search_entity_path.js";
 import {
     subscribeToUpdateSearchFavoriteEntityMenuAction,
     updateSearchFavoriteEntityMenuAction,
 } from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
-import {getSearchEntityPath} from "~/client/search/get_search_entity_path.js";
 import {SearchAffinityEntityView} from "~/client/search/search_affinity_entity_view.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
