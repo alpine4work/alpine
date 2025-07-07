@@ -2,7 +2,10 @@ import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/notifications_table.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_table.js";
-import {addSpaceAccount} from "~/server/spaces/add_account/add_space_account.js";
+import {
+    addSpaceAccount,
+    dangerouslyAddSpaceAccountAsAdmin,
+} from "~/server/spaces/add_account/add_space_account.js";
 import {
     expensivelyGetAllSpaceAccounts,
     getOurAccountSpaceIds,
@@ -65,6 +68,17 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         execute: async (context, input) => {
             const account = await addSpaceAccount(context, input);
+            return {account};
+        },
+    },
+
+    // TODO(calebmer): Delete this ASAP. We need it while we're still in our alpha
+    // period but it's dangerous to let Alpine employees add arbitrary accounts to
+    // any space.
+    dangerouslyAddSpaceAccountAsAdmin: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            const account = await dangerouslyAddSpaceAccountAsAdmin(context, input);
             return {account};
         },
     },

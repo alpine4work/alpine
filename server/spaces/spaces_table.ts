@@ -1,6 +1,7 @@
 import _Fuse from "fuse.js";
 import {
     AccountDevice,
+    authorizeInternalAccess,
     checkAccountVersionConditionCheck,
     dangerouslyGetAccountIfExistsWithoutCaching,
     getAccountByIdAsAdmin,
@@ -450,6 +451,36 @@ export async function internalAddSpaceAccount(
     },
 ): Promise<AccountModel> {
     await authorizeSpaceAccess(context, spaceId, "Admin");
+
+    return internalAddSpaceAccountWithoutAuthorization(context, {
+        spaceId,
+        accountId,
+        favoriteSearchEntity,
+        role,
+    });
+}
+
+// TODO(calebmer): Delete this ASAP. We need it while we're still in our alpha
+// period but it's dangerous to let Alpine employees add arbitrary accounts to
+// any space.
+export async function internalDangerouslyAddSpaceAccountAsAdmin(
+    context: ServerActionContext,
+    {
+        spaceId,
+        accountId,
+        favoriteSearchEntity,
+        role,
+    }: {
+        spaceId: SpaceId;
+        accountId: AccountId;
+        favoriteSearchEntity: (
+            context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+            options: {spaceId: SpaceId; accountId: AccountId; entityId: "TaskPersonal"},
+        ) => Promise<unknown>;
+        role?: SpaceRole;
+    },
+): Promise<AccountModel> {
+    await authorizeInternalAccess(context);
 
     return internalAddSpaceAccountWithoutAuthorization(context, {
         spaceId,

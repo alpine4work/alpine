@@ -41,6 +41,20 @@ export const addSpaceAccount = defineRpc({
     },
 });
 
+// TODO(calebmer): Delete this ASAP. We need it while we're still in our alpha
+// period but it's dangerous to let Alpine employees add arbitrary accounts to
+// any space.
+export const dangerouslyAddSpaceAccountAsAdmin = defineRpc({
+    name: "dangerouslyAddSpaceAccountAsAdmin",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        accountId: Schema.id<AccountId>(),
+    },
+    output: {
+        account: AccountModel.schema,
+    },
+});
+
 export const removeSpaceAccount = defineRpc({
     name: "removeSpaceAccount",
     input: {
