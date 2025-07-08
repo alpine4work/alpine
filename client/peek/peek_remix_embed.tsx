@@ -3,6 +3,7 @@ import {useCallback, useMemo, useRef} from "react";
 import {UNSAFE_RouteContext as RouteContext, RouterProvider} from "react-router";
 import {StaticRouterProvider} from "react-router-dom/server.js";
 import {BottomBarFrameContextProvider} from "~/client/design/bottom_bar_frame_context_provider.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {PeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed_router.js";
 // eslint-disable-next-line no-internal-imports
@@ -81,89 +82,94 @@ export function PeekRemixEmbed({
     }, [originalRouter]);
 
     return (
-        <PeekContextDefinition.Provider
-            value={useMemo(
-                () => ({
-                    id: peekId,
-                    layout,
-                    withinStack,
-                    withoutSearchAffinityViewEntityInteraction,
-                }),
-                [layout, peekId, withinStack, withoutSearchAffinityViewEntityInteraction],
-            )}
+        <OverlayScopeContextProvider
+        // Make sure any overlays from the peek render here so if they're in
+        // `<PeekStack>` they get the `greyElevatedClassName` styles.
         >
-            <UpdateMetaTitleContextProvider
-                // Ignore title updates in a Remix embed. We currently don't render the title
-                // of a Remix embed though may in the future when allowing the user to navigate
-                // through embeds.
-                onUpdateMetaTitle={useCallback(() => {}, [])}
+            <PeekContextDefinition.Provider
+                value={useMemo(
+                    () => ({
+                        id: peekId,
+                        layout,
+                        withinStack,
+                        withoutSearchAffinityViewEntityInteraction,
+                    }),
+                    [layout, peekId, withinStack, withoutSearchAffinityViewEntityInteraction],
+                )}
             >
-                <BottomBarFrameContextProvider
-                // Create a different bottom bar scope in every peek. So bottom bar changes in
-                // one don't end up scrolling `useScrollToAvoidBottomBarsAndMobileKeyboard()`
-                // listeners outside the peek.
+                <UpdateMetaTitleContextProvider
+                    // Ignore title updates in a Remix embed. We currently don't render the title
+                    // of a Remix embed though may in the future when allowing the user to navigate
+                    // through embeds.
+                    onUpdateMetaTitle={useCallback(() => {}, [])}
                 >
-                    <RouteContext.Provider
-                        // The `<Router>` component does not reset this context but it needs to be reset
-                        // or else when we try to render nested routes they think they are within the
-                        // context of our parent router. Initial value can be found here:
-                        // https://github.com/remix-run/react-router/blob/230d9e5539c410c0c747db8670ec5de1d51558ae/packages/react-router/lib/context.ts#L143-L146
-                        //
-                        // See our comment below on how rendering nested `<Router>`s is not officially
-                        // supported.
-                        value={useMemo(
-                            () => ({
-                                outlet: null,
-                                matches: [],
-                                isDataRoute: false,
-                            }),
-                            [],
-                        )}
+                    <BottomBarFrameContextProvider
+                    // Create a different bottom bar scope in every peek. So bottom bar changes in
+                    // one don't end up scrolling `useScrollToAvoidBottomBarsAndMobileKeyboard()`
+                    // listeners outside the peek.
                     >
-                        {typeof window === "undefined" ? (
-                            // When server-rendering use `<StaticRouterProvider>` like `<AppRemixServer>`.
-                            // `<StaticRouterProvider>` is carefully written to have the same DOM structure
-                            // as `<RouterProvider>` for hydration.
-                            // https://github.com/remix-run/remix/blob/1c416b0b9baadbd75974ee72efb651b8186670cb/packages/remix-react/server.tsx#L27
-                            <StaticRouterProvider
-                                router={router}
-                                context={{
-                                    basename: router.basename,
-                                    location: router.state.location,
-                                    matches: router.state.matches,
-                                    loaderData: router.state.loaderData,
-                                    actionData: router.state.actionData,
-                                    errors: router.state.errors,
-                                    statusCode: 200,
-                                    loaderHeaders: {},
-                                    actionHeaders: {},
-                                    activeDeferreds: null,
-                                }}
-                                hydrate={false}
-                                // See comment below on `dangerouslyAllowNesting`...
-                                dangerouslyAllowNesting={true}
-                            />
-                        ) : (
-                            <RouterProvider
-                                router={router}
-                                fallbackElement={null}
-                                future={{v7_startTransition: true}}
-                                // React Router has an assertion which bans you from rendering a `<Router>`
-                                // inside of another `<Router>`. Likely to avoid developers making silly
-                                // mistakes.
-                                //
-                                // However, we have a real use case! We want to render a `<Router>` powered by
-                                // in-memory history within our Remix `<Router>` powered by browser history.
-                                //
-                                // So we patch `react-router` to add this prop here that turns off the
-                                // assertion. Nested `<Router>`s are therefore not officially supported so we
-                                // take all responsibility for making sure it works well.
-                                dangerouslyAllowNesting={true}
-                            />
-                        )}
-                    </RouteContext.Provider>
-                </BottomBarFrameContextProvider>
-            </UpdateMetaTitleContextProvider>
-        </PeekContextDefinition.Provider>
+                        <RouteContext.Provider
+                            // The `<Router>` component does not reset this context but it needs to be reset
+                            // or else when we try to render nested routes they think they are within the
+                            // context of our parent router. Initial value can be found here:
+                            // https://github.com/remix-run/react-router/blob/230d9e5539c410c0c747db8670ec5de1d51558ae/packages/react-router/lib/context.ts#L143-L146
+                            //
+                            // See our comment below on how rendering nested `<Router>`s is not officially
+                            // supported.
+                            value={useMemo(
+                                () => ({
+                                    outlet: null,
+                                    matches: [],
+                                    isDataRoute: false,
+                                }),
+                                [],
+                            )}
+                        >
+                            {typeof window === "undefined" ? (
+                                // When server-rendering use `<StaticRouterProvider>` like `<AppRemixServer>`.
+                                // `<StaticRouterProvider>` is carefully written to have the same DOM structure
+                                // as `<RouterProvider>` for hydration.
+                                // https://github.com/remix-run/remix/blob/1c416b0b9baadbd75974ee72efb651b8186670cb/packages/remix-react/server.tsx#L27
+                                <StaticRouterProvider
+                                    router={router}
+                                    context={{
+                                        basename: router.basename,
+                                        location: router.state.location,
+                                        matches: router.state.matches,
+                                        loaderData: router.state.loaderData,
+                                        actionData: router.state.actionData,
+                                        errors: router.state.errors,
+                                        statusCode: 200,
+                                        loaderHeaders: {},
+                                        actionHeaders: {},
+                                        activeDeferreds: null,
+                                    }}
+                                    hydrate={false}
+                                    // See comment below on `dangerouslyAllowNesting`...
+                                    dangerouslyAllowNesting={true}
+                                />
+                            ) : (
+                                <RouterProvider
+                                    router={router}
+                                    fallbackElement={null}
+                                    future={{v7_startTransition: true}}
+                                    // React Router has an assertion which bans you from rendering a `<Router>`
+                                    // inside of another `<Router>`. Likely to avoid developers making silly
+                                    // mistakes.
+                                    //
+                                    // However, we have a real use case! We want to render a `<Router>` powered by
+                                    // in-memory history within our Remix `<Router>` powered by browser history.
+                                    //
+                                    // So we patch `react-router` to add this prop here that turns off the
+                                    // assertion. Nested `<Router>`s are therefore not officially supported so we
+                                    // take all responsibility for making sure it works well.
+                                    dangerouslyAllowNesting={true}
+                                />
+                            )}
+                        </RouteContext.Provider>
+                    </BottomBarFrameContextProvider>
+                </UpdateMetaTitleContextProvider>
+            </PeekContextDefinition.Provider>
+        </OverlayScopeContextProvider>
     );
 }

@@ -41,7 +41,6 @@ import {Box} from "~/client/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {OverlayScopeContextProvider} from "~/client/design/overlay_scope_context_provider.js";
 import {useReporter} from "~/client/design/reporter.js";
 import {
     trackNavigationAnimationFinish,
@@ -75,7 +74,10 @@ import {NavigationEventContextProvider, useNavigate} from "~/client/remix/use_na
 import {GlobalLoadingIndicatorChip} from "~/client/spaces/global_loading_indicator_context_provider.js";
 import {GlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator_types.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {peekNarrowLayoutWidth} from "~/client/styles/peek_shared_styles.js";
+import {
+    peekNarrowLayoutWidth,
+    peekStackOverlayBorderRadius,
+} from "~/client/styles/peek_shared_styles.js";
 import {
     greyElevated1ClassName,
     spaceLayoutStyles,
@@ -111,7 +113,7 @@ const peekUnderlayOffset = spacing["2"];
 
 export const peekMaxHeight = "42rem";
 const viewportPeekMarginTop = spacing["4"];
-const peekHeight = `min(100vh - ${viewportPeekMarginTop}, ${peekMaxHeight})`;
+export const peekHeight = `min(100vh - ${viewportPeekMarginTop}, ${peekMaxHeight})`;
 const peekHeightWithUnderlayOffset =
     `min(100vh + ${subtractRemLengths(peekBottomBuffer, viewportPeekMarginTop)}, ` +
     `${addRemLengths(peekMaxHeight, peekBottomBuffer)})`;
@@ -966,7 +968,7 @@ function PeekStackOverlay({
     const renderPopClickOverlay = (offset: number) => (
         <Box
             position="absolute"
-            borderTopRightRadius="1.5"
+            borderTopRightRadius={peekStackOverlayBorderRadius}
             style={{
                 height: peekHeight,
                 width: peekUnderlayOffset,
@@ -1282,7 +1284,7 @@ function PeekStackOverlay({
                     ref={overlayRef}
                     data-testid="PeekStackOverlay"
                     overflow="hidden"
-                    borderTopRadius="1.5"
+                    borderTopRadius={peekStackOverlayBorderRadius}
                     boxShadow={index === 0 ? "elevation-40" : "elevation-30"}
                     backgroundColor="grey-0"
                     className={greyElevated1ClassName}
@@ -1334,22 +1336,17 @@ function PeekStackOverlay({
                                         isContentHidden && shouldHideContent ? "hidden" : undefined,
                                 }}
                             >
-                                <OverlayScopeContextProvider
-                                // Make sure any overlays from the peek render here so they get the
-                                // `greyElevatedClassName` styles.
-                                >
-                                    <PeekStackOverlayContent
-                                        ref={overlayContentRef}
-                                        state={state}
-                                        dispatch={dispatch}
-                                        peekRoutes={peekRoutes}
-                                        createPeekRouter={createPeekRouter}
-                                        entry={entry}
-                                        isDragging={isDragging}
-                                        draggableListeners={draggableListeners}
-                                        onClosePress={onClosePress}
-                                    />
-                                </OverlayScopeContextProvider>
+                                <PeekStackOverlayContent
+                                    ref={overlayContentRef}
+                                    state={state}
+                                    dispatch={dispatch}
+                                    peekRoutes={peekRoutes}
+                                    createPeekRouter={createPeekRouter}
+                                    entry={entry}
+                                    isDragging={isDragging}
+                                    draggableListeners={draggableListeners}
+                                    onClosePress={onClosePress}
+                                />
                             </Box>
                         </GlobalKeyDownEvent>
                     )}

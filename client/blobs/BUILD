@@ -18,5 +18,6 @@ ts_project(
         "//shared/id",
         "//client/blobs/helpers",
         "//client/blobs/script",
+        "//client/peek",
     ],
 )

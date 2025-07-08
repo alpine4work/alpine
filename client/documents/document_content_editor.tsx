@@ -85,6 +85,7 @@ import {useNavigationBar} from "~/client/navigation/navigation_bar.js";
 import {NavigationBarRef} from "~/client/navigation/navigation_bar_types.js";
 import {getClientInfo, useClientInfo} from "~/client/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {usePeekContext} from "~/client/remix/peek_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getPlatformRouteLayout, useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {
@@ -244,6 +245,7 @@ export function DocumentContentEditor({
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {currentAccount, space} = useSpaceContext();
+    const peekContext = usePeekContext();
     const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -272,8 +274,6 @@ export function DocumentContentEditor({
         unpersistedResolutionStateByCommentThreadId,
         ensureCreateDocument,
     } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
-
-    const cover = content.doc.attrs.cover as DocumentContentCover | null;
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,
@@ -1533,10 +1533,25 @@ export function DocumentContentEditor({
         initialIsFavorite,
     );
 
+    const cover = editorState.getDoc().attrs.cover as DocumentContentCover | null;
+
+    const blobsSettings = useMemo(
+        () =>
+            cover?.type === "Blobs"
+                ? {
+                      seed: cover.seed,
+                      themeColor: cover.themeColor,
+                      hueSpread: cover.hueSpread,
+                  }
+                : null,
+        [cover],
+    );
+
+    const withinPeekStackOverlay = peekContext?.withinStack === true;
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
         title,
-        contentCover: cover,
         getTitleBoundaryElement: useCallback(() => {
             // Assume the title `<h1>` element is always the first element in the
             // ProseMirror DOM.
@@ -1660,23 +1675,15 @@ export function DocumentContentEditor({
         desktopTitleMaxWidth: contentStyles.contentMaxWidth,
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
+        contentCover:
+            blobsSettings !== null ? (
+                <BlobsArt settings={blobsSettings} withBezelX={withinPeekStackOverlay} />
+            ) : null,
     });
 
     const fileAttachmentTarget = useMemo(
         (): FileAttachmentTarget => ({type: "Document", documentId}),
         [documentId],
-    );
-
-    const blobsSettings = useMemo(
-        () =>
-            cover?.type === "Blobs"
-                ? {
-                      seed: cover.seed,
-                      themeColor: cover.themeColor,
-                      hueSpread: cover.hueSpread,
-                  }
-                : null,
-        [cover],
     );
 
     return (
@@ -1710,6 +1717,13 @@ export function DocumentContentEditor({
                             : "100%",
                 }}
             >
+                {blobsSettings !== null && (
+                    <BlobsArt
+                        settings={blobsSettings}
+                        withBezelTop={withinPeekStackOverlay}
+                        withBezelX={withinPeekStackOverlay}
+                    />
+                )}
                 <OverlayScopeContextProvider>
                     {blobsSettings !== null && <BlobsArt settings={blobsSettings} />}
                     <Box className={contentEditorStyles.containerClassName}>

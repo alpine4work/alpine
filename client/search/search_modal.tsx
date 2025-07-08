@@ -493,15 +493,24 @@ export function SearchModal({
                             () => (
                                 <Box
                                     flexShrink="0"
+                                    position="relative"
                                     width={peekNarrowLayoutWidth}
                                     height="full"
                                     overflow="hidden"
-                                    style={{
-                                        // Render border 1px down so the two semi transparent borders don't conflict
-                                        // with each other creating a single pixel that's darker where they intersect.
-                                        boxShadow: `-1px 1px 0 0 ${grey5SemiTransparentColorVar}`,
-                                    }}
                                 >
+                                    <Box
+                                        zIndex="10"
+                                        position="absolute"
+                                        bottom="0"
+                                        left="0"
+                                        width="border"
+                                        style={{
+                                            // Render border 1px down so the two semi transparent borders don't conflict
+                                            // with each other creating a single pixel that's darker where they intersect.
+                                            top: 1,
+                                            backgroundColor: grey5SemiTransparentColorVar,
+                                        }}
+                                    />
                                     {activePeek ? (
                                         <SearchModalPeekContent
                                             // Fully remount whenever the peek changes...

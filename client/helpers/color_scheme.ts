@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {flushSync} from "react-dom";
 import {colorSchemeEventEmitter} from "~/client/helpers/internal/color_scheme_event_emitter.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -23,13 +24,18 @@ export function setColorScheme(colorScheme: ColorScheme) {
     document.documentElement.setAttribute("data-color", colorScheme);
     localStorage.setItem("colorScheme", colorScheme);
 
-    for (const listener of colorSchemeListeners) {
-        try {
-            listener(colorScheme);
-        } catch (error) {
-            scheduleUncaughtError(error);
+    // Make sure React re-renders synchronously when the color scheme changes. That
+    // way we don't get UI tearing where non-React code has new colors (thanks to
+    // CSS) but React code has old colors.
+    flushSync(() => {
+        for (const listener of colorSchemeListeners) {
+            try {
+                listener(colorScheme);
+            } catch (error) {
+                scheduleUncaughtError(error);
+            }
         }
-    }
+    });
 }
 
 export function subscribeToColorSchemeChange(listener: (colorScheme: ColorScheme) => void) {

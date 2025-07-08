@@ -16,18 +16,8 @@
 // and native code so we can use that. Touch events are more dicey.
 
 import {AnimationControls, timeline} from "motion";
-import {
-    Memo,
-    MutableRefObject,
-    ReactNode,
-    Ref,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {Memo, MutableRefObject, ReactNode, Ref, useImperativeHandle, useRef, useState} from "react";
 import {flushSync} from "react-dom";
-import {BlobsArt} from "~/client/blobs/blobs_art.js";
 import {Box} from "~/client/design/box.js";
 import {MenuAction} from "~/client/design/menu.js";
 import {
@@ -66,7 +56,6 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -203,7 +192,7 @@ export function NavigationBar({
     desktopAdditionalActions: ReactNode;
     desktopTitleLeftSlop: Spacing | undefined;
     withoutMobileBackButton: boolean;
-    contentCover?: DocumentContentCover | null;
+    contentCover: ReactNode | undefined;
     onMobileClose: (() => void) | undefined;
     onMobileCancel: (() => void) | undefined;
 }) {
@@ -1004,18 +993,6 @@ export function NavigationBar({
     const backgroundBorderMaxWidth =
         platform === "desktop" ? desktopMaxWidth ?? desktopTitleMaxWidth : undefined;
 
-    const blobsArtSettings = useMemo(
-        () =>
-            contentCover?.type === "Blobs"
-                ? {
-                      seed: contentCover.seed,
-                      themeColor: contentCover.themeColor,
-                      hueSpread: contentCover.hueSpread,
-                  }
-                : null,
-        [contentCover],
-    );
-
     return (
         <div
             ref={navigationBarContainerRef}
@@ -1090,13 +1067,13 @@ export function NavigationBar({
                                 height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                             }}
                         >
-                            {blobsArtSettings !== null ? (
+                            {contentCover && (
                                 <Box width="full" height="full" overflow="hidden">
                                     <Box ref={navigationBarContentCoverRef} position="relative">
-                                        <BlobsArt settings={blobsArtSettings} />
+                                        {contentCover}
                                     </Box>
                                 </Box>
-                            ) : null}
+                            )}
                             <Box
                                 ref={navigationBarBorderRef}
                                 // Start with `display: none`. `onScroll` will change it to `display: block`

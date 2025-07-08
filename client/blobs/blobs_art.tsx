@@ -1,4 +1,5 @@
 import {Memo, memo, useEffect, useMemo} from "react";
+import {createPortal} from "react-dom";
 import {
     BlobsSettings,
     blobsCanvasHeightPx,
@@ -6,7 +7,10 @@ import {
     blobsDefaultSettings,
     getBlobsCanvasId,
 } from "~/client/blobs/helpers/blobs_settings.js";
+import {Box} from "~/client/design/box.js";
+import {useOverlayPortalElement} from "~/client/design/overlay_helpers.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
+import {peekStackOverlayBorderRadius} from "~/client/styles/peek_shared_styles.js";
 import {blobsArtStyles} from "~/client/styles/styles.js";
 import {
     safe,
@@ -14,7 +18,7 @@ import {
     safeIdentifierString,
 } from "~/shared/helpers/string/safe_string.js";
 
-type BlobArtProps = {
+type BlobsArtProps = {
     settings: Memo<
         Partial<BlobsSettings> & {
             seed: BlobsSettings["seed"];
@@ -23,7 +27,12 @@ type BlobArtProps = {
         }
     >;
     scale?: number;
+    withBezelTop?: boolean;
+    withBezelX?: boolean;
 };
+
+const BlobsArtMemo = memo(BlobsArt);
+export {BlobsArtMemo as BlobsArt};
 
 declare global {
     interface Window {
@@ -31,10 +40,7 @@ declare global {
     }
 }
 
-function BlobsArtComponent({
-    settings: passedSettings,
-    scale,
-}: BlobArtProps & {style?: React.CSSProperties}) {
+function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: BlobsArtProps) {
     const settings: BlobsSettings = useMemo(
         () => ({
             ...blobsDefaultSettings,
@@ -63,27 +69,89 @@ function BlobsArtComponent({
     )})`;
 
     return (
-        <div
-            className={blobsArtStyles.containerClassName}
-            aria-hidden="true"
-            style={{
-                height: blobsCanvasHeightPx,
-                width: blobsCanvasWidthPx,
-                left: `calc(50% - (${blobsCanvasWidthPx / 2}px))`,
-                transform: scale ? `scale(${scale})` : undefined,
-            }}
-        >
-            <canvas
-                className={blobsArtStyles.canvasClassName}
-                data-blob-id={canvasId}
-                width={blobsCanvasWidthPx}
-                height={blobsCanvasHeightPx}
-                data-testid={process.env.NODE_ENV !== "production" ? `BlobArtCanvas` : undefined}
-            />
-            <div className={blobsArtStyles.gradientClassName} />
-            <ScriptBeforeAppInitialRender script={generateBlobs} />
-        </div>
+        <>
+            <div
+                className={blobsArtStyles.containerClassName}
+                aria-hidden="true"
+                style={{
+                    height: blobsCanvasHeightPx,
+                    width: blobsCanvasWidthPx,
+                    left: `calc(50% - (${blobsCanvasWidthPx / 2}px))`,
+                    transform: scale ? `scale(${scale})` : undefined,
+                }}
+            >
+                <canvas
+                    className={blobsArtStyles.canvasClassName}
+                    data-blob-id={canvasId}
+                    width={blobsCanvasWidthPx}
+                    height={blobsCanvasHeightPx}
+                    data-testid={
+                        process.env.NODE_ENV !== "production" ? `BlobArtCanvas` : undefined
+                    }
+                />
+                <div className={blobsArtStyles.gradientClassName} />
+                <ScriptBeforeAppInitialRender script={generateBlobs} />
+            </div>
+            {(withBezelTop || withBezelX) && (
+                <BlobsArtBezel withTop={withBezelTop} withX={withBezelX} />
+            )}
+        </>
     );
 }
 
-export const BlobsArt = memo(BlobsArtComponent);
+// Adds a "bezel" effect when blobs are rendered within a peek stack overlay.
+// It doesn't look good when blobs run up against the edge of a peek because
+// the light grey border looks muddy next to the vibrant blob colors. This
+// bezel (2px border around the edge of the blob art) adds contrast that makes
+// sure blobs don't look muddy in a peek.
+//
+// The implementation is a little delicate. Because we want the bezel to only
+// cover blobs not anything else (e.g. the navigation bar bottom border that
+// shows up after scrolling). Also, while blobs scroll with content the bezel
+// needs to stick to the top of the peek. It's easy enough to render the
+// left/right bezel (absolute positioned element). But we need render the top
+// bezel with a portal into the nearest `<OverlayScopeContextProvider>` so it
+// can be sticky. This depends on cooperation from the parent component which
+// needs to render `<BlobsArt>` at the right place to make sure it finds the
+// right `<OverlayScopeContextProvider>`.
+function BlobsArtBezel({withTop, withX}: {withTop?: boolean; withX?: boolean}) {
+    const overlayPortalElement = useOverlayPortalElement();
+
+    return (
+        <>
+            {withX && (
+                <Box
+                    position="absolute"
+                    top="0"
+                    left="0"
+                    right="0"
+                    zIndex="10"
+                    pointerEvents="none"
+                    border="grey-0"
+                    borderTop="none"
+                    borderBottom="none"
+                    borderWidth="thick"
+                    style={{height: blobsCanvasHeightPx}}
+                />
+            )}
+            {withTop &&
+                overlayPortalElement &&
+                createPortal(
+                    <Box
+                        position="absolute"
+                        top="0"
+                        left="0"
+                        right="0"
+                        height="4"
+                        zIndex="10"
+                        pointerEvents="none"
+                        border="grey-0"
+                        borderBottom="none"
+                        borderWidth="thick"
+                        borderTopRadius={peekStackOverlayBorderRadius}
+                    />,
+                    overlayPortalElement,
+                )}
+        </>
+    );
+}
