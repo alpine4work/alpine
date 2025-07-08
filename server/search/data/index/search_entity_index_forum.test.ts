@@ -303,8 +303,8 @@ test(
             ]);
             expect(await testSearch("2024 Q3")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2024Q2",
                 "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
             ]);
             expect(await testSearch("Q3 2024")).toEqual([
                 "Core Product FY2024Q3",
@@ -318,8 +318,8 @@ test(
             ]);
             expect(await testSearch("Q3FY2024")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2024Q2",
                 "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
             ]);
             expect(await testSearch("FY2024 Q3")).toEqual([
                 "Core Product FY2024Q3",
@@ -328,8 +328,8 @@ test(
             ]);
             expect(await testSearch("Q3 FY2024")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2024Q2",
                 "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
             ]);
 
             // Testing search as user types

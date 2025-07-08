@@ -1138,7 +1138,32 @@ export async function searchByKeywords(
         const clauses = queryTexts.map((queryText): QueryClause => {
             const queryTextValue = new OpensearchQueryValue(queryText);
 
-            let queryClause: QueryClause = {
+            // We only fuzzy match short queries. For longer queries we run into the
+            // OpenSearch max clause limit error.
+            //
+            // We only fuzzy match when searching the individual word index. This is
+            // because fuzziness works by expanding a query to include valid terms within
+            // edit distance. This risks running into the max clause count OpenSearch limit
+            // when used excessively. So only allow exact matches when searching the 2gram
+            // and 3gram fields. This also has the effect of a 2gram match + 1gram match
+            // beating a rare typo (which would have a high score due to low document
+            // frequency).
+            //
+            // Fuzzy matching on 2gram or 3gram fields can lead to some odd results
+            // where, because we're fuzzy matching two words, we end up matching a two word
+            // pair which means something completely different.
+            //
+            // With `prefix_length: 1` we require the first character to be correct for a
+            // fuzzy query to match. This reduces the amount of fuzzy searching we need to
+            // do and also discards some ridiculous fuzzy matches. For example, we see "my
+            // documents" get matched to the 2gram "30 documents". For a 1gram "my" doesn't
+            // match "30" since `fuzziness: "AUTO"` requires an exact match for two
+            // character strings. However the 2gram "my documents" can have two edits which
+            // makes "30 documents" a valid match. Also "be documents" or "of documents". A
+            // prefix length of 1 prevents these from being valid matches.
+            const withFuzziness = queryText.length < 100;
+
+            return {
                 bool: {
                     minimum_should_match: 1,
 
@@ -1153,12 +1178,13 @@ export async function searchByKeywords(
                         ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
                             field: "title",
                             query: queryText,
-                            fuzziness: 0,
+                            fuzziness: withFuzziness ? "AUTO" : 0,
+                            prefix_length: withFuzziness ? 1 : undefined,
                             boost: options.titleBoost * boost,
                         }),
                         {
                             multi_match: {
-                                query: new OpensearchQueryValue(queryText),
+                                query: queryTextValue,
                                 // Sum the score from matches. This means a 3gram match will have a much higher
                                 // score than a 1gram match. Since a 3gram match's score is the 3gram match
                                 // score plus a 2gram match score plus three 1gram match scores.
@@ -1169,13 +1195,23 @@ export async function searchByKeywords(
                             },
                         },
                         {
+                            match: {
+                                body: {
+                                    query: queryTextValue,
+                                    fuzziness: withFuzziness ? "AUTO" : 0,
+                                    prefix_length: withFuzziness ? 1 : undefined,
+                                    boost,
+                                },
+                            },
+                        },
+                        {
                             multi_match: {
-                                query: new OpensearchQueryValue(queryText),
+                                query: queryTextValue,
                                 // Sum the score from matches. This means a 3gram match will have a much higher
                                 // score than a 1gram match. Since a 3gram match's score is the 3gram match
                                 // score plus a 2gram match score plus three 1gram match scores.
                                 type: "most_fields",
-                                fields: ["body", "body._2gram", "body._3gram"],
+                                fields: ["body._2gram", "body._3gram"],
                                 fuzziness: 0,
                                 boost,
                             },
@@ -1183,80 +1219,6 @@ export async function searchByKeywords(
                     ],
                 },
             };
-
-            // Still match even if the query text has typos.
-            //
-            // We only fuzzy match short queries. For longer queries we run into the
-            // OpenSearch max clause limit error.
-            //
-            // We only fuzzy match when searching the individual word index. This is
-            // because fuzziness works by expanding a query to include valid terms within
-            // edit distance. This risks running into the max clause count OpenSearch limit
-            // when used excessively. So only allow exact matches when searching the 2gram
-            // and 3gram fields. This also has the effect of a 2gram match + 1gram match
-            // beating a rare typo (which would have a high score due to low document
-            // frequency).
-            //
-            // While `match_bool_prefix` (which we use above) supports fuzzy search the
-            // final term will not be fuzzy matched. So if there's only one term or the
-            // last term is the critical term we won't be able to fix mispellings.
-            //
-            // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
-            // where, because we're fuzzy matching two words, we end up matching a two word
-            // pair which means something completely different.
-            //
-            // With `prefix_length: 1` we require the first character to be correct for a
-            // fuzzy query to match. This reduces the amount of fuzzy searching we need to
-            // do and also discards some ridiculous fuzzy matches. For example, we see "my
-            // documents" get matched to the 2gram "30 documents". For a 1gram "my" doesn't
-            // match "30" since `fuzziness: "AUTO"` requires an exact match for two
-            // character strings. However the 2gram "my documents" can have two edits which
-            // makes "30 documents" a valid match. Also "be documents" or "of documents". A
-            // prefix length of 1 prevents these from being valid matches.
-            if (queryText.length < 100) {
-                const typoQueryClause: QueryClause = {
-                    bool: {
-                        minimum_should_match: 1,
-                        should: [
-                            {
-                                match: {
-                                    title: {
-                                        query: queryTextValue,
-                                        fuzziness: "AUTO",
-                                        // Reduce the number of fuzzy expansions.
-                                        prefix_length: 1,
-                                        // Misspellings should rank lower than proper spellings.
-                                        boost: options.titleBoost * boost * options.typoBoost,
-                                    },
-                                },
-                            },
-                            {
-                                match: {
-                                    body: {
-                                        query: queryTextValue,
-                                        fuzziness: "AUTO",
-                                        // Reduce the number of fuzzy expansions.
-                                        prefix_length: 1,
-                                        // Misspellings should rank lower than proper spellings.
-                                        boost: boost * options.typoBoost,
-                                    },
-                                },
-                            },
-                        ],
-                    },
-                };
-
-                // Either the query text matches exactly or the query text matches with a typo.
-                // Don't sum the scores together if we have an exact query text match AND a
-                // typo match.
-                queryClause = {
-                    dis_max: {
-                        queries: [queryClause, typoQueryClause],
-                    },
-                };
-            }
-
-            return queryClause;
         });
 
         if (clauses.length === 0) return null;
@@ -2539,52 +2501,28 @@ export async function searchMentionByKeywords(
             bool: {
                 must: [
                     {
-                        // Use `dis_max` since we want to take the larger score of no-typo match vs
-                        // typo match. Not sum the score of a no-typo match and typo match together.
-                        dis_max: {
-                            queries: [
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
+                                    field: "title",
+                                    query: queryText,
+                                    // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
+                                    // because we're fuzzy matching two words, we end up matching a two word
+                                    // pair which means something completely different. e.g. "my documents" matches
+                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    fuzziness: "AUTO",
+                                    // Reduce the number of fuzzy expansions.
+                                    prefix_length: 1,
+                                    boost: 1,
+                                }),
                                 {
-                                    bool: {
-                                        minimum_should_match: 1,
-                                        should: [
-                                            ...getManualMatchBoolPrefixOpensearchShouldQueryClauses(
-                                                {
-                                                    field: "title",
-                                                    query: queryText,
-                                                    fuzziness: 0,
-                                                    boost: 1,
-                                                },
-                                            ),
-                                            {
-                                                multi_match: {
-                                                    query: new OpensearchQueryValue(queryText),
-                                                    type: "most_fields",
-                                                    fields: ["title._2gram", "title._3gram"],
-                                                    fuzziness: 0,
-                                                    boost: 1,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                },
-
-                                // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
-                                // matched. So if there's only one term or the last term is the critical term we
-                                // won't be able to fix mispellings.
-                                //
-                                // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
-                                // where, because we're fuzzy matching two words, we end up matching a two word
-                                // pair which means something completely different.
-                                {
-                                    match: {
-                                        title: {
-                                            query: new OpensearchQueryValue(queryText),
-                                            fuzziness: "AUTO",
-                                            // Reduce the number of fuzzy expansions.
-                                            prefix_length: 1,
-                                            // Misspellings should rank lower than proper spellings.
-                                            boost: standardSearchOptions.typoBoost,
-                                        },
+                                    multi_match: {
+                                        query: new OpensearchQueryValue(queryText),
+                                        type: "most_fields",
+                                        fields: ["title._2gram", "title._3gram"],
+                                        fuzziness: 0,
+                                        boost: 1,
                                     },
                                 },
                             ],
@@ -2713,52 +2651,28 @@ export async function searchChannelsByKeywords(
             bool: {
                 must: [
                     {
-                        // Use `dis_max` since we want to take the larger score of no-typo match vs
-                        // typo match. Not sum the score of a no-typo match and typo match together.
-                        dis_max: {
-                            queries: [
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
+                                    field: "title",
+                                    query: queryText,
+                                    // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
+                                    // because we're fuzzy matching two words, we end up matching a two word
+                                    // pair which means something completely different. e.g. "my documents" matches
+                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    fuzziness: "AUTO",
+                                    // Reduce the number of fuzzy expansions.
+                                    prefix_length: 1,
+                                    boost: 1,
+                                }),
                                 {
-                                    bool: {
-                                        minimum_should_match: 1,
-                                        should: [
-                                            ...getManualMatchBoolPrefixOpensearchShouldQueryClauses(
-                                                {
-                                                    field: "title",
-                                                    query: queryText,
-                                                    fuzziness: 0,
-                                                    boost: 1,
-                                                },
-                                            ),
-                                            {
-                                                multi_match: {
-                                                    query: new OpensearchQueryValue(queryText),
-                                                    type: "most_fields",
-                                                    fields: ["title._2gram", "title._3gram"],
-                                                    fuzziness: 0,
-                                                    boost: 1,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                },
-
-                                // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
-                                // matched. So if there's only one term or the last term is the critical term we
-                                // won't be able to fix mispellings.
-                                //
-                                // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
-                                // where, because we're fuzzy matching two words, we end up matching a two word
-                                // pair which means something completely different.
-                                {
-                                    match: {
-                                        title: {
-                                            query: new OpensearchQueryValue(queryText),
-                                            fuzziness: "AUTO",
-                                            // Reduce the number of fuzzy expansions.
-                                            prefix_length: 1,
-                                            // Misspellings should rank lower than proper spellings.
-                                            boost: standardSearchOptions.typoBoost,
-                                        },
+                                    multi_match: {
+                                        query: new OpensearchQueryValue(queryText),
+                                        type: "most_fields",
+                                        fields: ["title._2gram", "title._3gram"],
+                                        fuzziness: 0,
+                                        boost: 1,
                                     },
                                 },
                             ],
@@ -2934,52 +2848,28 @@ export async function searchTaskCollectionsByKeywords(
             bool: {
                 must: [
                     {
-                        // Use `dis_max` since we want to take the larger score of no-typo match vs
-                        // typo match. Not sum the score of a no-typo match and typo match together.
-                        dis_max: {
-                            queries: [
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
+                                    field: "title",
+                                    query: queryText,
+                                    // Fuzzy matching on 2gram or 3gram fields can lead to some odd results where,
+                                    // because we're fuzzy matching two words, we end up matching a two word
+                                    // pair which means something completely different. e.g. "my documents" matches
+                                    // "30 documents" or "of documents". So we only fuzzy match on the 1gram field.
+                                    fuzziness: "AUTO",
+                                    // Reduce the number of fuzzy expansions.
+                                    prefix_length: 1,
+                                    boost: 1,
+                                }),
                                 {
-                                    bool: {
-                                        minimum_should_match: 1,
-                                        should: [
-                                            ...getManualMatchBoolPrefixOpensearchShouldQueryClauses(
-                                                {
-                                                    field: "title",
-                                                    query: queryText,
-                                                    fuzziness: 0,
-                                                    boost: 1,
-                                                },
-                                            ),
-                                            {
-                                                multi_match: {
-                                                    query: new OpensearchQueryValue(queryText),
-                                                    type: "most_fields",
-                                                    fields: ["title._2gram", "title._3gram"],
-                                                    fuzziness: 0,
-                                                    boost: 1,
-                                                },
-                                            },
-                                        ],
-                                    },
-                                },
-
-                                // While `bool_prefix` supports fuzzy search the final term will not be fuzzy
-                                // matched. So if there's only one term or the last term is the critical term we
-                                // won't be able to fix mispellings.
-                                //
-                                // Also, fuzzy matching on 2gram or 3gram fields can lead to some odd results
-                                // where, because we're fuzzy matching two words, we end up matching a two word
-                                // pair which means something completely different.
-                                {
-                                    match: {
-                                        title: {
-                                            query: new OpensearchQueryValue(queryText),
-                                            fuzziness: "AUTO",
-                                            // Reduce the number of fuzzy expansions.
-                                            prefix_length: 1,
-                                            // Misspellings should rank lower than proper spellings.
-                                            boost: standardSearchOptions.typoBoost,
-                                        },
+                                    multi_match: {
+                                        query: new OpensearchQueryValue(queryText),
+                                        type: "most_fields",
+                                        fields: ["title._2gram", "title._3gram"],
+                                        fuzziness: 0,
+                                        boost: 1,
                                     },
                                 },
                             ],

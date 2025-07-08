@@ -4440,8 +4440,8 @@ test(
             ]);
             expect(await testSearch("test mab")).toEqual([
                 "Test Mabc",
-                "Test Mxyz",
                 "Old Man’s War",
+                "Test Mxyz",
             ]);
             expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
             expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
@@ -4515,8 +4515,8 @@ test(
             ]);
             expect(await testSearch("2024 Q3")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2024Q2",
                 "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
             ]);
             expect(await testSearch("Q3 2024")).toEqual([
                 "Core Product FY2024Q3",
@@ -4530,8 +4530,8 @@ test(
             ]);
             expect(await testSearch("Q3FY2024")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2024Q2",
                 "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
             ]);
             expect(await testSearch("FY2024 Q3")).toEqual([
                 "Core Product FY2024Q3",
@@ -4540,8 +4540,8 @@ test(
             ]);
             expect(await testSearch("Q3 FY2024")).toEqual([
                 "Core Product FY2024Q3",
-                "Core Product FY2024Q2",
                 "Core Product FY2023Q3",
+                "Core Product FY2024Q2",
             ]);
 
             // Testing search as user types
@@ -5309,7 +5309,7 @@ test("searching mentions has effective name fuzzy searching", async () => {
         "Old Man’s War",
     ]);
     expect(await testSearch("test ma")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
-    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Test Mxyz", "Old Man’s War"]);
+    expect(await testSearch("test mab")).toEqual(["Test Mabc", "Old Man’s War", "Test Mxyz"]);
     expect(await testSearch("test mabc")).toEqual(["Test Mabc", "Test Mxyz"]);
     expect(await testSearch("test mx")).toEqual(["Test Mxyz", "Test Mabc"]);
     expect(await testSearch("tes m")).toEqual([
@@ -5382,8 +5382,8 @@ test("searching mentions has effective name fuzzy searching", async () => {
     ]);
     expect(await testSearch("2024 Q3")).toEqual([
         "Core Product FY2024Q3",
-        "Core Product FY2024Q2",
         "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
     ]);
     expect(await testSearch("Q3 2024")).toEqual([
         "Core Product FY2024Q3",
@@ -5397,8 +5397,8 @@ test("searching mentions has effective name fuzzy searching", async () => {
     ]);
     expect(await testSearch("Q3FY2024")).toEqual([
         "Core Product FY2024Q3",
-        "Core Product FY2024Q2",
         "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
     ]);
     expect(await testSearch("FY2024 Q3")).toEqual([
         "Core Product FY2024Q3",
@@ -5407,8 +5407,8 @@ test("searching mentions has effective name fuzzy searching", async () => {
     ]);
     expect(await testSearch("Q3 FY2024")).toEqual([
         "Core Product FY2024Q3",
-        "Core Product FY2024Q2",
         "Core Product FY2023Q3",
+        "Core Product FY2024Q2",
     ]);
 });
 
