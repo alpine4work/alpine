@@ -280,10 +280,9 @@ export const standardSearchOptions: SearchOptions = {
                 // production. Is that a coincidence or can we consolidate on the same values
                 // for development and production?
                 process.env.NODE_ENV === "production"
-                    ? // We got this score when searching (with Cohere in production) "second quarter roadmap" and
-                      // getting a passage from my update email after the notification cycle talking about the plan for
-                      // next cycle (which started in ~June) and the plan for the next couple years. Great match.
-                      465450.1
+                    ? // We got this score when searching (with Cohere in production) "domain engineering" and
+                      // getting a passage from a notes doc of mine about domain engineering. Great match.
+                      0.53
                     : // This is the score from the `all-MiniLM-L6-v2` model for "british currency
                       // history" vs a passage from the first section of the "[Penny (British decimal
                       // coin)][1]" Wikipedia article which is an excellent match.
@@ -305,14 +304,11 @@ export const standardSearchOptions: SearchOptions = {
                 // production. Is that a coincidence or can we consolidate on the same values
                 // for development and production?
                 process.env.NODE_ENV === "production"
-                    ? // We got this score when searching (with Cohere in production) "business
-                      // conference" and getting a passage from the dummy document "PureStream
-                      // Project Brief: Trade Show Participation" which starts with "Showcase our
-                      // eco-friendly water boiler product at a major industry trade show".
-                      //
-                      // While an industry trade show isn't exactly a business conference, it is
-                      // pretty close.
-                      441937.03
+                    ? // We got this score when searching (with Cohere in production) "domain
+                      // engineering" and getting a passage from our key terms doc describing what's
+                      // in the key terms doc. A fine match, the domain in this case is Alpine and
+                      // the doc is mostly engineering terms.
+                      0.42
                     : // This is the score from the `all-MiniLM-L6-v2` model for "marketing result"
                       // vs a passage from the "[Big King][1]" Wikipedia article's [double supreme
                       // advertising][2] section.
