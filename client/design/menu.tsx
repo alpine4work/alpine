@@ -956,18 +956,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     >({isPending: false, shouldShowPendingSpinner: false});
     const isDisabled = action.isDisabled || action.disabledReason !== undefined;
 
-    const {isHovered, hoverProps} = useHover({
-        isDisabled,
-        // When the mouse hovers over a menu item, we focus it so if the user
-        // then uses the keyboard (presses enter or an arrow key) we navigate
-        // using the hovered menu item.
-        onHoverStart: event => {
-            if (!isNotFocusable) event.target.focus({preventScroll: true});
-        },
-        onHoverEnd: event => {
-            if (!isNotFocusable) event.target.blur();
-        },
-    });
+    const {isHovered, hoverProps} = useHover({isDisabled});
 
     const {isPressed, pressProps} = usePress({
         preventFocusOnPress: isNotFocusable,
@@ -1274,17 +1263,7 @@ function MenuCustomItem({
         },
     });
 
-    const {isHovered, hoverProps} = useHover({
-        // When the mouse hovers over a menu item, we focus it so if the user
-        // then uses the keyboard (presses enter or an arrow key) we navigate
-        // using the hovered menu item.
-        onHoverStart: event => {
-            if (!isNotFocusable) event.target.focus();
-        },
-        onHoverEnd: event => {
-            if (!isNotFocusable) event.target.blur();
-        },
-    });
+    const {isHovered, hoverProps} = useHover({});
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.

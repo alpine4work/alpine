@@ -683,30 +683,6 @@ export function ContentEditorMentionFloater({
 
     if (isLoading && !shouldShowLoadingIndicatorIfLoading) return null;
 
-    const handleSelect = (index: number) => {
-        setSelectionState({
-            searchKey: searchMentionOutput.key,
-            index,
-            isFocusVisible: getIsFocusVisible(),
-        });
-    };
-
-    const handleDeselect = (index: number) => {
-        setSelectionState(selectionState => {
-            if (
-                selectionState.searchKey !== searchMentionOutput.key ||
-                selectionState.index !== index
-            ) {
-                return selectionState;
-            }
-            return {
-                searchKey: searchMentionOutput.key,
-                index: null,
-                isFocusVisible: false,
-            };
-        });
-    };
-
     let overlayItemIndex = 0;
 
     const overlay = isLoading ? (
@@ -768,8 +744,6 @@ export function ContentEditorMentionFloater({
                                                 isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
                                                 action={item.action}
-                                                onSelect={() => handleSelect(index)}
-                                                onDeselect={() => handleDeselect(index)}
                                                 onPress={item.onPress}
                                             />
                                         );
@@ -785,8 +759,6 @@ export function ContentEditorMentionFloater({
                                                 isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
                                                 accountData={item.accountData}
-                                                onSelect={() => handleSelect(index)}
-                                                onDeselect={() => handleDeselect(index)}
                                                 onPress={item.onPress}
                                             />
                                         );
@@ -802,8 +774,6 @@ export function ContentEditorMentionFloater({
                                                 isFocusVisible={selectionState.isFocusVisible}
                                                 isSelected={selectionState.index === index}
                                                 entity={item.entity}
-                                                onSelect={() => handleSelect(index)}
-                                                onDeselect={() => handleDeselect(index)}
                                                 onPress={item.onPress}
                                             />
                                         );
@@ -882,8 +852,6 @@ function ContentEditorMentionFloaterItemBase({
     isFocusVisible,
     isClosing,
     children,
-    onSelect,
-    onDeselect,
     onPress,
 }: {
     menuRef: RefObject<HTMLDivElement>;
@@ -893,18 +861,13 @@ function ContentEditorMentionFloaterItemBase({
     isFocusVisible: boolean;
     isClosing: boolean;
     children: ReactNode | ((props: {isPressed: boolean}) => ReactNode);
-    onSelect: () => void;
-    onDeselect: () => void;
     onPress: () => void;
 }) {
     const spacingScale = useSpacingScale();
 
     const itemRef = useRef<HTMLDivElement>(null);
 
-    const {isHovered, hoverProps} = useHover({
-        onHoverStart: onSelect,
-        onHoverEnd: onDeselect,
-    });
+    const {isHovered, hoverProps} = useHover({});
 
     const {isPressed, pressProps} = usePress({
         onPress,
@@ -994,8 +957,6 @@ function ContentEditorMentionFloaterAccountItem({
     isFocusVisible,
     isClosing,
     accountData,
-    onSelect,
-    onDeselect,
     onPress,
 }: {
     menuRef: RefObject<HTMLDivElement>;
@@ -1005,8 +966,6 @@ function ContentEditorMentionFloaterAccountItem({
     isFocusVisible: boolean;
     isClosing: boolean;
     accountData: AccountModelData;
-    onSelect: () => void;
-    onDeselect: () => void;
     onPress: () => void;
 }) {
     return (
@@ -1017,8 +976,6 @@ function ContentEditorMentionFloaterAccountItem({
             isSelected={isSelected}
             isFocusVisible={isFocusVisible}
             isClosing={isClosing}
-            onSelect={onSelect}
-            onDeselect={onDeselect}
             onPress={onPress}
         >
             <AccountAvatar account={accountData} size="5" />
@@ -1037,8 +994,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isFocusVisible,
     isClosing,
     entity,
-    onSelect,
-    onDeselect,
     onPress,
 }: {
     menuRef: RefObject<HTMLDivElement>;
@@ -1048,8 +1003,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     isFocusVisible: boolean;
     isClosing: boolean;
     entity: SearchEntityModel;
-    onSelect: () => void;
-    onDeselect: () => void;
     onPress: () => void;
 }) {
     const spacingScale = useSpacingScale();
@@ -1072,8 +1025,6 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             isSelected={isSelected}
             isFocusVisible={isFocusVisible}
             isClosing={isClosing}
-            onSelect={onSelect}
-            onDeselect={onDeselect}
             onPress={onPress}
         >
             <Box display="flex" alignItems="flex-start">
@@ -1123,8 +1074,6 @@ function ContentEditorMentionFloaterInsertItem({
     isFocusVisible,
     isClosing,
     action,
-    onSelect,
-    onDeselect,
     onPress,
 }: {
     menuRef: RefObject<HTMLDivElement>;
@@ -1134,8 +1083,6 @@ function ContentEditorMentionFloaterInsertItem({
     isFocusVisible: boolean;
     isClosing: boolean;
     action: ContentEditorInsertMenuAction;
-    onSelect: () => void;
-    onDeselect: () => void;
     onPress: () => void;
 }) {
     return (
@@ -1146,8 +1093,6 @@ function ContentEditorMentionFloaterInsertItem({
             isSelected={isSelected}
             isFocusVisible={isFocusVisible}
             isClosing={isClosing}
-            onSelect={onSelect}
-            onDeselect={onDeselect}
             onPress={onPress}
         >
             {({isPressed}) => (
