@@ -26,6 +26,12 @@ type BlobArtProps = {
     scale?: number;
 };
 
+declare global {
+    interface Window {
+        __drawBlobs: (blobCanvasId: string, settings: BlobsSettings) => void;
+    }
+}
+
 function BlobsArtComponent({
     settings: passedSettings,
     scale,
@@ -42,24 +48,21 @@ function BlobsArtComponent({
     // We need a predictable ID for the canvas so that the server-side script can draw to it.
     // This must then translate to the same ID on the client.
     const canvasId = getBlobsCanvasId(settings);
+    const safeCanvasId = safeIdentifierString(canvasId);
 
     // If our settings change, redraw the blobs.
     useEffect(() => {
         if (typeof window === "undefined") return;
-        // @ts-expect-error __drawBlobs is defined in the blobs script.
         window.__drawBlobs(canvasId, settings);
     }, [canvasId, settings, colorScheme]);
 
-    /* eslint-disable string-quotes */
-
     // The canvas is rendered on the server, but we can't draw to it via this component.
     // Instead, we copy the commands ran in generateBlobsForContent and drawBlobFactoryToCanvas
-    // in the server-side script. See the draw_ssr package.
-    const generateBlobs = safe`__drawBlobs('${safeIdentifierString(
-        canvasId,
-    )}', ${safeFlatObjectString(settings)})`;
-
-    /* eslint-enable string-quotes */
+    // in the server-side script. See the blobs/script package.
+    // eslint-disable-next-line string-quotes
+    const generateBlobs = safe`window.__drawBlobs('${safeCanvasId}', ${safeFlatObjectString(
+        settings,
+    )})`;
 
     return (
         <div

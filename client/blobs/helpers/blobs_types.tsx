@@ -1,4 +1,7 @@
+import {BlobFactoryBlob} from "~/client/blobs/helpers/draw_blobs_factory.js";
 import {Color} from "~/shared/design/core/colors.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 
 export const BlobFactoryDrawOutsideFlag = 1;
 export const BlobFactoryDrawInsideFlag = 2;
@@ -59,4 +62,30 @@ export type BlobFactorySettings = {
      * Background color of the blobs
      */
     readonly backgroundColor: Color;
+};
+
+export type BlobFactoryBlobs = ReadonlyArray<BlobFactoryBlob>;
+
+export type BlobFactory =
+    | {
+          isGlSupported: false;
+          draw: null;
+      }
+    | {
+          isGlSupported: true;
+          draw: (
+              sizeValue: Vector2,
+              scale: number,
+              settings: BlobFactorySettings,
+              blobs: BlobFactoryBlobs,
+          ) => HTMLCanvasElement;
+      };
+
+export type BlobsWindowCache = {
+    factory: Lazy<BlobFactory>;
+    timing: Array<number>;
+};
+
+export type HTMLCanvasElementWithBlobSettings = HTMLCanvasElement & {
+    _blobSettings?: BlobFactorySettings;
 };

@@ -5,11 +5,9 @@ import {
     blobsDefaultSettings,
     getBlobsCanvasId,
 } from "~/client/blobs/helpers/blobs_settings.js";
-import {blobScriptString} from "~/client/blobs/script/blobs_script_string.js";
 import {blobsArtStyles} from "~/client/styles/styles.js";
 import {HtmlElementGenerator, HtmlScriptGenerator} from "~/shared/helpers/html/html_generator.js";
 import {
-    dangerouslyCreateSafeString,
     safe,
     safeFlatObjectString,
     safeIdentifierString,
@@ -54,14 +52,11 @@ export function getBlobsHtmlGenerator(
     const gradientHtml = blobContainerHtml.appendChild(new HtmlElementGenerator("div"));
     gradientHtml.setAttribute("class", blobsArtStyles.gradientClassName);
 
-    // Note(imjoshin): This means if we have multiple blobs on a page, this blobSsrString
-    // is loaded into the dom multiple times. While functionally there aren't any concerns,
-    // it's just more code than we need.
-    const renderBlob = dangerouslyCreateSafeString(blobScriptString);
     const safeCanvasId = safeIdentifierString(canvasId);
     // eslint-disable-next-line string-quotes
-    const generateBlobs = safe`__drawBlobs('${safeCanvasId}', ${safeFlatObjectString(settings)})`;
-    blobContainerHtml.appendChild(new HtmlScriptGenerator(renderBlob));
+    const generateBlobs = safe`window.__drawBlobs('${safeCanvasId}', ${safeFlatObjectString(
+        settings,
+    )})`;
     blobContainerHtml.appendChild(new HtmlScriptGenerator(generateBlobs));
 
     return blobContainerHtml;

@@ -1687,6 +1687,490 @@ var require_color = __commonJS({
     },
 });
 
+// node_modules/.aspect_rules_js/scheduler@0.23.0/node_modules/scheduler/cjs/scheduler.development.js
+var require_scheduler_development = __commonJS({
+    "node_modules/.aspect_rules_js/scheduler@0.23.0/node_modules/scheduler/cjs/scheduler.development.js"(
+        exports,
+    ) {
+        "use strict";
+        if (true) {
+            (function () {
+                "use strict";
+                if (
+                    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" &&
+                    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart === "function"
+                ) {
+                    __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
+                }
+                var enableSchedulerDebugging = false;
+                var enableProfiling = false;
+                var frameYieldMs = 5;
+                function push(heap, node) {
+                    var index = heap.length;
+                    heap.push(node);
+                    siftUp(heap, node, index);
+                }
+                function peek(heap) {
+                    return heap.length === 0 ? null : heap[0];
+                }
+                function pop(heap) {
+                    if (heap.length === 0) {
+                        return null;
+                    }
+                    var first = heap[0];
+                    var last = heap.pop();
+                    if (last !== first) {
+                        heap[0] = last;
+                        siftDown(heap, last, 0);
+                    }
+                    return first;
+                }
+                function siftUp(heap, node, i) {
+                    var index = i;
+                    while (index > 0) {
+                        var parentIndex = (index - 1) >>> 1;
+                        var parent = heap[parentIndex];
+                        if (compare(parent, node) > 0) {
+                            heap[parentIndex] = node;
+                            heap[index] = parent;
+                            index = parentIndex;
+                        } else {
+                            return;
+                        }
+                    }
+                }
+                function siftDown(heap, node, i) {
+                    var index = i;
+                    var length = heap.length;
+                    var halfLength = length >>> 1;
+                    while (index < halfLength) {
+                        var leftIndex = (index + 1) * 2 - 1;
+                        var left = heap[leftIndex];
+                        var rightIndex = leftIndex + 1;
+                        var right = heap[rightIndex];
+                        if (compare(left, node) < 0) {
+                            if (rightIndex < length && compare(right, left) < 0) {
+                                heap[index] = right;
+                                heap[rightIndex] = node;
+                                index = rightIndex;
+                            } else {
+                                heap[index] = left;
+                                heap[leftIndex] = node;
+                                index = leftIndex;
+                            }
+                        } else if (rightIndex < length && compare(right, node) < 0) {
+                            heap[index] = right;
+                            heap[rightIndex] = node;
+                            index = rightIndex;
+                        } else {
+                            return;
+                        }
+                    }
+                }
+                function compare(a, b) {
+                    var diff = a.sortIndex - b.sortIndex;
+                    return diff !== 0 ? diff : a.id - b.id;
+                }
+                var ImmediatePriority = 1;
+                var UserBlockingPriority = 2;
+                var NormalPriority = 3;
+                var LowPriority = 4;
+                var IdlePriority = 5;
+                function markTaskErrored(task, ms) {}
+                var hasPerformanceNow =
+                    typeof performance === "object" && typeof performance.now === "function";
+                if (hasPerformanceNow) {
+                    var localPerformance = performance;
+                    exports.unstable_now = function () {
+                        return localPerformance.now();
+                    };
+                } else {
+                    var localDate = Date;
+                    var initialTime = localDate.now();
+                    exports.unstable_now = function () {
+                        return localDate.now() - initialTime;
+                    };
+                }
+                var maxSigned31BitInt = 1073741823;
+                var IMMEDIATE_PRIORITY_TIMEOUT = -1;
+                var USER_BLOCKING_PRIORITY_TIMEOUT = 250;
+                var NORMAL_PRIORITY_TIMEOUT = 5e3;
+                var LOW_PRIORITY_TIMEOUT = 1e4;
+                var IDLE_PRIORITY_TIMEOUT = maxSigned31BitInt;
+                var taskQueue = [];
+                var timerQueue = [];
+                var taskIdCounter = 1;
+                var currentTask = null;
+                var currentPriorityLevel = NormalPriority;
+                var isPerformingWork = false;
+                var isHostCallbackScheduled = false;
+                var isHostTimeoutScheduled = false;
+                var localSetTimeout = typeof setTimeout === "function" ? setTimeout : null;
+                var localClearTimeout = typeof clearTimeout === "function" ? clearTimeout : null;
+                var localSetImmediate = typeof setImmediate !== "undefined" ? setImmediate : null;
+                var isInputPending =
+                    typeof navigator !== "undefined" &&
+                    navigator.scheduling !== void 0 &&
+                    navigator.scheduling.isInputPending !== void 0
+                        ? navigator.scheduling.isInputPending.bind(navigator.scheduling)
+                        : null;
+                function advanceTimers(currentTime) {
+                    var timer = peek(timerQueue);
+                    while (timer !== null) {
+                        if (timer.callback === null) {
+                            pop(timerQueue);
+                        } else if (timer.startTime <= currentTime) {
+                            pop(timerQueue);
+                            timer.sortIndex = timer.expirationTime;
+                            push(taskQueue, timer);
+                        } else {
+                            return;
+                        }
+                        timer = peek(timerQueue);
+                    }
+                }
+                function handleTimeout(currentTime) {
+                    isHostTimeoutScheduled = false;
+                    advanceTimers(currentTime);
+                    if (!isHostCallbackScheduled) {
+                        if (peek(taskQueue) !== null) {
+                            isHostCallbackScheduled = true;
+                            requestHostCallback(flushWork);
+                        } else {
+                            var firstTimer = peek(timerQueue);
+                            if (firstTimer !== null) {
+                                requestHostTimeout(
+                                    handleTimeout,
+                                    firstTimer.startTime - currentTime,
+                                );
+                            }
+                        }
+                    }
+                }
+                function flushWork(hasTimeRemaining, initialTime2) {
+                    isHostCallbackScheduled = false;
+                    if (isHostTimeoutScheduled) {
+                        isHostTimeoutScheduled = false;
+                        cancelHostTimeout();
+                    }
+                    isPerformingWork = true;
+                    var previousPriorityLevel = currentPriorityLevel;
+                    try {
+                        if (enableProfiling) {
+                            try {
+                                return workLoop(hasTimeRemaining, initialTime2);
+                            } catch (error) {
+                                if (currentTask !== null) {
+                                    var currentTime = exports.unstable_now();
+                                    markTaskErrored(currentTask, currentTime);
+                                    currentTask.isQueued = false;
+                                }
+                                throw error;
+                            }
+                        } else {
+                            return workLoop(hasTimeRemaining, initialTime2);
+                        }
+                    } finally {
+                        currentTask = null;
+                        currentPriorityLevel = previousPriorityLevel;
+                        isPerformingWork = false;
+                    }
+                }
+                function workLoop(hasTimeRemaining, initialTime2) {
+                    var currentTime = initialTime2;
+                    advanceTimers(currentTime);
+                    currentTask = peek(taskQueue);
+                    while (currentTask !== null && !enableSchedulerDebugging) {
+                        if (
+                            currentTask.expirationTime > currentTime &&
+                            (!hasTimeRemaining || shouldYieldToHost())
+                        ) {
+                            break;
+                        }
+                        var callback = currentTask.callback;
+                        if (typeof callback === "function") {
+                            currentTask.callback = null;
+                            currentPriorityLevel = currentTask.priorityLevel;
+                            var didUserCallbackTimeout = currentTask.expirationTime <= currentTime;
+                            var continuationCallback = callback(didUserCallbackTimeout);
+                            currentTime = exports.unstable_now();
+                            if (typeof continuationCallback === "function") {
+                                currentTask.callback = continuationCallback;
+                            } else {
+                                if (currentTask === peek(taskQueue)) {
+                                    pop(taskQueue);
+                                }
+                            }
+                            advanceTimers(currentTime);
+                        } else {
+                            pop(taskQueue);
+                        }
+                        currentTask = peek(taskQueue);
+                    }
+                    if (currentTask !== null) {
+                        return true;
+                    } else {
+                        var firstTimer = peek(timerQueue);
+                        if (firstTimer !== null) {
+                            requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
+                        }
+                        return false;
+                    }
+                }
+                function unstable_runWithPriority2(priorityLevel, eventHandler) {
+                    switch (priorityLevel) {
+                        case ImmediatePriority:
+                        case UserBlockingPriority:
+                        case NormalPriority:
+                        case LowPriority:
+                        case IdlePriority:
+                            break;
+                        default:
+                            priorityLevel = NormalPriority;
+                    }
+                    var previousPriorityLevel = currentPriorityLevel;
+                    currentPriorityLevel = priorityLevel;
+                    try {
+                        return eventHandler();
+                    } finally {
+                        currentPriorityLevel = previousPriorityLevel;
+                    }
+                }
+                function unstable_next(eventHandler) {
+                    var priorityLevel;
+                    switch (currentPriorityLevel) {
+                        case ImmediatePriority:
+                        case UserBlockingPriority:
+                        case NormalPriority:
+                            priorityLevel = NormalPriority;
+                            break;
+                        default:
+                            priorityLevel = currentPriorityLevel;
+                            break;
+                    }
+                    var previousPriorityLevel = currentPriorityLevel;
+                    currentPriorityLevel = priorityLevel;
+                    try {
+                        return eventHandler();
+                    } finally {
+                        currentPriorityLevel = previousPriorityLevel;
+                    }
+                }
+                function unstable_wrapCallback(callback) {
+                    var parentPriorityLevel = currentPriorityLevel;
+                    return function () {
+                        var previousPriorityLevel = currentPriorityLevel;
+                        currentPriorityLevel = parentPriorityLevel;
+                        try {
+                            return callback.apply(this, arguments);
+                        } finally {
+                            currentPriorityLevel = previousPriorityLevel;
+                        }
+                    };
+                }
+                function unstable_scheduleCallback(priorityLevel, callback, options) {
+                    var currentTime = exports.unstable_now();
+                    var startTime2;
+                    if (typeof options === "object" && options !== null) {
+                        var delay = options.delay;
+                        if (typeof delay === "number" && delay > 0) {
+                            startTime2 = currentTime + delay;
+                        } else {
+                            startTime2 = currentTime;
+                        }
+                    } else {
+                        startTime2 = currentTime;
+                    }
+                    var timeout;
+                    switch (priorityLevel) {
+                        case ImmediatePriority:
+                            timeout = IMMEDIATE_PRIORITY_TIMEOUT;
+                            break;
+                        case UserBlockingPriority:
+                            timeout = USER_BLOCKING_PRIORITY_TIMEOUT;
+                            break;
+                        case IdlePriority:
+                            timeout = IDLE_PRIORITY_TIMEOUT;
+                            break;
+                        case LowPriority:
+                            timeout = LOW_PRIORITY_TIMEOUT;
+                            break;
+                        case NormalPriority:
+                        default:
+                            timeout = NORMAL_PRIORITY_TIMEOUT;
+                            break;
+                    }
+                    var expirationTime = startTime2 + timeout;
+                    var newTask = {
+                        id: taskIdCounter++,
+                        callback,
+                        priorityLevel,
+                        startTime: startTime2,
+                        expirationTime,
+                        sortIndex: -1,
+                    };
+                    if (startTime2 > currentTime) {
+                        newTask.sortIndex = startTime2;
+                        push(timerQueue, newTask);
+                        if (peek(taskQueue) === null && newTask === peek(timerQueue)) {
+                            if (isHostTimeoutScheduled) {
+                                cancelHostTimeout();
+                            } else {
+                                isHostTimeoutScheduled = true;
+                            }
+                            requestHostTimeout(handleTimeout, startTime2 - currentTime);
+                        }
+                    } else {
+                        newTask.sortIndex = expirationTime;
+                        push(taskQueue, newTask);
+                        if (!isHostCallbackScheduled && !isPerformingWork) {
+                            isHostCallbackScheduled = true;
+                            requestHostCallback(flushWork);
+                        }
+                    }
+                    return newTask;
+                }
+                function unstable_pauseExecution() {}
+                function unstable_continueExecution() {
+                    if (!isHostCallbackScheduled && !isPerformingWork) {
+                        isHostCallbackScheduled = true;
+                        requestHostCallback(flushWork);
+                    }
+                }
+                function unstable_getFirstCallbackNode() {
+                    return peek(taskQueue);
+                }
+                function unstable_cancelCallback(task) {
+                    task.callback = null;
+                }
+                function unstable_getCurrentPriorityLevel() {
+                    return currentPriorityLevel;
+                }
+                var isMessageLoopRunning = false;
+                var scheduledHostCallback = null;
+                var taskTimeoutID = -1;
+                var frameInterval = frameYieldMs;
+                var startTime = -1;
+                function shouldYieldToHost() {
+                    var timeElapsed = exports.unstable_now() - startTime;
+                    if (timeElapsed < frameInterval) {
+                        return false;
+                    }
+                    return true;
+                }
+                function requestPaint() {}
+                function forceFrameRate(fps) {
+                    if (fps < 0 || fps > 125) {
+                        console["error"](
+                            "forceFrameRate takes a positive int between 0 and 125, forcing frame rates higher than 125 fps is not supported",
+                        );
+                        return;
+                    }
+                    if (fps > 0) {
+                        frameInterval = Math.floor(1e3 / fps);
+                    } else {
+                        frameInterval = frameYieldMs;
+                    }
+                }
+                var performWorkUntilDeadline = function () {
+                    if (scheduledHostCallback !== null) {
+                        var currentTime = exports.unstable_now();
+                        startTime = currentTime;
+                        var hasTimeRemaining = true;
+                        var hasMoreWork = true;
+                        try {
+                            hasMoreWork = scheduledHostCallback(hasTimeRemaining, currentTime);
+                        } finally {
+                            if (hasMoreWork) {
+                                schedulePerformWorkUntilDeadline();
+                            } else {
+                                isMessageLoopRunning = false;
+                                scheduledHostCallback = null;
+                            }
+                        }
+                    } else {
+                        isMessageLoopRunning = false;
+                    }
+                };
+                var schedulePerformWorkUntilDeadline;
+                if (typeof localSetImmediate === "function") {
+                    schedulePerformWorkUntilDeadline = function () {
+                        localSetImmediate(performWorkUntilDeadline);
+                    };
+                } else if (typeof MessageChannel !== "undefined") {
+                    var channel = new MessageChannel();
+                    var port = channel.port2;
+                    channel.port1.onmessage = performWorkUntilDeadline;
+                    schedulePerformWorkUntilDeadline = function () {
+                        port.postMessage(null);
+                    };
+                } else {
+                    schedulePerformWorkUntilDeadline = function () {
+                        localSetTimeout(performWorkUntilDeadline, 0);
+                    };
+                }
+                function requestHostCallback(callback) {
+                    scheduledHostCallback = callback;
+                    if (!isMessageLoopRunning) {
+                        isMessageLoopRunning = true;
+                        schedulePerformWorkUntilDeadline();
+                    }
+                }
+                function requestHostTimeout(callback, ms) {
+                    taskTimeoutID = localSetTimeout(function () {
+                        callback(exports.unstable_now());
+                    }, ms);
+                }
+                function cancelHostTimeout() {
+                    localClearTimeout(taskTimeoutID);
+                    taskTimeoutID = -1;
+                }
+                var unstable_requestPaint = requestPaint;
+                var unstable_Profiling = null;
+                exports.unstable_IdlePriority = IdlePriority;
+                exports.unstable_ImmediatePriority = ImmediatePriority;
+                exports.unstable_LowPriority = LowPriority;
+                exports.unstable_NormalPriority = NormalPriority;
+                exports.unstable_Profiling = unstable_Profiling;
+                exports.unstable_UserBlockingPriority = UserBlockingPriority;
+                exports.unstable_cancelCallback = unstable_cancelCallback;
+                exports.unstable_continueExecution = unstable_continueExecution;
+                exports.unstable_forceFrameRate = forceFrameRate;
+                exports.unstable_getCurrentPriorityLevel = unstable_getCurrentPriorityLevel;
+                exports.unstable_getFirstCallbackNode = unstable_getFirstCallbackNode;
+                exports.unstable_next = unstable_next;
+                exports.unstable_pauseExecution = unstable_pauseExecution;
+                exports.unstable_requestPaint = unstable_requestPaint;
+                exports.unstable_runWithPriority = unstable_runWithPriority2;
+                exports.unstable_scheduleCallback = unstable_scheduleCallback;
+                exports.unstable_shouldYield = shouldYieldToHost;
+                exports.unstable_wrapCallback = unstable_wrapCallback;
+                if (
+                    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" &&
+                    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop === "function"
+                ) {
+                    __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
+                }
+            })();
+        }
+    },
+});
+
+// node_modules/.aspect_rules_js/scheduler@0.23.0/node_modules/scheduler/index.js
+var require_scheduler = __commonJS({
+    "node_modules/.aspect_rules_js/scheduler@0.23.0/node_modules/scheduler/index.js"(
+        exports,
+        module,
+    ) {
+        "use strict";
+        if (false) {
+            module.exports = null;
+        } else {
+            module.exports = require_scheduler_development();
+        }
+    },
+});
+
 // client/blobs/helpers/blobs_settings.js
 var blobsCanvasWidthPx = 1e4;
 var blobsContentWidthPx = 1200;
@@ -2654,6 +3138,9 @@ function cubehelix2(hue2) {
 }
 var cubehelix_default = cubehelix2(hue);
 var cubehelixLong = cubehelix2(nogamma);
+
+// client/blobs/helpers/draw_blobs_factory.js
+var import_scheduler = __toESM(require_scheduler());
 
 // shared/helpers/array/create_array_with_length.js
 function createArrayWithLength(length, createItem) {
@@ -3773,6 +4260,110 @@ var easeInOutCirc = t => {
 };
 easeInOutCirc.cubicBezier = "cubic-bezier(0.85, 0, 0.15, 1)";
 
+// node_modules/.aspect_rules_js/date-fns@4.1.0/node_modules/date-fns/constants.js
+var daysInYear = 365.2425;
+var maxTime = Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
+var minTime = -maxTime;
+var secondsInHour = 3600;
+var secondsInDay = secondsInHour * 24;
+var secondsInWeek = secondsInDay * 7;
+var secondsInYear = secondsInDay * daysInYear;
+var secondsInMonth = secondsInYear / 12;
+var secondsInQuarter = secondsInMonth * 3;
+var constructFromSymbol = Symbol.for("constructDateFrom");
+
+// node_modules/.aspect_rules_js/date-fns@4.1.0/node_modules/date-fns/constructFrom.js
+function constructFrom(date, value) {
+    if (typeof date === "function") return date(value);
+    if (date && typeof date === "object" && constructFromSymbol in date)
+        return date[constructFromSymbol](value);
+    if (date instanceof Date) return new date.constructor(value);
+    return new Date(value);
+}
+
+// node_modules/.aspect_rules_js/date-fns@4.1.0/node_modules/date-fns/toDate.js
+function toDate(argument, context) {
+    return constructFrom(context || argument, argument);
+}
+
+// node_modules/.aspect_rules_js/date-fns@4.1.0/node_modules/date-fns/isEqual.js
+function isEqual(leftDate, rightDate) {
+    return +toDate(leftDate) === +toDate(rightDate);
+}
+
+// shared/helpers/object/is_plain_object.js
+function isPlainObject(value) {
+    if (typeof value !== "object" || value === null) return false;
+    if (Object.getPrototypeOf(value) === null) {
+        return true;
+    }
+    let prototype = value;
+    while (Object.getPrototypeOf(prototype) !== null) {
+        prototype = Object.getPrototypeOf(prototype);
+    }
+    return Object.getPrototypeOf(value) === prototype;
+}
+
+// shared/helpers/control/is_deep_equal.js
+function isDeepEqual(value1, value2) {
+    if (value1 === value2) return true;
+    if (
+        value1 !== null &&
+        value2 !== null &&
+        typeof value1 === "object" &&
+        typeof value2 === "object"
+    ) {
+        return areObjectsDeeplyEqual(value1, value2);
+    }
+    if (typeof value1 === "number" && typeof value2 === "number") {
+        return Object.is(value1, value2);
+    }
+    return false;
+}
+function areObjectsDeeplyEqual(object1, object2) {
+    if (object1 === object2) return true;
+    if (!isPlainObject(object1) || !isPlainObject(object2)) {
+        if (Array.isArray(object1) && Array.isArray(object2))
+            return areArraysDeeplyEqual(object1, object2);
+        if (object1 instanceof Map && object2 instanceof Map)
+            return areMapsDeeplyEqual(object1, object2);
+        if (object1 instanceof Set && object2 instanceof Set)
+            return areSetsDeeplyEqual(object1, object2);
+        if (object1 instanceof Date && object2 instanceof Date) return isEqual(object1, object2);
+        return false;
+    }
+    const object1Keys = new Set(Object.keys(object1));
+    for (const [key, value2] of Object.entries(object2)) {
+        if (!object1Keys.delete(key)) return false;
+        if (!hasOwnProperty(object1, key)) return false;
+        const value1 = object1[key];
+        if (!isDeepEqual(value1, value2)) return false;
+    }
+    return object1Keys.size === 0;
+}
+function areArraysDeeplyEqual(array1, array2) {
+    if (array1.length !== array2.length) return false;
+    return array1.every((item1, index) => isDeepEqual(item1, array2[index]));
+}
+function areMapsDeeplyEqual(map1, map2) {
+    if (map1.size !== map2.size) return false;
+    const map1Keys = new Set(map1.keys());
+    for (const [key, value2] of map2) {
+        if (!map1Keys.delete(key)) return false;
+        const value1 = map1.get(key);
+        if (!isDeepEqual(value1, value2)) return false;
+    }
+    return map1Keys.size === 0;
+}
+function areSetsDeeplyEqual(set1, set2) {
+    if (set1.size !== set2.size) return false;
+    const clonedSet1 = new Set(set1);
+    for (const item of set2) {
+        if (!clonedSet1.delete(item)) return false;
+    }
+    return clonedSet1.size === 0;
+}
+
 // shared/helpers/control/capture_result.js
 function captureResult(action) {
     try {
@@ -3957,116 +4548,165 @@ var Vector2 = class _Vector2 {
 };
 
 // client/blobs/helpers/draw_blobs_factory.js
-var blobFactory = new Lazy(() => {
-    const canvas = document.createElement("canvas");
-    if (!canvas.getContext("webgl2"))
+if (typeof window !== "undefined" && !window.__blobs) {
+    const factory = new Lazy(() => {
+        const canvas = document.createElement("canvas");
+        if (!canvas.getContext("webgl2"))
+            return {
+                isGlSupported: false,
+                draw: null,
+            };
+        const displayGl = new Gl(canvas);
+        const fragShader = displayGl.createShader(
+            GlShaderType.Fragment,
+            blobFactoryShaderFragSource,
+        );
+        const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
+        const program = displayGl.createProgram(vertShader, fragShader);
+        const size = program.uniformVector2("u_resolution", new Vector2(100, 100));
+        const smoothness = program.uniformFloat("u_smoothness", 0);
+        const blurSize = program.uniformFloat("u_blurSize", 0);
+        const blurSpread = program.uniformFloat("u_blurSpread", 0.1);
+        const mode = program.uniformEnum("u_mode", 0);
+        const backgroundColor = program.uniformColor(
+            "u_backgroundColor",
+            new import_color10.default(colors["grey-0"]),
+        );
+        const hueBias = program.uniformFloat("u_hueBias", 0);
+        const positionsVao = program.createAndBindVertexArray({
+            name: "a_position",
+            size: 2,
+            type: GlVertexAttribType.Float,
+        });
+        const texture = displayGl.createTexture(0, {
+            internalFormat: GlTextureInternalFormat.Rgba32f,
+            pixelType: GlPixelType.Float,
+            pixelFormat: GlPixelFormat.Rgba,
+        });
+        texture.configureForData();
+        program.uniformTexture2d("u_blobs", texture);
         return {
-            isGlSupported: false,
-            draw: null,
+            isGlSupported: true,
+            draw: (sizeValue, scale, settings, blobs) => {
+                canvas.width = sizeValue.x * scale;
+                canvas.height = sizeValue.y * scale;
+                size.value = sizeValue;
+                displayGl.setDefaultViewport();
+                const positions = [
+                    0,
+                    0,
+                    sizeValue.x,
+                    sizeValue.y,
+                    0,
+                    sizeValue.y,
+                    0,
+                    0,
+                    sizeValue.x,
+                    0,
+                    sizeValue.x,
+                    sizeValue.y,
+                ];
+                positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
+                smoothness.value = settings.smoothness;
+                blurSize.value = settings.blurSize;
+                blurSpread.value = settings.blurSpread;
+                mode.value = blobFactoryModeFromSettings(settings);
+                hueBias.value = settings.hueBias;
+                backgroundColor.value = new import_color10.default(
+                    colors[settings.backgroundColor],
+                );
+                displayGl.clear();
+                const {colorLevelInside, colorLevelOutside} = settings;
+                texture.update({
+                    width: blobs.length * (BlobFactoryBlob.size / 4),
+                    height: 1,
+                    data: new Float32Array(
+                        blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
+                    ),
+                });
+                program.use();
+                positionsVao.bindVao();
+                displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
+                return canvas;
+            },
         };
-    const displayGl = new Gl(canvas);
-    const fragShader = displayGl.createShader(GlShaderType.Fragment, blobFactoryShaderFragSource);
-    const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
-    const program = displayGl.createProgram(vertShader, fragShader);
-    const size = program.uniformVector2("u_resolution", new Vector2(100, 100));
-    const smoothness = program.uniformFloat("u_smoothness", 0);
-    const blurSize = program.uniformFloat("u_blurSize", 0);
-    const blurSpread = program.uniformFloat("u_blurSpread", 0.1);
-    const mode = program.uniformEnum("u_mode", 0);
-    const backgroundColor = program.uniformColor(
-        "u_backgroundColor",
-        new import_color10.default(colors["grey-0"]),
-    );
-    const hueBias = program.uniformFloat("u_hueBias", 0);
-    const positionsVao = program.createAndBindVertexArray({
-        name: "a_position",
-        size: 2,
-        type: GlVertexAttribType.Float,
     });
-    const texture = displayGl.createTexture(0, {
-        internalFormat: GlTextureInternalFormat.Rgba32f,
-        pixelType: GlPixelType.Float,
-        pixelFormat: GlPixelFormat.Rgba,
-    });
-    texture.configureForData();
-    program.uniformTexture2d("u_blobs", texture);
-    return {
-        isGlSupported: true,
-        draw: (sizeValue, scale, settings, blobs) => {
-            canvas.width = sizeValue.x * scale;
-            canvas.height = sizeValue.y * scale;
-            size.value = sizeValue;
-            displayGl.setDefaultViewport();
-            const positions = [
-                0,
-                0,
-                sizeValue.x,
-                sizeValue.y,
-                0,
-                sizeValue.y,
-                0,
-                0,
-                sizeValue.x,
-                0,
-                sizeValue.x,
-                sizeValue.y,
-            ];
-            positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
-            smoothness.value = settings.smoothness;
-            blurSize.value = settings.blurSize;
-            blurSpread.value = settings.blurSpread;
-            mode.value = blobFactoryModeFromSettings(settings);
-            hueBias.value = settings.hueBias;
-            backgroundColor.value = new import_color10.default(colors[settings.backgroundColor]);
-            displayGl.clear();
-            const {colorLevelInside, colorLevelOutside} = settings;
-            texture.update({
-                width: blobs.length * (BlobFactoryBlob.size / 4),
-                height: 1,
-                data: new Float32Array(
-                    blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
-                ),
-            });
-            program.use();
-            positionsVao.bindVao();
-            displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
-            return canvas;
-        },
+    window.__blobs = {
+        factory,
+        timing: [],
     };
-});
+}
+function willDrawBlobFactoryToCanvas(canvas, blobSettings) {
+    if (typeof window === "undefined" || isDeepEqual(canvas._blobSettings, blobSettings)) {
+        return {
+            ok: false,
+        };
+    }
+    const factory = window.__blobs.factory.get();
+    if (!factory.isGlSupported) {
+        return {
+            ok: false,
+        };
+    }
+    const now = Date.now();
+    if (now - (window.__blobs.timing[0] || 0) > 1e3) {
+        window.__blobs.timing = window.__blobs.timing.filter(timestamp => now - timestamp < 1e3);
+    }
+    window.__blobs.timing.push(now);
+    canvas._blobSettings = blobSettings;
+    return {
+        ok: true,
+        factory,
+        // If we've started drawing a lot of blobs in the last second, we defer the drawing
+        // to avoid blocking the main thread for too long. This is a workaround for performance issues
+        // when drawing many blobs at once, especially on lower-end devices.
+        defer: window.__blobs.timing.length > 2,
+    };
+}
 function drawBlobFactoryToCanvas(canvas, settings, blobs) {
-    var _a, _b;
-    const blobKey = btoa(JSON.stringify(settings));
-    if (canvas.getAttribute("data-drawn") === blobKey) return;
-    const drawResult = blobFactory.get();
-    if (!drawResult.isGlSupported) return;
+    const willDraw = willDrawBlobFactoryToCanvas(canvas, settings);
+    if (!willDraw.ok) {
+        return;
+    }
+    const {factory} = willDraw;
+    assert(factory.isGlSupported, "Factory should be GL supported");
     const scale = 1;
-    const size = new Vector2(canvas.width, canvas.height).div(scale);
-    const result = drawResult.draw(size, scale, settings, blobs);
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
-    canvas.setAttribute("data-drawn", blobKey);
-    const gradient = assertExists(
-        (_b =
-            (_a = canvas.parentElement) == null
+    const actuallyDraw = () => {
+        var _a, _b;
+        const size = new Vector2(canvas.width, canvas.height).div(scale);
+        const result = factory.draw(size, scale, settings, blobs);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        const gradient = assertExists(
+            (_b =
+                (_a = canvas.parentElement) == null
+                    ? void 0
+                    : _a.getElementsByClassName(blobsArtStyles.gradientClassName)) == null
                 ? void 0
-                : _a.getElementsByClassName(blobsArtStyles.gradientClassName)) == null
-            ? void 0
-            : _b[0],
-    );
-    const gradientBackground = formatCssLinearGradient(
-        "to bottom",
-        generateEasedGradient(
-            new import_color10.default(colors[settings.backgroundColor]).alpha(0).toString(),
-            colors[settings.backgroundColor],
-            easeInOutSin,
-            10,
-        ),
-    );
-    gradient.setAttribute(
-        "style",
-        `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
-    );
+                : _b[0],
+        );
+        const gradientBackground = formatCssLinearGradient(
+            "to bottom",
+            generateEasedGradient(
+                new import_color10.default(colors[settings.backgroundColor]).alpha(0).toString(),
+                colors[settings.backgroundColor],
+                easeInOutSin,
+                10,
+            ),
+        );
+        gradient.setAttribute(
+            "style",
+            `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
+        );
+    };
+    if (willDraw.defer) {
+        (0, import_scheduler.unstable_runWithPriority)(
+            import_scheduler.unstable_NormalPriority,
+            actuallyDraw,
+        );
+    } else {
+        actuallyDraw();
+    }
 }
 var BlobFactoryBlob = class {
     static size = 12;
@@ -4080,7 +4720,8 @@ var BlobFactoryBlob = class {
         const color2 = getInterpolatedThemeColor(colorLevel, this.themeColor).lch();
         const parts = color2.array();
         parts[2] = parts[2] + this.hueOffset;
-        return import_color10.default.lch(...parts).rgb();
+        const finalColor = import_color10.default.lch(...parts).rgb();
+        return finalColor;
     }
     toArray(colorLevelInside, colorLevelOutside) {
         const insideColor = this.getColor(colorLevelInside);
@@ -4253,10 +4894,7 @@ function generateBlobsForContent({
 }
 
 // client/blobs/script/internal/blobs_script.js
-function drawBlob(blobCanvasId, settings) {
-    if (settings === true) {
-        return drawBlob;
-    }
+function drawBlobs(blobCanvasId, settings) {
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
     const actuallyDrawBlobs = colorScheme => {
         const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-100";
@@ -4312,5 +4950,20 @@ function drawBlob(blobCanvasId, settings) {
     }
     actuallyDrawBlobs(initialColorScheme);
 }
-drawBlob("", true);
+if (typeof window !== "undefined") {
+    window.__drawBlobs = drawBlobs;
+}
+/*! Bundled license information:
+
+scheduler/cjs/scheduler.development.js:
+  (**
+   * @license React
+   * scheduler.development.js
+   *
+   * Copyright (c) Facebook, Inc. and its affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   *)
+*/
 //# sourceMappingURL=blobs_script_bundle_debug_unminified.js.map

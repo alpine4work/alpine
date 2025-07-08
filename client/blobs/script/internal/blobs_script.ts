@@ -11,6 +11,12 @@ import {generateBlobsForContent} from "~/client/blobs/helpers/generate_blobs_for
 import {ColorScheme} from "~/client/helpers/color_scheme.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
+declare global {
+    interface Window {
+        __drawBlobs: typeof drawBlobs;
+    }
+}
+
 // TODO: Make blobs change color on color scheme change.
 // function onBlobsCanvasRemoved(element: HTMLCanvasElement, callback: () => void) {
 //     new MutationObserver(function (this: MutationObserver) {
@@ -21,13 +27,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 //     }).observe(assertExists(element.parentElement), {childList: true});
 // }
 
-function drawBlob(blobCanvasId: string, settings: BlobsSettings | true) {
-    // We're just initializing this method in the server side script so esbuild doesn't remove it
-    if (settings === true) {
-        // Return ourselves so we can export the minified version from our Bazel build
-        return drawBlob;
-    }
-
+function drawBlobs(blobCanvasId: string, settings: BlobsSettings) {
     // eslint-disable-next-line string-quotes
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
 
@@ -100,4 +100,6 @@ function drawBlob(blobCanvasId: string, settings: BlobsSettings | true) {
     // });
 }
 
-drawBlob("", true);
+if (typeof window !== "undefined") {
+    window.__drawBlobs = drawBlobs;
+}

@@ -7,11 +7,10 @@ import {dangerouslyCreateSafeString} from "~/shared/helpers/string/safe_string.j
  * This allows us to store the function in a global context, allowing
  * other scripts to call it without needing to hold a copy.
  */
-export function BlobsArtProvider({children}: {children: React.ReactNode}) {
+export function BlobsArtProvider() {
     return (
         <>
             <ScriptBeforeAppInitialRender script={dangerouslyCreateSafeString(blobScriptString)} />
-            {children}
         </>
     );
 }

@@ -35,7 +35,7 @@ genrule(
     #  - We find the last instance of a function call and assume that's the end of our library calls
     #  - We set the drawBlob function to the last function call (which is our init function)
     cmd = """
-        $(location //:node) --eval "let bundle = fs.readFileSync('$<').toString().split('}'); const initLine = bundle[bundle.length - 1]; bundle[bundle.length - 1] = 'var __drawBlobs = ' + initLine; console.log('export const blobScriptString = ' + JSON.stringify(bundle.join('}')));" > $@
+        $(location //:node) --eval "let bundle = fs.readFileSync('$<').toString(); console.log('export const blobScriptString = ' + JSON.stringify(bundle));" > $@
     """,
     tools = [
         "//:node",

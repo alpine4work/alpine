@@ -1,5 +1,6 @@
 import Color from "color";
 import {interpolateHcl} from "d3-interpolate";
+import {unstable_NormalPriority, unstable_runWithPriority} from "scheduler";
 import {
     formatCssLinearGradient,
     generateEasedGradient,
@@ -7,7 +8,11 @@ import {
 import {blobFactoryShaderFragSource} from "~/client/blobs/helpers/blobs_shader_frag.js";
 import {blobFactoryShaderVertSource} from "~/client/blobs/helpers/blobs_shader_vert.js";
 import {
+    BlobFactory,
+    BlobFactoryBlobs,
     BlobFactorySettings,
+    BlobsWindowCache,
+    HTMLCanvasElementWithBlobSettings,
     blobFactoryModeFromSettings,
 } from "~/client/blobs/helpers/blobs_types.js";
 import {Gl} from "~/client/helpers/gl/gl.js";
@@ -24,168 +29,211 @@ import {blobsArtStyles} from "~/client/styles/other/styles_other.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {invLerp} from "~/shared/helpers/number/inv_lerp.js";
 
-export type BlobFactory = {
-    setSize(size: Vector2): void;
-    setSettings(settings: Partial<BlobFactorySettings>): void;
-    setBlobs(blobs: BlobFactoryBlobs): void;
-    destroy(): void;
-};
+declare global {
+    interface Window {
+        __blobs: BlobsWindowCache;
+    }
+}
 
-export type BlobFactoryBlobs = ReadonlyArray<BlobFactoryBlob>;
+if (typeof window !== "undefined" && !window.__blobs) {
+    const factory = new Lazy<BlobFactory>(() => {
+        const canvas = document.createElement("canvas");
+        if (!canvas.getContext("webgl2")) return {isGlSupported: false, draw: null};
+        const displayGl = new Gl(canvas);
+        const fragShader = displayGl.createShader(
+            GlShaderType.Fragment,
+            blobFactoryShaderFragSource,
+        );
+        const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
+        const program = displayGl.createProgram(vertShader, fragShader);
 
-const blobFactory = new Lazy<
-    | {
-          isGlSupported: false;
-          draw: null;
-      }
-    | {
-          isGlSupported: true;
-          draw: (
-              sizeValue: Vector2,
-              scale: number,
-              settings: BlobFactorySettings,
-              blobs: BlobFactoryBlobs,
-          ) => HTMLCanvasElement;
-      }
->(() => {
-    const canvas = document.createElement("canvas");
-    if (!canvas.getContext("webgl2")) return {isGlSupported: false, draw: null};
-    const displayGl = new Gl(canvas);
-    const fragShader = displayGl.createShader(GlShaderType.Fragment, blobFactoryShaderFragSource);
-    const vertShader = displayGl.createShader(GlShaderType.Vertex, blobFactoryShaderVertSource);
-    const program = displayGl.createProgram(vertShader, fragShader);
+        const size = program.uniformVector2("u_resolution", new Vector2(100, 100));
+        const smoothness = program.uniformFloat("u_smoothness", 0);
+        const blurSize = program.uniformFloat("u_blurSize", 0);
+        const blurSpread = program.uniformFloat("u_blurSpread", 0.1);
+        const mode = program.uniformEnum<number>("u_mode", 0);
+        const backgroundColor = program.uniformColor(
+            "u_backgroundColor",
+            new Color(colors["grey-0"]),
+        );
+        const hueBias = program.uniformFloat("u_hueBias", 0);
 
-    const size = program.uniformVector2("u_resolution", new Vector2(100, 100));
-    const smoothness = program.uniformFloat("u_smoothness", 0);
-    const blurSize = program.uniformFloat("u_blurSize", 0);
-    const blurSpread = program.uniformFloat("u_blurSpread", 0.1);
-    const mode = program.uniformEnum<number>("u_mode", 0);
-    const backgroundColor = program.uniformColor("u_backgroundColor", new Color(colors["grey-0"]));
-    const hueBias = program.uniformFloat("u_hueBias", 0);
+        const positionsVao = program.createAndBindVertexArray({
+            name: "a_position",
+            size: 2,
+            type: GlVertexAttribType.Float,
+        });
 
-    const positionsVao = program.createAndBindVertexArray({
-        name: "a_position",
-        size: 2,
-        type: GlVertexAttribType.Float,
+        const texture = displayGl.createTexture(0, {
+            internalFormat: GlTextureInternalFormat.Rgba32f,
+            pixelType: GlPixelType.Float,
+            pixelFormat: GlPixelFormat.Rgba,
+        });
+        texture.configureForData();
+        program.uniformTexture2d("u_blobs", texture);
+
+        return {
+            isGlSupported: true,
+            draw: (
+                sizeValue: Vector2,
+                scale: number,
+                settings: BlobFactorySettings,
+                blobs: BlobFactoryBlobs,
+            ): HTMLCanvasElement => {
+                canvas.width = sizeValue.x * scale;
+                canvas.height = sizeValue.y * scale;
+
+                size.value = sizeValue;
+                displayGl.setDefaultViewport();
+                const positions = [
+                    0,
+                    0,
+                    sizeValue.x,
+                    sizeValue.y,
+                    0,
+                    sizeValue.y,
+                    0,
+                    0,
+                    sizeValue.x,
+                    0,
+                    sizeValue.x,
+                    sizeValue.y,
+                ];
+                positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
+
+                smoothness.value = settings.smoothness;
+                blurSize.value = settings.blurSize;
+                blurSpread.value = settings.blurSpread;
+                mode.value = blobFactoryModeFromSettings(settings);
+                hueBias.value = settings.hueBias;
+                backgroundColor.value = new Color(colors[settings.backgroundColor]);
+
+                displayGl.clear();
+
+                const {colorLevelInside, colorLevelOutside} = settings;
+                texture.update({
+                    width: blobs.length * (BlobFactoryBlob.size / 4),
+                    height: 1,
+                    data: new Float32Array(
+                        blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
+                    ),
+                });
+
+                program.use();
+                positionsVao.bindVao();
+                displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
+
+                return canvas;
+            },
+        };
     });
 
-    const texture = displayGl.createTexture(0, {
-        internalFormat: GlTextureInternalFormat.Rgba32f,
-        pixelType: GlPixelType.Float,
-        pixelFormat: GlPixelFormat.Rgba,
-    });
-    texture.configureForData();
-    program.uniformTexture2d("u_blobs", texture);
+    window.__blobs = {
+        factory: factory,
+        timing: [],
+    };
+}
+
+function willDrawBlobFactoryToCanvas(
+    canvas: HTMLCanvasElementWithBlobSettings,
+    blobSettings: BlobFactorySettings,
+): {ok: false} | {ok: true; factory: BlobFactory; defer: boolean} {
+    // First check if we've already drawn this blob
+    if (typeof window === "undefined" || isDeepEqual(canvas._blobSettings, blobSettings)) {
+        return {
+            ok: false,
+        };
+    }
+
+    // Check if drawing is supported
+    const factory = window.__blobs.factory.get();
+    if (!factory.isGlSupported) {
+        return {
+            ok: false,
+        };
+    }
+
+    // Clean up timing entries older than 1 second
+    const now = Date.now();
+    if (now - (window.__blobs.timing[0] || 0) > 1000) {
+        window.__blobs.timing = window.__blobs.timing.filter(timestamp => now - timestamp < 1000);
+    }
+    window.__blobs.timing.push(now);
+
+    // Set the attribute to mark that we're going to be drawing this blob
+    canvas._blobSettings = blobSettings;
 
     return {
-        isGlSupported: true,
-        draw: (
-            sizeValue: Vector2,
-            scale: number,
-            settings: BlobFactorySettings,
-            blobs: BlobFactoryBlobs,
-        ): HTMLCanvasElement => {
-            canvas.width = sizeValue.x * scale;
-            canvas.height = sizeValue.y * scale;
-
-            size.value = sizeValue;
-            displayGl.setDefaultViewport();
-            const positions = [
-                0,
-                0,
-                sizeValue.x,
-                sizeValue.y,
-                0,
-                sizeValue.y,
-                0,
-                0,
-                sizeValue.x,
-                0,
-                sizeValue.x,
-                sizeValue.y,
-            ];
-            positionsVao.bufferData(new Float32Array(positions), GlBufferUsage.StaticDraw);
-
-            smoothness.value = settings.smoothness;
-            blurSize.value = settings.blurSize;
-            blurSpread.value = settings.blurSpread;
-            mode.value = blobFactoryModeFromSettings(settings);
-            hueBias.value = settings.hueBias;
-            backgroundColor.value = new Color(colors[settings.backgroundColor]);
-
-            displayGl.clear();
-
-            const {colorLevelInside, colorLevelOutside} = settings;
-            texture.update({
-                width: blobs.length * (BlobFactoryBlob.size / 4),
-                height: 1,
-                data: new Float32Array(
-                    blobs.flatMap(blob => blob.toArray(colorLevelInside, colorLevelOutside)),
-                ),
-            });
-
-            program.use();
-            positionsVao.bindVao();
-            displayGl.gl.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, 6);
-
-            return canvas;
-        },
+        ok: true,
+        factory,
+        // If we've started drawing a lot of blobs in the last second, we defer the drawing
+        // to avoid blocking the main thread for too long. This is a workaround for performance issues
+        // when drawing many blobs at once, especially on lower-end devices.
+        defer: window.__blobs.timing.length > 2,
     };
-});
+}
 
 /*
  * Draws the blobs to the canvas.
  */
 export function drawBlobFactoryToCanvas(
-    canvas: HTMLCanvasElement,
+    canvas: HTMLCanvasElementWithBlobSettings,
     settings: BlobFactorySettings,
     blobs: BlobFactoryBlobs,
 ) {
-    // First check if we've already drawn this blob
-    const blobKey = btoa(JSON.stringify(settings));
-    if (canvas.getAttribute("data-drawn") === blobKey) return;
+    const willDraw = willDrawBlobFactoryToCanvas(canvas, settings);
+    if (!willDraw.ok) {
+        return;
+    }
 
-    const drawResult = blobFactory.get();
-    if (!drawResult.isGlSupported) return;
+    const {factory} = willDraw;
+    assert(factory.isGlSupported, "Factory should be GL supported");
 
     // NOTE(imjoshin): We're not using the devicePixelRatio here yet, there's a rendering bug
     // when using the devicePixelRatio. We'll address that separately.
     const scale = 1; // window.devicePixelRatio;
 
-    const size = new Vector2(canvas.width, canvas.height).div(scale);
-    const result = drawResult.draw(size, scale, settings, blobs);
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+    const actuallyDraw = () => {
+        const size = new Vector2(canvas.width, canvas.height).div(scale);
+        const result = factory.draw(size, scale, settings, blobs);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
 
-    // Set the attribute to mark that we've drawn this blob
-    canvas.setAttribute("data-drawn", blobKey);
+        // Create the gradient
+        // We create this here (as opposed to statically) to ensure we follow the colorScheme as
+        // as soon as possible. If we server side render the gradient, we won't know the colorScheme.
+        const gradient = assertExists(
+            canvas.parentElement?.getElementsByClassName(blobsArtStyles.gradientClassName)?.[0],
+        );
 
-    // Create the gradient
-    // We create this here (as opposed to statically) to ensure we follow the colorScheme as
-    // as soon as possible. If we server side render the gradient, we won't know the colorScheme.
-    const gradient = assertExists(
-        canvas.parentElement?.getElementsByClassName(blobsArtStyles.gradientClassName)?.[0],
-    );
+        const gradientBackground = formatCssLinearGradient(
+            "to bottom",
+            generateEasedGradient(
+                new Color(colors[settings.backgroundColor]).alpha(0).toString(),
+                colors[settings.backgroundColor],
+                easeInOutSin,
+                10,
+            ),
+        );
 
-    const gradientBackground = formatCssLinearGradient(
-        "to bottom",
-        generateEasedGradient(
-            new Color(colors[settings.backgroundColor]).alpha(0).toString(),
-            colors[settings.backgroundColor],
-            easeInOutSin,
-            10,
-        ),
-    );
+        gradient.setAttribute(
+            "style",
+            `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
+        );
+    };
 
-    gradient.setAttribute(
-        "style",
-        `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
-    );
+    if (willDraw.defer) {
+        unstable_runWithPriority(unstable_NormalPriority, actuallyDraw);
+    } else {
+        actuallyDraw();
+    }
 }
 
 export class BlobFactoryBlob {
@@ -202,7 +250,8 @@ export class BlobFactoryBlob {
         const color = getInterpolatedThemeColor(colorLevel, this.themeColor).lch();
         const parts = color.array();
         parts[2] = parts[2]! + this.hueOffset;
-        return Color.lch(...parts).rgb();
+        const finalColor = Color.lch(...parts).rgb();
+        return finalColor;
     }
 
     toArray(colorLevelInside: number, colorLevelOutside: number) {

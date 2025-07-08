@@ -500,7 +500,8 @@ export default function Root() {
                                     <MobileFullScreenModalContextProvider>
                                         <TooltipCoordinationContextProvider>
                                             <ReporterContextProvider>
-                                                <BlobsArtProvider>{nodes}</BlobsArtProvider>
+                                                <BlobsArtProvider />
+                                                {nodes}
                                             </ReporterContextProvider>
                                         </TooltipCoordinationContextProvider>
                                     </MobileFullScreenModalContextProvider>

@@ -1,4 +1,5 @@
-import {BlobFactoryBlob, BlobFactoryBlobs} from "~/client/blobs/helpers/draw_blobs_factory.js";
+import {BlobFactoryBlobs} from "~/client/blobs/helpers/blobs_types.js";
+import {BlobFactoryBlob} from "~/client/blobs/helpers/draw_blobs_factory.js";
 import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
