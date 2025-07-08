@@ -6,7 +6,6 @@ import {
     blobsDefaultSettings,
     getBlobsCanvasId,
 } from "~/client/blobs/helpers/blobs_settings.js";
-import {useColorScheme} from "~/client/helpers/color_scheme.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {blobsArtStyles} from "~/client/styles/styles.js";
 import {
@@ -36,7 +35,6 @@ function BlobsArtComponent({
     settings: passedSettings,
     scale,
 }: BlobArtProps & {style?: React.CSSProperties}) {
-    const colorScheme = useColorScheme();
     const settings: BlobsSettings = useMemo(
         () => ({
             ...blobsDefaultSettings,
@@ -54,7 +52,7 @@ function BlobsArtComponent({
     useEffect(() => {
         if (typeof window === "undefined") return;
         window.__drawBlobs(canvasId, settings);
-    }, [canvasId, settings, colorScheme]);
+    }, [canvasId, settings]);
 
     // The canvas is rendered on the server, but we can't draw to it via this component.
     // Instead, we copy the commands ran in generateBlobsForContent and drawBlobFactoryToCanvas

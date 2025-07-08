@@ -4637,7 +4637,7 @@ if (typeof window !== "undefined" && !window.__blobs) {
     };
 }
 function willDrawBlobFactoryToCanvas(canvas, blobSettings) {
-    if (typeof window === "undefined" || isDeepEqual(canvas._blobSettings, blobSettings)) {
+    if (typeof window === "undefined" || isDeepEqual(canvas._blobsDrawn, blobSettings)) {
         return {
             ok: false,
         };
@@ -4653,7 +4653,7 @@ function willDrawBlobFactoryToCanvas(canvas, blobSettings) {
         window.__blobs.timing = window.__blobs.timing.filter(timestamp => now - timestamp < 1e3);
     }
     window.__blobs.timing.push(now);
-    canvas._blobSettings = blobSettings;
+    canvas._blobsDrawn = blobSettings;
     return {
         ok: true,
         factory,
@@ -4920,6 +4920,7 @@ function drawBlobs(blobCanvasId, settings) {
             hueSpread: settings.hueSpread,
         });
         canvas.forEach(canvas2 => {
+            canvas2._blobsSettings = settings;
             drawBlobFactoryToCanvas(
                 canvas2,
                 {

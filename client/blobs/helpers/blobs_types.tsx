@@ -1,3 +1,4 @@
+import {BlobsSettings} from "~/client/blobs/helpers/blobs_settings.js";
 import {BlobFactoryBlob} from "~/client/blobs/helpers/draw_blobs_factory.js";
 import {Color} from "~/shared/design/core/colors.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -87,5 +88,10 @@ export type BlobsWindowCache = {
 };
 
 export type HTMLCanvasElementWithBlobSettings = HTMLCanvasElement & {
-    _blobSettings?: BlobFactorySettings;
+    // keeps track of the pure settings used to draw the blobs
+    // used for redrawing when color scheme changes
+    _blobsSettings?: BlobsSettings;
+    // keeps track of the currently drawn blobs factory settings
+    // used to avoid redrawing the same blobs
+    _blobsDrawn?: BlobFactorySettings;
 };

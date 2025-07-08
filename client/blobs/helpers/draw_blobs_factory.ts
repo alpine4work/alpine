@@ -146,7 +146,7 @@ function willDrawBlobFactoryToCanvas(
     blobSettings: BlobFactorySettings,
 ): {ok: false} | {ok: true; factory: BlobFactory; defer: boolean} {
     // First check if we've already drawn this blob
-    if (typeof window === "undefined" || isDeepEqual(canvas._blobSettings, blobSettings)) {
+    if (typeof window === "undefined" || isDeepEqual(canvas._blobsDrawn, blobSettings)) {
         return {
             ok: false,
         };
@@ -168,7 +168,7 @@ function willDrawBlobFactoryToCanvas(
     window.__blobs.timing.push(now);
 
     // Set the attribute to mark that we're going to be drawing this blob
-    canvas._blobSettings = blobSettings;
+    canvas._blobsDrawn = blobSettings;
 
     return {
         ok: true,

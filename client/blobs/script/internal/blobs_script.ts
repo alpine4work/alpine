@@ -3,6 +3,7 @@ import {
     blobsCanvasWidthPx,
     blobsContentWidthPx,
 } from "~/client/blobs/helpers/blobs_settings.js";
+import {HTMLCanvasElementWithBlobSettings} from "~/client/blobs/helpers/blobs_types.js";
 import {
     drawBlobFactoryToCanvas,
     getInterpolatedThemeColor,
@@ -16,16 +17,6 @@ declare global {
         __drawBlobs: typeof drawBlobs;
     }
 }
-
-// TODO: Make blobs change color on color scheme change.
-// function onBlobsCanvasRemoved(element: HTMLCanvasElement, callback: () => void) {
-//     new MutationObserver(function (this: MutationObserver) {
-//         if (!document.body.contains(element)) {
-//             callback();
-//             this.disconnect();
-//         }
-//     }).observe(assertExists(element.parentElement), {childList: true});
-// }
 
 function drawBlobs(blobCanvasId: string, settings: BlobsSettings) {
     // eslint-disable-next-line string-quotes
@@ -60,6 +51,10 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings) {
         // all here. To reduce redundant draws, within drawBlobFactoryToCanvas we check if we've
         // already drawn this blob and if so, skip it.
         canvas.forEach(canvas => {
+            // keep track of the settings used to draw the blobs
+            // so that we can redraw them when the color scheme changes
+            (canvas as HTMLCanvasElementWithBlobSettings)._blobsSettings = settings;
+
             drawBlobFactoryToCanvas(
                 canvas as HTMLCanvasElement,
                 {
@@ -91,13 +86,6 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings) {
     }
 
     actuallyDrawBlobs(initialColorScheme);
-
-    // TODO: Make blobs change color on color scheme change.
-    // Subscribe to color scheme changes so we can redraw the blobs when it changes
-    // canvas.forEach(canvas => {
-    //     const unsubscribe = subscribeToColorSchemeChange(actuallyDrawBlobs);
-    //     onBlobsCanvasRemoved(canvas as HTMLCanvasElement, unsubscribe);
-    // });
 }
 
 if (typeof window !== "undefined") {
