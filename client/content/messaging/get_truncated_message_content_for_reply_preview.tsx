@@ -1,5 +1,7 @@
 import {Fragment, ReactNode} from "react";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {printContentSingleLineTextSnippetPreservingMarksForClient} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
+import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {
     boldClassName,
     codeClassName,
@@ -8,7 +10,6 @@ import {
 } from "~/shared/content/content_styles.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -20,29 +21,34 @@ import {Store} from "~/shared/store/store.js";
 export function getTruncatedMessageContentForReplyPreview(
     get: <Value>(store: Store<Value>) => Value,
     {
-        spaceId,
         message,
         messageNoun,
+        accountRegistry,
+        searchEntityRegistry,
     }: {
-        spaceId: SpaceId;
         message: MessageModel;
         messageNoun: string;
+        accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
     },
 ): ReactNode {
     switch (message.payload.type) {
         case "Content": {
             const segments = printContentSingleLineTextSnippetPreservingMarksForClient(
                 get,
-                spaceId,
                 {
                     doc: getContentSnippet(message.payload.content.doc.resolve(0), 1),
                     references: message.payload.content.references,
                 },
-                mark =>
-                    mark.type.name === "bold" ||
-                    mark.type.name === "italic" ||
-                    mark.type.name === "code" ||
-                    mark.type.name === "strike",
+                {
+                    shouldPreserveMark: mark =>
+                        mark.type.name === "bold" ||
+                        mark.type.name === "italic" ||
+                        mark.type.name === "code" ||
+                        mark.type.name === "strike",
+                    accountRegistry,
+                    searchEntityRegistry,
+                },
             );
 
             return segments.map((segment, i) => {

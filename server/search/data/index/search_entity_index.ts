@@ -118,6 +118,7 @@ import {
     AccountId,
     ChannelId,
     ContentMentionAccountId,
+    PostId,
     SpaceId,
     TaskCollectionId,
 } from "~/shared/id/types/id_types.js";
@@ -488,7 +489,15 @@ export async function processIndexSearchEntityJob(
             SearchEntityKeywordIndex,
             job.spaceId,
             intoSearchEntityIdForKeywordIndex(job.spaceId, entityId),
-            {storedFields: ["lastUpdatedTime", "lastReadStartTime", "hasEmbeddingChunks"]},
+            {
+                storedFields:
+                    job.update.type !== "Post"
+                        ? ["lastUpdatedTime", "lastReadStartTime", "hasEmbeddingChunks"]
+                        : // If we're indexing a `Post` then load the `title`. We compute the `Post`'s
+                          // `title` during indexing so in order to know whether we need to re-index
+                          // dependents we need the old `title` value.
+                          ["lastUpdatedTime", "lastReadStartTime", "hasEmbeddingChunks", "title"],
+            },
         );
 
         const oldDocForKeywordIndex = actualOldDocForKeywordIndex
@@ -502,6 +511,7 @@ export async function processIndexSearchEntityJob(
                   ),
                   hasEmbeddingChunks:
                       actualOldDocForKeywordIndex.fields.hasEmbeddingChunks?.[0] ?? false,
+                  titleIfPost: actualOldDocForKeywordIndex.fields.title?.[0] ?? null,
               }
             : null;
 
@@ -540,6 +550,7 @@ export async function processIndexSearchEntityJob(
             lastUpdatedTime: Date;
             lastReadStartTime: Date;
             hasEmbeddingChunks: boolean;
+            titleIfPost: string | null;
         } | null,
     ) {
         // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
@@ -650,6 +661,34 @@ export async function processIndexSearchEntityJob(
             // `lastReadStartTime` of the current doc in the keywords index is sufficient.
             additionalWriteActions.length > 0
                 ? runAllPromises(additionalWriteActions.map(action => action(context)))
+                : null,
+
+            // We compute the title for post search entities in `getSearchEntity()`. The
+            // post's title may depend on entity mentions in the post's content. So we
+            // can only know if a post's title changed and we need to re-index dependents
+            // here after `getSearchEntity()`.
+            job.update.type === "Post"
+                ? (async () => {
+                      assert(job.update.type === "Post");
+
+                      const newTitle: string | null = newDocForKeywordIndex.title;
+                      const oldTitle: string | null = oldDocForKeywordIndex?.titleIfPost ?? null;
+
+                      if (newTitle === oldTitle) return;
+
+                      // Send the job immediately since we can't call `indexDocIfVersion()` until
+                      // this promise resolves.
+                      await context.jobs.sendImmediately({
+                          type: "IndexSearchEntityDependents",
+                          spaceId: job.spaceId,
+                          update: {
+                              type: "Post",
+                              postId: job.update.postId,
+                              updatedTraits: {type: "Some", traits: ["Title"]},
+                          },
+                          parentJobStartTime: job.parentJobStartTime ?? jobStartTime,
+                      });
+                  })()
                 : null,
         ]);
 
@@ -1175,23 +1214,39 @@ export async function searchByKeywords(
                     //   Which effectively provides a 2x boost to the phrase match.
                     // - Matches in title fields are boosted above matches in body fields.
                     should: [
-                        ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
-                            field: "title",
-                            query: queryText,
-                            fuzziness: withFuzziness ? "AUTO" : 0,
-                            prefix_length: withFuzziness ? 1 : undefined,
-                            boost: options.titleBoost * boost,
-                        }),
                         {
-                            multi_match: {
-                                query: queryTextValue,
-                                // Sum the score from matches. This means a 3gram match will have a much higher
-                                // score than a 1gram match. Since a 3gram match's score is the 3gram match
-                                // score plus a 2gram match score plus three 1gram match scores.
-                                type: "most_fields",
-                                fields: ["title._2gram", "title._3gram"],
-                                fuzziness: 0,
-                                boost: options.titleBoost * boost,
+                            bool: {
+                                // Ignore title matches for posts since posts duplicate body content
+                                // in their title.
+                                filter: {
+                                    bool: {
+                                        must_not: [
+                                            {term: {type: new OpensearchQueryValue("Post")}},
+                                        ],
+                                    },
+                                },
+                                minimum_should_match: 1,
+                                should: [
+                                    ...getManualMatchBoolPrefixOpensearchShouldQueryClauses({
+                                        field: "title",
+                                        query: queryText,
+                                        fuzziness: withFuzziness ? "AUTO" : 0,
+                                        prefix_length: withFuzziness ? 1 : undefined,
+                                        boost: options.titleBoost * boost,
+                                    }),
+                                    {
+                                        multi_match: {
+                                            query: queryTextValue,
+                                            // Sum the score from matches. This means a 3gram match will have a much higher
+                                            // score than a 1gram match. Since a 3gram match's score is the 3gram match
+                                            // score plus a 2gram match score plus three 1gram match scores.
+                                            type: "most_fields",
+                                            fields: ["title._2gram", "title._3gram"],
+                                            fuzziness: 0,
+                                            boost: options.titleBoost * boost,
+                                        },
+                                    },
+                                ],
                             },
                         },
                         {
@@ -2285,6 +2340,29 @@ export async function getSearchMentionEntityIfPossible(
             media: entity.media,
         }),
     };
+}
+
+/**
+ * Get the title and access policy of a post search entity. Only system actor's
+ * can call this function since we don't do any authorization.
+ */
+export async function getPostSearchEntityTitleIfExists(
+    context: SearchSystemActionContext,
+    postId: PostId,
+): Promise<{title: string | null} | null> {
+    context.actor.authorizeSystem();
+
+    const doc = await context.opensearch.getDocWithoutSourceIfExists(
+        SearchEntityKeywordIndex,
+        context.actor.getSpaceId(),
+        `Post:${postId}`,
+        {storedFields: ["title"]},
+    );
+
+    if (!doc) return null;
+    if (doc.routing !== context.actor.getSpaceId()) return null;
+
+    return {title: doc.fields.title?.[0] ?? null};
 }
 
 /**

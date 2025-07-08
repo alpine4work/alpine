@@ -95,7 +95,7 @@ export class SearchEntityModel {
         );
         const mergedMedia = mergeSearchEntityMediaModel(data1.media, data2.media);
 
-        if (titleVersionCompare >= 0 && data1.media === mergedMedia) {
+        if (titleVersionCompare > 0 && data1.media === mergedMedia) {
             return data1;
         }
         if (titleVersionCompare <= 0 && data2.media === mergedMedia) {
@@ -104,8 +104,8 @@ export class SearchEntityModel {
 
         return {
             id: data1.id,
-            title: titleVersionCompare >= 0 ? data1.title : data2.title,
-            titleVersion: titleVersionCompare >= 0 ? data1.titleVersion : data2.titleVersion,
+            title: titleVersionCompare > 0 ? data1.title : data2.title,
+            titleVersion: titleVersionCompare > 0 ? data1.titleVersion : data2.titleVersion,
             media: mergedMedia,
         };
     }

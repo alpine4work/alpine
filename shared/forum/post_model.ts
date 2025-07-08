@@ -20,6 +20,7 @@ export class PostModel extends Model(
     Schema.object({
         id: Schema.id<PostId>(),
         spaceId: Schema.id<SpaceId>(),
+        version: Schema.integer,
         channel: ChannelPreviewModel.schema(),
         createdTime: Schema.date,
         author: AccountModel.schema,

@@ -1,12 +1,16 @@
 import {Mark} from "prosemirror-model";
-import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
-import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {AccountRegistry} from "~/client/accounts/account_registry.js";
+import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
+import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {ContentReferences, ContentWithReferences} from "~/shared/content/content_references.js";
 import {
     printContentSingleLineTextSnippet,
     printContentSingleLineTextSnippetPreservingMarks,
 } from "~/shared/content/print_content_single_line_text_snippet.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
+import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {Store} from "~/shared/store/store.js";
 
 /**
@@ -15,44 +19,77 @@ import {Store} from "~/shared/store/store.js";
  */
 export function printContentSingleLineTextSnippetForClient(
     get: <Value>(store: Store<Value>) => Value,
-    spaceId: SpaceId,
     content: ContentWithReferences,
+    options: {
+        accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
+    },
 ): string {
-    return printContentSingleLineTextSnippet(content.doc, {
-        getAccountIfExists: accountId => {
-            const account = content.references.accountById.get(accountId);
-            if (!account) return null;
-            return get(getAccountRegistry(spaceId).getAccountStore(account));
-        },
-        getSearchEntityIfExists: entityId => {
-            const entity = content.references.searchEntityById.get(entityId);
-            if (!entity) return null;
-            if (entity.isPrivate) return entity;
-            const {title} = get(getSearchEntityRegistry(spaceId).getEntityStore(entity.entity));
-            return {isPrivate: false, title};
-        },
-    });
+    return printContentSingleLineTextSnippet(
+        content.doc,
+        getContentReferencesForPrintSingleLineTextSnippet(get, content.references, options),
+    );
 }
 
 export function printContentSingleLineTextSnippetPreservingMarksForClient(
     get: <Value>(store: Store<Value>) => Value,
-    spaceId: SpaceId,
     content: ContentWithReferences,
-    shouldPreserveMark: (mark: Mark) => boolean,
+    options: {
+        shouldPreserveMark: (mark: Mark) => boolean;
+        accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
+    },
 ): Array<{marks: ReadonlyArray<Mark>; text: string}> {
     return printContentSingleLineTextSnippetPreservingMarks(content.doc, {
-        shouldPreserveMark,
+        ...getContentReferencesForPrintSingleLineTextSnippet(get, content.references, options),
+        shouldPreserveMark: options.shouldPreserveMark,
+    });
+}
+
+export function getContentReferencesForPrintSingleLineTextSnippet(
+    get: <Value>(store: Store<Value>) => Value,
+    references: ContentReferences,
+    {
+        accountRegistry,
+        searchEntityRegistry,
+    }: {
+        accountRegistry: AccountRegistry;
+        searchEntityRegistry: SearchEntityRegistry;
+    },
+): {
+    getAccountIfExists: (accountId: ContentMentionAccountId) => AccountModelWithoutSpaceData | null;
+    getSearchEntityIfExists: (
+        entityId: SearchMentionEntityId,
+    ) => RenderContentMentionToTextSearchEntity | null;
+} {
+    return {
         getAccountIfExists: accountId => {
-            const account = content.references.accountById.get(accountId);
+            const account = references.accountById.get(accountId);
             if (!account) return null;
-            return get(getAccountRegistry(spaceId).getAccountStore(account));
+            return get(accountRegistry.getAccountStore(account));
         },
         getSearchEntityIfExists: entityId => {
-            const entity = content.references.searchEntityById.get(entityId);
+            const entity = references.searchEntityById.get(entityId);
             if (!entity) return null;
             if (entity.isPrivate) return entity;
-            const {title} = get(getSearchEntityRegistry(spaceId).getEntityStore(entity.entity));
-            return {isPrivate: false, title};
+
+            const entityData = get(searchEntityRegistry.getEntityStore(entity.entity));
+            const entityDataMedia = entityData.media;
+
+            return {
+                isPrivate: false,
+                title: entityData.title,
+                getAccountMediaShortName:
+                    entityDataMedia?.type === "Account"
+                        ? () => {
+                              const accountData = get(
+                                  accountRegistry.getAccountStore(entityDataMedia.account),
+                              );
+
+                              return getAccountShortNameWithoutFullNameTooltip(accountData);
+                          }
+                        : null,
+            };
         },
-    });
+    };
 }

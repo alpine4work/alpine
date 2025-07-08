@@ -208,6 +208,10 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
             // time a search takes.
             //
             // See: https://opensearch.org/docs/latest/search-plugins/searching-data/highlight/#methods-of-obtaining-offsets
+            //
+            // TODO(calebmer, 2025-06-29): I don't think we need offsets for the title?
+            // Since we only highlight the body field. Not sure if we can remove this
+            // without reindexing.
             indexOptions: "offsets",
         })
             .nullable()

@@ -53,6 +53,7 @@ export const searchEntityViewBodyTextSnippetMinLineCount = 1;
 export const searchEntityViewPaddingY = "2";
 export const searchEntityViewBodyTextSnippetFontSize = "75";
 export const searchEntityViewTitleFontSize = "100";
+export const searchEntityViewTitleLineHeightPx = contentStyles.paragraphLineHeightPx;
 export const searchEntityViewTitleMarginBottom = "0.5";
 export const searchEntityViewMediaSize = "4";
 export const searchEntityViewDefaultMarginX = "1";

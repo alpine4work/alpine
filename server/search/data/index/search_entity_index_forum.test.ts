@@ -1,8 +1,13 @@
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep} from "prosemirror-transform";
+import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {createPost} from "~/server/forum/data/forum_table.js";
+import {createPost, updateChannelName, updatePostContent} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {
     getSearchEntityIndexesForTest,
+    getSearchMentionEntityIfPossible,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
@@ -13,17 +18,45 @@ import {
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
-import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
+import {
+    assertPostContent,
+    createSimplePostContent,
+    PostContentProsemirrorSchema as schema,
+} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {ChannelId} from "~/shared/id/types/id_types.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {standardSearchOptions} from "~/shared/search/search_options.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
+import {TaskTitleModel} from "~/shared/tasks/title/task_title.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
+
+/**
+ * Run all timers and any promises passed until `context.process.waitUntil()`
+ * until there are no timers or `context.process.waitUntil()` promises.
+ */
+async function runAllTimersAndWaitForTestTasks() {
+    await ProcessContextModule.waitForTestTasks();
+
+    while (import.meta.jest.getTimerCount() > 0) {
+        import.meta.jest.runAllTimers();
+        await ProcessContextModule.waitForTestTasks();
+    }
+}
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -36,15 +69,39 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
+let indexSearchEntityJobCount = 0;
+let indexSearchEntityDependentsJobCount = 0;
+
+beforeEach(() => {
+    indexSearchEntityJobCount = 0;
+    indexSearchEntityDependentsJobCount = 0;
+});
+
 const context = createTestContext({
     shouldStartOpensearch: true,
+    getSearchEntityIfPossible: async (context, spaceId, entityId) => {
+        return getSearchMentionEntityIfPossible(
+            // @ts-expect-error
+            context,
+            spaceId,
+            entityId,
+        );
+    },
     processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
+                if (job.update.type === "Post") {
+                    indexSearchEntityJobCount++;
+                }
+
                 await processIndexSearchEntityJob(actionContext, job, jobStartTime, span);
                 break;
             }
             case "IndexSearchEntityDependents": {
+                if (job.update.type === "Post") {
+                    indexSearchEntityDependentsJobCount++;
+                }
+
                 await processIndexSearchEntityDependentsJob(actionContext, job);
                 break;
             }
@@ -1333,4 +1390,1052 @@ test("changes channel contributors as posts/comments are made", async () => {
     expect(await hasChannel("channels updated by ddddd")).toEqual(true);
     expect(await hasChannel("channels updated by eeeee")).toEqual(true);
     expect(await hasChannel("channels updated by fffff")).toEqual(false);
+});
+
+test("searching for channel shows both the channel and its posts, ranking the channel first", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Test Account"});
+
+    const channel = await TestChannel.create(session, {name: "Engineering Help"});
+
+    const post1 = await channel.createPost(session, "Test Post 1");
+    const post2 = await channel.createPost(session, "Test Post 2");
+    const post3 = await channel.createPost(session, "Test Post 3");
+
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "Engineering Help",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        }).then(results =>
+            results.sort(
+                (a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id),
+            ),
+        ),
+    ).toEqual(
+        [
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Channel:${channel.id}`,
+                    title: "Engineering Help",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+                bodyTextSnippet: [],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post1.id}`,
+                    title: "in Engineering Help: Test Post 1",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in "},
+                    {isHighlighted: true, text: "Engineering"},
+                    {isHighlighted: false, text: " "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 1"},
+                ],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post2.id}`,
+                    title: "in Engineering Help: Test Post 2",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in "},
+                    {isHighlighted: true, text: "Engineering"},
+                    {isHighlighted: false, text: " "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 2"},
+                ],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post3.id}`,
+                    title: "in Engineering Help: Test Post 3",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in "},
+                    {isHighlighted: true, text: "Engineering"},
+                    {isHighlighted: false, text: " "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 3"},
+                ],
+            }),
+        ].sort((a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "Help",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        }).then(results =>
+            results.sort(
+                (a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id),
+            ),
+        ),
+    ).toEqual(
+        [
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Channel:${channel.id}`,
+                    title: "Engineering Help",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+                bodyTextSnippet: [],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post1.id}`,
+                    title: "in Engineering Help: Test Post 1",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in Engineering "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 1"},
+                ],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post2.id}`,
+                    title: "in Engineering Help: Test Post 2",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in Engineering "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 2"},
+                ],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post3.id}`,
+                    title: "in Engineering Help: Test Post 3",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in Engineering "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 3"},
+                ],
+            }),
+        ].sort((a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id)),
+    );
+
+    expect(
+        await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "Halp",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        }).then(results =>
+            results.sort(
+                (a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id),
+            ),
+        ),
+    ).toEqual(
+        [
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Channel:${channel.id}`,
+                    title: "Engineering Help",
+                    titleVersion: {type: "Integer", version: 0},
+                    media: null,
+                }),
+                bodyTextSnippet: [],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post1.id}`,
+                    title: "in Engineering Help: Test Post 1",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in Engineering "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 1"},
+                ],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post2.id}`,
+                    title: "in Engineering Help: Test Post 2",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in Engineering "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 2"},
+                ],
+            }),
+            new SearchEntityResultModel({
+                score: expect.any(Number),
+                model: new SearchEntityModel({
+                    id: `Post:${post3.id}`,
+                    title: "in Engineering Help: Test Post 3",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    media: {type: "Account", account: expect.any(AccountModel)},
+                }),
+                bodyTextSnippet: [
+                    {isHighlighted: false, text: "in Engineering "},
+                    {isHighlighted: true, text: "Help"},
+                    {isHighlighted: false, text: ": Test Post 3"},
+                ],
+            }),
+        ].sort((a, b) => b.score - a.score || defaultCompareStrings(a.model.id, b.model.id)),
+    );
+});
+
+test("can generate proper post titles", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {name: "Test Channel"});
+
+    const post1 = await channel.createPost(
+        session,
+        "The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown fox jumps over the lazy dog 3.",
+    );
+
+    const post2 = await channel.createPost(
+        session,
+        "The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown FoxJumpsOverTheLazyDog1TheQuickBrownFoxJumpsOverTheLazyDog2TheQuickBrownFoxJumpsOverTheLazyDog3TheQuickBrownFoxJumpsOverTheLazyDog4",
+    );
+
+    const post3 = await channel.createPost(
+        session,
+        "The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog 3.",
+    );
+
+    const post4 = await channel.createPost(
+        session,
+        "The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4.",
+    );
+
+    const post5 = await channel.createPost(
+        session,
+        "The quick brown fox jumps 1. Over the lazy dog 2. The quick brown fox jumps 3. Over the lazy dog 4. The quick brown fox jumps 5. Over the lazy dog 6. The quick brown fox jumps 7. Over the lazy dog 8.",
+    );
+
+    const post6 = await channel.createPost(
+        session,
+        "The quick brown 1. Fox jumps over 2. The lazy dog 3. The quick brown 4. Fox jumps over 5. The lazy dog 6. The quick brown 7. Fox jumps over 8. The lazy dog 9. The quick brown 10. Fox jumps over 11. The lazy dog 12.",
+    );
+
+    const post7 = await channel.createPost(
+        session,
+        "The quick 1. Brown 2. Fox jumps 3. Over 4. The lazy dog 5. The quick 6. Brown 7. Fox jumps 8. Over 9. The lazy dog 10.",
+    );
+
+    const post8 = await channel.createPost(
+        session,
+        "TheQuickBrownFoxJumpsOverTheLazyDog1TheQuickBrownFoxJumpsOverTheLazyDog2TheQuickBrownFoxJumpsOverTheLazyDog3TheQuickBrownFoxJumpsOverTheLazyDog4",
+    );
+
+    const post9 = await channel.createPost(
+        session,
+        "Hello, world! The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4.",
+    );
+
+    const post10 = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [schema.text("Hello, world!")]),
+            schema.node("paragraph", {}, [
+                schema.text(
+                    "The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4.",
+                ),
+            ]),
+        ]),
+    );
+
+    const post11 = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("heading", {}, [schema.text("Hello, world!")]),
+            schema.node("paragraph", {}, [
+                schema.text(
+                    "The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4.",
+                ),
+            ]),
+        ]),
+    );
+
+    await ProcessContextModule.waitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post1.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: [
+                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown fox […]",
+            ],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post2.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post2.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: [
+                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, and the quick brown FoxJumpsOverTheLa […]",
+            ],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post3.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: [
+                "in Test Channel: The quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog 1",
+            ],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post4.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post4.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: The quick brown fox jumps over the lazy dog 1"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post5.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post5.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {title: ["in Test Channel: The quick brown fox jumps 1"]},
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post6.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post6.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {title: ["in Test Channel: The quick brown 1"]},
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post7.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post7.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {title: ["in Test Channel: The quick 1. Brown 2"]},
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post8.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post8.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: [
+                "in Test Channel: TheQuickBrownFoxJumpsOverTheLazyDog1TheQuickBrownFoxJumpsOverTheLazyDog2TheQuickBrownFoxJumpsOverTheLazyDog3TheQuickBrownFoxJum […]",
+            ],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post9.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post9.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Hello, world! The quick brown fox jumps over the lazy dog 1"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post10.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post10.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Hello, world! The quick brown fox jumps over the lazy dog 1"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post11.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post11.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Hello, world!"],
+        },
+    });
+});
+
+test("post title updates if mentioned entities change", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const channel = await TestChannel.create(session, {name: "Test Channel"});
+
+    const document1 = await TestDocument.create(session, {title: "Foo", access: "Public"});
+    const document2 = await TestDocument.create(session, {title: "Qux", access: "Public"});
+    const privateDocument = await TestDocument.create(session, {title: "Xyz", access: "Private"});
+
+    const collection = await TestTaskCollection.create(session, {access: "Public"});
+    const task1 = await TestTask.create(session, {title: "Bar"});
+    await task1.addCollection(session, collection);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(0);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
+
+    const post = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("Check out "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document1.id}`,
+                    }),
+                }),
+                schema.text(", "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Task:${task1.id}`,
+                    }),
+                }),
+                schema.text(", and "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${privateDocument.id}`,
+                    }),
+                }),
+                schema.text(". This is another mention not in the title "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document2.id}`,
+                    }),
+                }),
+                schema.text("."),
+            ]),
+        ]),
+    );
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(1);
+    expect(indexSearchEntityDependentsJobCount).toBe(1);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Check out Foo, Bar, and Private document"],
+        },
+    });
+
+    {
+        const oldTitle = getDocumentContentTitle((await document1.get()).content.doc);
+
+        await document1.update(session, [
+            new ReplaceStep(
+                1,
+                1 + oldTitle.length,
+                new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("Oof")), 0, 0),
+            ),
+        ]);
+    }
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(2);
+    expect(indexSearchEntityDependentsJobCount).toBe(2);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Check out Oof, Bar, and Private document"],
+        },
+    });
+
+    {
+        const oldTitle = new TaskTitleModel((await task1.getIndexDoc()).title.raw);
+
+        await task1.updateTitle(session, oldTitle.replace(0, oldTitle.getText().length, "Rab").raw);
+    }
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(3);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Check out Oof, Rab, and Private document"],
+        },
+    });
+
+    {
+        const oldTitle = getDocumentContentTitle((await document2.get()).content.doc);
+
+        await document2.update(session, [
+            new ReplaceStep(
+                1,
+                1 + oldTitle.length,
+                new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("Xuq")), 0, 0),
+            ),
+        ]);
+    }
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(4);
+    expect(indexSearchEntityDependentsJobCount).toBe(3);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Check out Oof, Rab, and Private document"],
+        },
+    });
+
+    {
+        const oldTitle = getDocumentContentTitle((await privateDocument.get()).content.doc);
+
+        await privateDocument.update(session, [
+            new ReplaceStep(
+                1,
+                1 + oldTitle.length,
+                new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("Abc")), 0, 0),
+            ),
+        ]);
+    }
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(5);
+    expect(indexSearchEntityDependentsJobCount).toBe(3);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Check out Oof, Rab, and Private document"],
+        },
+    });
+
+    await privateDocument.access.grantDefault(session);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(6);
+    expect(indexSearchEntityDependentsJobCount).toBe(4);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Check out Oof, Rab, and Abc"],
+        },
+    });
+
+    await task1.removeCollection(session, collection);
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(7);
+    expect(indexSearchEntityDependentsJobCount).toBe(5);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            title: ["in Test Channel: Check out Oof, Private task, and Abc"],
+        },
+    });
+});
+
+test("post mention updates if post updates", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Foo"});
+
+    const document1 = await TestDocument.create(session, {title: "Dog", access: "Public"});
+    const document2 = await TestDocument.create(session, {title: "Cat", access: "Public"});
+
+    const channel = await TestChannel.create(session, {name: "Bar"});
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(0);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
+
+    const post = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("The quick brown fox jumps over the lazy "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document1.id}`,
+                    }),
+                }),
+                schema.text(". The quick brown fox jumps over the lazy "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Document:${document2.id}`,
+                    }),
+                }),
+                schema.text(". The quick brown fox jumps over the lazy dog."),
+            ]),
+        ]),
+    );
+
+    const document3 = await TestDocument.create(session, {
+        content: DocumentContentProsemirrorSchema.node("doc", {}, [
+            DocumentContentProsemirrorSchema.node("title", {}, [
+                DocumentContentProsemirrorSchema.text("Qux"),
+            ]),
+            DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                DocumentContentProsemirrorSchema.text("You should check out "),
+                DocumentContentProsemirrorSchema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Post:${post.id}`,
+                    }),
+                }),
+                DocumentContentProsemirrorSchema.text(". Wow."),
+            ]),
+        ]),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(1);
+    expect(indexSearchEntityDependentsJobCount).toBe(1);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Document:${document3.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Document:${document3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "You should check out Foo in Bar: The quick brown fox jumps over the lazy Dog. Wow.",
+            ],
+        },
+    });
+
+    await updateOurAccountName(TestTask.action(session), "Oof");
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(1);
+    expect(indexSearchEntityDependentsJobCount).toBe(1);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Document:${document3.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Document:${document3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "You should check out Oof in Bar: The quick brown fox jumps over the lazy Dog. Wow.",
+            ],
+        },
+    });
+
+    await updateChannelName(session.action(), {
+        channelId: channel.id,
+        name: "Rab",
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(2);
+    expect(indexSearchEntityDependentsJobCount).toBe(2);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Document:${document3.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Document:${document3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "You should check out Oof in Rab: The quick brown fox jumps over the lazy Dog. Wow.",
+            ],
+        },
+    });
+
+    {
+        const oldTitle = getDocumentContentTitle((await document2.get()).content.doc);
+
+        await document2.update(session, [
+            new ReplaceStep(
+                1,
+                1 + oldTitle.length,
+                new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("Mittens")), 0, 0),
+            ),
+        ]);
+    }
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(2);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Document:${document3.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Document:${document3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "You should check out Oof in Rab: The quick brown fox jumps over the lazy Dog. Wow.",
+            ],
+        },
+    });
+
+    {
+        const oldTitle = getDocumentContentTitle((await document1.get()).content.doc);
+
+        await document1.update(session, [
+            new ReplaceStep(
+                1,
+                1 + oldTitle.length,
+                new Slice(Fragment.from(DocumentContentProsemirrorSchema.text("Pupper")), 0, 0),
+            ),
+        ]);
+    }
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(4);
+    expect(indexSearchEntityDependentsJobCount).toBe(3);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Document:${document3.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Document:${document3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "You should check out Oof in Rab: The quick brown fox jumps over the lazy Pupper. Wow.",
+            ],
+        },
+    });
+
+    await updatePostContent(session.action(), {
+        postId: post.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("The quick brown fox jumps over the lazy "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Document:${document1.id}`,
+                        }),
+                    }),
+                    schema.text(". The quick brown fox jumps over the LAZY LAZY "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Document:${document2.id}`,
+                        }),
+                    }),
+                    schema.text(". The quick brown fox jumps over the lazy dog."),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(5);
+    expect(indexSearchEntityDependentsJobCount).toBe(3);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Document:${document3.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Document:${document3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "You should check out Oof in Rab: The quick brown fox jumps over the lazy Pupper. Wow.",
+            ],
+        },
+    });
+
+    await updatePostContent(session.action(), {
+        postId: post.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("The quick brown FOX FOX jumps over the lazy "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Document:${document1.id}`,
+                        }),
+                    }),
+                    schema.text(". The quick brown fox jumps over the LAZY LAZY "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Document:${document2.id}`,
+                        }),
+                    }),
+                    schema.text(". The quick brown fox jumps over the lazy dog."),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(6);
+    expect(indexSearchEntityDependentsJobCount).toBe(4);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Document:${document3.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Document:${document3.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "You should check out Oof in Rab: The quick brown FOX FOX jumps over the lazy Pupper. Wow.",
+            ],
+        },
+    });
 });

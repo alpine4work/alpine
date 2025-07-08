@@ -10,6 +10,7 @@ import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.
 import {
     searchEntityViewMediaSize,
     searchEntityViewTitleFontSize,
+    searchEntityViewTitleLineHeightPx,
     searchEntityViewTitleTypeDisplayGap,
 } from "~/client/styles/search_shared_styles.js";
 import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
@@ -36,8 +37,8 @@ export function SearchEntityViewTitle({
             overflow="hidden"
             fontSize={searchEntityViewTitleFontSize}
             style={{
-                minHeight: contentStyles.paragraphLineHeightPx[spacingScale],
-                lineHeight: `${contentStyles.paragraphLineHeightPx[spacingScale]}px`,
+                minHeight: searchEntityViewTitleLineHeightPx[spacingScale],
+                lineHeight: `${searchEntityViewTitleLineHeightPx[spacingScale]}px`,
                 // Truncate after 2 lines of text. Unofficial syntax that works in all browsers
                 // except IE.
                 // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
@@ -76,7 +77,7 @@ export function SearchEntityViewTitlePrefix({
                 alignItems="center"
                 marginRight={searchEntityViewTitleTypeDisplayGap}
                 style={{
-                    height: contentStyles.paragraphLineHeightPx[spacingScale],
+                    height: searchEntityViewTitleLineHeightPx[spacingScale],
                     verticalAlign: "top",
                 }}
             >
@@ -106,7 +107,7 @@ function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
                     marginLeft="0.5"
                     marginRight="1.5"
                     style={{
-                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        height: searchEntityViewTitleLineHeightPx[spacingScale],
                         verticalAlign: "top",
                     }}
                 >
@@ -124,7 +125,7 @@ function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
                     marginLeft="0.5"
                     marginRight="1.5"
                     style={{
-                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        height: searchEntityViewTitleLineHeightPx[spacingScale],
                         verticalAlign: "top",
                     }}
                 >
@@ -149,7 +150,7 @@ function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
                     marginLeft="1"
                     marginRight="1.5"
                     style={{
-                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        height: searchEntityViewTitleLineHeightPx[spacingScale],
                         verticalAlign: "top",
                     }}
                 >
@@ -170,7 +171,7 @@ function SearchEntityViewMedia({media}: {media: SearchEntityMediaModel}) {
                     marginLeft="0.5"
                     marginRight="1.5"
                     style={{
-                        height: contentStyles.paragraphLineHeightPx[spacingScale],
+                        height: searchEntityViewTitleLineHeightPx[spacingScale],
                         verticalAlign: "top",
                     }}
                 >

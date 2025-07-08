@@ -22,6 +22,7 @@ import {
 import {mergeProps, useHover, usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditorCursorTracker} from "~/client/content/internal/content_editor_cursor_tracker.js";
 import {
     ContentEditorInsertMenuAction,
@@ -56,6 +57,7 @@ import {
 import {getSearchEntityTypeDisplay} from "~/client/search/core/search_entity_type_display.js";
 import {SearchEntityViewTitlePrefix} from "~/client/search/core/search_entity_view_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {searchEntityViewTitleLineHeightPx} from "~/client/styles/search_shared_styles.js";
 import {
     colorSchemeVars,
     contentStyles,
@@ -65,6 +67,7 @@ import {
 } from "~/client/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -972,7 +975,7 @@ function ContentEditorMentionFloaterItemBase({
                 alignItems="center"
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
                 style={{
-                    height:
+                    minHeight:
                         contentStyles.paragraphLineHeightPx[spacingScale] +
                         convertRemLengthToPx("1.5", spacingScale) * 2,
                 }}
@@ -1049,8 +1052,17 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
     onDeselect: () => void;
     onPress: () => void;
 }) {
+    const spacingScale = useSpacingScale();
+
     const entityData = useSearchEntityModel(entity);
+
     const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(entity.id), [entity.id]);
+
+    const fontSize = "75";
+
+    const lineHeightPx = fontSizesBySpacingScale[fontSize][spacingScale].fontSize * 1.5;
+
+    const paddingYPx = (searchEntityViewTitleLineHeightPx[spacingScale] - lineHeightPx) / 2;
 
     return (
         <ContentEditorMentionFloaterItemBase
@@ -1064,8 +1076,41 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             onDeselect={onDeselect}
             onPress={onPress}
         >
-            <SearchEntityViewTitlePrefix icon={typeDisplay.icon} media={entityData.media} />
-            <Box fontStyle="truncate">{renderTextWithEmojiFontFamily(entityData.title ?? "")}</Box>
+            <Box display="flex" alignItems="flex-start">
+                <SearchEntityViewTitlePrefix icon={typeDisplay.icon} media={entityData.media} />
+                <Box
+                    fontSize={fontSize}
+                    overflow="hidden"
+                    style={{
+                        lineHeight: `${lineHeightPx}px`,
+                        paddingTop: paddingYPx,
+                        paddingBottom: paddingYPx,
+                        // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                        // except IE.
+                        // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        lineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        textOverflow: "ellipsis",
+                        // Render contextual alternate glyphs. Particularly important that we render
+                        // the right "@" for mentions.
+                        // eslint-disable-next-line string-quotes
+                        fontFeatureSettings: '"calt" on',
+                    }}
+                >
+                    {entityData.media?.type === "Account" && typeDisplay.isAccountMediaAuthor && (
+                        <>
+                            <AccountShortName
+                                account={entityData.media.account}
+                                isTooltipDisabled={true}
+                            />
+                            {typeDisplay.isPost ? " " : ": "}
+                        </>
+                    )}
+                    {renderTextWithEmojiFontFamily(entityData.title ?? "")}
+                </Box>
+            </Box>
         </ContentEditorMentionFloaterItemBase>
     );
 }

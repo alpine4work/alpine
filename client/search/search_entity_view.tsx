@@ -75,6 +75,7 @@ export function SearchEntityView({
 
     const entityData = useSearchEntityModel(result.model);
     const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
+    const showTitle = entityData.title !== null && !typeDisplay.isPost;
 
     const contextMenuActions: Array<Array<MenuAction>> = [];
 
@@ -185,7 +186,7 @@ export function SearchEntityView({
                             minHeight: searchEntityViewMinHeightPx[spacingScale],
                         }}
                     >
-                        {entityData.title !== null && (
+                        {showTitle && (
                             <>
                                 <SearchEntityViewTitle
                                     icon={typeDisplay.icon}
@@ -202,7 +203,7 @@ export function SearchEntityView({
                             color="grey-60"
                             fontSize={searchEntityViewBodyTextSnippetFontSize}
                             className={
-                                entityData.title === null
+                                !showTitle
                                     ? searchStyles.bodyTextSnippetWithoutTitleClassName
                                     : undefined
                             }
@@ -211,21 +212,20 @@ export function SearchEntityView({
                                 // except IE.
                                 // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
                                 display: "-webkit-box",
-                                WebkitLineClamp: entityData.title !== null ? 3 : 4,
-                                lineClamp: entityData.title !== null ? 3 : 4,
+                                WebkitLineClamp: showTitle ? 3 : 4,
+                                lineClamp: showTitle ? 3 : 4,
                                 WebkitBoxOrient: "vertical",
                                 textOverflow: "ellipsis",
                                 // Render contextual alternate glyphs. Particularly important that we render
                                 // the right "@" for mentions.
                                 // eslint-disable-next-line string-quotes
                                 fontFeatureSettings: '"calt" on',
-                                minHeight:
-                                    entityData.title === null
-                                        ? searchEntityViewBodyTextSnippetMinHeight
-                                        : undefined,
+                                minHeight: !showTitle
+                                    ? searchEntityViewBodyTextSnippetMinHeight
+                                    : undefined,
                             }}
                         >
-                            {entityData.title === null && (
+                            {!showTitle && (
                                 <SearchEntityViewTitlePrefix
                                     icon={typeDisplay.icon}
                                     media={entityData.media}
@@ -238,7 +238,7 @@ export function SearchEntityView({
                                         account={entityData.media.account}
                                         isTooltipDisabled={true}
                                     />
-                                    {": "}
+                                    {typeDisplay.isPost ? " " : ": "}
                                 </>
                             ) : null}
                             {result.bodyTextSnippet?.map(({isHighlighted, text}, index) => {

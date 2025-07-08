@@ -6,6 +6,7 @@ import {
     ChatId,
     ContentMentionAccountId,
     DocumentId,
+    PostId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -48,6 +49,7 @@ export type SearchEntityDependencyId =
     | `Document:${DocumentId}:Title`
     | `Channel:${ChannelId}:Authorization`
     | `Channel:${ChannelId}:Preview`
+    | `Post:${PostId}:Title`
     | `Chat:${ChatId}`
     | `Task:${TaskId}:Authorization`
     | `Task:${TaskId}:Title`

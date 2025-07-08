@@ -17,7 +17,6 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {
-    DocumentContent,
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
@@ -80,13 +79,13 @@ export class TestDocument {
                   content?: undefined;
               }
             | {
-                  content: DocumentContent;
+                  content: Node;
                   title?: undefined;
                   body?: undefined;
               }
         ) = {},
     ): Promise<TestDocument> {
-        let content: DocumentContent;
+        let content: Node;
         if (options.content) {
             content = options.content;
         } else {
@@ -129,7 +128,7 @@ export class TestDocument {
         const document = await createDocument(session.action(), {
             spaceId: session.space.id,
             id: options.id,
-            content,
+            content: assertDocumentContent(content),
         });
 
         return new TestDocument(

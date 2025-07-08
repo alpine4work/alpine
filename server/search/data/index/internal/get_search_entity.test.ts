@@ -225,9 +225,9 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                     id: `Post:${post.id}`,
                     accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: "Space"},
                     createdTime: post.createdTime,
-                    title: null,
-                    titleVersion: null,
-                    body: "Test post content.",
+                    title: "in Test Channel: Test post content",
+                    titleVersion: {type: "Integers", versions: [0, 0]},
+                    body: "in Test Channel: Test post content.",
                     embeddingChunks: [
                         {
                             preambleEndIndex: 47,

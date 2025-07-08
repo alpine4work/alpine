@@ -31,6 +31,22 @@ export function runIndexEverySearchEntityMigration(
 }
 
 /**
+ * Just index post and channel search entities. Same as
+ * `runIndexEverySearchEntityMigration()` but with only those search entity
+ * types.
+ */
+export function runIndexPostAndChannelSearchEntitiesMigration(
+    context: ServerProcessContext,
+    options: {segmentIndex: number; totalSegmentCount: number},
+) {
+    return runIndexSearchEntityMigrationModules(
+        context,
+        [channelAndPostSearchEntityMigrationModule],
+        options,
+    );
+}
+
+/**
  * Just index task and task collection search entities. Same as
  * `runIndexEverySearchEntityMigration()` but with only those search entity
  * types.
@@ -141,6 +157,41 @@ function createDynamoScanMigrationModule<Item>(
     };
 }
 
+const channelAndPostSearchEntityMigrationModule = createDynamoScanMigrationModule(
+    "channels and posts",
+    expensiveScanEveryChannelAndPostForMigration,
+    async (context, item) => {
+        switch (item.type) {
+            case "Channel": {
+                context.jobs.send({
+                    type: "IndexSearchEntity",
+                    spaceId: item.spaceId,
+                    update: {
+                        type: "Channel",
+                        channelId: item.channelId,
+                        updatedTraits: {type: "None"},
+                    },
+                });
+                break;
+            }
+            case "Post": {
+                context.jobs.send({
+                    type: "IndexSearchEntity",
+                    spaceId: item.spaceId,
+                    update: {
+                        type: "Post",
+                        postId: item.postId,
+                        updatedTraits: {type: "None"},
+                    },
+                });
+                break;
+            }
+            default:
+                throw exhaustive(item);
+        }
+    },
+);
+
 const taskAndTaskCollectionSearchEntityMigrationModule = createDynamoScanMigrationModule(
     "tasks and task collections",
     expensiveScanEveryTaskAndTaskCollectionForMigration,
@@ -228,40 +279,7 @@ const allMigrationModules: Array<MigrationModule> = [
             }
         },
     ),
-    createDynamoScanMigrationModule(
-        "channels and posts",
-        expensiveScanEveryChannelAndPostForMigration,
-        async (context, item) => {
-            switch (item.type) {
-                case "Channel": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: item.spaceId,
-                        update: {
-                            type: "Channel",
-                            channelId: item.channelId,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
-                    break;
-                }
-                case "Post": {
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId: item.spaceId,
-                        update: {
-                            type: "Post",
-                            postId: item.postId,
-                            updatedTraits: {type: "None"},
-                        },
-                    });
-                    break;
-                }
-                default:
-                    throw exhaustive(item);
-            }
-        },
-    ),
+    channelAndPostSearchEntityMigrationModule,
     createDynamoScanMigrationModule(
         "post comments",
         expensiveScanEveryPostCommentForMigration,

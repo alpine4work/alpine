@@ -10,6 +10,7 @@ import {
 import {
     getChannelNameAndDescriptionContentAndContributors,
     getChannelPreviewIfExists,
+    getPostChannelPreviewIfPossible,
     getPostCommentPayload,
     getPostContentAndChannelPreview,
     maxChannelContributionCount,
@@ -29,6 +30,7 @@ import {
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {SearchSystemActionContext} from "~/server/search/data/index/search_action_context.js";
+import {getPostSearchEntityTitleIfExists} from "~/server/search/data/index/search_entity_index.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionFromIndex,
@@ -44,17 +46,21 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
+import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
@@ -387,6 +393,7 @@ class SearchEntityReadState {
      * to provide context in the post's embedding chunk.
      */
     public async getPostContentAndChannel(postId: PostId): Promise<{
+        version: number;
         createdTime: Date;
         authorId: AccountId;
         content: PostContent;
@@ -404,6 +411,44 @@ class SearchEntityReadState {
         this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Preview`);
 
         return contentAndChannel;
+    }
+
+    public async getPostAuthorAndTitleIfExists(postId: PostId): Promise<{
+        author: AccountModelWithoutSpaceData;
+        title: string | null;
+        channelAccessPolicy: AccessPolicy;
+    } | null> {
+        this._recordDependencyId(`Post:${postId}:Title`);
+
+        const [postForTitle, postForChannelResult] = await runAllPromises([
+            getPostSearchEntityTitleIfExists(this._context, postId),
+            getPostChannelPreviewIfPossible(this._context, postId, {
+                consistency: "StrongWithinCache",
+            }).then(async post => {
+                if (!post || !post.ok) return post;
+
+                return {
+                    ok: true as const,
+                    value: {
+                        author: assertExists(await this.getAccountIfExists(post.value.authorId)),
+                        channelId: post.value.channel.id,
+                        channelAccessPolicy: post.value.channel.accessPolicy,
+                    },
+                };
+            }),
+        ]);
+
+        if (!postForChannelResult) return null;
+
+        const {author, channelId, channelAccessPolicy} = unwrapResult(postForChannelResult);
+
+        this._recordDependencyId(`Channel:${channelId}:Authorization`);
+
+        return {
+            author,
+            title: postForTitle?.title ?? null,
+            channelAccessPolicy,
+        };
     }
 
     public async getPostCommentPayload(
@@ -694,7 +739,7 @@ async function getSearchContentReferences(
     ) => AccountModelWithoutSpaceData | null;
     getSearchEntityIfExists: (
         entityId: SearchMentionEntityId,
-    ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+    ) => RenderContentMentionToTextSearchEntity | null;
 }> {
     const referencedIds = getContentReferencedIdsForNode(content);
 
@@ -708,11 +753,7 @@ async function getSearchContentReferences(
                 async (
                     entityId,
                 ): Promise<
-                    | [
-                          SearchMentionEntityId,
-                          {isPrivate: true} | {isPrivate: false; title: string | null},
-                      ]
-                    | null
+                    [SearchMentionEntityId, RenderContentMentionToTextSearchEntity] | null
                 > => {
                     const entity = await getSearchMentionEntityIfExists(state, entityId);
                     if (!entity) return null;
@@ -766,7 +807,14 @@ async function getSearchContentReferences(
                         return [entityId, {isPrivate: true}];
                     }
 
-                    return [entityId, {isPrivate: false, title: entity.title}];
+                    return [
+                        entityId,
+                        {
+                            isPrivate: false,
+                            title: entity.title,
+                            getAccountMediaShortName: entity.getAccountMediaShortName ?? null,
+                        },
+                    ];
                 },
             ),
         ),
@@ -779,10 +827,9 @@ async function getSearchContentReferences(
         }),
     );
 
-    const searchEntityById = new Map<
-        SearchMentionEntityId,
-        {isPrivate: true} | {isPrivate: false; title: string | null}
-    >(searchEntityEntries.filter(isNonNullable));
+    const searchEntityById = new Map<SearchMentionEntityId, RenderContentMentionToTextSearchEntity>(
+        searchEntityEntries.filter(isNonNullable),
+    );
 
     return {
         getAccountIfExists: accountId => accountById.get(accountId) ?? null,
@@ -796,6 +843,7 @@ async function getSearchMentionEntityIfExists(
 ): Promise<{
     accessPolicy: AccessPolicy | SearchEntityIndexAccessPolicy;
     title: string | null;
+    getAccountMediaShortName?: (() => string) | null;
 } | null> {
     const entityIdObject = parseSearchMentionEntityId(entityId);
 
@@ -834,8 +882,15 @@ async function getSearchMentionEntityIfExists(
             return {accessPolicy: collection.accessPolicy, title: collection.name};
         }
         case "Post": {
-            // TODO(calebmer, #search-entity-mentions): Implement posts.
-            return null;
+            const post = await state.getPostAuthorAndTitleIfExists(entityIdObject.postId);
+            if (!post) return null;
+
+            return {
+                accessPolicy: post.channelAccessPolicy,
+                title: post.title,
+                getAccountMediaShortName: () =>
+                    getAccountShortNameWithoutFullNameTooltip(post.author),
+            };
         }
         default:
             throw exhaustive(entityIdObject);
@@ -1019,7 +1074,7 @@ export function chunkDocumentSearchContent(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ) {
     const title = getDocumentContentTitle(content);
@@ -1233,9 +1288,12 @@ async function getPostSearchEntity(
         id: `Post:${postId}`,
         accessPolicy,
         createdTime: post.createdTime,
-        title: null,
-        titleVersion: null,
-        body: getFullText(),
+        title: createPostSearchEntityTitle(post.channel.name, post.content, {
+            getAccountIfExists: contentReferences.getAccountIfExists,
+            getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+        }),
+        titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
+        body: `in ${post.channel.name}: ${getFullText()}`,
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks: getEmbeddingChunks(),
         creatorId: post.authorId,

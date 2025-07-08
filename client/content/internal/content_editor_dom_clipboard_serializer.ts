@@ -1,9 +1,11 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {renderContentMentionToTextForClient} from "~/client/content/render_content_mention_to_text_for_client.js";
 import {layoutContentFileParent} from "~/client/content/state/content_file_layout.js";
 import {isHtmlElementBlockLevel} from "~/client/helpers/elements/is_node_block_level.js";
 import {getSearchDynamicEntityPath} from "~/client/search/core/get_search_entity_path.js";
+import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
@@ -109,9 +111,12 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
 
             const mentionText = renderContentMentionToTextForClient(
                 store => store.getSnapshot(),
-                spaceId,
                 node.attrs.mention,
                 this._getContentReferences(),
+                {
+                    accountRegistry: getAccountRegistry(spaceId),
+                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
+                },
             );
 
             switch (mention.type) {

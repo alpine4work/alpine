@@ -206,6 +206,12 @@ export function renderContentMentionToHtml(
                         }),
                     }),
                 );
+
+                // Post titles are of the form "in ${channelName}: ". We rely on the client to
+                // add the account name to the post mention title.
+                if (mention.type === "SearchEntity" && mention.entityId.startsWith("Post:")) {
+                    text = `${getAccountShortNameWithoutFullNameTooltip(accountData)} ${text}`;
+                }
                 break;
             }
             case "AccountPile": {

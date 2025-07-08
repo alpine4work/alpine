@@ -1450,12 +1450,14 @@ async function createChannelModelFromItem(
         readonly name: string;
         readonly description: MessageContent;
         readonly accessPolicy: AccessPolicy;
+        readonly updateLockVersion?: number;
     },
 ): Promise<ChannelModel> {
     return new ChannelModel({
         id: item.channelId,
         spaceId: item.spaceId,
         createdTime: item.createdTime,
+        version: item.updateLockVersion ?? 0,
         name: item.name,
         description: {
             doc: item.description,
@@ -1839,7 +1841,10 @@ type ChannelPreviewAttributesItem = {
     readonly createdTime: Date;
     readonly name: string;
     readonly accessPolicy: AccessPolicy;
-} & ({readonly id: ChannelId} | {readonly channelId: ChannelId});
+} & (
+    | {readonly id: ChannelId; readonly version: number}
+    | {readonly channelId: ChannelId; readonly updateLockVersion?: number}
+);
 
 assertAssignableTypes<ChannelAttributesItem, ChannelPreviewAttributesItem>();
 assertAssignableTypes<ChannelModel, ChannelPreviewAttributesItem>();
@@ -1864,11 +1869,11 @@ async function getChannelPreviewItemForAuthorizationIfExists(
             {
                 partitionType: "Channel",
                 sortRangeType: "Attributes",
-                channelId: channelId,
+                channelId,
             },
             {
                 consistency,
-                attributes: ["spaceId", "createdTime", "name", "accessPolicy"],
+                attributes: ["spaceId", "createdTime", "name", "accessPolicy", "updateLockVersion"],
             },
         ),
     );
@@ -1920,6 +1925,7 @@ export async function getChannelPreviewIfPossible(
             id: channelId,
             spaceId: channelItem.spaceId,
             createdTime: channelItem.createdTime,
+            version: "id" in channelItem ? channelItem.version : channelItem.updateLockVersion ?? 0,
             name: channelItem.name,
             accessPolicy: channelItem.accessPolicy,
         }),
@@ -2000,6 +2006,8 @@ export async function getChannelPreviewAndAccessPolicyIfPossible(
                 id: channelId,
                 spaceId: channelItem.spaceId,
                 createdTime: channelItem.createdTime,
+                version:
+                    "id" in channelItem ? channelItem.version : channelItem.updateLockVersion ?? 0,
                 name: channelItem.name,
                 accessPolicy: channelItem.accessPolicy,
             }),
@@ -3215,18 +3223,18 @@ export async function getPostContentAndChannelPreview(
     postId: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<{
+    version: number;
     createdTime: Date;
     authorId: AccountId;
     content: PostContent;
     channel: ChannelPreviewModel;
-    channelAccessPolicy: AccessPolicy;
 }> {
     const postItemPromise = ForumRealtimeTable.getItemIfExists(
         context,
         {
             partitionType: "Post",
             sortRangeType: "Attributes",
-            postId: postId,
+            postId,
         },
         {consistency},
     );
@@ -3243,11 +3251,11 @@ export async function getPostContentAndChannelPreview(
     });
 
     return {
+        version: postItem.updateLockVersion ?? 0,
         createdTime: postItem.createdTime,
         authorId: postItem.authorId,
         content: postItem.content,
         channel: channel.preview,
-        channelAccessPolicy: channel.accessPolicy,
     };
 }
 
@@ -3266,6 +3274,7 @@ async function createPostModelFromItem(
             readonly commentCountByAuthorId: ReadonlyMap<AccountId, number>;
             readonly lastChangeTime: Date | null;
         };
+        readonly updateLockVersion?: number;
     },
 ): Promise<PostModel> {
     const [channel, author, previewCommentAuthors, contentReferences] = await runAllPromises([
@@ -3294,6 +3303,7 @@ async function createPostModelFromItem(
     return new PostModel({
         id: item.postId,
         spaceId: item.spaceId,
+        version: item.updateLockVersion ?? 0,
         channel,
         createdTime: item.createdTime,
         author,
@@ -3324,12 +3334,13 @@ async function createPostModelFromItem(
 export async function getPostAuthorAndChannelPreviewIfPossible(
     context: ServerActionContext,
     postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<{author: AccountModel; channel: ChannelPreviewModel}, ErrorBase> | null> {
-    const postItem = await getPostItemForAuthorizationIfExists(context, postId);
+    const postItem = await getPostItemForAuthorizationIfExists(context, postId, options);
     if (!postItem) return null;
 
-    const authorPromise = getAccount(context, postItem.spaceId, postItem.authorId);
-    const channelResultPromise = getChannelPreviewIfPossible(context, postItem.channelId);
+    const authorPromise = getAccount(context, postItem.spaceId, postItem.authorId, options);
+    const channelResultPromise = getChannelPreviewIfPossible(context, postItem.channelId, options);
 
     const [, channelResult] = await runAllPromises([
         authorPromise.catch(() => {
@@ -3362,6 +3373,31 @@ export async function getPostAuthorAndChannelPreview(context: ServerActionContex
     const result = await getPostAuthorAndChannelPreviewIfPossible(context, postId);
     if (!result) throw createPostNotFoundError(postId);
     return unwrapResult(result);
+}
+
+/**
+ * Get the `ChannelPreviewModel` for a post.
+ *
+ * The result is cached. If you call this for the same `PostId` multiple
+ * times in the same action you'll get the same result without issuing a
+ * network request.
+ */
+export async function getPostChannelPreviewIfPossible(
+    context: ServerActionContext,
+    postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<Result<{authorId: AccountId; channel: ChannelPreviewModel}, ErrorBase> | null> {
+    const postItem = await getPostItemForAuthorizationIfExists(context, postId, options);
+    if (!postItem) return null;
+
+    const channelResult = await getChannelPreviewIfPossible(context, postItem.channelId, options);
+
+    // The channel referenced by `postItem` must always exist.
+    assert(channelResult);
+
+    if (!channelResult.ok) return channelResult;
+
+    return {ok: true, value: {authorId: postItem.authorId, channel: channelResult.value}};
 }
 
 /**

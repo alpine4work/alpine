@@ -32,6 +32,7 @@ import {
     getPost,
     getPostAndInitialComments,
     getPostAuthorAndChannelPreviewIfPossible,
+    getPostChannelPreviewIfPossible,
     getPostCommentAuthors,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
@@ -1349,6 +1350,7 @@ test("can’t get a post that does not exist", async () => {
     expect(await getPostAuthorAndChannelPreviewIfPossible(session.action(), generateId())).toBe(
         null,
     );
+    expect(await getPostChannelPreviewIfPossible(session.action(), generateId())).toBe(null);
     await expect(
         getPostAndInitialComments(session.action(), {postId: generateId(), commentLimit: 100}),
     ).rejects.toThrow(NotFoundError);
@@ -1373,6 +1375,9 @@ test("can’t get a post for a different space", async () => {
     );
     expect(
         (await getPostAuthorAndChannelPreviewIfPossible(otherSession.action(), post.id))?.error,
+    ).toBeInstanceOf(PermissionDeniedError);
+    expect(
+        (await getPostChannelPreviewIfPossible(otherSession.action(), post.id))?.error,
     ).toBeInstanceOf(PermissionDeniedError);
     await expect(
         getPostAndInitialComments(otherSession.action(), {postId: post.id, commentLimit: 100}),
@@ -1401,6 +1406,9 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
         (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
     ).toContain("Actor doesn’t have `View` access level to channel");
+    expect(
+        (await getPostChannelPreviewIfPossible(session2.action(), post.id))?.error?.message,
+    ).toContain("Actor doesn’t have `View` access level to channel");
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).rejects.toThrow("Actor doesn’t have `View` access level to channel");
@@ -1413,6 +1421,7 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
     );
+    expect((await getPostChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(true);
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1425,6 +1434,7 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
     );
+    expect((await getPostChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(true);
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1437,6 +1447,7 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
     );
+    expect((await getPostChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(true);
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1449,6 +1460,7 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     expect((await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(
         true,
     );
+    expect((await getPostChannelPreviewIfPossible(session2.action(), post.id))?.ok).toBe(true);
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
     ).resolves.toBeTruthy();
@@ -1467,6 +1479,9 @@ test("can’t get a post from channel actor doesn’t have view access to", asyn
     expect(
         (await getPostAuthorAndChannelPreviewIfPossible(session2.action(), post.id))?.error
             ?.message,
+    ).toContain("Actor doesn’t have `View` access level to channel");
+    expect(
+        (await getPostChannelPreviewIfPossible(session2.action(), post.id))?.error?.message,
     ).toContain("Actor doesn’t have `View` access level to channel");
     await expect(
         getPostAndInitialComments(session2.action(), {postId: post.id, commentLimit: 100}),
@@ -1491,6 +1506,7 @@ test("can get a post", async () => {
         (await getPostContentAndChannelPreview(session.action(), post.id)).content.toJSON(),
     ).toEqual(testContent1.toJSON());
     expect(await getPostAuthorAndChannelPreviewIfPossible(session.action(), post.id)).toBeTruthy();
+    expect(await getPostChannelPreviewIfPossible(session.action(), post.id)).toBeTruthy();
     expect(
         (
             await getPostAndInitialComments(session.action(), {postId: post.id, commentLimit: 100})
@@ -1742,11 +1758,13 @@ test("can get the first few posts in a channel", async () => {
                 model: {
                     id: post1.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -1789,11 +1807,13 @@ test("can get the first few posts in a channel", async () => {
                 model: {
                     id: post1.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -1813,11 +1833,13 @@ test("can get the first few posts in a channel", async () => {
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -1860,11 +1882,13 @@ test("can get the first few posts in a channel", async () => {
                 model: {
                     id: post1.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -1884,11 +1908,13 @@ test("can get the first few posts in a channel", async () => {
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -1908,11 +1934,13 @@ test("can get the first few posts in a channel", async () => {
                 model: {
                     id: post3.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -1972,11 +2000,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post1.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -1996,11 +2026,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2020,11 +2052,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post3.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2044,11 +2078,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post4.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2068,11 +2104,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post5.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2113,11 +2151,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post3.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2137,11 +2177,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post4.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2161,11 +2203,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post5.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2206,11 +2250,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2230,11 +2276,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post3.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2254,11 +2302,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post4.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2278,11 +2328,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post5.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2323,11 +2375,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post1.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2347,11 +2401,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2371,11 +2427,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post3.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2395,11 +2453,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post4.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2419,11 +2479,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post5.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2464,11 +2526,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post1.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2488,11 +2552,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2512,11 +2578,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post3.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2557,11 +2625,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2581,11 +2651,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post3.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2626,11 +2698,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post1.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -2650,11 +2724,13 @@ test("can get the first few posts in a channel with limit and cursor", async () 
                 model: {
                     id: post2.id,
                     spaceId: space.id,
+                    version: 0,
                     channel: {
                         id: channel.id,
+                        spaceId: space.id,
+                        version: 0,
                         createdTime: channel.createdTime,
                         name: channel.initialName,
-                        spaceId: space.id,
                         accessPolicy: expect.any(Object),
                     },
                     createdTime: expect.any(Date),
@@ -3593,11 +3669,13 @@ test("can update a post’s contents", async () => {
     expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3618,11 +3696,13 @@ test("can update a post’s contents", async () => {
     expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 1,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3643,11 +3723,13 @@ test("can update a post’s contents", async () => {
     expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 2,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3673,11 +3755,13 @@ test("can’t update another account’s post", async () => {
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3700,11 +3784,13 @@ test("can’t update another account’s post", async () => {
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3731,11 +3817,13 @@ test("can’t update another space’s post", async () => {
     expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3758,11 +3846,13 @@ test("can’t update another space’s post", async () => {
     expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3787,11 +3877,13 @@ test("can’t update a post with invalid content", async () => {
     expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3820,11 +3912,13 @@ test("can’t update a post with invalid content", async () => {
     expect((await getPost(session.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: expect.any(Object),
         },
         createdTime: expect.any(Date),
@@ -3850,11 +3944,13 @@ test("can’t update a post after losing channel access", async () => {
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 0,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
@@ -3875,11 +3971,13 @@ test("can’t update a post after losing channel access", async () => {
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 1,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 0,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
@@ -3904,11 +4002,13 @@ test("can’t update a post after losing channel access", async () => {
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 1,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 1,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
@@ -3933,11 +4033,13 @@ test("can’t update a post after losing channel access", async () => {
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 1,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 2,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
@@ -3960,11 +4062,13 @@ test("can’t update a post after losing channel access", async () => {
     expect((await getPost(session1.action(), post.id)).model).toEqual({
         id: post.id,
         spaceId: space.id,
+        version: 2,
         channel: {
             id: channel.id,
+            spaceId: space.id,
+            version: 3,
             createdTime: channel.createdTime,
             name: channel.initialName,
-            spaceId: space.id,
             accessPolicy: await channel.access.get(),
         },
         createdTime: expect.any(Date),
@@ -7089,6 +7193,7 @@ test("creating a post with files adds to the channel’s post files", async () =
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7137,6 +7242,7 @@ test("creating a post with files adds to the channel’s post files", async () =
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7189,6 +7295,7 @@ test("creating a post with files adds to the channel’s post files", async () =
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7254,6 +7361,7 @@ test("creating a post with files adds to the channel’s post files", async () =
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7330,6 +7438,7 @@ test("creating a post with files adds to the channel’s post files", async () =
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7462,6 +7571,7 @@ test("updating a post with files changes the channel's post files", async () => 
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7510,6 +7620,7 @@ test("updating a post with files changes the channel's post files", async () => 
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7563,6 +7674,7 @@ test("updating a post with files changes the channel's post files", async () => 
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7626,6 +7738,7 @@ test("updating a post with files changes the channel's post files", async () => 
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7689,6 +7802,7 @@ test("updating a post with files changes the channel's post files", async () => 
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7749,6 +7863,7 @@ test("updating a post with files changes the channel's post files", async () => 
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),
@@ -7801,6 +7916,7 @@ test("updating a post with files changes the channel's post files", async () => 
                 version: 0,
                 model: new ChannelModel({
                     id: channel.id,
+                    version: 0,
                     spaceId: space.id,
                     name: channel.initialName,
                     createdTime: expect.any(Date),

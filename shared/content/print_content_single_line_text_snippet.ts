@@ -6,7 +6,10 @@ import {
     ContentBlockNodeTypeName,
     ContentInlineNodeTypeName,
 } from "~/shared/content/content_node_type_name.js";
-import {renderContentMentionToText} from "~/shared/content/render_content_mention_to_text.js";
+import {
+    RenderContentMentionToTextSearchEntity,
+    renderContentMentionToText,
+} from "~/shared/content/render_content_mention_to_text.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -55,7 +58,7 @@ export function printContentSingleLineTextSnippet(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): string {
     const segments = printContentSingleLineTextSnippetPreservingMarks(content, {
@@ -100,7 +103,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): Array<{marks: ReadonlyArray<Mark>; text: string}> {
     const {shouldPreserveMark} = options;

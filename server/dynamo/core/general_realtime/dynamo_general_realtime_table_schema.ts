@@ -1063,10 +1063,9 @@ export class DynamoGeneralRealtimeTableSchema<
         // the write.
         const readTime = new Date();
 
-        await this._table.directlyUpdateItem(context, item, {condition});
+        const newItem = await this._table.directlyUpdateItem(context, item, {condition});
 
-        // Directly updating increments the item lock version we were provided.
-        const version = (item.updateLockVersion ?? 0) + 1;
+        const version = newItem.updateLockVersion ?? 0;
 
         let oldPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
         let newPartitionKeyByIndexName: Map<string, DynamoIndexPartitionKey> | undefined;
@@ -1080,14 +1079,17 @@ export class DynamoGeneralRealtimeTableSchema<
                 );
 
                 newPartitionKeyByIndexName ??= new Map();
-                newPartitionKeyByIndexName.set(indexName, index.serializeOpaquePartitionKey(item));
+                newPartitionKeyByIndexName.set(
+                    indexName,
+                    index.serializeOpaquePartitionKey(newItem),
+                );
             }
         }
 
         const getEvent = this._createGetPutItemEvent({
             key,
             version,
-            item,
+            item: newItem,
             indexByName,
             partitionKeyByIndexName: newPartitionKeyByIndexName,
         });
@@ -1096,9 +1098,9 @@ export class DynamoGeneralRealtimeTableSchema<
             this._broadcastEventTransaction(context, readTime, [
                 {
                     type: "PutItem",
-                    partitionType: item.partitionType,
-                    sortRangeType: item.sortRangeType,
-                    itemKey: item as Types["ItemKey"],
+                    partitionType: newItem.partitionType,
+                    sortRangeType: newItem.sortRangeType,
+                    itemKey: newItem as Types["ItemKey"],
                     partitionKey,
                     key,
                     version,

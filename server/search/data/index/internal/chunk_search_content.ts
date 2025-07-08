@@ -12,7 +12,10 @@ import {
 } from "~/shared/content/content_node_type_name.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {clampHeadingLevel} from "~/shared/content/content_schema_extra.js";
-import {renderContentMentionToText} from "~/shared/content/render_content_mention_to_text.js";
+import {
+    RenderContentMentionToTextSearchEntity,
+    renderContentMentionToText,
+} from "~/shared/content/render_content_mention_to_text.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -108,7 +111,7 @@ export function chunkSearchContent(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
         getChunkPreamble?: (options: {
             context: SearchContentChunkContext;
             isInitialChunk: boolean;
@@ -192,7 +195,7 @@ export function getFullSearchContentChunk(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): SearchContentChunk {
     // Take our content and divide it into structured chunks of any size. We use
@@ -855,7 +858,7 @@ function chunkSearchContentBySentenceForBlockFragment(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): {
     sentenceChunks: Array<string>;
@@ -925,7 +928,7 @@ function chunkSearchContentBySentenceForBlockNode(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): {
     sentenceChunks: Array<string>;
@@ -1157,7 +1160,7 @@ function chunkSearchContentBySentenceForTextblockNode(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): Array<string> {
     assert(node.isTextblock);
@@ -1224,7 +1227,7 @@ function printSearchTextForInlineFragment(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): string {
     const content: Array<Node> = [];
@@ -1330,7 +1333,7 @@ function printSearchTextForInlineNode(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): string {
     assert(node.isInline);

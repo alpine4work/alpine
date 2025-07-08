@@ -18,9 +18,13 @@ import {
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
@@ -1735,7 +1739,7 @@ async function getSpaceAccountItemIfExistsWithoutAuthorization(
     }
 }
 
-const AccountModelContextCache = new ContextCache<
+const AccountModelContextCache = new DynamoContextCache<
     `${SpaceId}:${ContentMentionAccountId}`,
     AccountModel | null
 >({
@@ -1775,7 +1779,7 @@ export async function getAccountIfExists(
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
     accountId: AccountId | ContentMentionAccountId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountModel | null> {
     // Make sure we have access to the space being requested.
     await authorizeSpaceAccess(context, spaceId);
@@ -1867,68 +1871,62 @@ async function getAccountIfExistsWithoutAuthorization(
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
     accountId: AccountId | ContentMentionAccountId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<AccountModel | null> {
-    const get = async (): Promise<AccountModel | null> => {
-        // If we have cached account data and we're loading with eventual consistency
-        // then we can use the cached data.
-        if (consistency === "Eventual") {
-            // We can't use `getDataIfExistsWithoutLoading()` because it calls
-            // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
-            // `authorizeSpaceAccess()` looks at the cache result of this function.
-            //
-            // It's safe to skip authorization for this function, though, because we
-            // authorize space access above.
-            const accountsCacheData =
-                await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
-                    context,
-                    spaceId,
-                );
-            if (accountsCacheData) {
-                return accountsCacheData.accountById.get(accountId as AccountId) ?? null;
-            }
-        }
-
-        // Otherwise load account data and space account data. If this is the current
-        // account, we may have already cached the account item.
-        const [account, spaceAccountItem] = await runAllPromises([
-            consistency === "Eventual" &&
-            context.actor.type === "Session" &&
-            context.actor.getAccountId() === accountId
-                ? context.actor.getAccount()
-                : dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId, {
-                      consistency,
-                  }),
-            getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
-                consistency,
-            }),
-        ]);
-
-        if (!spaceAccountItem) return null;
-
-        if (spaceAccountItem.removal) {
-            return createAccountModelFromItem(spaceAccountItem, null);
-        } else {
-            // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
-            // our account table.
-            if (!account) {
-                throw new DataLossError("Space account item exists but account item doesn’t");
+    return AccountModelContextCache.get(
+        context,
+        consistency,
+        `${spaceId}:${accountId}`,
+        async consistency => {
+            // If we have cached account data and we're loading with eventual consistency
+            // then we can use the cached data.
+            if (consistency === "Eventual") {
+                // We can't use `getDataIfExistsWithoutLoading()` because it calls
+                // `authorizeSpaceAccess()` which might get us stuck in a deadlock. Since
+                // `authorizeSpaceAccess()` looks at the cache result of this function.
+                //
+                // It's safe to skip authorization for this function, though, because we
+                // authorize space access above.
+                const accountsCacheData =
+                    await spaceAccountsCache.dangerouslyGetDataIfExistsWithoutLoadingOrAuthorizing(
+                        context,
+                        spaceId,
+                    );
+                if (accountsCacheData) {
+                    return accountsCacheData.accountById.get(accountId as AccountId) ?? null;
+                }
             }
 
-            return createAccountModelFromItem(spaceAccountItem, account);
-        }
-    };
+            // Otherwise load account data and space account data. If this is the current
+            // account, we may have already cached the account item.
+            const [account, spaceAccountItem] = await runAllPromises([
+                consistency === "Eventual" &&
+                context.actor.type === "Session" &&
+                context.actor.getAccountId() === accountId
+                    ? context.actor.getAccount()
+                    : dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId, {
+                          consistency,
+                      }),
+                getSpaceAccountItemIfExistsWithoutAuthorization(context, spaceId, accountId, {
+                    consistency,
+                }),
+            ]);
 
-    // If we are reading with a strong DynamoDB read consistency then always
-    // execute the read, don't consult the cache. Future reads with eventual
-    // consistency may use the cached account from a strong read.
-    if (consistency === "Strong") {
-        const getPromise = get();
-        AccountModelContextCache.set(context, `${spaceId}:${accountId}`, getPromise);
-        return getPromise;
-    }
+            if (!spaceAccountItem) return null;
 
-    return AccountModelContextCache.get(context, `${spaceId}:${accountId}`, get);
+            if (spaceAccountItem.removal) {
+                return createAccountModelFromItem(spaceAccountItem, null);
+            } else {
+                // If we have a `SpaceAccountItem` then we must also have an `AccountItem` in
+                // our account table.
+                if (!account) {
+                    throw new DataLossError("Space account item exists but account item doesn’t");
+                }
+
+                return createAccountModelFromItem(spaceAccountItem, account);
+            }
+        },
+    );
 }
 
 /**
@@ -1952,7 +1950,7 @@ export async function getAccount(
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountModel> {
     const account = await getAccountIfExists(context, spaceId, accountId, options);
 

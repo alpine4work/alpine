@@ -12,6 +12,7 @@ export class ChannelModel extends Model(
     Schema.object({
         id: Schema.id<ChannelId>(),
         spaceId: Schema.id<SpaceId>(),
+        version: Schema.integer,
         createdTime: Schema.date,
         name: LabelStringSchema,
         description: MessageContentWithReferencesSchema,
@@ -22,6 +23,7 @@ export class ChannelModel extends Model(
         return new ChannelPreviewModel({
             id: this.id,
             spaceId: this.spaceId,
+            version: this.version,
             createdTime: this.createdTime,
             name: this.name,
             accessPolicy: this.accessPolicy,
@@ -33,6 +35,7 @@ export class ChannelPreviewModel extends Model(
     Schema.object({
         id: Schema.id<ChannelId>(),
         spaceId: Schema.id<SpaceId>(),
+        version: Schema.integer,
         createdTime: Schema.date,
         name: LabelStringSchema,
         accessPolicy: AccessPolicySchema,

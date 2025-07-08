@@ -122,7 +122,7 @@ const searchEntityUpdateSchemaDescription = {
             type: Schema.value("Post"),
             postId: Schema.id<PostId>(),
         }),
-        updatableTraits: [],
+        updatableTraits: ["Title"],
     },
     PostComment: {
         schema: Schema.object({

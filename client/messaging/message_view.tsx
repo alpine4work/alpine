@@ -16,7 +16,11 @@ import {
     useState,
 } from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
-import {getAccountRegistry, useAccountModel} from "~/client/accounts/account_registry_context.js";
+import {
+    getAccountRegistry,
+    useAccountModel,
+    useAccountRegistry,
+} from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
@@ -51,6 +55,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useCanPrimaryInputHover, usePlatform} from "~/client/remix/platform_context.js";
 import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     messageViewAccountAvatarSize,
@@ -1391,19 +1396,21 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     onJumpToMessage: Memo<(message: Message) => void>;
 }) {
     const spacingScale = useSpacingScale();
-    const {space} = useSpaceContext();
+    const accountRegistry = useAccountRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const truncatedContent = useStore(
         useMemo(
             () =>
                 computeStore(get =>
                     getTruncatedMessageContentForReplyPreview(get, {
-                        spaceId: space.id,
                         message: parentMessage,
                         messageNoun,
+                        accountRegistry,
+                        searchEntityRegistry,
                     }),
                 ),
-            [messageNoun, parentMessage, space.id],
+            [accountRegistry, messageNoun, parentMessage, searchEntityRegistry],
         ),
     );
 

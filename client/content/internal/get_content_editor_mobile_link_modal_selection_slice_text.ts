@@ -1,5 +1,7 @@
 import {Slice} from "prosemirror-model";
+import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {printContentSingleLineTextSnippetForClient} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
+import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Store} from "~/shared/store/store.js";
@@ -32,12 +34,19 @@ export function getContentEditorMobileLinkModalSelectionSliceText(
 
     if (selectionSlice.openStart !== selectionSlice.openEnd || !textNode?.isText) {
         return {
-            text: printContentSingleLineTextSnippetForClient(get, spaceId, {
-                // Intentionally calling `create()` and not `createChecked()` since for some
-                // schemas (e.g. documents) our slice may not match the expected schema.
-                doc: schema.topNodeType.create({}, selectionSlice.content.content),
-                references,
-            }),
+            text: printContentSingleLineTextSnippetForClient(
+                get,
+                {
+                    // Intentionally calling `create()` and not `createChecked()` since for some
+                    // schemas (e.g. documents) our slice may not match the expected schema.
+                    doc: schema.topNodeType.create({}, selectionSlice.content.content),
+                    references,
+                },
+                {
+                    accountRegistry: getAccountRegistry(spaceId),
+                    searchEntityRegistry: getSearchEntityRegistry(spaceId),
+                },
+            ),
             isEditable: false,
         };
     }

@@ -2,6 +2,7 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {runMoveForumChannelsAndPostsMigration} from "~/server/forum/data/forum_table.js";
 import {
     runIndexEverySearchEntityMigration,
+    runIndexPostAndChannelSearchEntitiesMigration,
     runIndexTaskAndTaskCollectionSearchEntitiesMigration,
 } from "~/server/migration/migrations/index_every_search_entity_migration.js";
 import {runMoveInboxAttributesItemMigration} from "~/server/notifications/data/notifications_table.js";
@@ -21,6 +22,7 @@ export const allMigrations: {
     ) => Promise<void>;
 } = {
     IndexEverySearchEntity: runIndexEverySearchEntityMigration,
+    IndexPostAndChannelSearchEntities: runIndexPostAndChannelSearchEntitiesMigration,
     IndexTaskAndTaskCollectionSearchEntities: runIndexTaskAndTaskCollectionSearchEntitiesMigration,
     MoveForumChannelsAndPostsMigration: runMoveForumChannelsAndPostsMigration,
     MoveInboxAttributesItem: runMoveInboxAttributesItemMigration,

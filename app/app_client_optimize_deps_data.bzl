@@ -47,6 +47,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "@vanilla-extract/dynamic",
     "classnames",
     "color",
+    "compromise",
     "cookie",
     "d3-interpolate",
     "date-fns/addSeconds",

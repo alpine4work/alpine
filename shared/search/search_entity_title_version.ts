@@ -13,6 +13,10 @@ export const SearchEntityTitleVersionSchema = Schema.union({
         type: Schema.value("Integer"),
         version: Schema.integer,
     }),
+    Integers: Schema.object({
+        type: Schema.value("Integers"),
+        versions: Schema.array(Schema.integer).minLength(1),
+    }),
     HybridLogicalTime: Schema.object({
         type: Schema.value("HybridLogicalTime"),
         time: HybridLogicalTimeSchema,
@@ -45,6 +49,35 @@ export function compareSearchEntityTitleVersion(
         if (version2.type !== "Integer") return -1;
         if (version1.version < version2.version) return -1;
         if (version1.version > version2.version) return 1;
+        return 0;
+    }
+
+    if (version1.type === "Integers") {
+        if (version2.type !== "Integers") return -1;
+
+        const minVersionsLength = Math.min(version1.versions.length, version2.versions.length);
+
+        // Pick the title with the highest version number. Stop at the first version
+        // that's not equal to the other title's version. This is a generic conflict
+        // resolution mechanism designed to work without us knowing how to interpret the
+        // underlying versions.
+        for (let i = 0; i < minVersionsLength; i++) {
+            const subVersion1 = version1.versions[i]!;
+            const subVersion2 = version2.versions[i]!;
+
+            if (subVersion1 > subVersion2) {
+                return 1;
+            } else if (subVersion1 < subVersion2) {
+                return -1;
+            }
+        }
+
+        if (version1.versions.length > version2.versions.length) {
+            return 1;
+        } else if (version1.versions.length < version2.versions.length) {
+            return -1;
+        }
+
         return 0;
     }
 

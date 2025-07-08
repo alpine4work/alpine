@@ -2,10 +2,12 @@ import {ChatCircle, ChatCircleDots, DotsThree, Smiley} from "phosphor-react";
 import {NodeSelection} from "prosemirror-state";
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
+import {getContentReferencesForPrintSingleLineTextSnippet} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -22,6 +24,7 @@ import {PostContentViewHeader} from "~/client/forum/internal/post_content_view_h
 import {PostEditing} from "~/client/forum/internal/post_editing.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStore} from "~/client/helpers/use_store.js";
 import {CaretUpWithCustomizableStrokeWidthIcon} from "~/client/icons/caret_up_with_customizable_stroke_width_icon.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/get_initial_load_message_count.js";
 import {InlineEditorToolbar} from "~/client/messaging/inline_editor_toolbar.js";
@@ -31,6 +34,7 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     postContentViewFooterButtonHeight,
@@ -62,6 +66,7 @@ import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
+import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContentWithReferences, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {
     PostCommentModel,
@@ -75,7 +80,9 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {computeStore} from "~/shared/store/compute_store.js";
 
 export type PostContentViewInitialScroll = {
     readonly type: "File";
@@ -113,6 +120,51 @@ export function PostContentView({
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
     const {currentAccount} = useSpaceContext();
+    const accountRegistry = useAccountRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
+
+    // Update `SearchEntityRegistry` with the post content. Now as the post content
+    // changes in realtime, any `SearchEntityModel`s rendered elsewhere in
+    // the product will also update.
+    {
+        const searchEntity = useStore(
+            useMemo(() => {
+                return computeStore(get => {
+                    return new SearchEntityModel({
+                        id: `Post:${post.id}`,
+                        title: createPostSearchEntityTitle(
+                            post.channel.name,
+                            post.content.doc,
+                            getContentReferencesForPrintSingleLineTextSnippet(
+                                get,
+                                post.content.references,
+                                {accountRegistry, searchEntityRegistry},
+                            ),
+                        ),
+                        titleVersion: {
+                            type: "Integers",
+                            versions: [post.version, post.channel.version],
+                        },
+                        media: null,
+                    });
+                });
+            }, [
+                accountRegistry,
+                post.channel.name,
+                post.channel.version,
+                post.content.doc,
+                post.content.references,
+                post.id,
+                post.version,
+                searchEntityRegistry,
+            ]),
+        );
+
+        useMemo(
+            () => searchEntityRegistry.getEntityStore(searchEntity),
+            [searchEntity, searchEntityRegistry],
+        );
+    }
 
     const contentContainerRef = useRef<HTMLDivElement>(null);
 

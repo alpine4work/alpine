@@ -19,6 +19,7 @@ import {
 } from "react";
 import {usePress} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {
@@ -71,6 +72,7 @@ import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {getRemPxWithoutListening, useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/remix/use_is_inert_native_mobile_route.js";
+import {useSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {useAddGlobalLoadingIndicator} from "~/client/spaces/global_loading_indicator.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -1433,19 +1435,21 @@ function MessageInputReplyingToMessage<
 }) {
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
-    const {space} = useSpaceContext();
+    const accountRegistry = useAccountRegistry();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const truncatedContent = useStore(
         useMemo(
             () =>
                 computeStore(get =>
                     getTruncatedMessageContentForReplyPreview(get, {
-                        spaceId: space.id,
                         message: replyingToMessage,
                         messageNoun,
+                        accountRegistry,
+                        searchEntityRegistry,
                     }),
                 ),
-            [messageNoun, replyingToMessage, space.id],
+            [accountRegistry, messageNoun, replyingToMessage, searchEntityRegistry],
         ),
     );
 

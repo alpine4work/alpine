@@ -19,6 +19,7 @@ import {opensearchClientExecuteOperationTestCounter} from "~/server/opensearch/o
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
+    getPostSearchEntityTitleIfExists,
     getSearchEntityIfPossible,
     getSearchEntityIndexesForTest,
     processIndexSearchEntityDependentsJob,
@@ -2032,14 +2033,15 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: null,
-                titleVersion: null,
+                title: "in Transit Enjoyers: Trains! Trains!",
+                titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
                     account: await session1.get(),
                 },
             }),
             bodyTextSnippet: [
+                {isHighlighted: false, text: "in Transit Enjoyers: "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
@@ -2163,14 +2165,15 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: null,
-                titleVersion: null,
+                title: "in Transit Enjoyers: Trains! Trains!",
+                titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
                     account: await session1.get(),
                 },
             }),
             bodyTextSnippet: [
+                {isHighlighted: false, text: "in Transit Enjoyers: "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
@@ -2240,8 +2243,8 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: null,
-                titleVersion: null,
+                title: "in Transit Enjoyers: Trains! Trains!",
+                titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
                     account: await session1.get(),
@@ -2298,14 +2301,15 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: null,
-                titleVersion: null,
+                title: "in Transit Enjoyers: Trains! Trains!",
+                titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
                     account: await session1.get(),
                 },
             }),
             bodyTextSnippet: [
+                {isHighlighted: false, text: "in Transit Enjoyers: "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
@@ -2358,14 +2362,15 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: null,
-                titleVersion: null,
+                title: "in Transit Enjoyers: Trains! Trains!",
+                titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
                     account: await session1.get(),
                 },
             }),
             bodyTextSnippet: [
+                {isHighlighted: false, text: "in Transit Enjoyers: "},
                 {isHighlighted: true, text: "Trains"},
                 {isHighlighted: false, text: "! "},
                 {isHighlighted: true, text: "Trains"},
@@ -2446,8 +2451,8 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: null,
-                titleVersion: null,
+                title: "in Transit Enjoyers: Trains! Trains!",
+                titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
                     account: await session1.get(),
@@ -2527,8 +2532,8 @@ test("searches with natural language parsing works", async () => {
             score: expect.any(Number),
             model: new SearchEntityModel({
                 id: `Post:${post.id}`,
-                title: null,
-                titleVersion: null,
+                title: "in Transit Enjoyers: Trains! Trains!",
+                titleVersion: {type: "Integers", versions: [0, 0]},
                 media: {
                     type: "Account",
                     account: await session1.get(),
@@ -5594,5 +5599,57 @@ test("you can still search for removed accounts but you can’t see name updates
         routing: space2.id,
         version: expect.any(Object),
         fields: {title: ["Carol"]},
+    });
+});
+
+test("can get a post search entity title", async () => {
+    const space1 = await TestSpace.create(context);
+    const space2 = await TestSpace.create(context);
+
+    const session1 = await space1.createSession();
+    const session2 = await space2.createSession();
+
+    const channel1 = await TestChannel.create(session1, {name: "Test Channel 1"});
+    const channel2 = await TestChannel.create(session2, {name: "Test Channel 2"});
+
+    const post1 = await channel1.createPost(session1, "Foo");
+    const post2 = await channel2.createPost(session2, "Bar");
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    await expect(
+        getPostSearchEntityTitleIfExists(session1.action() as any, generateId()),
+    ).rejects.toThrow("Session actor is not a system actor");
+    await expect(
+        getPostSearchEntityTitleIfExists(session1.action() as any, post1.id),
+    ).rejects.toThrow("Session actor is not a system actor");
+    await expect(
+        getPostSearchEntityTitleIfExists(session1.action() as any, post2.id),
+    ).rejects.toThrow("Session actor is not a system actor");
+    await expect(
+        getPostSearchEntityTitleIfExists(session2.action() as any, generateId()),
+    ).rejects.toThrow("Session actor is not a system actor");
+    await expect(
+        getPostSearchEntityTitleIfExists(session2.action() as any, post1.id),
+    ).rejects.toThrow("Session actor is not a system actor");
+    await expect(
+        getPostSearchEntityTitleIfExists(session2.action() as any, post2.id),
+    ).rejects.toThrow("Session actor is not a system actor");
+
+    expect(await getPostSearchEntityTitleIfExists(space1.systemAction(), generateId())).toEqual(
+        null,
+    );
+    expect(await getPostSearchEntityTitleIfExists(space1.systemAction(), post1.id)).toEqual({
+        title: "in Test Channel 1: Foo",
+    });
+    expect(await getPostSearchEntityTitleIfExists(space1.systemAction(), post2.id)).toEqual(null);
+
+    expect(await getPostSearchEntityTitleIfExists(space2.systemAction(), generateId())).toEqual(
+        null,
+    );
+    expect(await getPostSearchEntityTitleIfExists(space2.systemAction(), post1.id)).toEqual(null);
+    expect(await getPostSearchEntityTitleIfExists(space2.systemAction(), post2.id)).toEqual({
+        title: "in Test Channel 2: Bar",
     });
 });

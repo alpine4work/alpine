@@ -29,6 +29,7 @@ const channel = new ChannelPreviewModel({
     id: channelId,
     spaceId,
     createdTime,
+    version: 0,
     name: "Test",
     accessPolicy: {
         accountGrantById: emptyMap,
@@ -170,6 +171,7 @@ test("can insert some posts into the end", () => {
     const post1 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -184,6 +186,7 @@ test("can insert some posts into the end", () => {
     const post2 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -198,6 +201,7 @@ test("can insert some posts into the end", () => {
     const post3 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -212,6 +216,7 @@ test("can insert some posts into the end", () => {
     const post4 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -226,6 +231,7 @@ test("can insert some posts into the end", () => {
     const post5 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -299,6 +305,7 @@ test("can toggle the comments for a post open", () => {
     const post1 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -313,6 +320,7 @@ test("can toggle the comments for a post open", () => {
     const post2 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account2,
@@ -327,6 +335,7 @@ test("can toggle the comments for a post open", () => {
     const post3 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account3,
@@ -341,6 +350,7 @@ test("can toggle the comments for a post open", () => {
     const post4 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account4,
@@ -355,6 +365,7 @@ test("can toggle the comments for a post open", () => {
     const post5 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account5,
@@ -585,6 +596,7 @@ test("can insert some posts into the end with already open comments", () => {
     const post1 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -599,6 +611,7 @@ test("can insert some posts into the end with already open comments", () => {
     const post2 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -613,6 +626,7 @@ test("can insert some posts into the end with already open comments", () => {
     const post3 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -627,6 +641,7 @@ test("can insert some posts into the end with already open comments", () => {
     const post4 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -641,6 +656,7 @@ test("can insert some posts into the end with already open comments", () => {
     const post5 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -734,6 +750,7 @@ test("can update the post comments list", () => {
     const post1 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -748,6 +765,7 @@ test("can update the post comments list", () => {
     const post2 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -762,6 +780,7 @@ test("can update the post comments list", () => {
     const post3 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -776,6 +795,7 @@ test("can update the post comments list", () => {
     const post4 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -790,6 +810,7 @@ test("can update the post comments list", () => {
     const post5 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -880,6 +901,7 @@ test("can add a channel header at the beginning", () => {
         id: channelId,
         spaceId,
         createdTime,
+        version: 0,
         name: "Test",
         description: {
             doc: emptyMessageContent,
@@ -897,6 +919,7 @@ test("can add a channel header at the beginning", () => {
     const post1 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -911,6 +934,7 @@ test("can add a channel header at the beginning", () => {
     const post2 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account2,
@@ -925,6 +949,7 @@ test("can add a channel header at the beginning", () => {
     const post3 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account3,
@@ -939,6 +964,7 @@ test("can add a channel header at the beginning", () => {
     const post4 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account4,
@@ -953,6 +979,7 @@ test("can add a channel header at the beginning", () => {
     const post5 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account5,
@@ -1063,6 +1090,7 @@ test("can add an unloaded posts section at the end", () => {
     const post1 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account1,
@@ -1077,6 +1105,7 @@ test("can add an unloaded posts section at the end", () => {
     const post2 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account2,
@@ -1091,6 +1120,7 @@ test("can add an unloaded posts section at the end", () => {
     const post3 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account3,
@@ -1105,6 +1135,7 @@ test("can add an unloaded posts section at the end", () => {
     const post4 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account4,
@@ -1119,6 +1150,7 @@ test("can add an unloaded posts section at the end", () => {
     const post5 = new PostModel({
         id: generateId(),
         spaceId,
+        version: 0,
         channel,
         createdTime,
         author: account5,

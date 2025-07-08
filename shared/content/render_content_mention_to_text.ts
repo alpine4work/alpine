@@ -16,6 +16,14 @@ import {
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
 
+export type RenderContentMentionToTextSearchEntity =
+    | {readonly isPrivate: true}
+    | {
+          readonly isPrivate: false;
+          readonly title: string | null;
+          readonly getAccountMediaShortName: (() => string) | null;
+      };
+
 export function renderContentMentionToText(
     mention: ContentMention,
     {
@@ -27,7 +35,7 @@ export function renderContentMentionToText(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): string {
     switch (mention.type) {
@@ -61,11 +69,17 @@ export function renderContentMentionToText(
                 return `${deletedSearchEntityTitle} ${getSearchEntityNoun(entityIdObject.type)}`;
             }
 
-            const entityTitle = truncateContentMentionText(entity.title);
+            let entityTitle = truncateContentMentionText(entity.title);
 
             if (entityTitle.length === 0) {
                 const entityIdObject = parseSearchMentionEntityId(mention.entityId);
                 return `${missingSearchEntityTitle} ${getSearchEntityNoun(entityIdObject.type)}`;
+            }
+
+            // Posts start with "in ${channelName}: " and expect client rendering code to
+            // add the post author name to the start of the title.
+            if (entity.getAccountMediaShortName !== null && mention.entityId.startsWith("Post:")) {
+                entityTitle = `${entity.getAccountMediaShortName()} ${entityTitle}`;
             }
 
             return entityTitle;

@@ -11,7 +11,10 @@ import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {renderContentMentionToText} from "~/shared/content/render_content_mention_to_text.js";
+import {
+    RenderContentMentionToTextSearchEntity,
+    renderContentMentionToText,
+} from "~/shared/content/render_content_mention_to_text.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -40,7 +43,7 @@ function testGetFullSearchContentChunk(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
         skipParseCorrectnessTests?: boolean;
     },
 ) {
@@ -97,7 +100,7 @@ function dropIgnoredSearchContent(
         ) => AccountModelWithoutSpaceData | null;
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
-        ) => {isPrivate: false; title: string | null} | {isPrivate: true} | null;
+        ) => RenderContentMentionToTextSearchEntity | null;
         withoutMarks: boolean;
     },
 ): Node | null {
