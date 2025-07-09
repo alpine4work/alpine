@@ -195,7 +195,7 @@ export function SpaceLayoutWebMobileTabBar({
                             <LoudNotificationBadge
                                 top="0.1875rem"
                                 right="0.6875rem"
-                                loudNotificationCount={inbox.model.loudNotificationCount}
+                                count={inbox.model.loudNotificationCount}
                             />
                         ) : inbox.model.entryCount > 0 &&
                           (!inbox.model.lastZeroEntryCountTime ||

@@ -748,7 +748,7 @@ export function InboxEntryView({
                                 <LoudNotificationBadge
                                     top="0"
                                     right="1"
-                                    loudNotificationCount={entry.loudNotificationCount}
+                                    count={entry.loudNotificationCount}
                                 />
                             )}
                         </Box>

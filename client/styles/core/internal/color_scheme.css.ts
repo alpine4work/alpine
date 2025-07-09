@@ -1,5 +1,9 @@
-import {assignVars, createGlobalTheme, globalStyle, style} from "@vanilla-extract/css";
+import {assignVars, createGlobalTheme, createVar, globalStyle, style} from "@vanilla-extract/css";
 import {colors} from "~/shared/design/core/colors.js";
+import {
+    approximateOpacityForShiftingGreyColor,
+    getColorForShiftingGreyColor,
+} from "~/shared/design/core/helpers/get_color_for_shifting_grey_color.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {ThemeColor, defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -131,7 +135,7 @@ const constantColors = Object.fromEntries(
     ]),
 ) as {[C in keyof typeof colorsWithShade as `${C}-const`]: string};
 
-const translucentColorSchemeVars: {
+const themeColorWithOpacitySchemeVars: {
     [C in ThemeColor as `${C}-60-opacity-60` | `${C}-70-opacity-60`]: CssVarFunction;
 } = createGlobalTheme(
     ":root",
@@ -145,7 +149,7 @@ const translucentColorSchemeVars: {
 
 globalStyle(darkColorSchemeSelector, {
     vars: assignVars(
-        translucentColorSchemeVars,
+        themeColorWithOpacitySchemeVars,
         Object.fromEntries(
             themeColors.flatMap(color => [
                 [`${color}-60-opacity-60`, `${invertedColorsWithShade[`${color}-60`]}99`],
@@ -166,8 +170,8 @@ function createTheme(color: ThemeColor) {
         "theme-70": baseColorSchemeVars[`${color}-70`],
         "theme-80": baseColorSchemeVars[`${color}-80`],
         "theme-90": baseColorSchemeVars[`${color}-90`],
-        "theme-60-opacity-60": translucentColorSchemeVars[`${color}-60-opacity-60`],
-        "theme-70-opacity-60": translucentColorSchemeVars[`${color}-70-opacity-60`],
+        "theme-60-opacity-60": themeColorWithOpacitySchemeVars[`${color}-60-opacity-60`],
+        "theme-70-opacity-60": themeColorWithOpacitySchemeVars[`${color}-70-opacity-60`],
         "theme-selection": selectionColorSchemeVars[`${color}-selection`],
         "theme-selection-inverted": invertedSelectionColorSchemeVars[`${color}-selection-inverted`],
         "theme-10-const": constantColors[`${color}-10-const`],
@@ -190,6 +194,11 @@ function createTheme(color: ThemeColor) {
 // TODO(calebmer): Allow switching theme color vars based on workspace settings.
 const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVarFunction} =
     createGlobalTheme(":root", createTheme(defaultThemeColor));
+
+const grey5TranslucentColor = getColorForShiftingGreyColor(0.1, "5", "0");
+const grey10TranslucentColor = getColorForShiftingGreyColor(0.1, "10", "0");
+const grey30TranslucentColor = getColorForShiftingGreyColor(0.1, "30", "0");
+const grey40TranslucentColor = getColorForShiftingGreyColor(0.1, "40", "0");
 
 /**
  * Special shades of grey that do not follow the inverted grey color spectrum.
@@ -226,11 +235,42 @@ const specialGreyColorVars: {
     "grey-0-opacity-90": CssVarFunction;
 
     /**
-     * Grey color used as the background of the `<ContentFileViewerModal>`
-     * component. It's a dark grey in both light mode and dark mode with some
-     * transparency.
+     * `grey-10` with 80% opacity.
      */
-    "grey-content-file-viewer-modal": CssVarFunction;
+    "grey-10-opacity-80": CssVarFunction;
+
+    /**
+     * `grey-70` with 80% opacity.
+     */
+    "grey-70-opacity-80": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-5`. Useful when you
+     * want the color `grey-5` but on a white background but over some colorful
+     * content you want the color to show through.
+     */
+    "grey-5-translucent": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-10`. Useful when you
+     * want the color `grey-10` but on a white background but over some colorful
+     * content you want the color to show through.
+     */
+    "grey-10-translucent": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-30`. Useful when you
+     * want the color `grey-30` but on a white background but over some colorful
+     * content you want the color to show through.
+     */
+    "grey-30-translucent": CssVarFunction;
+
+    /**
+     * When rendered over `grey-0` produces the color `grey-40`. Useful when you
+     * want the color `grey-40` but on a white background but over some colorful
+     * content you want the color to show through.
+     */
+    "grey-40-translucent": CssVarFunction;
 } = createGlobalTheme(":root", {
     "grey-5-dark-10": colors["grey-5"],
     "grey-0-opacity-20": `${colors["grey-0"]}${opacityHex(0.2)}`,
@@ -238,7 +278,12 @@ const specialGreyColorVars: {
     "grey-0-opacity-60": `${colors["grey-0"]}${opacityHex(0.6)}`,
     "grey-0-opacity-80": `${colors["grey-0"]}${opacityHex(0.8)}`,
     "grey-0-opacity-90": `${colors["grey-0"]}${opacityHex(0.9)}`,
-    "grey-content-file-viewer-modal": `${colors["grey-70"]}cc`,
+    "grey-10-opacity-80": `${colors["grey-10"]}${opacityHex(0.8)}`,
+    "grey-70-opacity-80": `${colors["grey-70"]}${opacityHex(0.8)}`,
+    "grey-5-translucent": grey5TranslucentColor.light,
+    "grey-10-translucent": grey10TranslucentColor.light,
+    "grey-30-translucent": grey30TranslucentColor.light,
+    "grey-40-translucent": grey40TranslucentColor.light,
 });
 
 globalStyle(darkColorSchemeSelector, {
@@ -249,7 +294,12 @@ globalStyle(darkColorSchemeSelector, {
         "grey-0-opacity-60": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.6)}`,
         "grey-0-opacity-80": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.8)}`,
         "grey-0-opacity-90": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.9)}`,
-        "grey-content-file-viewer-modal": `${colors["grey-80"]}cc`,
+        "grey-10-opacity-80": `${invertedColorsWithShade["grey-10"]}${opacityHex(0.8)}`,
+        "grey-70-opacity-80": `${invertedColorsWithShade["grey-70"]}${opacityHex(0.8)}`,
+        "grey-5-translucent": grey5TranslucentColor.dark,
+        "grey-10-translucent": grey10TranslucentColor.dark,
+        "grey-30-translucent": grey30TranslucentColor.dark,
+        "grey-40-translucent": grey40TranslucentColor.dark,
     }),
 });
 
@@ -274,7 +324,7 @@ export const colorSchemeVars = {
     ...constantColors,
     ...themeColorSchemeVars,
     ...specialGreyColorVars,
-    ...translucentColorSchemeVars,
+    ...themeColorWithOpacitySchemeVars,
 };
 
 /**
@@ -344,5 +394,21 @@ globalStyle(`${darkColorSchemeSelector} ${greyElevated2ClassName}`, {
         [colorSchemeVars["grey-10"]]: colors["grey-80-elevated-2"],
         [colorSchemeVars["grey-20"]]: colors["grey-70-elevated-2"],
         [colorSchemeVars["grey-30"]]: colors["grey-60-elevated-2"],
+    },
+});
+
+const grey100ToGrey80Opacity = approximateOpacityForShiftingGreyColor("100", "80", "0");
+
+export const grey100ToGrey80OpacityVar = createVar("grey-100-to-grey-80-opacity");
+
+globalStyle(":root", {
+    vars: {
+        [grey100ToGrey80OpacityVar]: `${grey100ToGrey80Opacity.light}`,
+    },
+});
+
+globalStyle(darkColorSchemeSelector, {
+    vars: {
+        [grey100ToGrey80OpacityVar]: `${grey100ToGrey80Opacity.dark}`,
     },
 });

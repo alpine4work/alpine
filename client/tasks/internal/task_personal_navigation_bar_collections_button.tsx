@@ -12,7 +12,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
-    grey5SemiTransparentColorVar,
+    colorSchemeVars,
     greyElevated2ClassName,
     spinAnimationClassName,
     sprinkles,
@@ -268,7 +268,7 @@ function TaskPersonalNavigationBarCollectionsComboBoxOverlay({
                             borderTopRadius: "1.5",
                             borderBottomRadius: "none",
                         })}
-                        style={{boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`}}
+                        style={{boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5-translucent"]}`}}
                         placeholder="Search all collections"
                         onKeyDown={event => {
                             // Don't handle a tab keypress with `react-aria`. Instead let our

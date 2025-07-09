@@ -71,7 +71,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                                     <LoudNotificationBadge
                                         top="0.3125rem"
                                         right="0.125rem"
-                                        loudNotificationCount={inbox.model.loudNotificationCount}
+                                        count={inbox.model.loudNotificationCount}
                                     />
                                 )}
                             </Box>

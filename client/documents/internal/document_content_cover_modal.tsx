@@ -20,7 +20,7 @@ import {searchModalMaxHeight, searchModalMaxWidth} from "~/client/styles/search_
 import {
     backgroundFontSizePercentage,
     buttonStyles,
-    grey10SemiTransparentColorVar,
+    colorSchemeVars,
     sprinkles,
 } from "~/client/styles/styles.js";
 import {interFontAscender, interFontDescender} from "~/shared/design/core/font_metrics.js";
@@ -76,7 +76,7 @@ function DocumentContentCoverBlobsArtOption({
                     zIndex="60"
                     pointerEvents="none"
                     borderRadius="1.5"
-                    style={{border: `solid 1px ${grey10SemiTransparentColorVar}`}}
+                    style={{border: `solid 1px ${colorSchemeVars["grey-10-translucent"]}`}}
                 />
                 {isPressed && (
                     <Box

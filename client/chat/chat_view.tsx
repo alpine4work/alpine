@@ -25,7 +25,7 @@ import {
     messageViewAccountAvatarSize,
     messageViewRailGap,
 } from "~/client/styles/messaging_shared_styles.js";
-import {contentStyles, grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
@@ -115,13 +115,13 @@ function ChatViewTopBar({
                 pointerEvents="none"
                 position="absolute"
                 height="border"
+                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
+                // than if we used `grey-5` directly. This is because the border operates more
+                // like a shadow. When rendered over some other content (e.g. an image) the
+                // image's colors show through the border but a little darker.
+                backgroundColor="grey-5-translucent"
                 style={{
                     bottom: -1,
-                    // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
-                    // than if we used `grey-5` directly. This is because the border operates more
-                    // like a shadow. When rendered over some other content (e.g. an image) the
-                    // image's colors show through the border but a little darker.
-                    backgroundColor: grey5SemiTransparentColorVar,
                     left: `max(-${spacing["3"]}, (100% - ${
                         spacing[contentStyles.contentMaxWidth]
                     }) / 2 - ${spacing["3"]})`,

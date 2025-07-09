@@ -50,7 +50,7 @@ export function ShareSwitchBase({
                         // now the theme color is always indigo so hard coding green is fine.
                         Globe: {light: "green-30-const", dark: "green-40-const"} as const,
                         Buildings: {light: "theme-40-const", dark: "theme-50-const"} as const,
-                        Lock: {light: "grey-10-const", dark: "grey-50-const"} as const,
+                        Lock: {light: "grey-10-translucent", dark: "grey-40-translucent"} as const,
                     }[icon]
                 }
                 borderRadius="full"

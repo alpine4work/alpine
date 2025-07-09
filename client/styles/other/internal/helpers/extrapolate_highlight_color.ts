@@ -1,8 +1,4 @@
-import {
-    RawColor,
-    parseRawColor,
-    printRawColor,
-} from "~/client/styles/other/internal/helpers/raw_color.js";
+import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {lerp} from "~/shared/helpers/number/lerp.js";
 

@@ -48,7 +48,6 @@ type ButtonVariant =
     | "quietest"
     | "quiet-on"
     | "quiet-off"
-    | "quiet-above-grey-5-dark-background"
     | "neutral"
     | "neutral-disabled"
     | "accent"
@@ -412,9 +411,9 @@ function Button(
             styles = !isDisabled
                 ? {
                       backgroundColor: isPressed
-                          ? "grey-10"
+                          ? "grey-10-translucent"
                           : isHoveredOrTriggeredOverlayOpen
-                          ? "grey-5"
+                          ? "grey-5-translucent"
                           : undefined,
                       color: "grey-100",
                   }
@@ -430,9 +429,9 @@ function Button(
             styles = !isDisabled
                 ? {
                       backgroundColor: isPressed
-                          ? "grey-10"
+                          ? "grey-10-translucent"
                           : isHoveredOrTriggeredOverlayOpen
-                          ? "grey-5"
+                          ? "grey-5-translucent"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-60",
                   }
@@ -448,9 +447,9 @@ function Button(
             styles = !isDisabled
                 ? {
                       backgroundColor: isPressed
-                          ? "grey-10"
+                          ? "grey-10-translucent"
                           : isHoveredOrTriggeredOverlayOpen
-                          ? "grey-5"
+                          ? "grey-5-translucent"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-50",
                   }
@@ -465,7 +464,7 @@ function Button(
 
             styles = !isDisabled
                 ? {
-                      backgroundColor: isPressed ? "grey-10" : "grey-5",
+                      backgroundColor: isPressed ? "grey-10-translucent" : "grey-5-translucent",
                       color: "grey-100",
                   }
                 : {
@@ -480,29 +479,11 @@ function Button(
             styles = !isDisabled
                 ? {
                       backgroundColor: isPressed
-                          ? "grey-10"
+                          ? "grey-10-translucent"
                           : isHoveredOrTriggeredOverlayOpen
-                          ? "grey-5"
+                          ? "grey-5-translucent"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-50",
-                  }
-                : {
-                      backgroundColor: undefined,
-                      color: "grey-30",
-                  };
-            break;
-        }
-        case "quiet-above-grey-5-dark-background": {
-            isQuietVariant = true;
-
-            styles = !isDisabled
-                ? {
-                      backgroundColor: isPressed
-                          ? {light: "grey-10", dark: "grey-20"}
-                          : isHoveredOrTriggeredOverlayOpen
-                          ? {light: "grey-5", dark: "grey-10"}
-                          : undefined,
-                      color: "grey-100",
                   }
                 : {
                       backgroundColor: undefined,

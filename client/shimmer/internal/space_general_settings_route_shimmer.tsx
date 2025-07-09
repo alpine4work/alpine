@@ -14,7 +14,7 @@ import {
     spaceSettingsDesktopSidebarWidth,
     spaceSettingsMaxDesktopContentWidth,
 } from "~/client/styles/space_settings_shared_styles.js";
-import {grey5SemiTransparentColorVar, pulseAnimationClassName} from "~/client/styles/styles.js";
+import {pulseAnimationClassName} from "~/client/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 
 export function SpaceGeneralSettingsRouteShimmer() {
@@ -85,9 +85,9 @@ export function SpaceGeneralSettingsRouteShimmer() {
                                 pointerEvents="none"
                                 position="absolute"
                                 height="border"
+                                backgroundColor="grey-5-translucent"
                                 style={{
                                     bottom: -1,
-                                    backgroundColor: grey5SemiTransparentColorVar,
                                     left: `max(-${spacing["3"]}, (100% - ${spacing[spaceSettingsMaxDesktopContentWidth]}) / 2 - ${spacing["3"]})`,
                                     right: `max(-${spacing["3"]}, (100% - ${spacing[spaceSettingsMaxDesktopContentWidth]}) / 2 - ${spacing["3"]})`,
                                     maskImage: `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`,

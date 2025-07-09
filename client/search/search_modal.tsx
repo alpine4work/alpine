@@ -64,8 +64,8 @@ import {
     searchModalMaxWidth,
 } from "~/client/styles/search_shared_styles.js";
 import {
+    colorSchemeVars,
     contentStyles,
-    grey5SemiTransparentColorVar,
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -504,11 +504,11 @@ export function SearchModal({
                                         bottom="0"
                                         left="0"
                                         width="border"
+                                        backgroundColor="grey-5-translucent"
                                         style={{
                                             // Render border 1px down so the two semi transparent borders don't conflict
                                             // with each other creating a single pixel that's darker where they intersect.
                                             top: 1,
-                                            backgroundColor: grey5SemiTransparentColorVar,
                                         }}
                                     />
                                     {activePeek ? (
@@ -587,7 +587,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 // Render border with a semi-transparent box shadow so that we get a nice
                 // soft shadow effect when content from the search result list scrolls under
                 // the border instead of a hard cutoff.
-                boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`,
+                boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5-translucent"]}`,
             }}
         >
             <MagnifyingGlass

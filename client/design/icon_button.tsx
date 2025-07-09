@@ -48,7 +48,6 @@ export type IconButtonVariant =
     | "accent"
     | "quiet"
     | "quiet-above-grey-5-background"
-    | "quiet-above-grey-5-dark-background"
     | "quiet-above-content-file-viewer-modal"
     | "quiet-elevation-10"
     | "quiet-elevation-20"
@@ -394,9 +393,9 @@ function IconButton(
             styles = !isDisabled
                 ? {
                       backgroundColor: isPressed
-                          ? "grey-10"
+                          ? "grey-10-translucent"
                           : isHoveredOrTriggeredOverlayOpen
-                          ? "grey-5"
+                          ? "grey-5-translucent"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-70",
                   }
@@ -417,24 +416,6 @@ function IconButton(
                           ? "grey-10"
                           : undefined,
                       color: isPressed ? "grey-100" : "grey-70",
-                  }
-                : {
-                      backgroundColor: undefined,
-                      color: "grey-30",
-                  };
-            break;
-        }
-        case "quiet-above-grey-5-dark-background": {
-            isQuietVariant = true;
-
-            styles = !isDisabled
-                ? {
-                      backgroundColor: isPressed
-                          ? {light: "grey-10", dark: "grey-20"}
-                          : isHoveredOrTriggeredOverlayOpen
-                          ? {light: "grey-5", dark: "grey-10"}
-                          : undefined,
-                      color: isPressed ? "grey-90" : "grey-70",
                   }
                 : {
                       backgroundColor: undefined,

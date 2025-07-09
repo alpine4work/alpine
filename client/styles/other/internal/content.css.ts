@@ -23,18 +23,9 @@ import {
 import {buttonPressedOverlayOpacity} from "~/client/styles/other/internal/button.css.js";
 import * as contentFileVideoPlayerStyles from "~/client/styles/other/internal/content_file_video_player.css.js";
 import {
-    grey10SemiTransparentColorVar,
-    grey5SemiTransparentColorVar,
-} from "~/client/styles/other/internal/grey_semi_transparent_colors.css.js";
-import {
     extrapolateHighlightColor,
     extrapolateHighlightRawColorWithoutBounds,
 } from "~/client/styles/other/internal/helpers/extrapolate_highlight_color.js";
-import {
-    RawColor,
-    parseRawColor,
-    printRawColor,
-} from "~/client/styles/other/internal/helpers/raw_color.js";
 import {navigationBarHeight} from "~/client/styles/other/internal/navigation_bar.css.js";
 import {
     boldClassName,
@@ -71,6 +62,7 @@ import {
 } from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
+import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {Platform} from "~/shared/design/core/platform.js";
@@ -1263,13 +1255,13 @@ globalStyle(`${fileClassName}:not(${fileImageViewerClassName})::before`, {
     zIndex: "40",
     position: "absolute",
     inset: "0",
-    boxShadow: `inset 0 0 0 0.5px ${grey5SemiTransparentColorVar}`,
+    boxShadow: `inset 0 0 0 0.5px ${colorSchemeVars["grey-5-translucent"]}`,
 });
 
 globalStyle(`${fileClassName}${fileEntityClassName}:not(${fileImageViewerClassName})::before`, {
     borderRadius: spacing["1.5"],
     boxShadow: "none",
-    border: `solid 1px ${grey10SemiTransparentColorVar}`,
+    border: `solid 1px ${colorSchemeVars["grey-10-translucent"]}`,
 });
 
 // Turn off borders for files with a transparent background.
@@ -1375,7 +1367,7 @@ export const fileImagePreviewContentClassName = style({
 // `grey-0`. So apply a color that should change the background color to
 // `grey-5` on press.
 globalStyle(`${pressedFileClassName}:not(:has(${fileImagePreviewContentClassName}))::before`, {
-    backgroundColor: grey5SemiTransparentColorVar,
+    backgroundColor: colorSchemeVars["grey-5-translucent"],
 });
 
 export const fileImagePreviewPlaceholderClassName = style({
@@ -2311,6 +2303,8 @@ globalStyle(`${emptyTitleClassName} > ${titleClassName}[data-placeholder]::befor
     pointerEvents: "none",
     // Uses a bold font weight for the title.
     ...omitObject(inputPlaceholderStyles, ["fontWeight"]),
+    // `grey-30-translucent` looks a lot nicer over blobs cover art.
+    color: colorSchemeVars["grey-30-translucent"],
     position: "absolute",
     // Reset the `text-fill-color` set by blobs so that we can see the placeholder.
     // @ts-expect-error
@@ -2331,6 +2325,8 @@ globalStyle(`${emptyBodyClassName} > ${paragraphClassName}[data-placeholder]::be
     content: ["attr(data-placeholder)", 'attr(data-placeholder) / ""'],
     pointerEvents: "none",
     ...inputPlaceholderStyles,
+    // `grey-30-translucent` looks a lot nicer over blobs cover art.
+    color: colorSchemeVars["grey-30-translucent"],
     position: "absolute",
     // Make sure placeholder is rendered underneath cursor.
     zIndex: -10,

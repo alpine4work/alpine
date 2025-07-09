@@ -140,7 +140,7 @@ export function ContentFileViewerModalDesktop({
             // 1. To bring focus to the content
             // 2. So content that's transparent and uses white or black is visible whether
             //    we're in light mode or dark mode
-            backgroundColor="grey-content-file-viewer-modal"
+            backgroundColor={{light: "grey-70-opacity-80", dark: "grey-10-opacity-80"}}
             // As a fullscreen modal that almost completely covers the content below, we
             // don't benefit from using lighter grey colors in dark mode. Use the standard
             // dark mode shades in our content file viewer modal.

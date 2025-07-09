@@ -95,8 +95,8 @@ import {
 } from "~/client/styles/messaging_shared_styles.js";
 import {
     backgroundColorVar,
+    colorSchemeVars,
     contentStyles,
-    grey5SemiTransparentColorVar,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -730,13 +730,13 @@ function MessageInputBase<RoomKey extends string, Message extends MessageModel<R
                         pointerEvents="none"
                         position="absolute"
                         height="border"
+                        // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
+                        // than if we used `grey-5` directly. This is because the border operates more
+                        // like a shadow. When rendered over some other content (e.g. an image) the
+                        // image's colors show through the border but a little darker.
+                        backgroundColor="grey-5-translucent"
                         style={{
                             top: -1,
-                            // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
-                            // than if we used `grey-5` directly. This is because the border operates more
-                            // like a shadow. When rendered over some other content (e.g. an image) the
-                            // image's colors show through the border but a little darker.
-                            backgroundColor: grey5SemiTransparentColorVar,
                             left: `max(-${spacing["3"]}, (100% - ${
                                 spacing[contentStyles.contentMaxWidth]
                             }) / 2 - ${spacing["3"]})`,
@@ -1493,8 +1493,8 @@ function MessageInputReplyingToMessage<
                         // blended results in `grey-5`) so that when we render the context menu (right
                         // click) `grey-5` background the border is rendered on top of the background
                         // color.
-                        borderLeftColor: grey5SemiTransparentColorVar,
-                        borderTopColor: grey5SemiTransparentColorVar,
+                        borderLeftColor: colorSchemeVars["grey-5-translucent"],
+                        borderTopColor: colorSchemeVars["grey-5-translucent"],
                         borderStyle: "solid",
 
                         top: `calc(${

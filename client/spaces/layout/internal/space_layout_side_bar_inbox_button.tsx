@@ -1,6 +1,6 @@
 import {differenceInMinutes} from "date-fns/differenceInMinutes";
-import {Bell} from "phosphor-react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {IconContext} from "phosphor-react";
+import {useCallback, useContext, useEffect, useId, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -11,7 +11,7 @@ import {
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDynamoGeneralRealtimeItem} from "~/client/dynamo/use_dynamo_general_realtime_item.js";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
-import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
+import {LoudNotificationBadgeSvg} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
@@ -23,11 +23,7 @@ import {
 } from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_overlay.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
-import {
-    backgroundColorVar,
-    greyElevated1ClassName,
-    overlayFadeOutAnimationDurationMs,
-} from "~/client/styles/styles.js";
+import {greyElevated1ClassName, overlayFadeOutAnimationDurationMs} from "~/client/styles/styles.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
@@ -310,36 +306,119 @@ export function SpaceLayoutSideBarInboxButton({
                 // manually on every `<Button>` wrapped in an `<OverlayTriggerButton>`.
                 withoutFocusOnPress={true}
             >
-                <Bell />
-                {notificationType === "loud" ? (
-                    <LoudNotificationBadge
-                        top="0.1875rem"
-                        right="0.6875rem"
-                        loudNotificationCount={inbox.model.loudNotificationCount}
-                    />
-                ) : notificationType === "subtle" ? (
+                <Box position="relative" width="5" height="5">
                     <Box
-                        zIndex="30"
-                        position="absolute"
                         pointerEvents="none"
-                        borderRadius="full"
-                        width="1"
-                        height="1"
-                        style={{
-                            top: "0.5rem",
-                            right: "0.625rem",
-                            backgroundColor: "currentcolor",
-                            // On high pixel density displays we want 1.3px should to round up to 1.5px and
-                            // on low pixel density displays we want 1.3px to round down to 1px.
-                            //
-                            // That extra width is helpful when rendering this on top of a solid object
-                            // like an avatar. We don't want 2px since an avatar pile will use that for
-                            // occluding other avatars.
-                            boxShadow: `0 0 0 1.3px ${backgroundColorVar}`,
-                        }}
-                    />
-                ) : null}
+                        position="absolute"
+                        width="10"
+                        height="10"
+                        top="-5"
+                        right="-5"
+                    >
+                        <SpaceLayoutSideBarInboxButtonIcon
+                            notificationType={notificationType}
+                            loudNotificationCount={inbox.model.loudNotificationCount}
+                        />
+                    </Box>
+                </Box>
             </IconButton>
         </OverlayTriggerButton>
+    );
+}
+
+function SpaceLayoutSideBarInboxButtonIcon({
+    notificationType,
+    loudNotificationCount,
+}: {
+    notificationType: "loud" | "subtle" | null;
+    loudNotificationCount: number;
+}) {
+    const {
+        color: contextColor,
+        size: contextSize,
+        weight,
+        mirrored,
+        ...context
+    } = useContext(IconContext);
+
+    const idBase = useId();
+
+    const strokeWidth = 16;
+
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            // Extra space above and to the right in the `viewBox` to make space for the
+            // notification badge.
+            //
+            // NOTE(calebmer): I don't really understand why -128 in `viewBox` works here.
+            // I'd expect -256 to be what we need to give 512 total `viewBox` units of
+            // vertical space with 256 of those units above the icon. -128 seems to put us
+            // in the exact right position *shrug*.
+            viewBox="0 -128 512 256"
+            fill={contextColor}
+            {...context}
+            // NOTE(calebmer): Safari doesn't like `width` and `height` attributes being
+            // set to rem units so use `style` instead.
+            style={{
+                width: `calc(${contextSize} * 2)`,
+                height: `calc(${contextSize} * 2)`,
+                ...context.style,
+            }}
+        >
+            <path
+                d="M56.2,104a71.9,71.9,0,0,1,72.3-72c39.6.3,71.3,33.2,71.3,72.9V112c0,35.8,7.5,56.6,14.1,68a8,8,0,0,1-6.9,12H49a8,8,0,0,1-6.9-12c6.6-11.4,14.1-32.2,14.1-68Z"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={strokeWidth}
+                clipPath={notificationType ? `url(#${idBase}-${notificationType})` : undefined}
+            />
+            <path
+                d="M96,192v8a32,32,0,0,0,64,0v-8"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={strokeWidth}
+            />
+            {notificationType === "subtle" &&
+                (() => {
+                    const dotDiameter = 51.2;
+                    const dotRadius = dotDiameter / 2;
+                    const dotX = 179.2;
+                    const dotY = 51.2;
+                    const dotClipRadius = dotRadius + strokeWidth;
+                    const dotClipDiameter = dotClipRadius * 2;
+
+                    return (
+                        <>
+                            <circle cx={dotX} cy={dotY} r={dotRadius} fill="currentcolor" />
+                            <clipPath id={`${idBase}-subtle`}>
+                                <path
+                                    fillRule="evenodd"
+                                    clipRule="evenodd"
+                                    d={[
+                                        "M0,0h256v256h-256z",
+                                        `M${dotX},${dotY}`,
+                                        `m${-dotClipRadius},0`,
+                                        `a${dotClipRadius},${dotClipRadius},0,1,0,${dotClipDiameter},0`,
+                                        `a${dotClipRadius},${dotClipRadius},0,1,0,${-dotClipDiameter},0`,
+                                    ].join(" ")}
+                                />
+                            </clipPath>
+                        </>
+                    );
+                })()}
+            {notificationType === "loud" && (
+                <LoudNotificationBadgeSvg
+                    x={192}
+                    y={39}
+                    count={loudNotificationCount}
+                    clipPath={{id: `${idBase}-loud`, strokeWidth}}
+                />
+            )}
+        </svg>
     );
 }

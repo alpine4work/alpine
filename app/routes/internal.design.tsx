@@ -195,14 +195,6 @@ export default function DesignPlaygroundRoute() {
                             </Box>
                             <Box display="flex" alignItems="center" gap="4">
                                 <Box width="24" textAlign="right">
-                                    quiet-above:
-                                </Box>
-                                <Button variant="quiet-above-grey-5-dark-background">
-                                    Quiet above button
-                                </Button>
-                            </Box>
-                            <Box display="flex" alignItems="center" gap="4">
-                                <Box width="24" textAlign="right">
                                     neutral:
                                 </Box>
                                 <Button variant="neutral">Neutral button</Button>

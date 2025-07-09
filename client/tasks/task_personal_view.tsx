@@ -31,7 +31,6 @@ import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {useSpaceContextAndRequireSpaceAccess} from "~/client/spaces/space_context.js";
 import {
-    grey5SemiTransparentColorVar,
     navigationBarStyles,
     pointerEventsNoneNotInheritedClassName,
     sprinkles,
@@ -2087,7 +2086,8 @@ const TaskPersonalNavigationBar = memo(function TaskPersonalNavigationBar({
                                 left={screenPaddingX}
                                 right={screenPaddingX}
                                 height="border"
-                                style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
+                                backgroundColor="grey-5-translucent"
+                                style={{bottom: -1}}
                             />
                         </Box>
                     </>
@@ -2332,7 +2332,8 @@ const TaskPersonalViewFirstHeaderDesktop = memo(function TaskPersonalViewFirstHe
                         left={screenPaddingX}
                         right={screenPaddingX}
                         height="border"
-                        style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
+                        backgroundColor="grey-5-translucent"
+                        style={{bottom: -1}}
                     />
                 </Box>
             </Box>

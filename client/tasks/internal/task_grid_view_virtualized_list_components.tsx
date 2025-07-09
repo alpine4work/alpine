@@ -26,7 +26,6 @@ import {TaskRowShimmer} from "~/client/shimmer/task_row_shimmer.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     colorSchemeVars,
-    grey5SemiTransparentColorVar,
     pulseAnimationClassName,
     spinAnimationClassName,
 } from "~/client/styles/styles.js";
@@ -130,7 +129,8 @@ function TaskGridViewColumnHeader(
                         left={screenPaddingX}
                         right={screenPaddingX}
                         height="border"
-                        style={{backgroundColor: grey5SemiTransparentColorVar, bottom: -1}}
+                        backgroundColor="grey-5-translucent"
+                        style={{bottom: -1}}
                     />
                 </Box>
                 <OverlayScopeContextProvider

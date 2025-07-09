@@ -22,7 +22,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {contentStyles, grey5SemiTransparentColorVar} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -251,13 +251,13 @@ export default function NewChatRoute() {
                     pointerEvents="none"
                     position="absolute"
                     height="border"
+                    // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
+                    // than if we used `grey-5` directly. This is because the border operates more
+                    // like a shadow. When rendered over some other content (e.g. an image) the
+                    // image's colors show through the border but a little darker.
+                    backgroundColor="grey-5-translucent"
                     style={{
                         bottom: -1,
-                        // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
-                        // than if we used `grey-5` directly. This is because the border operates more
-                        // like a shadow. When rendered over some other content (e.g. an image) the
-                        // image's colors show through the border but a little darker.
-                        backgroundColor: grey5SemiTransparentColorVar,
                         left: `max(-${spacing["3"]}, (100% - ${
                             spacing[contentStyles.contentMaxWidth]
                         }) / 2 - ${spacing["3"]})`,

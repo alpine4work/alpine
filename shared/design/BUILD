@@ -18,6 +18,7 @@ ts_project(
     test_srcs = [],
     visibility = ["//visibility:public"],
     deps = [
+        "//:node_modules/@lume/kiwi",
         "//:node_modules/@types/react",
         "//shared/helpers:helpers_core",
     ],

@@ -12,7 +12,7 @@ import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schem
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitleSeparator} from "~/client/remix/use_update_meta_title.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/search/use_search_affinity_view_entity_interaction.js";
-import {contentStyles, grey5SemiTransparentColorVar, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles, sprinkles} from "~/client/styles/styles.js";
 import {TaskCommentsView} from "~/client/tasks/task_comments_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {getInboxEntry} from "~/server/notifications/data/notifications_table.js";
@@ -199,14 +199,12 @@ export default function TaskCommentsRoute() {
                     left="0"
                     right="0"
                     height="border"
-                    style={{
-                        bottom: -1,
-                        // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
-                        // than if we used `grey-5` directly. This is because the border operates more
-                        // like a shadow. When rendered over some other content (e.g. an image) the
-                        // image's colors show through the border but a little darker.
-                        backgroundColor: grey5SemiTransparentColorVar,
-                    }}
+                    // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
+                    // than if we used `grey-5` directly. This is because the border operates more
+                    // like a shadow. When rendered over some other content (e.g. an image) the
+                    // image's colors show through the border but a little darker.
+                    backgroundColor="grey-5-translucent"
+                    style={{bottom: -1}}
                 />
             </Box>
             <TaskCommentsView

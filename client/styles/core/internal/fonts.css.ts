@@ -33,7 +33,7 @@ export const backgroundFontSizePercentage =
 // If our italic font hasn't loaded, fallback to an Inter font face without the
 // italic file so we temporarily render Inter but the browser manually
 // slants it.
-const interFontFamily = "CyInter, CyInterWithoutItalic, CyInterFallback";
+export const interFontFamily = "CyInter, CyInterWithoutItalic, CyInterFallback";
 
 const commitMonoFontFamily = "CyCommitMono, CyInterFallback";
 

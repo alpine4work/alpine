@@ -14,12 +14,7 @@ import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePlatform} from "~/client/remix/platform_context.js";
-import {
-    colorSchemeVars,
-    grey5SemiTransparentColorVar,
-    greyElevated2ClassName,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/client/styles/styles.js";
 import {
     ContentCodeBlockLanguage,
     contentCodeBlockLanguages,
@@ -249,7 +244,7 @@ function ContentEditorCodeBlockLanguagePickerComboBoxOverlay({
                             borderTopRadius: "1.5",
                             borderBottomRadius: "none",
                         })}
-                        style={{boxShadow: `0 1px 0 0 ${grey5SemiTransparentColorVar}`}}
+                        style={{boxShadow: `0 1px 0 0 ${colorSchemeVars["grey-5-translucent"]}`}}
                         placeholder="Language"
                         // Allow iOS and MacOS autocorrect and spell checking. By default `react-aria`
                         // disables these capabilities because the user has combobox suggestions.

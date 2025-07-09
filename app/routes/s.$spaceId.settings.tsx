@@ -17,7 +17,7 @@ import {
     spaceSettingsDesktopSidebarWidth,
     spaceSettingsMaxDesktopContentWidth,
 } from "~/client/styles/space_settings_shared_styles.js";
-import {colorSchemeVars, grey5SemiTransparentColorVar} from "~/client/styles/styles.js";
+import {colorSchemeVars} from "~/client/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -205,13 +205,13 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                                 pointerEvents="none"
                                 position="absolute"
                                 height="border"
+                                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
+                                // than if we used `grey-5` directly. This is because the border operates more
+                                // like a shadow. When rendered over some other content (e.g. an image) the
+                                // image's colors show through the border but a little darker.
+                                backgroundColor="grey-5-translucent"
                                 style={{
                                     bottom: -1,
-                                    // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
-                                    // than if we used `grey-5` directly. This is because the border operates more
-                                    // like a shadow. When rendered over some other content (e.g. an image) the
-                                    // image's colors show through the border but a little darker.
-                                    backgroundColor: grey5SemiTransparentColorVar,
                                     left: `max(-${spacing["3"]}, (100% - ${spacing[spaceSettingsMaxDesktopContentWidth]}) / 2 - ${spacing["3"]})`,
                                     right: `max(-${spacing["3"]}, (100% - ${spacing[spaceSettingsMaxDesktopContentWidth]}) / 2 - ${spacing["3"]})`,
                                     maskImage: `linear-gradient(to right, transparent, black ${spacing["3"]} calc(100% - ${spacing["3"]}), transparent)`,

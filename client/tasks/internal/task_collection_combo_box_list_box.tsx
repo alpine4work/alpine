@@ -10,8 +10,8 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {
+    colorSchemeVars,
     fontSizes,
-    grey5SemiTransparentColorVar,
     spinAnimationClassName,
     sprinkles,
 } from "~/client/styles/styles.js";
@@ -173,7 +173,7 @@ export function TaskCollectionComboBoxListBox({
                 createCollectionButtonItem && (
                     <Box
                         padding="1"
-                        style={{boxShadow: `0 -1px 0 0 ${grey5SemiTransparentColorVar}`}}
+                        style={{boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5-translucent"]}`}}
                     >
                         <TaskCollectionComboBoxCreateCollectionOption
                             comboBoxState={comboBoxState}

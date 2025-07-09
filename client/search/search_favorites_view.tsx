@@ -63,11 +63,7 @@ import {
     searchAffinityEntityViewMinHeightPx,
     searchEntityViewDefaultPaddingX,
 } from "~/client/styles/search_shared_styles.js";
-import {
-    colorSchemeVars,
-    contentStyles,
-    grey5SemiTransparentColorVar,
-} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {screenPaddingX, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -387,11 +383,7 @@ export function SearchFavoritesView({
                     paddingX={screenPaddingX}
                     style={{height: searchAffinityEntityViewMinHeightPx[spacingScale] / 2}}
                 >
-                    <Box
-                        width="full"
-                        height="border"
-                        style={{backgroundColor: grey5SemiTransparentColorVar}}
-                    />
+                    <Box width="full" height="border" backgroundColor="grey-5-translucent" />
                 </Box>
                 <Box
                     style={{
@@ -897,13 +889,12 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                         zIndex="-10"
                         width="full"
                         height="border"
-                        style={{
-                            backgroundColor:
-                                platform === "mobile" && (isPointerDown || isDragOverlay)
-                                    ? colorSchemeVars["grey-10"]
-                                    : // Using a semi-transparent color so it looks better when dragging.
-                                      grey5SemiTransparentColorVar,
-                        }}
+                        backgroundColor={
+                            platform === "mobile" && (isPointerDown || isDragOverlay)
+                                ? "grey-10"
+                                : // Using a semi-transparent color so it looks better when dragging.
+                                  "grey-5-translucent"
+                        }
                     >
                         <Box
                             position="absolute"
@@ -927,7 +918,7 @@ function SearchFavoritesViewShortcutDivider({isDragOverlay}: {isDragOverlay?: bo
                             position="absolute"
                             zIndex="-20"
                             inset="0"
-                            style={{backgroundColor: grey5SemiTransparentColorVar}}
+                            backgroundColor="grey-5-translucent"
                         />
                     )}
                 </Box>

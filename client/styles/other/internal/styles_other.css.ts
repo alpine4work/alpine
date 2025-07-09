@@ -20,7 +20,6 @@ export * as documentCommentThreadsStyles from "~/client/styles/other/internal/do
 export * as documentContentStyles from "~/client/styles/other/internal/document_content.css.js";
 export * as documentPresentationStyles from "~/client/styles/other/internal/document_presentation.css.js";
 export * as forumStyles from "~/client/styles/other/internal/forum.css.js";
-export * from "~/client/styles/other/internal/grey_semi_transparent_colors.css.js";
 export * as inboxStyles from "~/client/styles/other/internal/inbox.css.js";
 export * as messagingStyles from "~/client/styles/other/internal/messaging.css.js";
 export * as modalStyles from "~/client/styles/other/internal/modal.css.js";

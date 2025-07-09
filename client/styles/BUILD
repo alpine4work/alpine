@@ -76,8 +76,10 @@ ts_project(
     lint_and_format_srcs = [],
     test_srcs = [],
     deps = [
+        "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/css",
         "//:node_modules/@vanilla-extract/sprinkles",
+        "//:node_modules/color",
         "//:node_modules/murmurhash",
         "//shared/design:design_core",
         "//shared/error:error_core",
@@ -123,8 +125,10 @@ esbuild(
     # https://github.com/aspect-build/rules_esbuild/blob/798abd34bb9c9c1f79bc77ae1109bae2c9f7b68a/esbuild/private/launcher.js#L60
     splitting = False,
     deps = [
+        "//:node_modules/@types/color",
         "//:node_modules/@vanilla-extract/esbuild-plugin",
         "//:node_modules/autoprefixer",
+        "//:node_modules/color",
         "//:node_modules/postcss",
         "//:node_modules/prosemirror-view",
         "//shared/design:design_core",

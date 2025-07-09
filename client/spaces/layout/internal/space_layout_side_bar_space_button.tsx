@@ -90,9 +90,7 @@ export function SpaceLayoutSideBarSpaceButton({space}: {space: SpaceModel}) {
                                                 <LoudNotificationBadge
                                                     top="-0.0625rem"
                                                     right="0.125rem"
-                                                    loudNotificationCount={
-                                                        inbox.model.loudNotificationCount
-                                                    }
+                                                    count={inbox.model.loudNotificationCount}
                                                 />
                                             )}
                                         </Box>

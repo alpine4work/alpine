@@ -6,9 +6,13 @@ CORE_SRCS = [
     "control/assert_exists.ts",
     "control/assert.ts",
     "control/cast.ts",
+    "control/is_deep_equal.ts",
     "map/get_or_set_default_map_value.ts",
+    "number/clamp.ts",
     "object/get_object_entries_with_keyof_type.ts",
     "object/get_object_keys_with_keyof_type.ts",
+    "object/has_own_property.ts",
+    "object/is_plain_object.ts",
     "object/map_object_values.ts",
     "object/omit_object.ts",
 ]
@@ -24,7 +28,10 @@ ts_project(
     lint_and_format_srcs = [],
     test_srcs = [],
     visibility = ["//visibility:public"],
-    deps = ["//shared/error:error_core"],
+    deps = [
+        "//:node_modules/date-fns",
+        "//shared/error:error_core",
+    ],
 )
 
 ts_project(

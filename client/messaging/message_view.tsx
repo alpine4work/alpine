@@ -81,7 +81,6 @@ import {
     contentStyles,
     contentViewStyles,
     emojiFontFamily,
-    grey5SemiTransparentColorVar,
     pulseAnimationWithReducedOpacityClassName,
     sprinkles,
     wiggleAnimation,
@@ -1478,8 +1477,8 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         // blended results in `grey-5`) so that when we render the context menu (right
                         // click) `grey-5` background the border is rendered on top of the background
                         // color.
-                        borderLeftColor: grey5SemiTransparentColorVar,
-                        borderTopColor: grey5SemiTransparentColorVar,
+                        borderLeftColor: colorSchemeVars["grey-5-translucent"],
+                        borderTopColor: colorSchemeVars["grey-5-translucent"],
                         borderStyle: "solid",
 
                         top: `calc(${

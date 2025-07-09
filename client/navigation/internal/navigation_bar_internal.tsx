@@ -41,11 +41,7 @@ import {
     getRemPxWithoutListening,
     getSpacingScaleWithoutListening,
 } from "~/client/remix/spacing_scale_context.js";
-import {
-    grey5SemiTransparentColorVar,
-    navigationBarStyles,
-    sprinkles,
-} from "~/client/styles/styles.js";
+import {navigationBarStyles, sprinkles} from "~/client/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
 import {
     RemLength,
@@ -1081,13 +1077,13 @@ export function NavigationBar({
                                 display="none"
                                 position="absolute"
                                 height="border"
+                                // It's subtle, but `grey-5-translucent` ends up looking a lot nicer
+                                // than if we used `grey-5` directly. This is because the border operates more
+                                // like a shadow. When rendered over some other content (e.g. an image) the
+                                // image's colors show through the border but a little darker.
+                                backgroundColor="grey-5-translucent"
                                 style={{
                                     bottom: -1,
-                                    // It's subtle, but `grey5SemiTransparentColorVar` ends up looking a lot nicer
-                                    // than if we used `grey-5` directly. This is because the border operates more
-                                    // like a shadow. When rendered over some other content (e.g. an image) the
-                                    // image's colors show through the border but a little darker.
-                                    backgroundColor: grey5SemiTransparentColorVar,
                                     left:
                                         backgroundBorderMaxWidth !== undefined
                                             ? `max(-${spacing["3"]}, (100% - ${backgroundBorderMaxWidth}) / 2 - ${spacing["3"]})`

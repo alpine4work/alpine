@@ -9,7 +9,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {documentCommentThreadPreviewHeight} from "~/client/styles/document_shared_styles.js";
 import {
-    grey10SemiTransparentColorVar,
+    colorSchemeVars,
     invertSelectionColorsClassName,
     pressOpacityOverlayClassName,
 } from "~/client/styles/styles.js";
@@ -184,7 +184,7 @@ export function DocumentCommentThreadPreview({
                     zIndex="40"
                     pointerEvents="none"
                     borderRadius="1.5"
-                    style={{border: `solid 1px ${grey10SemiTransparentColorVar}`}}
+                    style={{border: `solid 1px ${colorSchemeVars["grey-10-translucent"]}`}}
                 />
                 {isPressed && (
                     <Box

@@ -5,6 +5,7 @@ export const interFontDescender: number = 494;
 export const interFontUnitsPerEm: number = 2048;
 export const interFontXHeight: number = 1118;
 export const interFontCapHeight: number = 1490;
+export const interDigitGlyphMaxAdvanceWidth: number = 1323;
 
 export const commitMonoFontAscender: number = 958;
 export const commitMonoFontDescender: number = 239;
