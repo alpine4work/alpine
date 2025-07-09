@@ -25,7 +25,10 @@ import {taskRealtimeStoreBeforeSendEventTestCheckpoint} from "~/server/tasks/rea
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
-import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
+import {
+    WebSocketServer,
+    WebSocketServerTestConnection,
+} from "~/server/web_socket/web_socket_server.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
@@ -74,9 +77,13 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
+import {
+    TaskRealtimeProtocol,
+    TaskRealtimeUpdateEvent,
+} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
+import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 
@@ -170,11 +177,148 @@ function query(
     };
 }
 
-function expectAuthorizedTask(taskId: TaskId, collectionIds: Array<TaskCollectionId> = []) {
+async function testSubscribe(
+    connection: WebSocketServerTestConnection<
+        ServerProcessContextModules,
+        ServerSessionActionContextModules & {fork: ForkActionContextModule},
+        typeof TaskRealtimeProtocol,
+        TaskRealtimeConnection
+    >,
+    input: WebSocketProtocolProceduresType<typeof TaskRealtimeProtocol>["subscribe"]["input"],
+) {
+    const result = await connection.procedures.subscribe(input);
+
+    return {
+        ...result,
+        updateEvent: result.updateEvent ? massageUpdateEvent(result.updateEvent) : null,
+    };
+}
+
+async function testSubscribeToQuery(
+    connection: WebSocketServerTestConnection<
+        ServerProcessContextModules,
+        ServerSessionActionContextModules & {fork: ForkActionContextModule},
+        typeof TaskRealtimeProtocol,
+        TaskRealtimeConnection
+    >,
+    input:
+        | WebSocketProtocolProceduresType<typeof TaskRealtimeProtocol>["subscribeToQuery"]["input"]
+        | {
+              session: TestSpaceSession;
+              filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
+              sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
+              limit?: number;
+          },
+) {
+    if ("session" in input) {
+        input = query(input.session, input);
+    }
+
+    const result = await connection.procedures.subscribeToQuery(input);
+
+    return {
+        ...result,
+        updateEvent: result.updateEvent ? massageUpdateEvent(result.updateEvent) : null,
+    };
+}
+
+async function testSubscribeToTask(
+    connection: WebSocketServerTestConnection<
+        ServerProcessContextModules,
+        ServerSessionActionContextModules & {fork: ForkActionContextModule},
+        typeof TaskRealtimeProtocol,
+        TaskRealtimeConnection
+    >,
+    input: WebSocketProtocolProceduresType<typeof TaskRealtimeProtocol>["subscribeToTask"]["input"],
+) {
+    const result = await connection.procedures.subscribeToTask(input);
+
+    return {
+        ...result,
+        updateEvent: result.updateEvent ? massageUpdateEvent(result.updateEvent) : null,
+    };
+}
+
+async function testSubscribeToCollection(
+    connection: WebSocketServerTestConnection<
+        ServerProcessContextModules,
+        ServerSessionActionContextModules & {fork: ForkActionContextModule},
+        typeof TaskRealtimeProtocol,
+        TaskRealtimeConnection
+    >,
+    input: WebSocketProtocolProceduresType<
+        typeof TaskRealtimeProtocol
+    >["subscribeToCollection"]["input"],
+) {
+    const result = await connection.procedures.subscribeToCollection(input);
+
+    return {
+        ...result,
+        updateEvent: result.updateEvent ? massageUpdateEvent(result.updateEvent) : null,
+    };
+}
+
+async function testLoadMoreQueryTasks(
+    connection: WebSocketServerTestConnection<
+        ServerProcessContextModules,
+        ServerSessionActionContextModules & {fork: ForkActionContextModule},
+        typeof TaskRealtimeProtocol,
+        TaskRealtimeConnection
+    >,
+    input:
+        | WebSocketProtocolProceduresType<
+              typeof TaskRealtimeProtocol
+          >["loadMoreQueryTasks"]["input"],
+) {
+    const result = await connection.procedures.loadMoreQueryTasks(input);
+
+    return {
+        ...result,
+        updateEvent: result.updateEvent ? massageUpdateEvent(result.updateEvent) : null,
+    };
+}
+
+function testTakeEvents(
+    connection: WebSocketServerTestConnection<
+        ServerProcessContextModules,
+        ServerSessionActionContextModules & {fork: ForkActionContextModule},
+        typeof TaskRealtimeProtocol,
+        TaskRealtimeConnection
+    >,
+) {
+    return connection.takeEvents().map(event => {
+        if (event.type !== "Update") return event;
+        return massageUpdateEvent(event);
+    });
+}
+
+function massageUpdateEvent(updateEvent: TaskRealtimeUpdateEvent) {
+    return {
+        ...updateEvent,
+        // `backfillTasks` and `backfillCollections` may be returned in a
+        // non-deterministic order. So to prevent flaky test failures we turn them into
+        // an object where order doesn't matter to Jest when determining equality.
+        backfillTasks: Object.fromEntries(
+            updateEvent.backfillTasks.map((task): [TaskId, unknown] => {
+                if (task.type !== "Authorized") return [task.taskId, task];
+
+                return [task.task.id, task];
+            }),
+        ),
+        backfillCollections: Object.fromEntries(
+            updateEvent.backfillCollections.map((collection): [TaskCollectionId, unknown] => {
+                if (collection.type !== "Authorized") return [collection.collectionId, collection];
+
+                return [collection.collection.id, collection];
+            }),
+        ),
+    };
+}
+
+function expectAuthorizedTask(collectionIds: Array<TaskCollectionId> = []) {
     return expect.objectContaining({
         type: "Authorized",
         task: expect.objectContaining({
-            id: taskId,
             rawData: expect.objectContaining({
                 collections: expect.objectContaining({
                     _array: collectionIds.map(collectionId =>
@@ -186,25 +330,16 @@ function expectAuthorizedTask(taskId: TaskId, collectionIds: Array<TaskCollectio
     });
 }
 
-function expectUnauthorizedTask(taskId: TaskId) {
-    return expect.objectContaining({
-        type: "Unauthorized",
-        taskId,
-    });
+function expectUnauthorizedTask() {
+    return expect.objectContaining({type: "Unauthorized"});
 }
 
-function expectAuthorizedCollection(collectionId: TaskCollectionId) {
-    return expect.objectContaining({
-        type: "Authorized",
-        collection: expect.objectContaining({id: collectionId}),
-    });
+function expectAuthorizedCollection() {
+    return expect.objectContaining({type: "Authorized"});
 }
 
-function expectUnauthorizedCollection(collectionId: TaskCollectionId) {
-    return expect.objectContaining({
-        type: "Unauthorized",
-        collectionId,
-    });
+function expectUnauthorizedCollection() {
+    return expect.objectContaining({type: "Unauthorized"});
 }
 
 test("can’t load a query with no filters", async () => {
@@ -214,15 +349,15 @@ test("can’t load a query with no filters", async () => {
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    await expect(connection.procedures.subscribeToQuery(query(session))).rejects.toThrow(
+    await expect(testSubscribeToQuery(connection, query(session))).rejects.toThrow(
         new PermissionDeniedError(
             "Query may reveal tasks the session account is not allowed to see",
         ),
     );
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can load a query when there are no tasks", async () => {
@@ -232,19 +367,18 @@ test("can load a query when there are no tasks", async () => {
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                    },
-                ],
-            }),
-        ),
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -254,7 +388,7 @@ test("can load a query when there are no tasks", async () => {
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can load a query with some tasks", async () => {
@@ -272,19 +406,18 @@ test("can load a query with some tasks", async () => {
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                    },
-                ],
-            }),
-        ),
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -296,17 +429,17 @@ test("can load a query with some tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can paginate a query with many tasks", async () => {
@@ -329,19 +462,18 @@ test("can paginate a query with many tasks", async () => {
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            limit: 3,
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                },
-            ],
-        }),
-    );
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        limit: 3,
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+        ],
+    });
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
@@ -352,20 +484,20 @@ test("can paginate a query with many tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
@@ -378,20 +510,20 @@ test("can paginate a query with many tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task4.id),
-                expectAuthorizedTask(task5.id),
-                expectAuthorizedTask(task6.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task4.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+                [task6.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
@@ -404,13 +536,13 @@ test("can paginate a query with many tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task7.id), expectAuthorizedTask(task8.id)],
-            backfillCollections: [],
+            backfillTasks: {[task7.id]: expectAuthorizedTask(), [task8.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can load a query with filters", async () => {
@@ -436,61 +568,22 @@ test("can load a query with filters", async () => {
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                    },
-                    {
-                        type: "Priority",
-                        operation: {type: "OneOf", priorities: new Set(["Low"])},
-                    },
-                ],
-            }),
-        ),
-    ).toEqual({
-        querySubscriptionId: expect.any(String),
-        loadedState: {type: "Full"},
-        previouslyBackfilledTaskIds: [],
-        gridViewExpansionState: null,
-        extraQueries: [],
-        updateEvent: {
-            type: "Update",
-            originClientId: null,
-            defaultAuthorizationStateVersion: expect.any(Array),
-            actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task5.id),
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["Low"])},
+                },
             ],
-            backfillCollections: [],
-            referencedAccounts: [await session.get()],
-        },
-    });
-
-    expect(connection.takeEvents()).toEqual([]);
-
-    expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                    },
-                    {
-                        type: "Priority",
-                        operation: {type: "OneOf", priorities: new Set(["Medium"])},
-                    },
-                ],
-            }),
-        ),
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -502,13 +595,50 @@ test("can load a query with filters", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
+
+    expect(
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["Medium"])},
+                },
+            ],
+        }),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {[task2.id]: expectAuthorizedTask(), [task4.id]: expectAuthorizedTask()},
+            backfillCollections: {},
+            referencedAccounts: [await session.get()],
+        },
+    });
+
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can load a query with sorts", async () => {
@@ -534,20 +664,19 @@ test("can load a query with sorts", async () => {
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                    },
-                ],
-                sorts: [{type: "Priority", direction: "Ascending"}],
-            }),
-        ),
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -559,19 +688,19 @@ test("can load a query with sorts", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task5.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task4.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("two subscriptions with identical queries use the same underlying query", async () => {
@@ -606,22 +735,21 @@ test("two subscriptions with identical queries use the same underlying query", a
     const connection1 = await server.connectForTest(context.action(session1));
     const connection2 = await server.connectForTest(context.action(session2));
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(getCount()).toEqual(0);
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session2, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {type: "IncludesOneOf", collectionIds: new Set([collection.id])},
-                    },
-                ],
-            }),
-        ),
+        await testSubscribeToQuery(connection2, {
+            session: session2,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {type: "IncludesOneOf", collectionIds: new Set([collection.id])},
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -633,25 +761,26 @@ test("two subscriptions with identical queries use the same underlying query", a
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
-    const {querySubscriptionId, ...result} = await connection1.procedures.subscribeToQuery(
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(
+        connection1,
         query(session1, {
             limit: 3,
             filters: [
@@ -673,24 +802,24 @@ test("two subscriptions with identical queries use the same underlying query", a
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
     expect(
-        await connection1.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection1, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
@@ -703,18 +832,18 @@ test("two subscriptions with identical queries use the same underlying query", a
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 });
@@ -753,25 +882,24 @@ test("two subscriptions with different queries load different queries", async ()
     const connection1 = await server.connectForTest(context.action(session1));
     const connection2 = await server.connectForTest(context.action(session2));
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(getCount()).toEqual(0);
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session2, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session: session2,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -783,36 +911,35 @@ test("two subscriptions with different queries load different queries", async ()
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection2.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection2.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -824,18 +951,18 @@ test("two subscriptions with different queries load different queries", async ()
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task4.id, [collection2.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(2);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(2);
 });
@@ -866,22 +993,21 @@ test("will send actions for updated tasks in the subscription’s loaded range",
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -893,22 +1019,22 @@ test("will send actions for updated tasks in the subscription’s loaded range",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -924,8 +1050,8 @@ test("will send actions for updated tasks in the subscription’s loaded range",
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -933,12 +1059,12 @@ test("will send actions for updated tasks in the subscription’s loaded range",
     await task2.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task3.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -954,8 +1080,8 @@ test("will send actions for updated tasks in the subscription’s loaded range",
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -987,22 +1113,21 @@ test("will send actions for removed tasks in the subscription’s loaded range",
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1014,22 +1139,22 @@ test("will send actions for removed tasks in the subscription’s loaded range",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task3.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1045,8 +1170,8 @@ test("will send actions for removed tasks in the subscription’s loaded range",
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -1054,7 +1179,7 @@ test("will send actions for removed tasks in the subscription’s loaded range",
     await task3.removeCollection(session, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1070,8 +1195,8 @@ test("will send actions for removed tasks in the subscription’s loaded range",
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -1079,7 +1204,7 @@ test("will send actions for removed tasks in the subscription’s loaded range",
     await task3.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("will backfill added tasks in the subscription’s loaded range", async () => {
@@ -1108,22 +1233,21 @@ test("will backfill added tasks in the subscription’s loaded range", async () 
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1135,34 +1259,34 @@ test("will backfill added tasks in the subscription’s loaded range", async () 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.addCollection(session, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task2.id, [collection.id])],
-            backfillCollections: [],
+            backfillTasks: {[task2.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -1170,7 +1294,7 @@ test("will backfill added tasks in the subscription’s loaded range", async () 
     await task2.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1186,8 +1310,8 @@ test("will backfill added tasks in the subscription’s loaded range", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -1232,25 +1356,24 @@ test("will send actions for updated tasks in multiple connections", async () => 
     const connection3 = await server.connectForTest(context.action(session3));
     const connection4 = await server.connectForTest(context.action(session1));
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
-    expect(connection4.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
+    expect(testTakeEvents(connection4)).toEqual([]);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1262,22 +1385,61 @@ test("will send actions for updated tasks in multiple connections", async () => 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
+        await testSubscribeToQuery(connection2, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection2.id]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
+            referencedAccounts: [await session1.get()],
+        },
+    });
+
+    expect(
+        await testSubscribeToQuery(
+            connection3,
             query(session1, {
                 filters: [
                     {
@@ -1301,34 +1463,33 @@ test("will send actions for updated tasks in multiple connections", async () => 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(
-        await connection3.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection2.id]),
-                        },
+        await testSubscribeToQuery(connection4, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1340,73 +1501,33 @@ test("will send actions for updated tasks in multiple connections", async () => 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(
-        await connection4.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection4, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection2.id]),
                     },
-                ],
-            }),
-        ),
-    ).toEqual({
-        querySubscriptionId: expect.any(String),
-        loadedState: {type: "Full"},
-        previouslyBackfilledTaskIds: [],
-        gridViewExpansionState: null,
-        extraQueries: [],
-        updateEvent: {
-            type: "Update",
-            originClientId: null,
-            defaultAuthorizationStateVersion: expect.any(Array),
-            actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
+                },
             ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
-            referencedAccounts: [await session1.get()],
-        },
-    });
-
-    expect(
-        await connection4.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection2.id]),
-                        },
-                    },
-                ],
-            }),
-        ),
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1418,21 +1539,21 @@ test("will send actions for updated tasks in multiple connections", async () => 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task5.id, [collection2.id])],
-            backfillCollections: [],
+            backfillTasks: {[task5.id]: expectAuthorizedTask([collection2.id])},
+            backfillCollections: {},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
-    expect(connection4.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
+    expect(testTakeEvents(connection4)).toEqual([]);
 
     await task3.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1448,13 +1569,13 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1470,13 +1591,13 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1492,13 +1613,13 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection4.takeEvents()).toEqual([
+    expect(testTakeEvents(connection4)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1514,8 +1635,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -1523,7 +1644,7 @@ test("will send actions for updated tasks in multiple connections", async () => 
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1539,17 +1660,17 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
-    expect(connection3.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
 
-    expect(connection4.takeEvents()).toEqual([
+    expect(testTakeEvents(connection4)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1565,8 +1686,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -1574,9 +1695,9 @@ test("will send actions for updated tasks in multiple connections", async () => 
     await task5.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1592,13 +1713,13 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1614,13 +1735,13 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection4.takeEvents()).toEqual([
+    expect(testTakeEvents(connection4)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1636,8 +1757,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -1682,25 +1803,24 @@ test("will send actions for removed/added tasks in multiple connections", async 
     const connection3 = await server.connectForTest(context.action(session3));
     const connection4 = await server.connectForTest(context.action(session1));
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
-    expect(connection4.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
+    expect(testTakeEvents(connection4)).toEqual([]);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1712,22 +1832,61 @@ test("will send actions for removed/added tasks in multiple connections", async 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
+        await testSubscribeToQuery(connection2, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection2.id]),
+                    },
+                },
+            ],
+        }),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
+        updateEvent: {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
+            referencedAccounts: [await session1.get()],
+        },
+    });
+
+    expect(
+        await testSubscribeToQuery(
+            connection3,
             query(session1, {
                 filters: [
                     {
@@ -1751,34 +1910,33 @@ test("will send actions for removed/added tasks in multiple connections", async 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(
-        await connection3.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection2.id]),
-                        },
+        await testSubscribeToQuery(connection4, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1790,73 +1948,33 @@ test("will send actions for removed/added tasks in multiple connections", async 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(
-        await connection4.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection4, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection2.id]),
                     },
-                ],
-            }),
-        ),
-    ).toEqual({
-        querySubscriptionId: expect.any(String),
-        loadedState: {type: "Full"},
-        previouslyBackfilledTaskIds: [],
-        gridViewExpansionState: null,
-        extraQueries: [],
-        updateEvent: {
-            type: "Update",
-            originClientId: null,
-            defaultAuthorizationStateVersion: expect.any(Array),
-            actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection1.id, collection2.id]),
+                },
             ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
-            referencedAccounts: [await session1.get()],
-        },
-    });
-
-    expect(
-        await connection4.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection2.id]),
-                        },
-                    },
-                ],
-            }),
-        ),
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -1868,21 +1986,21 @@ test("will send actions for removed/added tasks in multiple connections", async 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task5.id, [collection2.id])],
-            backfillCollections: [],
+            backfillTasks: {[task5.id]: expectAuthorizedTask([collection2.id])},
+            backfillCollections: {},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
-    expect(connection4.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
+    expect(testTakeEvents(connection4)).toEqual([]);
 
     await task2.removeCollection(session1, collection2);
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1898,13 +2016,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1920,13 +2038,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1942,13 +2060,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection4.takeEvents()).toEqual([
+    expect(testTakeEvents(connection4)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1964,8 +2082,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -1973,7 +2091,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     await task2.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -1989,17 +2107,17 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
-    expect(connection3.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
 
-    expect(connection4.takeEvents()).toEqual([
+    expect(testTakeEvents(connection4)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2015,8 +2133,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -2024,19 +2142,19 @@ test("will send actions for removed/added tasks in multiple connections", async 
     await task5.addCollection(session1, collection1);
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task5.id, [collection2.id, collection1.id])],
-            backfillCollections: [],
+            backfillTasks: {[task5.id]: expectAuthorizedTask([collection2.id, collection1.id])},
+            backfillCollections: {},
             referencedAccounts: [await session1.get()],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2053,13 +2171,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2076,13 +2194,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection4.takeEvents()).toEqual([
+    expect(testTakeEvents(connection4)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2099,8 +2217,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -2108,7 +2226,7 @@ test("will send actions for removed/added tasks in multiple connections", async 
     await task5.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2124,13 +2242,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2146,13 +2264,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2168,13 +2286,13 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection4.takeEvents()).toEqual([
+    expect(testTakeEvents(connection4)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2190,8 +2308,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -2238,7 +2356,8 @@ test("can update a referenced task in one query and remove the same referenced t
     // can test both execution orders.
     {
         expect(
-            await connection1.procedures.subscribeToQuery(
+            await testSubscribeToQuery(
+                connection1,
                 query(session1, {
                     limit: 10,
                     filters: [
@@ -2263,20 +2382,21 @@ test("can update a referenced task in one query and remove the same referenced t
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    expectAuthorizedTask(task2.id, [publicCollection.id, collection2.id]),
-                    expectAuthorizedTask(task1.id, [publicCollection.id]),
-                ],
-                backfillCollections: [
-                    expectAuthorizedCollection(publicCollection.id),
-                    expectAuthorizedCollection(collection2.id),
-                ],
+                backfillTasks: {
+                    [task2.id]: expectAuthorizedTask([publicCollection.id, collection2.id]),
+                    [task1.id]: expectAuthorizedTask([publicCollection.id]),
+                },
+                backfillCollections: {
+                    [publicCollection.id]: expectAuthorizedCollection(),
+                    [collection2.id]: expectAuthorizedCollection(),
+                },
                 referencedAccounts: [await creatorSession.get()],
             },
         });
 
         expect(
-            await connection1.procedures.subscribeToQuery(
+            await testSubscribeToQuery(
+                connection1,
                 query(session1, {
                     limit: 10,
                     filters: [
@@ -2301,10 +2421,10 @@ test("can update a referenced task in one query and remove the same referenced t
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    expectAuthorizedTask(task3.id, [publicCollection.id, collection3.id]),
-                ],
-                backfillCollections: [expectAuthorizedCollection(collection3.id)],
+                backfillTasks: {
+                    [task3.id]: expectAuthorizedTask([publicCollection.id, collection3.id]),
+                },
+                backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
                 referencedAccounts: [await creatorSession.get()],
             },
         });
@@ -2312,7 +2432,8 @@ test("can update a referenced task in one query and remove the same referenced t
 
     {
         expect(
-            await connection2.procedures.subscribeToQuery(
+            await testSubscribeToQuery(
+                connection2,
                 query(session2, {
                     limit: 10,
                     filters: [
@@ -2337,20 +2458,21 @@ test("can update a referenced task in one query and remove the same referenced t
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    expectAuthorizedTask(task3.id, [publicCollection.id, collection3.id]),
-                    expectAuthorizedTask(task1.id, [publicCollection.id]),
-                ],
-                backfillCollections: [
-                    expectAuthorizedCollection(publicCollection.id),
-                    expectAuthorizedCollection(collection3.id),
-                ],
+                backfillTasks: {
+                    [task3.id]: expectAuthorizedTask([publicCollection.id, collection3.id]),
+                    [task1.id]: expectAuthorizedTask([publicCollection.id]),
+                },
+                backfillCollections: {
+                    [publicCollection.id]: expectAuthorizedCollection(),
+                    [collection3.id]: expectAuthorizedCollection(),
+                },
                 referencedAccounts: [await creatorSession.get()],
             },
         });
 
         expect(
-            await connection2.procedures.subscribeToQuery(
+            await testSubscribeToQuery(
+                connection2,
                 query(session2, {
                     limit: 10,
                     filters: [
@@ -2375,17 +2497,17 @@ test("can update a referenced task in one query and remove the same referenced t
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    expectAuthorizedTask(task2.id, [publicCollection.id, collection2.id]),
-                ],
-                backfillCollections: [expectAuthorizedCollection(collection2.id)],
+                backfillTasks: {
+                    [task2.id]: expectAuthorizedTask([publicCollection.id, collection2.id]),
+                },
+                backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
                 referencedAccounts: [await creatorSession.get()],
             },
         });
     }
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     await commitTaskActionTransaction(TestTask.action(creatorSession), space.id, [
         {
@@ -2410,7 +2532,7 @@ test("can update a referenced task in one query and remove the same referenced t
 
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2443,13 +2565,13 @@ test("can update a referenced task in one query and remove the same referenced t
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2482,8 +2604,8 @@ test("can update a referenced task in one query and remove the same referenced t
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -2517,20 +2639,19 @@ test("visible task added out of loaded range ignored", async () => {
     const connection3 = await server.connectForTest(session.action());
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                limit: 3,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            limit: 3,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
@@ -2542,31 +2663,30 @@ test("visible task added out of loaded range ignored", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                limit: 0,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            limit: 0,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
@@ -2577,19 +2697,18 @@ test("visible task added out of loaded range ignored", async () => {
     });
 
     expect(
-        await connection3.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection3, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -2601,36 +2720,36 @@ test("visible task added out of loaded range ignored", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
 
     await task4.addCollection(session, collection);
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task4.id, [collection.id])],
-            backfillCollections: [],
+            backfillTasks: {[task4.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2665,20 +2784,19 @@ test("visible task updated out of loaded range ignored", async () => {
     const connection3 = await server.connectForTest(session.action());
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                limit: 3,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            limit: 3,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
@@ -2690,31 +2808,30 @@ test("visible task updated out of loaded range ignored", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                limit: 0,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            limit: 0,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
@@ -2725,19 +2842,18 @@ test("visible task updated out of loaded range ignored", async () => {
     });
 
     expect(
-        await connection3.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection3, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -2749,30 +2865,30 @@ test("visible task updated out of loaded range ignored", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
 
     await task4.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2788,8 +2904,8 @@ test("visible task updated out of loaded range ignored", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -2824,20 +2940,19 @@ test("visible task removed out of loaded range ignored", async () => {
     const connection3 = await server.connectForTest(session.action());
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                limit: 3,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            limit: 3,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
@@ -2849,31 +2964,30 @@ test("visible task removed out of loaded range ignored", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                limit: 0,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            limit: 0,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
@@ -2884,19 +2998,18 @@ test("visible task removed out of loaded range ignored", async () => {
     });
 
     expect(
-        await connection3.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection3, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -2908,30 +3021,30 @@ test("visible task removed out of loaded range ignored", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
 
     await task4.removeCollection(session, collection);
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -2947,8 +3060,8 @@ test("visible task removed out of loaded range ignored", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -2989,21 +3102,20 @@ test("visible task moved into loaded range", async () => {
     const connection3 = await server.connectForTest(session.action());
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                limit: 3,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            limit: 3,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-                sorts: [{type: "Priority", direction: "Ascending"}],
-            }),
-        ),
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [50, expect.any(Array), task3.id]},
@@ -3015,32 +3127,31 @@ test("visible task moved into loaded range", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                limit: 0,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            limit: 0,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-                sorts: [{type: "Priority", direction: "Ascending"}],
-            }),
-        ),
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
@@ -3051,20 +3162,19 @@ test("visible task moved into loaded range", async () => {
     });
 
     expect(
-        await connection3.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection3, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-                sorts: [{type: "Priority", direction: "Ascending"}],
-            }),
-        ),
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -3076,40 +3186,40 @@ test("visible task moved into loaded range", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
 
     await task4.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task4.id, [collection.id])],
-            backfillCollections: [],
+            backfillTasks: {[task4.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3125,8 +3235,8 @@ test("visible task moved into loaded range", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -3167,21 +3277,20 @@ test("visible task moved out of loaded range", async () => {
     const connection3 = await server.connectForTest(session.action());
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                limit: 3,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            limit: 3,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-                sorts: [{type: "Priority", direction: "Ascending"}],
-            }),
-        ),
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [25, expect.any(Array), task3.id]},
@@ -3193,32 +3302,31 @@ test("visible task moved out of loaded range", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                limit: 0,
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            limit: 0,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-                sorts: [{type: "Priority", direction: "Ascending"}],
-            }),
-        ),
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
@@ -3229,20 +3337,19 @@ test("visible task moved out of loaded range", async () => {
     });
 
     expect(
-        await connection3.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection3, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-                sorts: [{type: "Priority", direction: "Ascending"}],
-            }),
-        ),
+                },
+            ],
+            sorts: [{type: "Priority", direction: "Ascending"}],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -3254,26 +3361,26 @@ test("visible task moved out of loaded range", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
-    expect(connection3.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
+    expect(testTakeEvents(connection3)).toEqual([]);
 
     await task2.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3289,15 +3396,15 @@ test("visible task moved out of loaded range", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
-    expect(connection3.takeEvents()).toEqual([
+    expect(testTakeEvents(connection3)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3313,8 +3420,8 @@ test("visible task moved out of loaded range", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -3338,7 +3445,8 @@ test("unsubscribe stops sending actions to connection", async () => {
     const connection1 = await server.connectForTest(session.action());
     const connection2 = await server.connectForTest(session.action());
 
-    const {querySubscriptionId, ...result} = await connection1.procedures.subscribeToQuery(
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(
+        connection1,
         query(session, {
             filters: [
                 {
@@ -3362,32 +3470,31 @@ test("unsubscribe stops sending actions to connection", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-                expectAuthorizedTask(task5.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -3399,25 +3506,25 @@ test("unsubscribe stops sending actions to connection", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-                expectAuthorizedTask(task5.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     await task2.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3433,13 +3540,13 @@ test("unsubscribe stops sending actions to connection", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3455,8 +3562,8 @@ test("unsubscribe stops sending actions to connection", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -3466,9 +3573,9 @@ test("unsubscribe stops sending actions to connection", async () => {
     await task2.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3484,8 +3591,8 @@ test("unsubscribe stops sending actions to connection", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -3506,20 +3613,19 @@ test("loading tasks with zero limit is fine", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            limit: 0,
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        limit: 0,
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: null},
@@ -3529,10 +3635,10 @@ test("loading tasks with zero limit is fine", async () => {
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 0,
@@ -3543,7 +3649,7 @@ test("loading tasks with zero limit is fine", async () => {
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("loading tasks with zero limit when there are no tasks", async () => {
@@ -3555,20 +3661,19 @@ test("loading tasks with zero limit when there are no tasks", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            limit: 0,
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        limit: 0,
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     expect(result).toEqual({
         loadedState: {type: "Full"},
@@ -3578,10 +3683,10 @@ test("loading tasks with zero limit when there are no tasks", async () => {
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 0,
@@ -3592,7 +3697,7 @@ test("loading tasks with zero limit when there are no tasks", async () => {
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("all referenced collections will be backfilled in the query when loaded", async () => {
@@ -3651,22 +3756,21 @@ test("all referenced collections will be backfilled in the query when loaded", a
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            limit: 3,
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        limit: 3,
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
@@ -3678,27 +3782,27 @@ test("all referenced collections will be backfilled in the query when loaded", a
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1a.id, collection1b.id]),
-                expectAuthorizedTask(task2.id, [collection2a.id, collection2b.id]),
-                expectAuthorizedTask(task3.id, [collection3a.id, collection3b.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1a.id),
-                expectAuthorizedCollection(collection1b.id),
-                expectAuthorizedCollection(collection2a.id),
-                expectAuthorizedCollection(collection2b.id),
-                expectAuthorizedCollection(collection3a.id),
-                expectAuthorizedCollection(collection3b.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1a.id, collection1b.id]),
+                [task2.id]: expectAuthorizedTask([collection2a.id, collection2b.id]),
+                [task3.id]: expectAuthorizedTask([collection3a.id, collection3b.id]),
+            },
+            backfillCollections: {
+                [collection1a.id]: expectAuthorizedCollection(),
+                [collection1b.id]: expectAuthorizedCollection(),
+                [collection2a.id]: expectAuthorizedCollection(),
+                [collection2b.id]: expectAuthorizedCollection(),
+                [collection3a.id]: expectAuthorizedCollection(),
+                [collection3b.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
@@ -3711,21 +3815,21 @@ test("all referenced collections will be backfilled in the query when loaded", a
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task4.id, [collection4a.id, collection4b.id]),
-                expectAuthorizedTask(task5.id, [collection5a.id, collection5b.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection4a.id),
-                expectAuthorizedCollection(collection4b.id),
-                expectAuthorizedCollection(collection5a.id),
-                expectAuthorizedCollection(collection5b.id),
-            ],
+            backfillTasks: {
+                [task4.id]: expectAuthorizedTask([collection4a.id, collection4b.id]),
+                [task5.id]: expectAuthorizedTask([collection5a.id, collection5b.id]),
+            },
+            backfillCollections: {
+                [collection4a.id]: expectAuthorizedCollection(),
+                [collection4b.id]: expectAuthorizedCollection(),
+                [collection5a.id]: expectAuthorizedCollection(),
+                [collection5b.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("all referenced collections will be backfilled in the query when added", async () => {
@@ -3779,28 +3883,27 @@ test("all referenced collections will be backfilled in the query when added", as
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
                 },
-                {
-                    type: "Priority",
-                    operation: {
-                        type: "OneOf",
-                        priorities: new Set(["Low"]),
-                    },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["Low"]),
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     expect(result).toEqual({
         loadedState: {type: "Full"},
@@ -3812,39 +3915,39 @@ test("all referenced collections will be backfilled in the query when added", as
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1a.id, collection1b.id]),
-                expectAuthorizedTask(task2.id, [collection2a.id, collection2b.id]),
-                expectAuthorizedTask(task4.id, [collection4a.id, collection4b.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1a.id),
-                expectAuthorizedCollection(collection1b.id),
-                expectAuthorizedCollection(collection2a.id),
-                expectAuthorizedCollection(collection2b.id),
-                expectAuthorizedCollection(collection4a.id),
-                expectAuthorizedCollection(collection4b.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1a.id, collection1b.id]),
+                [task2.id]: expectAuthorizedTask([collection2a.id, collection2b.id]),
+                [task4.id]: expectAuthorizedTask([collection4a.id, collection4b.id]),
+            },
+            backfillCollections: {
+                [collection1a.id]: expectAuthorizedCollection(),
+                [collection1b.id]: expectAuthorizedCollection(),
+                [collection2a.id]: expectAuthorizedCollection(),
+                [collection2b.id]: expectAuthorizedCollection(),
+                [collection4a.id]: expectAuthorizedCollection(),
+                [collection4b.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task3.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task3.id, [collection3a.id, collection3b.id])],
-            backfillCollections: [
-                expectAuthorizedCollection(collection3a.id),
-                expectAuthorizedCollection(collection3b.id),
-            ],
+            backfillTasks: {[task3.id]: expectAuthorizedTask([collection3a.id, collection3b.id])},
+            backfillCollections: {
+                [collection3a.id]: expectAuthorizedCollection(),
+                [collection3b.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3852,7 +3955,7 @@ test("all referenced collections will be backfilled in the query when added", as
     await task2.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3868,8 +3971,8 @@ test("all referenced collections will be backfilled in the query when added", as
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -3922,22 +4025,21 @@ test("when a collection is added it will be backfilled", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -3949,31 +4051,31 @@ test("when a collection is added it will be backfilled", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1a.id, collection1b.id]),
-                expectAuthorizedTask(task2.id, [collection2a.id, collection2b.id]),
-                expectAuthorizedTask(task3.id, [collection3a.id]),
-                expectAuthorizedTask(task4.id, [collection4a.id, collection4b.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1a.id),
-                expectAuthorizedCollection(collection1b.id),
-                expectAuthorizedCollection(collection2a.id),
-                expectAuthorizedCollection(collection2b.id),
-                expectAuthorizedCollection(collection3a.id),
-                expectAuthorizedCollection(collection4a.id),
-                expectAuthorizedCollection(collection4b.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1a.id, collection1b.id]),
+                [task2.id]: expectAuthorizedTask([collection2a.id, collection2b.id]),
+                [task3.id]: expectAuthorizedTask([collection3a.id]),
+                [task4.id]: expectAuthorizedTask([collection4a.id, collection4b.id]),
+            },
+            backfillCollections: {
+                [collection1a.id]: expectAuthorizedCollection(),
+                [collection1b.id]: expectAuthorizedCollection(),
+                [collection2a.id]: expectAuthorizedCollection(),
+                [collection2b.id]: expectAuthorizedCollection(),
+                [collection3a.id]: expectAuthorizedCollection(),
+                [collection4a.id]: expectAuthorizedCollection(),
+                [collection4b.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task3.addCollection(session, collection3b);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -3990,8 +4092,8 @@ test("when a collection is added it will be backfilled", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection3b.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection3b.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -3999,7 +4101,7 @@ test("when a collection is added it will be backfilled", async () => {
     await task3.removeCollection(session, collection3a);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4015,8 +4117,8 @@ test("when a collection is added it will be backfilled", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4047,22 +4149,21 @@ test("if a collection is referenced then the connection will receive actions for
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -4074,26 +4175,26 @@ test("if a collection is referenced then the connection will receive actions for
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id, [collection3.id]),
-                expectAuthorizedTask(task4.id),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask([collection3.id]),
+                [task4.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4109,8 +4210,8 @@ test("if a collection is referenced then the connection will receive actions for
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4123,7 +4224,7 @@ test("if a collection is referenced then the connection will receive actions for
     });
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4143,8 +4244,8 @@ test("if a collection is referenced then the connection will receive actions for
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4152,23 +4253,23 @@ test("if a collection is referenced then the connection will receive actions for
     await collection2.updateName(session, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session, collection2);
     await task1.removeCollection(session, collection1);
     await server.wait();
 
-    connection.takeEvents();
+    testTakeEvents(connection);
 
     await collection1.updateName(session, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session, "Test 4");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4184,8 +4285,8 @@ test("if a collection is referenced then the connection will receive actions for
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4213,22 +4314,21 @@ test("if a collection is referenced then the all references must be removed to n
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -4240,23 +4340,23 @@ test("if a collection is referenced then the all references must be removed to n
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4272,8 +4372,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4282,7 +4382,7 @@ test("if a collection is referenced then the all references must be removed to n
     await collection.updateName(session, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4298,8 +4398,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -4317,8 +4417,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4328,7 +4428,7 @@ test("if a collection is referenced then the all references must be removed to n
     await collection.updateName(session, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4345,8 +4445,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -4364,8 +4464,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -4383,8 +4483,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4393,7 +4493,7 @@ test("if a collection is referenced then the all references must be removed to n
     await collection.updateName(session, "Test 4");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4409,8 +4509,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4439,29 +4539,28 @@ test("collections unreferenced by removing loaded task do not receive actions", 
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                    {
-                        type: "Priority",
-                        operation: {
-                            type: "OneOf",
-                            priorities: new Set(["Low"]),
-                        },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["Low"]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -4473,22 +4572,22 @@ test("collections unreferenced by removing loaded task do not receive actions", 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4504,8 +4603,8 @@ test("collections unreferenced by removing loaded task do not receive actions", 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4513,7 +4612,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
     await task1.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4529,8 +4628,8 @@ test("collections unreferenced by removing loaded task do not receive actions", 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4538,7 +4637,7 @@ test("collections unreferenced by removing loaded task do not receive actions", 
     await collection.updateName(session, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("collections can be referenced, unreferenced, then referenced again", async () => {
@@ -4564,29 +4663,28 @@ test("collections can be referenced, unreferenced, then referenced again", async
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                    {
-                        type: "Priority",
-                        operation: {
-                            type: "OneOf",
-                            priorities: new Set(["Low"]),
-                        },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["Low"]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -4598,22 +4696,22 @@ test("collections can be referenced, unreferenced, then referenced again", async
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4629,8 +4727,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4638,7 +4736,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
     await task1.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4654,8 +4752,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4663,19 +4761,19 @@ test("collections can be referenced, unreferenced, then referenced again", async
     await collection.updateName(session, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id, [collection.id])],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {[task1.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4683,7 +4781,7 @@ test("collections can be referenced, unreferenced, then referenced again", async
     await collection.updateName(session, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -4699,8 +4797,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -4732,22 +4830,21 @@ test("parent tasks are backfilled when query is initially loaded", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -4759,19 +4856,19 @@ test("parent tasks are backfilled when query is initially loaded", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("parent tasks are backfilled when more is loaded from query", async () => {
@@ -4807,22 +4904,21 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            limit: 3,
-            filters: [
-                {
-                    type: "Collections",
-                    operation: {
-                        type: "IncludesOneOf",
-                        collectionIds: new Set([collection.id]),
-                    },
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        limit: 3,
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection.id]),
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
@@ -4834,22 +4930,22 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
@@ -4862,17 +4958,17 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-                expectAuthorizedTask(parentTask5.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+                [parentTask5.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("parent tasks are backfilled when task is made visible", async () => {
@@ -4898,22 +4994,21 @@ test("parent tasks are backfilled when task is made visible", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -4925,31 +5020,31 @@ test("parent tasks are backfilled when task is made visible", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4979,22 +5074,21 @@ test("parent tasks is backfilled when task is updated", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -5006,22 +5100,22 @@ test("parent tasks is backfilled when task is updated", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5037,8 +5131,8 @@ test("parent tasks is backfilled when task is updated", async () => {
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5046,7 +5140,7 @@ test("parent tasks is backfilled when task is updated", async () => {
     await task1.updateParentTask(session, parentTask2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5070,8 +5164,8 @@ test("parent tasks is backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask2.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask2.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5101,22 +5195,21 @@ test("parents of loaded tasks receive update actions", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -5128,23 +5221,23 @@ test("parents of loaded tasks receive update actions", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5160,8 +5253,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5169,7 +5262,7 @@ test("parents of loaded tasks receive update actions", async () => {
     await task1.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5193,8 +5286,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5202,12 +5295,12 @@ test("parents of loaded tasks receive update actions", async () => {
     await parentTask1.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5223,8 +5316,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5232,7 +5325,7 @@ test("parents of loaded tasks receive update actions", async () => {
     await parentTask1.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5248,8 +5341,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5280,22 +5373,21 @@ test("parents of loaded tasks receive update actions until all references are re
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -5307,23 +5399,23 @@ test("parents of loaded tasks receive update actions until all references are re
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5339,8 +5431,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5348,7 +5440,7 @@ test("parents of loaded tasks receive update actions until all references are re
     await task1.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5372,8 +5464,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5381,7 +5473,7 @@ test("parents of loaded tasks receive update actions until all references are re
     await parentTask1.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5397,8 +5489,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5406,7 +5498,7 @@ test("parents of loaded tasks receive update actions until all references are re
     await task2.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5430,8 +5522,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5439,12 +5531,12 @@ test("parents of loaded tasks receive update actions until all references are re
     await parentTask1.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5460,8 +5552,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5469,7 +5561,7 @@ test("parents of loaded tasks receive update actions until all references are re
     await parentTask1.updatePriority(session, "Urgent");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5485,8 +5577,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -5521,22 +5613,21 @@ test("grandparent tasks are backfilled when query is initially loaded", async ()
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -5548,20 +5639,20 @@ test("grandparent tasks are backfilled when query is initially loaded", async ()
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("grandparent tasks are backfilled when more is loaded from query", async () => {
@@ -5597,22 +5688,21 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            limit: 3,
-            filters: [
-                {
-                    type: "Collections",
-                    operation: {
-                        type: "IncludesOneOf",
-                        collectionIds: new Set([collection.id]),
-                    },
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        limit: 3,
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection.id]),
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
@@ -5624,20 +5714,20 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
@@ -5650,19 +5740,19 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task4.id, [collection.id]),
-                expectAuthorizedTask(task5.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task4.id]: expectAuthorizedTask([collection.id]),
+                [task5.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("grandparent tasks are backfilled when task is made visible", async () => {
@@ -5693,22 +5783,21 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -5720,33 +5809,33 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5780,22 +5869,21 @@ test("grandparent tasks are backfilled when task is updated", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -5807,22 +5895,22 @@ test("grandparent tasks are backfilled when task is updated", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5838,12 +5926,12 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     },
                 },
             ],
-            backfillTasks: [
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5852,7 +5940,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     await task2.updateParentTask(session, parentTask2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5876,8 +5964,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -5895,11 +5983,11 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     },
                 },
             ],
-            backfillTasks: [
-                expectAuthorizedTask(parentTask3.id),
-                expectAuthorizedTask(parentTask2.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [parentTask3.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5908,7 +5996,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     await task2.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5932,8 +6020,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5942,7 +6030,7 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     await task2.updateParentTask(session, parentTask2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -5974,8 +6062,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6010,22 +6098,21 @@ test("grandparents of loaded tasks receive update actions", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -6037,25 +6124,25 @@ test("grandparents of loaded tasks receive update actions", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask3.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6071,8 +6158,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6080,7 +6167,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
     await task1.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6104,8 +6191,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6113,12 +6200,12 @@ test("grandparents of loaded tasks receive update actions", async () => {
     await parentTask1.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updateParentTask(session, parentTask2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6134,11 +6221,11 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillTasks: [
-                expectAuthorizedTask(parentTask3.id),
-                expectAuthorizedTask(parentTask2.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [parentTask3.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6146,7 +6233,7 @@ test("grandparents of loaded tasks receive update actions", async () => {
     await parentTask3.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6162,8 +6249,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6199,22 +6286,21 @@ test("grandparents of loaded tasks receive update actions until all references a
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -6226,25 +6312,25 @@ test("grandparents of loaded tasks receive update actions until all references a
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(task3.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [task3.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask3.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6260,8 +6346,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6269,7 +6355,7 @@ test("grandparents of loaded tasks receive update actions until all references a
     await task1.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6293,8 +6379,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6302,7 +6388,7 @@ test("grandparents of loaded tasks receive update actions until all references a
     await parentTask3.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6318,8 +6404,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6327,7 +6413,7 @@ test("grandparents of loaded tasks receive update actions until all references a
     await task2.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6351,8 +6437,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6360,12 +6446,12 @@ test("grandparents of loaded tasks receive update actions until all references a
     await parentTask3.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6381,12 +6467,12 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillTasks: [
-                expectAuthorizedTask(parentTask3.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [parentTask3.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6394,7 +6480,7 @@ test("grandparents of loaded tasks receive update actions until all references a
     await parentTask3.updatePriority(session, "Urgent");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6410,8 +6496,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6459,10 +6545,11 @@ test("collections of parent tasks are backfilled when query is initially loaded"
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const subscribeResult = await connection.procedures.subscribeToQuery(
-        query(session, {
+    expect(
+        await testSubscribeToQuery(connection, {
+            session,
             filters: [
                 {
                     type: "Collections",
@@ -6473,28 +6560,7 @@ test("collections of parent tasks are backfilled when query is initially loaded"
                 },
             ],
         }),
-    );
-
-    expect({
-        ...subscribeResult,
-        updateEvent: {
-            ...subscribeResult.updateEvent,
-            // We've found the order of `backfillCollections` to be non-deterministic
-            // causing this test to flake. So sort collections since order here doesn't
-            // matter.
-            backfillCollections: Array.from(subscribeResult.updateEvent!.backfillCollections).sort(
-                (collection1, collection2) =>
-                    defaultCompareStrings(
-                        collection1.type === "Authorized"
-                            ? collection1.collection.id
-                            : collection1.collectionId,
-                        collection2.type === "Authorized"
-                            ? collection2.collection.id
-                            : collection2.collectionId,
-                    ),
-            ),
-        },
-    }).toEqual({
+    ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
@@ -6505,26 +6571,24 @@ test("collections of parent tasks are backfilled when query is initially loaded"
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask3.id, [collection3.id]),
-                expectAuthorizedTask(parentTask2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                {id: collection1.id, build: expectAuthorizedCollection},
-                {id: collection2.id, build: expectAuthorizedCollection},
-                {id: collection3.id, build: expectAuthorizedCollection},
-            ]
-                .sort(({id: id1}, {id: id2}) => defaultCompareStrings(id1, id2))
-                .map(({id, build}) => build(id)),
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask([collection3.id]),
+                [parentTask2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("collections of parent tasks are backfilled when more is loaded from query", async () => {
@@ -6575,22 +6639,21 @@ test("collections of parent tasks are backfilled when more is loaded from query"
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {querySubscriptionId, ...result} = await connection.procedures.subscribeToQuery(
-        query(session, {
-            limit: 3,
-            filters: [
-                {
-                    type: "Collections",
-                    operation: {
-                        type: "IncludesOneOf",
-                        collectionIds: new Set([collection1.id]),
-                    },
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(connection, {
+        session,
+        limit: 3,
+        filters: [
+            {
+                type: "Collections",
+                operation: {
+                    type: "IncludesOneOf",
+                    collectionIds: new Set([collection1.id]),
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
@@ -6602,20 +6665,20 @@ test("collections of parent tasks are backfilled when more is loaded from query"
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.loadMoreQueryTasks({
+        await testLoadMoreQueryTasks(connection, {
             clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
@@ -6628,22 +6691,22 @@ test("collections of parent tasks are backfilled when more is loaded from query"
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task4.id, [collection1.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask3.id, [collection3.id]),
-                expectAuthorizedTask(parentTask2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection3.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task4.id]: expectAuthorizedTask([collection1.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask([collection3.id]),
+                [parentTask2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection3.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("collections of parent tasks are backfilled when task is made visible", async () => {
@@ -6674,22 +6737,21 @@ test("collections of parent tasks are backfilled when task is made visible", asy
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -6701,32 +6763,32 @@ test("collections of parent tasks are backfilled when task is made visible", asy
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id, [collection2.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6760,22 +6822,21 @@ test("collections of parent tasks are backfilled when task is updated", async ()
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -6787,22 +6848,22 @@ test("collections of parent tasks are backfilled when task is updated", async ()
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6818,11 +6879,11 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     },
                 },
             ],
-            backfillTasks: [
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id, [collection2.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6831,7 +6892,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     await task2.updateParentTask(session, parentTask2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6855,8 +6916,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -6874,8 +6935,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask2.id, [collection2.id])],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {[parentTask2.id]: expectAuthorizedTask([collection2.id])},
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6884,7 +6945,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     await task2.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6908,8 +6969,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     }),
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6918,7 +6979,7 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     await task2.updateParentTask(session, parentTask2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -6950,8 +7011,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -6988,10 +7049,11 @@ test("collections of parents of loaded tasks receive update actions", async () =
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const subscribeResult = await connection.procedures.subscribeToQuery(
-        query(session, {
+    expect(
+        await testSubscribeToQuery(connection, {
+            session,
             filters: [
                 {
                     type: "Collections",
@@ -7002,28 +7064,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
                 },
             ],
         }),
-    );
-
-    expect({
-        ...subscribeResult,
-        updateEvent: {
-            ...subscribeResult.updateEvent,
-            // We've found the order of `backfillCollections` to be non-deterministic
-            // causing this test to flake. So sort collections since order here doesn't
-            // matter.
-            backfillCollections: Array.from(subscribeResult.updateEvent!.backfillCollections).sort(
-                (collection1, collection2) =>
-                    defaultCompareStrings(
-                        collection1.type === "Authorized"
-                            ? collection1.collection.id
-                            : collection1.collectionId,
-                        collection2.type === "Authorized"
-                            ? collection2.collection.id
-                            : collection2.collectionId,
-                    ),
-            ),
-        },
-    }).toEqual({
+    ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
@@ -7034,30 +7075,28 @@ test("collections of parents of loaded tasks receive update actions", async () =
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-                expectAuthorizedTask(parentTask2.id, [collection3.id]),
-            ],
-            backfillCollections: [
-                {id: collection1.id, build: expectAuthorizedCollection},
-                {id: collection2.id, build: expectAuthorizedCollection},
-                {id: collection3.id, build: expectAuthorizedCollection},
-            ]
-                .sort(({id: id1}, {id: id2}) => defaultCompareStrings(id1, id2))
-                .map(({id, build}) => build(id)),
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+                [parentTask2.id]: expectAuthorizedTask([collection3.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection3.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7073,8 +7112,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7082,7 +7121,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
     await collection2.updateName(session, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7098,8 +7137,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7107,7 +7146,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
     await task1.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7131,8 +7170,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7140,12 +7179,12 @@ test("collections of parents of loaded tasks receive update actions", async () =
     await collection2.updateName(session, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updateParentTask(session, parentTask2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7161,8 +7200,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask2.id, [collection3.id])],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {[parentTask2.id]: expectAuthorizedTask([collection3.id])},
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7170,7 +7209,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
     await collection3.updateName(session, "Test 4");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7186,8 +7225,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7195,7 +7234,7 @@ test("collections of parents of loaded tasks receive update actions", async () =
     await collection2.updateName(session, "Test 5");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("collections of parents of loaded tasks receive update actions until all references are removed", async () => {
@@ -7228,22 +7267,21 @@ test("collections of parents of loaded tasks receive update actions until all re
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -7255,27 +7293,27 @@ test("collections of parents of loaded tasks receive update actions until all re
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7291,8 +7329,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7300,7 +7338,7 @@ test("collections of parents of loaded tasks receive update actions until all re
     await task1.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7324,8 +7362,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7333,7 +7371,7 @@ test("collections of parents of loaded tasks receive update actions until all re
     await collection2.updateName(session, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7349,8 +7387,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7358,7 +7396,7 @@ test("collections of parents of loaded tasks receive update actions until all re
     await task2.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7382,8 +7420,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7391,12 +7429,12 @@ test("collections of parents of loaded tasks receive update actions until all re
     await collection2.updateName(session, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updateParentTask(session, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7412,11 +7450,11 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillTasks: [
-                expectAuthorizedTask(parentTask2.id, [collection2.id]),
-                expectAuthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [parentTask2.id]: expectAuthorizedTask([collection2.id]),
+                [parentTask1.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7424,7 +7462,7 @@ test("collections of parents of loaded tasks receive update actions until all re
     await collection2.updateName(session, "Test 4");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7440,8 +7478,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7465,23 +7503,22 @@ test("race condition: parent task can change before previous parent task has loa
     const connection1 = await server.connectForTest(session.action());
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Assignee",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -7493,16 +7530,17 @@ test("race condition: parent task can change before previous parent task has loa
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // Make sure `task3` is loaded in the store...
-    await connection2.procedures.subscribeToQuery(
+    await testSubscribeToQuery(
+        connection2,
         query(session, {
             filters: [
                 {
@@ -7535,14 +7573,14 @@ test("race condition: parent task can change before previous parent task has loa
     // We've reached `eventBuilder.send()` which is blocked on loading `task2`.
     (await pausePromise2).unpause();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Update to `task3` before `task2` has loaded.
     await task1.updateParentTask(session, task3);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const waitPromise2 = server.waitForApplyActionTransactions();
 
@@ -7550,7 +7588,7 @@ test("race condition: parent task can change before previous parent task has loa
     // blocked on loading `task2`.
     const {unpause: unpause3} = await pausePromise3;
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     unpause1();
     unpause3();
@@ -7559,7 +7597,7 @@ test("race condition: parent task can change before previous parent task has loa
     await waitPromise2;
 
     expect(
-        connection1.takeEvents().sort((a, b) => {
+        testTakeEvents(connection1).sort((a, b) => {
             assert(a.type === "Update");
             assert(b.type === "Update");
             return compareHybridLogicalTimes(
@@ -7583,8 +7621,8 @@ test("race condition: parent task can change before previous parent task has loa
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(task2.id)],
-            backfillCollections: [],
+            backfillTasks: {[task2.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
         {
@@ -7602,8 +7640,8 @@ test("race condition: parent task can change before previous parent task has loa
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(task3.id)],
-            backfillCollections: [],
+            backfillTasks: {[task3.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7611,12 +7649,12 @@ test("race condition: parent task can change before previous parent task has loa
     await task2.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     await task3.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7632,8 +7670,8 @@ test("race condition: parent task can change before previous parent task has loa
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7663,23 +7701,22 @@ test("race condition: parent task can change before previous grandparent task ha
     const connection1 = await server.connectForTest(session.action());
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Assignee",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -7691,13 +7728,13 @@ test("race condition: parent task can change before previous grandparent task ha
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // Pause loading of `task4`...
     const pausePromise1 = taskRealtimeStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
@@ -7705,7 +7742,8 @@ test("race condition: parent task can change before previous grandparent task ha
     const pausePromise2 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Make sure `task2` and `task3` are loaded in the store...
-    void connection2.procedures.subscribeToQuery(
+    void testSubscribeToQuery(
+        connection2,
         query(session, {
             filters: [
                 {
@@ -7738,14 +7776,14 @@ test("race condition: parent task can change before previous grandparent task ha
     // We've reached `eventBuilder.send()` which is blocked on loading `task4`.
     (await pausePromise3).unpause();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const pausePromise4 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Update to `task3` before `task4` has loaded.
     await task1.updateParentTask(session, task3);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const waitPromise2 = server.waitForApplyActionTransactions();
 
@@ -7753,7 +7791,7 @@ test("race condition: parent task can change before previous grandparent task ha
     // blocked on loading `task2`.
     const {unpause: unpause4} = await pausePromise4;
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     unpause1();
     unpause4();
@@ -7762,7 +7800,7 @@ test("race condition: parent task can change before previous grandparent task ha
     await waitPromise2;
 
     expect(
-        connection1.takeEvents().sort((a, b) => {
+        testTakeEvents(connection1).sort((a, b) => {
             assert(a.type === "Update");
             assert(b.type === "Update");
             return compareHybridLogicalTimes(
@@ -7786,8 +7824,8 @@ test("race condition: parent task can change before previous grandparent task ha
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
-            backfillCollections: [],
+            backfillTasks: {[task2.id]: expectAuthorizedTask(), [task4.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
         {
@@ -7813,8 +7851,8 @@ test("race condition: parent task can change before previous grandparent task ha
                     }),
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(task3.id)],
-            backfillCollections: [],
+            backfillTasks: {[task3.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7822,12 +7860,12 @@ test("race condition: parent task can change before previous grandparent task ha
     await task4.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     await task3.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -7843,8 +7881,8 @@ test("race condition: parent task can change before previous grandparent task ha
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7865,22 +7903,21 @@ test("race condition: parent task is removed before it’s loaded", async () => 
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Assignee",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -7892,13 +7929,13 @@ test("race condition: parent task is removed before it’s loaded", async () => 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     // Pause loading of `task2`...
     const pausePromise1 = taskRealtimeStoreBeforeLoadTaskTestCheckpoint.pauseForTest(space.id);
@@ -7912,14 +7949,14 @@ test("race condition: parent task is removed before it’s loaded", async () => 
     // We've reached `eventBuilder.send()` which is blocked on loading `task2`.
     (await pausePromise2).unpause();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Remove `task1` from loaded tasks.
     await task1.updateAssignee(session, null);
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     const waitPromise2 = server.waitForApplyActionTransactions();
 
@@ -7927,11 +7964,11 @@ test("race condition: parent task is removed before it’s loaded", async () => 
     // blocked on loading `task2`.
     const {unpause: unpause3} = await pausePromise3;
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updatePriority(session, "High");
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     unpause1();
     unpause3();
@@ -7940,7 +7977,7 @@ test("race condition: parent task is removed before it’s loaded", async () => 
     await waitPromise2;
 
     expect(
-        connection.takeEvents().sort((a, b) => {
+        testTakeEvents(connection).sort((a, b) => {
             assert(a.type === "Update");
             assert(b.type === "Update");
             return compareHybridLogicalTimes(
@@ -7964,8 +8001,8 @@ test("race condition: parent task is removed before it’s loaded", async () => 
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(task2.id)],
-            backfillCollections: [],
+            backfillTasks: {[task2.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
         {
@@ -7983,8 +8020,8 @@ test("race condition: parent task is removed before it’s loaded", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -7992,7 +8029,7 @@ test("race condition: parent task is removed before it’s loaded", async () => 
     await task2.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("race condition: collection can be removed before previous collection has loaded", async () => {
@@ -8011,23 +8048,22 @@ test("race condition: collection can be removed before previous collection has l
     const connection1 = await server.connectForTest(session.action());
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Assignee",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -8039,13 +8075,13 @@ test("race condition: collection can be removed before previous collection has l
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // Pause loading of `collection`...
     const pausePromise1 = taskRealtimeStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
@@ -8061,14 +8097,14 @@ test("race condition: collection can be removed before previous collection has l
     // We've reached `eventBuilder.send()` which is blocked on loading `collection`.
     (await pausePromise2).unpause();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const pausePromise3 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Remove `collection` before `collection` has loaded.
     await task1.removeCollection(session, collection);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const waitPromise2 = server.waitForApplyActionTransactions();
 
@@ -8076,7 +8112,7 @@ test("race condition: collection can be removed before previous collection has l
     // also blocked on loading `collection`.
     const {unpause: unpause3} = await pausePromise3;
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     unpause1();
     unpause3();
@@ -8085,8 +8121,7 @@ test("race condition: collection can be removed before previous collection has l
     await waitPromise2;
 
     expect(
-        connection1
-            .takeEvents()
+        testTakeEvents(connection1)
             // Event order is not deterministic because both events depend on the
             // collection to load. `RemoveCollection` needs the collection to load so we
             // can tell if the collection is authorized or not.
@@ -8111,8 +8146,8 @@ test("race condition: collection can be removed before previous collection has l
                         },
                     },
                 ],
-                backfillTasks: [],
-                backfillCollections: [expectAuthorizedCollection(collection.id)],
+                backfillTasks: {},
+                backfillCollections: {[collection.id]: expectAuthorizedCollection()},
                 referencedAccounts: [],
             },
             {
@@ -8130,8 +8165,8 @@ test("race condition: collection can be removed before previous collection has l
                         },
                     },
                 ],
-                backfillTasks: [],
-                backfillCollections: [],
+                backfillTasks: {},
+                backfillCollections: {},
                 referencedAccounts: [],
             },
         ].sort((event1, event2) =>
@@ -8142,7 +8177,7 @@ test("race condition: collection can be removed before previous collection has l
     await collection.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 });
 
 test("race condition: parent task can change before previous collection of parent task has loaded", async () => {
@@ -8167,23 +8202,22 @@ test("race condition: parent task can change before previous collection of paren
     const connection1 = await server.connectForTest(session.action());
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Assignee",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Assignee",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -8195,13 +8229,13 @@ test("race condition: parent task can change before previous collection of paren
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // Pause loading of `collection`...
     const pausePromise1 = taskRealtimeStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
@@ -8211,7 +8245,8 @@ test("race condition: parent task can change before previous collection of paren
     const pausePromise2 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Make sure `task2` is loaded in the store...
-    void connection2.procedures.subscribeToQuery(
+    void testSubscribeToQuery(
+        connection2,
         query(session, {
             filters: [
                 {
@@ -8244,14 +8279,14 @@ test("race condition: parent task can change before previous collection of paren
     // We've reached `eventBuilder.send()` which is blocked on loading `collection`.
     (await pausePromise3).unpause();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const pausePromise4 = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
     // Remove parent before `collection` has loaded.
     await task1.updateParentTask(session, null);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     const waitPromise2 = server.waitForApplyActionTransactions();
 
@@ -8259,7 +8294,7 @@ test("race condition: parent task can change before previous collection of paren
     // blocked on loading `collection`.
     const {unpause: unpause4} = await pausePromise4;
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     unpause1();
     unpause4();
@@ -8273,7 +8308,7 @@ test("race condition: parent task can change before previous collection of paren
             actions2[0].taskAction.parentTaskId ?? "null",
         );
 
-    expect(connection1.takeEvents().sort(compare)).toEqual(
+    expect(testTakeEvents(connection1).sort(compare)).toEqual(
         [
             {
                 type: "Update",
@@ -8290,8 +8325,8 @@ test("race condition: parent task can change before previous collection of paren
                         },
                     },
                 ],
-                backfillTasks: [expectAuthorizedTask(task2.id, [collection.id])],
-                backfillCollections: [expectAuthorizedCollection(collection.id)],
+                backfillTasks: {[task2.id]: expectAuthorizedTask([collection.id])},
+                backfillCollections: {[collection.id]: expectAuthorizedCollection()},
                 referencedAccounts: [await session.get()],
             },
             {
@@ -8317,8 +8352,8 @@ test("race condition: parent task can change before previous collection of paren
                         }),
                     },
                 ],
-                backfillTasks: [],
-                backfillCollections: [],
+                backfillTasks: {},
+                backfillCollections: {},
                 referencedAccounts: [],
             },
         ].sort(compare),
@@ -8327,7 +8362,7 @@ test("race condition: parent task can change before previous collection of paren
     await collection.updateName(session, "Test 1");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 });
 
 test("multiple subscriptions that receive the same actions only show action once in update event", async () => {
@@ -8352,22 +8387,21 @@ test("multiple subscriptions that receive the same actions only show action once
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -8379,34 +8413,33 @@ test("multiple subscriptions that receive the same actions only show action once
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection2.id]),
-                        },
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection2.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -8418,18 +8451,18 @@ test("multiple subscriptions that receive the same actions only show action once
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task2.id, [collection2.id])],
-            backfillCollections: [],
+            backfillTasks: {[task2.id]: expectAuthorizedTask([collection2.id])},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8445,8 +8478,8 @@ test("multiple subscriptions that receive the same actions only show action once
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8454,7 +8487,7 @@ test("multiple subscriptions that receive the same actions only show action once
     await task2.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8470,8 +8503,8 @@ test("multiple subscriptions that receive the same actions only show action once
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8479,7 +8512,7 @@ test("multiple subscriptions that receive the same actions only show action once
     await task3.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8495,8 +8528,8 @@ test("multiple subscriptions that receive the same actions only show action once
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8525,10 +8558,11 @@ test("referenced task may be unauthorized", async () => {
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session2, {
                 filters: [
                     {
@@ -8552,22 +8586,22 @@ test("referenced task may be unauthorized", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectUnauthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8583,8 +8617,8 @@ test("referenced task may be unauthorized", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8592,7 +8626,7 @@ test("referenced task may be unauthorized", async () => {
     await parentTask1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("unauthorized referenced task will be authorized if later loaded", async () => {
@@ -8618,10 +8652,11 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session2, {
                 filters: [
                     {
@@ -8645,22 +8680,22 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectUnauthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8676,8 +8711,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8685,19 +8720,19 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     await parentTask1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.addCollection(session1, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id, [collection.id])],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {},
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -8705,7 +8740,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     await parentTask1.updatePriority(session1, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8721,8 +8756,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8730,7 +8765,7 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     await parentTask1.removeCollection(session1, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8746,22 +8781,22 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectUnauthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8792,10 +8827,11 @@ test("authorized referenced task may be loaded later", async () => {
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session2, {
                 filters: [
                     {
@@ -8819,25 +8855,25 @@ test("authorized referenced task may be loaded later", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8853,8 +8889,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8862,7 +8898,7 @@ test("authorized referenced task may be loaded later", async () => {
     await parentTask1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8878,8 +8914,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8887,7 +8923,7 @@ test("authorized referenced task may be loaded later", async () => {
     await parentTask1.addCollection(session1, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8904,8 +8940,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8913,7 +8949,7 @@ test("authorized referenced task may be loaded later", async () => {
     await parentTask1.updatePriority(session1, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8929,8 +8965,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -8938,7 +8974,7 @@ test("authorized referenced task may be loaded later", async () => {
     await parentTask1.removeCollection(session1, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -8954,15 +8990,15 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("a loaded task may then become referenced", async () => {
@@ -8988,10 +9024,11 @@ test("a loaded task may then become referenced", async () => {
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session2, {
                 filters: [
                     {
@@ -9015,22 +9052,22 @@ test("a loaded task may then become referenced", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-                expectAuthorizedTask(parentTask1.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateParentTask(session1, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9054,8 +9091,8 @@ test("a loaded task may then become referenced", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9063,7 +9100,7 @@ test("a loaded task may then become referenced", async () => {
     await parentTask1.updatePriority(session1, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9079,8 +9116,8 @@ test("a loaded task may then become referenced", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9088,7 +9125,7 @@ test("a loaded task may then become referenced", async () => {
     await parentTask1.removeCollection(session1, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9104,22 +9141,22 @@ test("a loaded task may then become referenced", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectUnauthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9150,10 +9187,11 @@ test("loaded task may be loaded by two subscriptions", async () => {
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9177,19 +9215,20 @@ test("loaded task may be loaded by two subscriptions", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9213,18 +9252,18 @@ test("loaded task may be loaded by two subscriptions", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task3.id, [collection.id])],
-            backfillCollections: [],
+            backfillTasks: {[task3.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {},
             referencedAccounts: [await session2.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9240,8 +9279,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9249,7 +9288,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
     await task3.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9265,8 +9304,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9274,7 +9313,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
     await task1.removeCollection(session1, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9290,8 +9329,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9299,7 +9338,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
     await task3.removeCollection(session1, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9315,8 +9354,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9324,7 +9363,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
     await task1.updatePriority(session1, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9340,8 +9379,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9349,12 +9388,12 @@ test("loaded task may be loaded by two subscriptions", async () => {
     await task3.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateAssignee(session1, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9370,8 +9409,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9379,12 +9418,12 @@ test("loaded task may be loaded by two subscriptions", async () => {
     await task1.updatePriority(session1, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updatePriority(session1, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9400,8 +9439,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9409,7 +9448,7 @@ test("loaded task may be loaded by two subscriptions", async () => {
     await task3.updatePriority(session2, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("authorized referenced task may be referenced multiple times", async () => {
@@ -9436,10 +9475,11 @@ test("authorized referenced task may be referenced multiple times", async () => 
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9463,16 +9503,17 @@ test("authorized referenced task may be referenced multiple times", async () => 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask(), [task2.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9494,12 +9535,12 @@ test("authorized referenced task may be referenced multiple times", async () => 
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateParentTask(session1, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9515,8 +9556,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id, [collection.id])],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session2.get()],
         },
     ]);
@@ -9524,7 +9565,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
     await parentTask1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9540,8 +9581,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9549,7 +9590,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
     await task1.updateParentTask(session1, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9573,8 +9614,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9582,7 +9623,7 @@ test("authorized referenced task may be referenced multiple times", async () => 
     await parentTask1.updatePriority(session1, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("unauthorized referenced task may be referenced multiple times", async () => {
@@ -9609,10 +9650,11 @@ test("unauthorized referenced task may be referenced multiple times", async () =
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9636,19 +9678,20 @@ test("unauthorized referenced task may be referenced multiple times", async () =
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9670,12 +9713,12 @@ test("unauthorized referenced task may be referenced multiple times", async () =
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateParentTask(session2, parentTask1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9691,8 +9734,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
                     },
                 },
             ],
-            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectUnauthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9700,12 +9743,12 @@ test("unauthorized referenced task may be referenced multiple times", async () =
     await parentTask1.updatePriority(session2, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateParentTask(session1, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9721,8 +9764,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9730,7 +9773,7 @@ test("unauthorized referenced task may be referenced multiple times", async () =
     await parentTask1.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("may reference unauthorized collections", async () => {
@@ -9769,10 +9812,11 @@ test("may reference unauthorized collections", async () => {
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9796,22 +9840,22 @@ test("may reference unauthorized collections", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(parentTask1.id, [collection1.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session1, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9827,8 +9871,8 @@ test("may reference unauthorized collections", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9836,12 +9880,12 @@ test("may reference unauthorized collections", async () => {
     await collection2.updateName(session2, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection3.updateName(session2, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("authorized referenced collection may be referenced multiple times", async () => {
@@ -9866,10 +9910,11 @@ test("authorized referenced collection may be referenced multiple times", async 
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9893,16 +9938,17 @@ test("authorized referenced collection may be referenced multiple times", async 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask(), [task2.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -9924,12 +9970,12 @@ test("authorized referenced collection may be referenced multiple times", async 
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session1, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9946,8 +9992,8 @@ test("authorized referenced collection may be referenced multiple times", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -9955,7 +10001,7 @@ test("authorized referenced collection may be referenced multiple times", async 
     await collection.updateName(session1, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9971,8 +10017,8 @@ test("authorized referenced collection may be referenced multiple times", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -9980,7 +10026,7 @@ test("authorized referenced collection may be referenced multiple times", async 
     await task1.removeCollection(session1, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -9996,8 +10042,8 @@ test("authorized referenced collection may be referenced multiple times", async 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10005,7 +10051,7 @@ test("authorized referenced collection may be referenced multiple times", async 
     await collection.updateName(session1, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("unauthorized referenced collection may be referenced multiple times", async () => {
@@ -10032,10 +10078,11 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10059,19 +10106,20 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection2.id]),
-                expectAuthorizedTask(task2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection2.id]),
+                [task2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10093,12 +10141,12 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
         updateEvent: null,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session2, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updateCollectionPosition(session2, collection1, {
         orderTime: testClock.nowLogical(),
@@ -10106,22 +10154,22 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     });
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session2, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.removeCollection(session2, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session2, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("will reauthorize an unauthorized referenced task to authorized", async () => {
@@ -10145,10 +10193,11 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10172,43 +10221,43 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-                expectUnauthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.addCollection(session2, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id, [collection.id])],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask([collection.id])},
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session2.get()],
         },
     ]);
@@ -10216,7 +10265,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
     await parentTask1.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10232,8 +10281,8 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10262,10 +10311,11 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10289,43 +10339,43 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id),
-                expectUnauthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.addCollection(session2, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id, [collection1.id])],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask([collection1.id])},
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session2.get()],
         },
     ]);
@@ -10333,7 +10383,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
     await parentTask1.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10349,8 +10399,8 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10383,10 +10433,11 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10410,25 +10461,25 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectUnauthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [parentTask1.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.access.revokeDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10450,8 +10501,8 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -10459,8 +10510,8 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection2.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection2.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -10468,36 +10519,36 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
     await parentTask1.addCollection(session2, collection2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.addCollection(session2, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(parentTask1.id, [collection1.id])],
-            backfillCollections: [
-                expectUnauthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection1.id),
-            ],
+            backfillTasks: {[parentTask1.id]: expectAuthorizedTask([collection1.id])},
+            backfillCollections: {
+                [collection2.id]: expectUnauthorizedCollection(),
+                [collection1.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session2.get()],
         },
     ]);
@@ -10505,7 +10556,7 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
     await parentTask1.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10521,8 +10572,8 @@ test("will reauthorize an unauthorized referenced task to authorized and the new
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10550,10 +10601,11 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10577,22 +10629,22 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(parentTask1.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10608,8 +10660,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10617,7 +10669,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     await parentTask1.removeCollection(session2, collection);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10633,8 +10685,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10642,7 +10694,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     await parentTask1.updatePriority(session2, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10658,22 +10710,22 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillTasks: {[parentTask1.id]: expectUnauthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10681,7 +10733,7 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     await parentTask1.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("reauthorize will noop if an unauthorized referenced task is still unauthorized", async () => {
@@ -10705,10 +10757,11 @@ test("reauthorize will noop if an unauthorized referenced task is still unauthor
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10732,31 +10785,31 @@ test("reauthorize will noop if an unauthorized referenced task is still unauthor
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-                expectUnauthorizedTask(parentTask1.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("reauthorize will noop if an authorized referenced task is still authorized", async () => {
@@ -10781,10 +10834,11 @@ test("reauthorize will noop if an authorized referenced task is still authorized
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10808,22 +10862,22 @@ test("reauthorize will noop if an authorized referenced task is still authorized
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(parentTask1.id, [collection.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask([collection.id]),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10839,20 +10893,20 @@ test("reauthorize will noop if an authorized referenced task is still authorized
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await parentTask1.updatePriority(session2, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10868,8 +10922,8 @@ test("reauthorize will noop if an authorized referenced task is still authorized
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -10896,10 +10950,11 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -10923,26 +10978,26 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10959,8 +11014,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -10968,7 +11023,7 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
     await collection2.updateName(session2, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10984,20 +11039,20 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11013,8 +11068,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -11041,10 +11096,11 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -11068,24 +11124,24 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11101,8 +11157,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -11112,7 +11168,7 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     await collection2.access.revoke(session1, session1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11135,8 +11191,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -11161,8 +11217,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -11186,8 +11242,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -11195,8 +11251,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection2.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection2.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11204,16 +11260,16 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     await collection2.updateName(session2, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("reauthorize will noop if an unauthorized referenced collection is still unauthorized", async () => {
@@ -11237,10 +11293,11 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -11264,30 +11321,30 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("reauthorize will noop if an authorized referenced collection is still authorized", async () => {
@@ -11311,10 +11368,11 @@ test("reauthorize will noop if an authorized referenced collection is still auth
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -11338,24 +11396,24 @@ test("reauthorize will noop if an authorized referenced collection is still auth
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11371,20 +11429,20 @@ test("reauthorize will noop if an authorized referenced collection is still auth
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection2.updateName(session2, "Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11400,8 +11458,8 @@ test("reauthorize will noop if an authorized referenced collection is still auth
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -11445,12 +11503,13 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await server.wait();
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -11474,23 +11533,23 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection2.id]),
-                expectAuthorizedTask(task4.id, [collection2.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection3.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11517,8 +11576,8 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11526,7 +11585,7 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
     await collection1.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11553,8 +11612,8 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11562,7 +11621,7 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
     await collection3.access.revokeDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11584,8 +11643,8 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -11593,8 +11652,8 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection3.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection3.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11602,7 +11661,7 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
     await collection3.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11629,8 +11688,8 @@ test("if an unauthorized collection becomes authorized then all tasks in query t
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11696,12 +11755,13 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await server.wait();
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -11725,27 +11785,27 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(childTask1.id, [collection2.id]),
-                expectAuthorizedTask(childTask2.id, [collection2.id]),
-                expectAuthorizedTask(childTask3.id, [collection2.id]),
-                expectAuthorizedTask(childTask4.id, [collection2.id]),
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [childTask1.id]: expectAuthorizedTask([collection2.id]),
+                [childTask2.id]: expectAuthorizedTask([collection2.id]),
+                [childTask3.id]: expectAuthorizedTask([collection2.id]),
+                [childTask4.id]: expectAuthorizedTask([collection2.id]),
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection3.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11772,8 +11832,8 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11781,7 +11841,7 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
     await collection1.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11808,8 +11868,8 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11817,7 +11877,7 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
     await collection3.access.revokeDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11839,8 +11899,8 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -11848,8 +11908,8 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection3.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection3.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11857,7 +11917,7 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
     await collection3.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11884,8 +11944,8 @@ test("if an unauthorized collection becomes authorized then all referenced tasks
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -11918,24 +11978,23 @@ test("referenced data is not evicted", async () => {
 
     const connection1 = await server.connectForTest(session1.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(0);
 
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session1, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection1, {
+            session: session1,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -11947,23 +12006,23 @@ test("referenced data is not evicted", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
@@ -11974,7 +12033,7 @@ test("referenced data is not evicted", async () => {
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -11990,8 +12049,8 @@ test("referenced data is not evicted", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -11999,7 +12058,7 @@ test("referenced data is not evicted", async () => {
     await collection2.updateName(session1, "Test 2");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([
+    expect(testTakeEvents(connection1)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12015,8 +12074,8 @@ test("referenced data is not evicted", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -12025,24 +12084,23 @@ test("referenced data is not evicted", async () => {
 
     const connection2 = await server.connectForTest(session2.action());
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session2, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session: session2,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -12054,23 +12112,23 @@ test("referenced data is not evicted", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection1.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection1.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 });
 
 test("unreferenced data is evicted", async () => {
@@ -12100,11 +12158,12 @@ test("unreferenced data is evicted", async () => {
 
     const connection1 = await server.connectForTest(session1.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(0);
 
-    const {querySubscriptionId, ...result} = await connection1.procedures.subscribeToQuery(
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(
+        connection1,
         query(session1, {
             filters: [
                 {
@@ -12128,23 +12187,23 @@ test("unreferenced data is evicted", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
@@ -12161,35 +12220,34 @@ test("unreferenced data is evicted", async () => {
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     await collection2.updateName(session1, "Test 2");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
     const connection2 = await server.connectForTest(session2.action());
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session2, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session: session2,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -12201,23 +12259,23 @@ test("unreferenced data is evicted", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(2);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 });
 
 test("unreferenced data can be reused when no eviction", async () => {
@@ -12247,11 +12305,12 @@ test("unreferenced data can be reused when no eviction", async () => {
 
     const connection1 = await server.connectForTest(session1.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(0);
 
-    const {querySubscriptionId, ...result} = await connection1.procedures.subscribeToQuery(
+    const {querySubscriptionId, ...result} = await testSubscribeToQuery(
+        connection1,
         query(session1, {
             filters: [
                 {
@@ -12275,23 +12334,23 @@ test("unreferenced data can be reused when no eviction", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
@@ -12304,35 +12363,34 @@ test("unreferenced data can be reused when no eviction", async () => {
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     await collection2.updateName(session1, "Test 2");
     await server.wait();
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
     const connection2 = await server.connectForTest(session2.action());
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(getCount()).toEqual(1);
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session2, {
-                filters: [
-                    {
-                        type: "Collections",
-                        operation: {
-                            type: "IncludesOneOf",
-                            collectionIds: new Set([collection1.id]),
-                        },
+        await testSubscribeToQuery(connection2, {
+            session: session2,
+            filters: [
+                {
+                    type: "Collections",
+                    operation: {
+                        type: "IncludesOneOf",
+                        collectionIds: new Set([collection1.id]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -12344,23 +12402,23 @@ test("unreferenced data can be reused when no eviction", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(parentTask1.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection1.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection1.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
 
     expect(getCount()).toEqual(1);
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 });
 
 test("can handle temporary cycle involving loaded tasks when actions are applied out-of-order", async () => {
@@ -12383,25 +12441,24 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     const connection1 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // We need to load `task1` and `task3` into the store before they're updated in
     // OpenSearch. Then we can control the order in which actions are applied in
     // OpenSearch.
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -12413,17 +12470,17 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task2.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     server.pauseApplyActionTransactions();
 
@@ -12473,29 +12530,28 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
 
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                    {
-                        type: "Priority",
-                        operation: {
-                            type: "OneOf",
-                            priorities: new Set(["High"]),
-                        },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High"]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -12507,17 +12563,17 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task1.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task3.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task1.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     const time3 = testClock.nowLogical();
 
@@ -12542,7 +12598,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         actions: actions3,
     });
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12558,8 +12614,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -12587,18 +12643,18 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         actions: actions4,
     });
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask(),
+                [task1.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12609,7 +12665,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         actions: actions1,
     });
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12625,8 +12681,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -12634,17 +12690,17 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     server.unpauseApplyActionTransactions();
     await server.wait();
 
-    connection2.takeEvents();
+    testTakeEvents(connection2);
 
     await task1.updateAssignee(session, session);
     await server.wait();
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     await task2.updateAssignee(session, session);
     await server.wait();
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12659,8 +12715,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12668,7 +12724,7 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     await task3.updateAssignee(session, session);
     await server.wait();
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 });
 
 test("can handle temporary cycle not involving loaded tasks when actions are applied out-of-order", async () => {
@@ -12695,25 +12751,24 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const connection1 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // We need to load `task1` and `task3` into the store before they're updated in
     // OpenSearch. Then we can control the order in which actions are applied in
     // OpenSearch.
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -12771,29 +12826,28 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     expect(
-        await connection2.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection2, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                    {
-                        type: "Priority",
-                        operation: {
-                            type: "OneOf",
-                            priorities: new Set(["High"]),
-                        },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "OneOf",
+                        priorities: new Set(["High"]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -12805,19 +12859,19 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task5.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task5.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task1.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     const time3 = testClock.nowLogical();
 
@@ -12842,7 +12896,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         actions: actions3,
     });
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12858,8 +12912,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -12887,20 +12941,20 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         actions: actions4,
     });
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task5.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task5.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task1.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12911,7 +12965,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         actions: actions1,
     });
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12927,8 +12981,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -12936,12 +12990,12 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     server.unpauseApplyActionTransactions();
     await server.wait();
 
-    connection2.takeEvents();
+    testTakeEvents(connection2);
 
     await task1.updateAssignee(session, session);
     await server.wait();
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12956,8 +13010,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12965,12 +13019,12 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     await task2.updateAssignee(session, session);
     await server.wait();
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     await task3.updateAssignee(session, session);
     await server.wait();
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -12985,8 +13039,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -13016,7 +13070,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const connection1 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // We need to load `task1` and `task3` into the store before they're updated in
     // OpenSearch. Then we can control the order in which actions are applied in
@@ -13024,26 +13078,25 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     //
     // However, we want to exclude `task2`!
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                    {
-                        type: "Priority",
-                        operation: {
-                            type: "NoneOf",
-                            priorities: new Set(["Medium"]),
-                        },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "NoneOf",
+                        priorities: new Set(["Medium"]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -13126,35 +13179,34 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     const pause2Promise = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
-    const subscribePromise = connection2.procedures.subscribeToQuery(
-        query(session, {
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
+    const subscribePromise = testSubscribeToQuery(connection2, {
+        session,
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
                 },
-                {
-                    type: "Priority",
-                    operation: {
-                        type: "OneOf",
-                        priorities: new Set(["High"]),
-                    },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["High"]),
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     const {unpause: unpause2} = await pause2Promise;
     unpause2();
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     unpause1();
     await applyActions1Promise;
@@ -13165,18 +13217,18 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [
-            expectAuthorizedTask(task5.id),
-            expectAuthorizedTask(task1.id),
-            expectAuthorizedTask(task3.id),
-            expectAuthorizedTask(task4.id),
-            expectAuthorizedTask(task2.id),
-        ],
-        backfillCollections: [],
+        backfillTasks: {
+            [task5.id]: expectAuthorizedTask(),
+            [task1.id]: expectAuthorizedTask(),
+            [task3.id]: expectAuthorizedTask(),
+            [task4.id]: expectAuthorizedTask(),
+            [task2.id]: expectAuthorizedTask(),
+        },
+        backfillCollections: {},
         referencedAccounts: [await session.get()],
     });
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     await server.applyActionTransaction({
         spaceId: space.id,
@@ -13209,7 +13261,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const connection1 = await server.connectForTest(session.action());
 
-    expect(connection1.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection1)).toEqual([]);
 
     // We need to load `task1` and `task3` into the store before they're updated in
     // OpenSearch. Then we can control the order in which actions are applied in
@@ -13217,26 +13269,25 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     //
     // However, we want to exclude `task2`!
     expect(
-        await connection1.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
-                        },
+        await testSubscribeToQuery(connection1, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {
+                        type: "OneOf",
+                        accounts: [{type: "CurrentAccount"}],
                     },
-                    {
-                        type: "Priority",
-                        operation: {
-                            type: "NoneOf",
-                            priorities: new Set(["Medium"]),
-                        },
+                },
+                {
+                    type: "Priority",
+                    operation: {
+                        type: "NoneOf",
+                        priorities: new Set(["Medium"]),
                     },
-                ],
-            }),
-        ),
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -13319,30 +13370,29 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
 
     const connection2 = await server.connectForTest(session.action());
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     const pause2Promise = taskRealtimeStoreBeforeSendEventTestCheckpoint.pauseForTest(space.id);
 
-    const subscribePromise = connection2.procedures.subscribeToQuery(
-        query(session, {
-            filters: [
-                {
-                    type: "Creator",
-                    operation: {
-                        type: "OneOf",
-                        accounts: [{type: "CurrentAccount"}],
-                    },
+    const subscribePromise = testSubscribeToQuery(connection2, {
+        session,
+        filters: [
+            {
+                type: "Creator",
+                operation: {
+                    type: "OneOf",
+                    accounts: [{type: "CurrentAccount"}],
                 },
-                {
-                    type: "Priority",
-                    operation: {
-                        type: "OneOf",
-                        priorities: new Set(["High"]),
-                    },
+            },
+            {
+                type: "Priority",
+                operation: {
+                    type: "OneOf",
+                    priorities: new Set(["High"]),
                 },
-            ],
-        }),
-    );
+            },
+        ],
+    });
 
     const {unpause: unpause2} = await pause2Promise;
     unpause2();
@@ -13375,7 +13425,7 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     const {unpause: unpause3} = await pause3Promise;
     unpause3();
 
-    expect(connection2.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection2)).toEqual([]);
 
     unpause1();
     await applyActions1Promise;
@@ -13387,20 +13437,20 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [
-            expectAuthorizedTask(task5.id),
-            expectAuthorizedTask(task1.id),
-            expectAuthorizedTask(task3.id),
-            expectAuthorizedTask(task4.id),
-            expectAuthorizedTask(task1.id),
-            expectAuthorizedTask(task3.id),
-            expectAuthorizedTask(task2.id),
-        ],
-        backfillCollections: [],
+        backfillTasks: {
+            [task5.id]: expectAuthorizedTask(),
+            [task1.id]: expectAuthorizedTask(),
+            [task3.id]: expectAuthorizedTask(),
+            [task4.id]: expectAuthorizedTask(),
+            [task1.id]: expectAuthorizedTask(),
+            [task3.id]: expectAuthorizedTask(),
+            [task2.id]: expectAuthorizedTask(),
+        },
+        backfillCollections: {},
         referencedAccounts: [await session.get()],
     });
 
-    expect(connection2.takeEvents()).toEqual([
+    expect(testTakeEvents(connection2)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13416,8 +13466,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13444,9 +13494,9 @@ test("can subscribe to task", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {taskSubscriptionId, updateEvent} = await connection.procedures.subscribeToTask({
+    const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
         clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
@@ -13456,15 +13506,15 @@ test("can subscribe to task", async () => {
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [expectAuthorizedTask(task1.id)],
-        backfillCollections: [],
+        backfillTasks: {[task1.id]: expectAuthorizedTask()},
+        backfillCollections: {},
         referencedAccounts: [await session.get()],
     });
 
     await task1.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13480,8 +13530,8 @@ test("can subscribe to task", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13489,14 +13539,14 @@ test("can subscribe to task", async () => {
     await task2.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.procedures.unsubscribeFromTask({taskSubscriptionId});
 
     await task1.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can’t subscribe to task that doesn’t exist", async () => {
@@ -13508,16 +13558,16 @@ test("can’t subscribe to task that doesn’t exist", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await expect(
-        connection.procedures.subscribeToTask({
+        testSubscribeToTask(connection, {
             clientTime: testClock.nowLogical(),
             taskId: generateId(),
         }),
     ).rejects.toThrow(NotFoundError);
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can’t subscribe to task that you don’t have access to", async () => {
@@ -13533,16 +13583,16 @@ test("can’t subscribe to task that you don’t have access to", async () => {
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await expect(
-        connection.procedures.subscribeToTask({
+        testSubscribeToTask(connection, {
             clientTime: testClock.nowLogical(),
             taskId: task1.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("will lose access to subscribed task upon reauthorization", async () => {
@@ -13561,9 +13611,9 @@ test("will lose access to subscribed task upon reauthorization", async () => {
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {taskSubscriptionId, updateEvent} = await connection.procedures.subscribeToTask({
+    const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
         clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
@@ -13573,17 +13623,17 @@ test("will lose access to subscribed task upon reauthorization", async () => {
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [expectAuthorizedTask(task1.id, [collection1.id])],
-        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        backfillTasks: {[task1.id]: expectAuthorizedTask([collection1.id])},
+        backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
         referencedAccounts: [await session1.get()],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13599,8 +13649,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13608,14 +13658,14 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     await connection.authorize();
 
     expect(connection.isClosed()).toEqual(false);
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.access.revokeDefault(session1);
     await server.wait();
 
     expect(connection.isClosed()).toEqual(false);
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13631,8 +13681,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -13645,7 +13695,7 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     await task1.updatePriority(session1, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("will lose access to subscribed task upon reauthorization if account removed from space", async () => {
@@ -13664,9 +13714,9 @@ test("will lose access to subscribed task upon reauthorization if account remove
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {taskSubscriptionId, updateEvent} = await connection.procedures.subscribeToTask({
+    const {taskSubscriptionId, updateEvent} = await testSubscribeToTask(connection, {
         clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
@@ -13676,17 +13726,17 @@ test("will lose access to subscribed task upon reauthorization if account remove
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [expectAuthorizedTask(task1.id, [collection1.id])],
-        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        backfillTasks: {[task1.id]: expectAuthorizedTask([collection1.id])},
+        backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
         referencedAccounts: [await session1.get()],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.updatePriority(session1, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13702,8 +13752,8 @@ test("will lose access to subscribed task upon reauthorization if account remove
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13711,7 +13761,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
     await connection.authorize();
 
     expect(connection.isClosed()).toEqual(false);
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await removeSpaceAccount(session1.action(), {
         spaceId: space.id,
@@ -13725,7 +13775,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
         "Account doesn’t have access to space",
     );
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "TaskSubscriptionError",
             id: taskSubscriptionId,
@@ -13736,7 +13786,7 @@ test("will lose access to subscribed task upon reauthorization if account remove
     await task1.updatePriority(session1, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("subscribing to task subscribes to parent tasks and collections", async () => {
@@ -13770,9 +13820,9 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {updateEvent} = await connection.procedures.subscribeToTask({
+    const {updateEvent} = await testSubscribeToTask(connection, {
         clientTime: testClock.nowLogical(),
         taskId: task2.id,
     });
@@ -13782,25 +13832,25 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [
-            expectAuthorizedTask(task2.id, [collection1.id, collection2.id]),
-            expectAuthorizedTask(task3.id),
-            expectAuthorizedTask(task4.id, [collection2.id, collection3.id]),
-        ],
-        backfillCollections: [
-            expectAuthorizedCollection(collection1.id),
-            expectAuthorizedCollection(collection2.id),
-            expectAuthorizedCollection(collection3.id),
-        ],
+        backfillTasks: {
+            [task2.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            [task3.id]: expectAuthorizedTask(),
+            [task4.id]: expectAuthorizedTask([collection2.id, collection3.id]),
+        },
+        backfillCollections: {
+            [collection1.id]: expectAuthorizedCollection(),
+            [collection2.id]: expectAuthorizedCollection(),
+            [collection3.id]: expectAuthorizedCollection(),
+        },
         referencedAccounts: [await session.get()],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13816,8 +13866,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13825,12 +13875,12 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await task1.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task4.updatePriority(session, "Medium");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13846,8 +13896,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13855,7 +13905,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection1.updateName(session, "Collection 1a");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13871,8 +13921,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13880,7 +13930,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection2.updateName(session, "Collection 2a");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13896,8 +13946,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13905,7 +13955,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection3.updateName(session, "Collection 3a");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13921,8 +13971,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13930,7 +13980,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await task3.updateParentTask(session, null);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13954,8 +14004,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13963,12 +14013,12 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await task4.updatePriority(session, "High");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session, "Collection 1b");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -13984,8 +14034,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -13993,7 +14043,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection2.updateName(session, "Collection 2b");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14009,8 +14059,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14018,12 +14068,12 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection3.updateName(session, "Collection 3b");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2.removeCollection(session, collection2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14039,8 +14089,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14048,7 +14098,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection1.updateName(session, "Collection 1c");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14064,8 +14114,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14073,17 +14123,17 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection2.updateName(session, "Collection 2c");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection3.updateName(session, "Collection 3c");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task3.updateParentTask(session, task4);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14099,11 +14149,11 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [expectAuthorizedTask(task4.id, [collection2.id, collection3.id])],
-            backfillCollections: [
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {[task4.id]: expectAuthorizedTask([collection2.id, collection3.id])},
+            backfillCollections: {
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -14111,7 +14161,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await task4.updatePriority(session, "Low");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14127,8 +14177,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14136,7 +14186,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection1.updateName(session, "Collection 1d");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14152,8 +14202,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14161,7 +14211,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection2.updateName(session, "Collection 2d");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14177,8 +14227,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14186,7 +14236,7 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     await collection3.updateName(session, "Collection 3d");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14202,8 +14252,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14232,10 +14282,10 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     const {taskSubscriptionId: taskSubscription1Id, updateEvent: updateEvent1} =
-        await connection.procedures.subscribeToTask({
+        await testSubscribeToTask(connection, {
             clientTime: testClock.nowLogical(),
             taskId: task1.id,
         });
@@ -14245,17 +14295,17 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [expectAuthorizedTask(task1.id, [collection1.id])],
-        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        backfillTasks: {[task1.id]: expectAuthorizedTask([collection1.id])},
+        backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
         referencedAccounts: [await session1.get()],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.removeCollection(session1, collection1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14271,13 +14321,13 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
-    const {updateEvent: updateEvent2} = await connection.procedures.subscribeToTask({
+    const {updateEvent: updateEvent2} = await testSubscribeToTask(connection, {
         clientTime: testClock.nowLogical(),
         taskId: task2.id,
     });
@@ -14287,29 +14337,29 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [expectAuthorizedTask(task2.id, [collection1.id])],
-        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        backfillTasks: {[task2.id]: expectAuthorizedTask([collection1.id])},
+        backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
         referencedAccounts: [await session1.get()],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.procedures.unsubscribeFromTask({
         taskSubscriptionId: taskSubscription1Id,
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectUnauthorizedTask(task1.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectUnauthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14330,30 +14380,29 @@ test("can subscribe to collection", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {collectionSubscriptionId, updateEvent} =
-        await connection.procedures.subscribeToCollection({
-            clientTime: testClock.nowLogical(),
-            collectionId: collection1.id,
-        });
+    const {collectionSubscriptionId, updateEvent} = await testSubscribeToCollection(connection, {
+        clientTime: testClock.nowLogical(),
+        collectionId: collection1.id,
+    });
 
     expect(updateEvent).toEqual({
         type: "Update",
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [],
-        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        backfillTasks: {},
+        backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
         referencedAccounts: [],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session, "Test Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14369,8 +14418,8 @@ test("can subscribe to collection", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14378,14 +14427,14 @@ test("can subscribe to collection", async () => {
     await collection2.updateName(session, "Test Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await connection.procedures.unsubscribeFromCollection({collectionSubscriptionId});
 
     await collection1.updateName(session, "Test Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can’t subscribe to collection that doesn’t exist", async () => {
@@ -14397,16 +14446,16 @@ test("can’t subscribe to collection that doesn’t exist", async () => {
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await expect(
-        connection.procedures.subscribeToCollection({
+        testSubscribeToCollection(connection, {
             clientTime: testClock.nowLogical(),
             collectionId: generateId(),
         }),
     ).rejects.toThrow(NotFoundError);
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("can’t subscribe to collection that you don’t have access to", async () => {
@@ -14422,16 +14471,16 @@ test("can’t subscribe to collection that you don’t have access to", async ()
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await expect(
-        connection.procedures.subscribeToCollection({
+        testSubscribeToCollection(connection, {
             clientTime: testClock.nowLogical(),
             collectionId: collection1.id,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("will lose access to subscribed collection upon reauthorization", async () => {
@@ -14448,30 +14497,29 @@ test("will lose access to subscribed collection upon reauthorization", async () 
 
     const connection = await server.connectForTest(session2.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {collectionSubscriptionId, updateEvent} =
-        await connection.procedures.subscribeToCollection({
-            clientTime: testClock.nowLogical(),
-            collectionId: collection1.id,
-        });
+    const {collectionSubscriptionId, updateEvent} = await testSubscribeToCollection(connection, {
+        clientTime: testClock.nowLogical(),
+        collectionId: collection1.id,
+    });
 
     expect(updateEvent).toEqual({
         type: "Update",
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [],
-        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        backfillTasks: {},
+        backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
         referencedAccounts: [],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.updateName(session1, "Test Test 1");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14487,20 +14535,20 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
 
     await connection.authorize();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection1.access.revokeDefault(session1);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14516,8 +14564,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14525,7 +14573,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     await collection1.updateName(session1, "Test Test 2");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14541,8 +14589,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -14551,7 +14599,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     await connection.authorize();
     expect(connection.isClosed()).toEqual(false);
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "CollectionSubscriptionError",
             id: collectionSubscriptionId,
@@ -14564,7 +14612,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     await collection1.updateName(session1, "Test Test 3");
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("subscribed collection will become unauthorized after unsubscribed", async () => {
@@ -14589,27 +14637,29 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
 
     const connection = await server.connectForTest(session1.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {collectionSubscriptionId, updateEvent: updateEvent1} =
-        await connection.procedures.subscribeToCollection({
+    const {collectionSubscriptionId, updateEvent: updateEvent1} = await testSubscribeToCollection(
+        connection,
+        {
             clientTime: testClock.nowLogical(),
             collectionId: collection2.id,
-        });
+        },
+    );
 
     expect(updateEvent1).toEqual({
         type: "Update",
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [],
-        backfillCollections: [expectAuthorizedCollection(collection2.id)],
+        backfillTasks: {},
+        backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
         referencedAccounts: [],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {updateEvent: updateEvent2} = await connection.procedures.subscribeToTask({
+    const {updateEvent: updateEvent2} = await testSubscribeToTask(connection, {
         clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
@@ -14619,12 +14669,12 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [expectAuthorizedTask(task1.id, [collection1.id, collection2.id])],
-        backfillCollections: [expectAuthorizedCollection(collection1.id)],
+        backfillTasks: {[task1.id]: expectAuthorizedTask([collection1.id, collection2.id])},
+        backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
         referencedAccounts: [await session1.get()],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(connection.isClosed()).toEqual(false);
     expect(connection.getCloseError()).toEqual(null);
@@ -14632,7 +14682,7 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
     await collection2.access.revokeDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -14647,8 +14697,8 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
                     }),
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -14663,8 +14713,8 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [{type: "Unauthorized", collectionId: collection2.id}],
+            backfillTasks: {},
+            backfillCollections: {[collection2.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -14700,9 +14750,9 @@ test("deleting task and all children when subscribed to task and its children", 
 
     const connection = await server.connectForTest(session.action());
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
-    const {updateEvent} = await connection.procedures.subscribe({
+    const {updateEvent} = await testSubscribe(connection, {
         clientTime: testClock.nowLogical(),
         queries: [
             {
@@ -14730,25 +14780,21 @@ test("deleting task and all children when subscribed to task and its children", 
         collectionIds: [],
     });
 
-    expect(connection.takeEvents()).toEqual([]);
-
-    (updateEvent?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort((task1, task2) =>
-        defaultCompareStrings(task1.task.id, task2.task.id),
-    );
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(updateEvent).toEqual({
         type: "Update",
         originClientId: null,
         defaultAuthorizationStateVersion: expect.any(Array),
         actions: [],
-        backfillTasks: [task1.id, task2.id, task3.id, task4.id, task5.id]
-            .sort(defaultCompareStrings)
-            .map(taskId =>
-                taskId === task1.id || taskId === task5.id
-                    ? expectAuthorizedTask(taskId, [collection.id])
-                    : expectAuthorizedTask(taskId),
-            ),
-        backfillCollections: [expectAuthorizedCollection(collection.id)],
+        backfillTasks: {
+            [task1.id]: expectAuthorizedTask([collection.id]),
+            [task2.id]: expectAuthorizedTask(),
+            [task3.id]: expectAuthorizedTask(),
+            [task4.id]: expectAuthorizedTask(),
+            [task5.id]: expectAuthorizedTask([collection.id]),
+        },
+        backfillCollections: {[collection.id]: expectAuthorizedCollection()},
         referencedAccounts: [await session.get()],
     });
 
@@ -14861,10 +14907,10 @@ test("will load some expanded task queries if requested", async () => {
     {
         const connection = await server.connectForTest(context.action(session1));
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
 
         expect(
-            await connection.procedures.subscribeToQuery({
+            await testSubscribeToQuery(connection, {
                 ...highPriorityQuery,
                 limit: 9,
             }),
@@ -14879,37 +14925,33 @@ test("will load some expanded task queries if requested", async () => {
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    expectAuthorizedTask(task1.id),
-                    expectAuthorizedTask(task2.id),
-                    expectAuthorizedTask(task3.id),
-                    expectAuthorizedTask(task5.id),
-                    expectAuthorizedTask(task6.id),
-                ],
-                backfillCollections: [],
+                backfillTasks: {
+                    [task1.id]: expectAuthorizedTask(),
+                    [task2.id]: expectAuthorizedTask(),
+                    [task3.id]: expectAuthorizedTask(),
+                    [task5.id]: expectAuthorizedTask(),
+                    [task6.id]: expectAuthorizedTask(),
+                },
+                backfillCollections: {},
                 referencedAccounts: [await session1.get()],
             },
         });
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
     }
 
     {
         const connection = await server.connectForTest(context.action(session1));
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
 
-        const result = await connection.procedures.subscribeToQuery({
-            ...highPriorityQuery,
-            limit: 9,
-            shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
-        });
-
-        (result.updateEvent?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort(
-            (task1, task2) => defaultCompareStrings(task1.task.id, task2.task.id),
-        );
-
-        expect(result).toEqual({
+        expect(
+            await testSubscribeToQuery(connection, {
+                ...highPriorityQuery,
+                limit: 9,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+            }),
+        ).toEqual({
             querySubscriptionId: expect.any(String),
             loadedState: {type: "Full"},
             previouslyBackfilledTaskIds: [],
@@ -15001,48 +15043,42 @@ test("will load some expanded task queries if requested", async () => {
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    task1.id,
-                    task2.id,
-                    task3.id,
-                    task5.id,
-                    task6.id,
-                    task2a.id,
-                    task2b.id,
-                    task2c.id,
-                    task2b1.id,
-                    task4.id,
-                    task4a.id,
-                    task5a.id,
-                    task5b.id,
-                ]
-                    .sort(defaultCompareStrings)
-                    .map(taskId =>
-                        taskId === task4.id
-                            ? expectAuthorizedTask(taskId, [collection.id])
-                            : expectAuthorizedTask(taskId),
-                    ),
-                backfillCollections: [expectAuthorizedCollection(collection.id)],
+                backfillTasks: {
+                    [task1.id]: expectAuthorizedTask(),
+                    [task2.id]: expectAuthorizedTask(),
+                    [task3.id]: expectAuthorizedTask(),
+                    [task5.id]: expectAuthorizedTask(),
+                    [task6.id]: expectAuthorizedTask(),
+                    [task2a.id]: expectAuthorizedTask(),
+                    [task2b.id]: expectAuthorizedTask(),
+                    [task2c.id]: expectAuthorizedTask(),
+                    [task2b1.id]: expectAuthorizedTask(),
+                    [task4.id]: expectAuthorizedTask([collection.id]),
+                    [task4a.id]: expectAuthorizedTask(),
+                    [task5a.id]: expectAuthorizedTask(),
+                    [task5b.id]: expectAuthorizedTask(),
+                },
+                backfillCollections: {[collection.id]: expectAuthorizedCollection()},
                 referencedAccounts: [await session1.get(), await session2.get()],
             },
         });
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
     }
 
     {
         const connection = await server.connectForTest(context.action(session1));
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
 
         // Subscribe to query once before so `previouslyBackfilledTaskIds` is populated.
-        await connection.procedures.subscribeToQuery({
+        await testSubscribeToQuery(connection, {
             ...highPriorityQuery,
             limit: 9,
             shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
         });
 
-        const result = await connection.procedures.subscribeToQuery({
+        const result = await testSubscribeToQuery(connection, {
             ...highPriorityQuery,
             limit: 9,
             shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
@@ -15138,7 +15174,7 @@ test("will load some expanded task queries if requested", async () => {
             updateEvent: null,
         });
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
     }
 
     await task4.removeCollection(session2, collection);
@@ -15147,19 +15183,15 @@ test("will load some expanded task queries if requested", async () => {
     {
         const connection = await server.connectForTest(context.action(session1));
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
 
-        const result = await connection.procedures.subscribeToQuery({
-            ...highPriorityQuery,
-            limit: 9,
-            shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
-        });
-
-        (result.updateEvent?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort(
-            (task1, task2) => defaultCompareStrings(task1.task.id, task2.task.id),
-        );
-
-        expect(result).toEqual({
+        expect(
+            await testSubscribeToQuery(connection, {
+                ...highPriorityQuery,
+                limit: 9,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+            }),
+        ).toEqual({
             querySubscriptionId: expect.any(String),
             loadedState: {type: "Full"},
             previouslyBackfilledTaskIds: [],
@@ -15231,27 +15263,25 @@ test("will load some expanded task queries if requested", async () => {
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    task1.id,
-                    task2.id,
-                    task3.id,
-                    task5.id,
-                    task6.id,
-                    task2a.id,
-                    task2b.id,
-                    task2c.id,
-                    task2b1.id,
-                    task5a.id,
-                    task5b.id,
-                ]
-                    .sort(defaultCompareStrings)
-                    .map(taskId => expectAuthorizedTask(taskId)),
-                backfillCollections: [],
+                backfillTasks: {
+                    [task1.id]: expectAuthorizedTask(),
+                    [task2.id]: expectAuthorizedTask(),
+                    [task3.id]: expectAuthorizedTask(),
+                    [task5.id]: expectAuthorizedTask(),
+                    [task6.id]: expectAuthorizedTask(),
+                    [task2a.id]: expectAuthorizedTask(),
+                    [task2b.id]: expectAuthorizedTask(),
+                    [task2c.id]: expectAuthorizedTask(),
+                    [task2b1.id]: expectAuthorizedTask(),
+                    [task5a.id]: expectAuthorizedTask(),
+                    [task5b.id]: expectAuthorizedTask(),
+                },
+                backfillCollections: {},
                 referencedAccounts: [await session1.get()],
             },
         });
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
     }
 
     const gridViewExpansionState2 = new Map([
@@ -15277,19 +15307,15 @@ test("will load some expanded task queries if requested", async () => {
     {
         const connection = await server.connectForTest(context.action(session1));
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
 
-        const result = await connection.procedures.subscribeToQuery({
-            ...highPriorityQuery,
-            limit: 9,
-            shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
-        });
-
-        (result.updateEvent?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort(
-            (task1, task2) => defaultCompareStrings(task1.task.id, task2.task.id),
-        );
-
-        expect(result).toEqual({
+        expect(
+            await testSubscribeToQuery(connection, {
+                ...highPriorityQuery,
+                limit: 9,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+            }),
+        ).toEqual({
             querySubscriptionId: expect.any(String),
             loadedState: {type: "Full"},
             previouslyBackfilledTaskIds: [],
@@ -15381,28 +15407,26 @@ test("will load some expanded task queries if requested", async () => {
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    task1.id,
-                    task2.id,
-                    task3.id,
-                    task5.id,
-                    task6.id,
-                    task2a.id,
-                    task2b.id,
-                    task2c.id,
-                    task2b1.id,
-                    task5a.id,
-                    task5b.id,
-                    task6a.id,
-                ]
-                    .sort(defaultCompareStrings)
-                    .map(taskId => expectAuthorizedTask(taskId)),
-                backfillCollections: [],
+                backfillTasks: {
+                    [task1.id]: expectAuthorizedTask(),
+                    [task2.id]: expectAuthorizedTask(),
+                    [task3.id]: expectAuthorizedTask(),
+                    [task5.id]: expectAuthorizedTask(),
+                    [task6.id]: expectAuthorizedTask(),
+                    [task2a.id]: expectAuthorizedTask(),
+                    [task2b.id]: expectAuthorizedTask(),
+                    [task2c.id]: expectAuthorizedTask(),
+                    [task2b1.id]: expectAuthorizedTask(),
+                    [task5a.id]: expectAuthorizedTask(),
+                    [task5b.id]: expectAuthorizedTask(),
+                    [task6a.id]: expectAuthorizedTask(),
+                },
+                backfillCollections: {},
                 referencedAccounts: [await session1.get()],
             },
         });
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
     }
 });
 
@@ -15464,23 +15488,22 @@ test("race condition: extra query task ids includes task from action that happen
 
     const connection = await server.connectForTest(context.action(session));
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     expect(
-        await connection.procedures.subscribeToQuery(
-            query(session, {
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
-                    },
-                    {
-                        type: "Priority",
-                        operation: {type: "OneOf", priorities: new Set(["Low"])},
-                    },
-                ],
-            }),
-        ),
+        await testSubscribeToQuery(connection, {
+            session,
+            filters: [
+                {
+                    type: "Creator",
+                    operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                },
+                {
+                    type: "Priority",
+                    operation: {type: "OneOf", priorities: new Set(["Low"])},
+                },
+            ],
+        }),
     ).toEqual({
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
@@ -15492,13 +15515,13 @@ test("race condition: extra query task ids includes task from action that happen
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task2b.id)],
-            backfillCollections: [],
+            backfillTasks: {[task2b.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     const pausePromise1 = taskRealtimeStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
         space.id,
@@ -15507,7 +15530,7 @@ test("race condition: extra query task ids includes task from action that happen
         space.id,
     );
 
-    const subscribePromise = connection.procedures.subscribe({
+    const subscribePromise = testSubscribe(connection, {
         clientTime: testClock.nowLogical(),
         queries: [
             {
@@ -15525,12 +15548,12 @@ test("race condition: extra query task ids includes task from action that happen
     // Make sure we've finished subscribing before updating the parent task.
     unpause2();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task2b.updateParentTask(session, task2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -15558,8 +15581,8 @@ test("race condition: extra query task ids includes task from action that happen
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     ]);
@@ -15610,18 +15633,18 @@ test("race condition: extra query task ids includes task from action that happen
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task2a.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task2a.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("private collections aren’t visible in task in query", async () => {
@@ -15656,7 +15679,8 @@ test("private collections aren’t visible in task in query", async () => {
     const connection = await server.connectForTest(context.action(session1));
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -15677,21 +15701,21 @@ test("private collections aren’t visible in task in query", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id, [collection3.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask([collection3.id]),
+            },
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session2, collection4);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -15708,8 +15732,8 @@ test("private collections aren’t visible in task in query", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -15717,7 +15741,7 @@ test("private collections aren’t visible in task in query", async () => {
     await collection4.access.revokeDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -15739,8 +15763,8 @@ test("private collections aren’t visible in task in query", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -15748,8 +15772,8 @@ test("private collections aren’t visible in task in query", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection4.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection4.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -15757,12 +15781,12 @@ test("private collections aren’t visible in task in query", async () => {
     await task1.removeCollection(session2, collection4);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection4.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("private collections aren’t visible in referenced tasks", async () => {
@@ -15812,7 +15836,8 @@ test("private collections aren’t visible in referenced tasks", async () => {
     const connection = await server.connectForTest(context.action(session1));
 
     expect(
-        await connection.procedures.subscribeToQuery(
+        await testSubscribeToQuery(
+            connection,
             query(session1, {
                 filters: [
                     {
@@ -15837,23 +15862,23 @@ test("private collections aren’t visible in referenced tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(childTask1.id),
-                expectAuthorizedTask(childTask2.id),
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id, [collection3.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {
+                [childTask1.id]: expectAuthorizedTask(),
+                [childTask2.id]: expectAuthorizedTask(),
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask([collection3.id]),
+            },
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session2, collection4);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -15870,8 +15895,8 @@ test("private collections aren’t visible in referenced tasks", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -15879,7 +15904,7 @@ test("private collections aren’t visible in referenced tasks", async () => {
     await collection4.access.revokeDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -15901,8 +15926,8 @@ test("private collections aren’t visible in referenced tasks", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -15910,8 +15935,8 @@ test("private collections aren’t visible in referenced tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection4.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection4.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -15919,12 +15944,12 @@ test("private collections aren’t visible in referenced tasks", async () => {
     await task1.removeCollection(session2, collection4);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection4.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("private collections aren’t visible in task subscription", async () => {
@@ -15959,7 +15984,7 @@ test("private collections aren’t visible in task subscription", async () => {
     const connection = await server.connectForTest(context.action(session1));
 
     expect(
-        await connection.procedures.subscribeToTask({
+        await testSubscribeToTask(connection, {
             clientTime: testClock.nowLogical(),
             taskId: task1.id,
         }),
@@ -15970,14 +15995,14 @@ test("private collections aren’t visible in task subscription", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task1.id)],
-            backfillCollections: [],
+            backfillTasks: {[task1.id]: expectAuthorizedTask()},
+            backfillCollections: {},
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     });
 
     expect(
-        await connection.procedures.subscribeToTask({
+        await testSubscribeToTask(connection, {
             clientTime: testClock.nowLogical(),
             taskId: task2.id,
         }),
@@ -15988,18 +16013,18 @@ test("private collections aren’t visible in task subscription", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task2.id, [collection3.id])],
-            backfillCollections: [expectAuthorizedCollection(collection3.id)],
+            backfillTasks: {[task2.id]: expectAuthorizedTask([collection3.id])},
+            backfillCollections: {[collection3.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     });
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await task1.addCollection(session2, collection4);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -16016,8 +16041,8 @@ test("private collections aren’t visible in task subscription", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -16025,7 +16050,7 @@ test("private collections aren’t visible in task subscription", async () => {
     await collection4.access.revokeDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([
+    expect(testTakeEvents(connection)).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -16047,8 +16072,8 @@ test("private collections aren’t visible in task subscription", async () => {
                     },
                 },
             ],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
         {
@@ -16056,8 +16081,8 @@ test("private collections aren’t visible in task subscription", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection4.id)],
+            backfillTasks: {},
+            backfillCollections: {[collection4.id]: expectUnauthorizedCollection()},
             referencedAccounts: [],
         },
     ]);
@@ -16065,12 +16090,12 @@ test("private collections aren’t visible in task subscription", async () => {
     await task1.removeCollection(session2, collection4);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 
     await collection4.access.grantDefault(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
+    expect(testTakeEvents(connection)).toEqual([]);
 });
 
 test("task creator, closer, assigner, and assignee are correct", async () => {
@@ -16097,7 +16122,8 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
         const connection = await server.connectForTest(context.action(creatorSession));
 
         expect(
-            await connection.procedures.subscribeToQuery(
+            await testSubscribeToQuery(
+                connection,
                 query(creatorSession, {
                     filters: [
                         {
@@ -16125,8 +16151,8 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    {
+                backfillTasks: {
+                    [task.id]: {
                         type: "Authorized",
                         task: new TaskModel({
                             id: task.id,
@@ -16207,8 +16233,8 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             priority: new TaskPriorityRegister(null, task.createdTime),
                         }),
                     },
-                ],
-                backfillCollections: [expectAuthorizedCollection(collection.id)],
+                },
+                backfillCollections: {[collection.id]: expectAuthorizedCollection()},
                 referencedAccounts: await runAllPromises([
                     creatorSession.get(),
                     closerSession.get(),
@@ -16218,7 +16244,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
             },
         });
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
     }
 
     const {time: updateAssigneeTime2} = await task.updateAssignee(
@@ -16232,7 +16258,7 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
         const connection = await server.connectForTest(context.action(creatorSession));
 
         expect(
-            await connection.procedures.subscribeToTask({
+            await testSubscribeToTask(connection, {
                 clientTime: testClock.nowLogical(),
                 taskId: task.id,
             }),
@@ -16243,8 +16269,8 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                 originClientId: null,
                 defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [],
-                backfillTasks: [
-                    {
+                backfillTasks: {
+                    [task.id]: {
                         type: "Authorized",
                         task: new TaskModel({
                             id: task.id,
@@ -16325,8 +16351,8 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
                             priority: new TaskPriorityRegister(null, task.createdTime),
                         }),
                     },
-                ],
-                backfillCollections: [expectAuthorizedCollection(collection.id)],
+                },
+                backfillCollections: {[collection.id]: expectAuthorizedCollection()},
                 referencedAccounts: await runAllPromises([
                     creatorSession.get(),
                     closerSession.get(),
@@ -16336,6 +16362,6 @@ test("task creator, closer, assigner, and assignee are correct", async () => {
             },
         });
 
-        expect(connection.takeEvents()).toEqual([]);
+        expect(testTakeEvents(connection)).toEqual([]);
     }
 });

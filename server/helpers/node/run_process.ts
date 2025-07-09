@@ -30,6 +30,8 @@ export async function runProcess(
         isErrorExitCode = exitCode => exitCode !== 0,
         withOutputInErrorMessage = process.env.NODE_ENV !== "production",
         onStdinError,
+        onStdoutData,
+        onStderrData,
     }: {
         /**
          * What directory should the process run in? By default runs in the root
@@ -76,6 +78,18 @@ export async function runProcess(
          * `runProcess()` promise.
          */
         onStdinError?: (error: unknown) => {preventDefault: boolean} | void;
+
+        /**
+         * Called when the process emits some data to stdout. Allows you to inspect the
+         * data and perform any additional processing.
+         */
+        onStdoutData?: (string: string, chunk: Buffer) => void;
+
+        /**
+         * Called when the process emits some data to stderr. Allows you to inspect the
+         * data and perform any additional processing.
+         */
+        onStderrData?: (string: string, chunk: Buffer) => void;
     } = {},
 ): Promise<string> {
     const flattenedArgs: Array<string | undefined | null | false> =
@@ -105,11 +119,13 @@ export async function runProcess(
     subprocess.stdout.on("data", (chunk: Buffer) => {
         const string = chunk.toString("utf8");
         stdout += string;
+        onStdoutData?.(string, chunk);
     });
 
     subprocess.stderr.on("data", (chunk: Buffer) => {
         const string = chunk.toString("utf8");
         stderr += string;
+        onStderrData?.(string, chunk);
     });
 
     await new Promise<void>((resolve, reject) => {

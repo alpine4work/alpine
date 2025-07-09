@@ -29,6 +29,7 @@ import {
 } from "~/shared/files/file_content_type.js";
 import {FileAudioPreviewMetadata} from "~/shared/files/file_preview.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -209,39 +210,89 @@ export function processFileWebUnsafeAudio(
     });
 
     const audioPreviewMetadataPromise: Promise<FileAudioPreviewMetadata> = (async () => {
-        // Even though technically we're using the FFprobe executable we still name the
-        // span "FFmpeg ..." which'll make it easier for us to search for spans that
-        // call one of the FFmpeg tools.
-        const metadataString = await context.tracer.withSpan(
-            `FFmpeg get ${getFileContentTypeName(contentType)} metadata`,
-            async (context, span) => {
-                span.addData({
-                    file: {contentType, contentLength},
-                });
+        const metadata = await retryWithExponentialBackoff(async retry => {
+            let shouldRetry = false;
 
-                return runProcess(
-                    ffprobeExecutablePath,
-                    [["-print_format", "json"], "-show_streams", "-show_format", inputUrl],
-                    {cwd: runfilesPath, signal},
+            try {
+                // Even though technically we're using the FFprobe executable we still name the
+                // span "FFmpeg ..." which'll make it easier for us to search for spans that
+                // call one of the FFmpeg tools.
+                const metadata = await context.tracer.withSpan(
+                    `FFmpeg get ${getFileContentTypeName(contentType)} metadata`,
+                    async (context, span) => {
+                        span.addData({
+                            file: {contentType, contentLength},
+                        });
+
+                        let stderr = "";
+
+                        const metadataString = await runProcess(
+                            ffprobeExecutablePath,
+                            [["-print_format", "json"], "-show_streams", "-show_format", inputUrl],
+                            {
+                                cwd: runfilesPath,
+                                signal,
+                                onStderrData: string => {
+                                    stderr += string;
+                                },
+                            },
+                        );
+
+                        let metadata: unknown;
+                        try {
+                            metadata = JSON.parse(metadataString);
+                        } catch (error) {
+                            // If `runProcess()` exited with code zero but didn't return JSON then retry.
+                            // We've found this `ffprobe` call is flaky in CI.
+                            shouldRetry = true;
+
+                            if (!(error instanceof Error)) throw error;
+
+                            // We're observing some flaky errors in unit tests where `metadataString` fails
+                            // to parse as JSON. So if we're running a unit test log the string to help us
+                            // debug.
+                            throw new InternalError(
+                                !import.meta.jest
+                                    ? error.message
+                                    : `${error.message}\n\nstring: ${quote(
+                                          metadataString,
+                                      )}\n\nstderr:\n${stderr.trim()}`,
+                            );
+                        }
+
+                        return metadata;
+                    },
                 );
-            },
-        );
 
-        let metadata: unknown;
-        try {
-            metadata = JSON.parse(metadataString);
-        } catch (error) {
-            if (!(error instanceof Error)) throw error;
+                return metadata;
+            } catch (error) {
+                if (shouldRetry) {
+                    // NOTE(calebmer): I don't know why this is flaky in CI. Perhaps there's a
+                    // network issue given we're providing an HTTP URL to `ffprobe`. When I added
+                    // this retry we weren't logging the `stderr`. There may be information in the
+                    // `stderr` which helps us write a better fix. So if we're retrying, log a
+                    // message to the console asking a future developer to remove this retry and
+                    // make a proper fix using information from stderr.
+                    //
+                    // If there's no information in stderr and `ffprobe` is just...flaky, then you
+                    // can remove these logs.
+                    if (import.meta.jest) {
+                        // eslint-disable-next-line no-console
+                        console.warn(
+                            "Retrying `ffprobe` call that returned invalid JSON, we know this `ffprobe` call\n" +
+                                "is flaky in CI but don’t know why it’s flaky. If you see this message, look at\n" +
+                                "the stderr included in the error message and determine if there’s a better fix\n" +
+                                "than retrying.\n\n" +
+                                (error instanceof Error ? error.stack : String(error)),
+                        );
+                    }
 
-            // We're observing some flaky errors in unit tests where `metadataString` fails
-            // to parse as JSON. So if we're running a unit test log the string to help us
-            // debug.
-            throw new InternalError(
-                !import.meta.jest
-                    ? error.message
-                    : `${error.message}\n\nString: ${quote(metadataString)}`,
-            );
-        }
+                    throw retry(error);
+                }
+
+                throw error;
+            }
+        });
 
         return getFileAudioPreviewMetadataFromFfprobeMetadata(metadata);
     })();

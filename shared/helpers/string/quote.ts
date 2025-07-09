@@ -19,8 +19,14 @@ export function quote(
     templateStrings: TemplateStringsArray | string | number,
     ...values: Array<string | number | boolean | null | undefined>
 ): string {
-    if (typeof templateStrings === "string" || typeof templateStrings === "number") {
+    if (typeof templateStrings === "number") {
         return JSON.stringify(templateStrings);
+    }
+    if (typeof templateStrings === "string") {
+        let quotedString = JSON.stringify(templateStrings);
+        quotedString = quotedString.replaceAll("`", "\\`");
+        quotedString = `\`${quotedString.slice(1, -1)}\``;
+        return quotedString;
     }
 
     assert(templateStrings.length > 0);

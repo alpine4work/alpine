@@ -16,7 +16,6 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     TaskDueDateRegister,
@@ -42,10 +41,7 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
-import {
-    TaskRealtimeQueryLoadedState,
-    TaskRealtimeUpdateEvent,
-} from "~/shared/tasks/task_realtime_protocol.js";
+import {TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
 
@@ -66,10 +62,7 @@ async function testLoadTaskRealtimeQueries(
             limit?: number;
         }>;
     },
-): Promise<{
-    loadedStates: Array<TaskRealtimeQueryLoadedState>;
-    updateEvent: TaskRealtimeUpdateEvent;
-}> {
+) {
     const {
         queries: queriesOutput,
         extraQueries,
@@ -114,15 +107,37 @@ async function testLoadTaskRealtimeQueries(
 
     return {
         loadedStates: queriesOutput.map(({loadedState}) => loadedState),
-        updateEvent,
+        updateEvent: massageUpdateEvent(updateEvent),
     };
 }
 
-function expectAuthorizedTask(taskId: TaskId, collectionIds: Array<TaskCollectionId> = []) {
+function massageUpdateEvent(updateEvent: TaskRealtimeUpdateEvent) {
+    return {
+        ...updateEvent,
+        // `backfillTasks` and `backfillCollections` may be returned in a
+        // non-deterministic order. So to prevent flaky test failures we turn them into
+        // an object where order doesn't matter to Jest when determining equality.
+        backfillTasks: Object.fromEntries(
+            updateEvent.backfillTasks.map((task): [TaskId, unknown] => {
+                if (task.type !== "Authorized") return [task.taskId, task];
+
+                return [task.task.id, task];
+            }),
+        ),
+        backfillCollections: Object.fromEntries(
+            updateEvent.backfillCollections.map((collection): [TaskCollectionId, unknown] => {
+                if (collection.type !== "Authorized") return [collection.collectionId, collection];
+
+                return [collection.collection.id, collection];
+            }),
+        ),
+    };
+}
+
+function expectAuthorizedTask(collectionIds: Array<TaskCollectionId> = []) {
     return expect.objectContaining({
         type: "Authorized",
         task: expect.objectContaining({
-            id: taskId,
             rawData: expect.objectContaining({
                 collections: expect.objectContaining({
                     _array: collectionIds.map(collectionId =>
@@ -134,18 +149,12 @@ function expectAuthorizedTask(taskId: TaskId, collectionIds: Array<TaskCollectio
     });
 }
 
-function expectUnauthorizedTask(taskId: TaskId) {
-    return expect.objectContaining({
-        type: "Unauthorized",
-        taskId,
-    });
+function expectUnauthorizedTask() {
+    return expect.objectContaining({type: "Unauthorized"});
 }
 
-function expectAuthorizedCollection(collectionId: TaskCollectionId) {
-    return expect.objectContaining({
-        type: "Authorized",
-        collection: expect.objectContaining({id: collectionId}),
-    });
+function expectAuthorizedCollection() {
+    return expect.objectContaining({type: "Authorized"});
 }
 
 test("loads no queries", async () => {
@@ -174,8 +183,8 @@ test("loads no queries", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     });
@@ -219,12 +228,12 @@ test("loads a query", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
@@ -284,15 +293,15 @@ test("loads multiple queries", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session1.get()],
         },
     });
@@ -322,14 +331,14 @@ test("loads multiple queries", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection1.id),
-            ],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection1.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session2.get(), await session1.get()],
         },
     });
@@ -370,16 +379,16 @@ test("loads multiple queries", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection1.id),
-            ],
+            backfillTasks: {
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection1.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session2.get(), await session1.get()],
         },
     });
@@ -574,12 +583,12 @@ test("queries may have different pagination states", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
@@ -610,8 +619,8 @@ test("queries may have different pagination states", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [],
-            backfillCollections: [],
+            backfillTasks: {},
+            backfillCollections: {},
             referencedAccounts: [],
         },
     });
@@ -641,15 +650,15 @@ test("queries may have different pagination states", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-                expectAuthorizedTask(task5.id),
-                expectAuthorizedTask(task6.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+                [task6.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
@@ -680,14 +689,14 @@ test("queries may have different pagination states", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-                expectAuthorizedTask(task5.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
@@ -729,15 +738,15 @@ test("queries may have different pagination states", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(task4.id),
-                expectAuthorizedTask(task5.id),
-                expectAuthorizedTask(task6.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [task4.id]: expectAuthorizedTask(),
+                [task5.id]: expectAuthorizedTask(),
+                [task6.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
@@ -794,15 +803,15 @@ test("loads referenced parent tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id),
-                expectAuthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask(),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask(),
+                [parentTask3.id]: expectAuthorizedTask(),
+            },
+            backfillCollections: {},
             referencedAccounts: [await session.get()],
         },
     });
@@ -867,18 +876,18 @@ test("loads referenced collections", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(parentTask1.id),
-                expectAuthorizedTask(parentTask2.id, [collection3.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [parentTask1.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask([collection3.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -944,16 +953,16 @@ test("loads unauthorized parent tasks", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(parentTask2.id, [collection.id]),
-                expectUnauthorizedTask(parentTask1.id),
-                expectUnauthorizedTask(parentTask4.id),
-                expectUnauthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask([collection.id]),
+                [parentTask1.id]: expectUnauthorizedTask(),
+                [parentTask4.id]: expectUnauthorizedTask(),
+                [parentTask3.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
@@ -1014,60 +1023,41 @@ test("loads unauthorized collections", async () => {
 
     await server.wait();
 
-    const loadResult = await testLoadTaskRealtimeQueries(session1.action(), {
-        server,
-        spaceId: space.id,
-        queries: [
-            {
-                filters: [
-                    {
-                        type: "Assignee",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}],
+    expect(
+        await testLoadTaskRealtimeQueries(session1.action(), {
+            server,
+            spaceId: space.id,
+            queries: [
+                {
+                    filters: [
+                        {
+                            type: "Assignee",
+                            operation: {
+                                type: "OneOf",
+                                accounts: [{type: "CurrentAccount"}],
+                            },
                         },
-                    },
-                ],
-            },
-        ],
-    });
-
-    expect({
-        ...loadResult,
-        updateEvent: {
-            ...loadResult.updateEvent,
-            // We've found the order of `backfillCollections` to be non-deterministic
-            // causing this test to flake. So sort collections since order here doesn't
-            // matter.
-            backfillCollections: Array.from(loadResult.updateEvent.backfillCollections).sort(
-                (collection1, collection2) =>
-                    defaultCompareStrings(
-                        collection1.type === "Authorized"
-                            ? collection1.collection.id
-                            : collection1.collectionId,
-                        collection2.type === "Authorized"
-                            ? collection2.collection.id
-                            : collection2.collectionId,
-                    ),
-            ),
-        },
-    }).toEqual({
+                    ],
+                },
+            ],
+        }),
+    ).toEqual({
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task2.id),
-                expectAuthorizedTask(task3.id),
-                expectAuthorizedTask(parentTask2.id, [collection1.id]),
-                expectUnauthorizedTask(parentTask1.id),
-                expectUnauthorizedTask(parentTask4.id),
-                expectUnauthorizedTask(parentTask3.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask(),
+                [task3.id]: expectAuthorizedTask(),
+                [parentTask2.id]: expectAuthorizedTask([collection1.id]),
+                [parentTask1.id]: expectUnauthorizedTask(),
+                [parentTask4.id]: expectUnauthorizedTask(),
+                [parentTask3.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session1.get()],
         },
     });
@@ -1138,17 +1128,17 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1178,16 +1168,16 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1217,17 +1207,17 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1257,8 +1247,8 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task4.id, [collection4.id])],
-            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
+            backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
@@ -1288,19 +1278,19 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection4.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-                expectAuthorizedCollection(collection4.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection4.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+                [collection4.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1532,17 +1522,17 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1572,16 +1562,16 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1611,17 +1601,17 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1651,8 +1641,8 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task4.id, [collection4.id])],
-            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
+            backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
@@ -1682,19 +1672,19 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection4.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-                expectAuthorizedCollection(collection4.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection4.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+                [collection4.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1724,13 +1714,13 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-                expectUnauthorizedTask(task2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     });
@@ -1840,13 +1830,13 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id]),
-                expectAuthorizedTask(task3.id, [collection1.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-                expectUnauthorizedTask(task2.id),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection1.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectUnauthorizedTask(),
+            },
+            backfillCollections: {[collection1.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     });
@@ -1958,17 +1948,17 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -1998,16 +1988,16 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -2037,17 +2027,17 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -2077,8 +2067,8 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [expectAuthorizedTask(task4.id, [collection4.id])],
-            backfillCollections: [expectAuthorizedCollection(collection4.id)],
+            backfillTasks: {[task4.id]: expectAuthorizedTask([collection4.id])},
+            backfillCollections: {[collection4.id]: expectAuthorizedCollection()},
             referencedAccounts: [await session.get()],
         },
     });
@@ -2108,19 +2098,19 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id, collection3.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task4.id, [collection4.id]),
-                expectAuthorizedTask(task5.id, [collection1.id, collection3.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-                expectAuthorizedCollection(collection3.id),
-                expectAuthorizedCollection(collection4.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id, collection3.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task4.id]: expectAuthorizedTask([collection4.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id, collection3.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+                [collection3.id]: expectAuthorizedCollection(),
+                [collection4.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [await session.get()],
         },
     });
@@ -2150,16 +2140,16 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2189,15 +2179,15 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2287,16 +2277,16 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2326,15 +2316,15 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2424,15 +2414,15 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2462,16 +2452,16 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2556,14 +2546,14 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2613,15 +2603,15 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2651,16 +2641,16 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2745,14 +2735,14 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task3.id, [collection1.id, collection2.id]),
-                expectAuthorizedTask(task5.id, [collection1.id]),
-            ],
-            backfillCollections: [
-                expectAuthorizedCollection(collection1.id),
-                expectAuthorizedCollection(collection2.id),
-            ],
+            backfillTasks: {
+                [task3.id]: expectAuthorizedTask([collection1.id, collection2.id]),
+                [task5.id]: expectAuthorizedTask([collection1.id]),
+            },
+            backfillCollections: {
+                [collection1.id]: expectAuthorizedCollection(),
+                [collection2.id]: expectAuthorizedCollection(),
+            },
             referencedAccounts: [],
         },
     });
@@ -2824,12 +2814,12 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection2.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     });
@@ -2939,12 +2929,12 @@ test("loads a query as an anonymous actor", async () => {
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                expectAuthorizedTask(task1.id, [collection2.id]),
-                expectAuthorizedTask(task2.id, [collection2.id]),
-                expectAuthorizedTask(task3.id, [collection2.id]),
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection2.id)],
+            backfillTasks: {
+                [task1.id]: expectAuthorizedTask([collection2.id]),
+                [task2.id]: expectAuthorizedTask([collection2.id]),
+                [task3.id]: expectAuthorizedTask([collection2.id]),
+            },
+            backfillCollections: {[collection2.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     });
@@ -3064,8 +3054,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3143,8 +3133,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([
                 creatorSession.get(),
                 closerSession.get(),
@@ -3186,8 +3176,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3265,8 +3255,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
         },
     });
@@ -3303,8 +3293,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3382,8 +3372,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
         },
     });
@@ -3425,8 +3415,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3504,8 +3494,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([
                 creatorSession.get(),
                 closerSession.get(),
@@ -3547,8 +3537,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3626,8 +3616,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
         },
     });
@@ -3664,8 +3654,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3743,8 +3733,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([assigneeSession.getStub()]),
         },
     });
@@ -3783,8 +3773,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3847,8 +3837,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: await runAllPromises([creatorSession.get(), closerSession.get()]),
         },
     });
@@ -3885,8 +3875,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -3949,8 +3939,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     });
@@ -3987,8 +3977,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
             originClientId: null,
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillTasks: [
-                {
+            backfillTasks: {
+                [task.id]: {
                     type: "Authorized",
                     task: new TaskModel({
                         id: task.id,
@@ -4051,8 +4041,8 @@ test("task creator, closer, and assigner are obfuscated for anonymous actors but
                         priority: new TaskPriorityRegister(null, task.createdTime),
                     }),
                 },
-            ],
-            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            },
+            backfillCollections: {[collection.id]: expectAuthorizedCollection()},
             referencedAccounts: [],
         },
     });
