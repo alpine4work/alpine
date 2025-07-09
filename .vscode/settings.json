@@ -23,6 +23,16 @@
     // in process manager with this set to `true`.
     "search.followSymlinks": false,
 
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.expand": true,
+    "explorer.fileNesting.patterns": {
+        "*.py": "${capture}.py, test_${capture}.py, ${capture}_test.py",
+        "*.js": "${basename}.test.js,${basename}.spec.js,${basename}.test.ts,${basename}.spec.ts,${basename}.test.jsx,${basename}.spec.jsx,${basename}.test.tsx,${basename}.spec.tsx, ${capture}.js.map, ${capture}.min.js, ${capture}.d.ts",
+        "*.ts": "${basename}.test.js,${basename}.spec.js,${basename}.test.ts,${basename}.spec.ts,${basename}.test.jsx,${basename}.spec.jsx,${basename}.test.tsx,${basename}.spec.tsx",
+        "*.jsx": "${basename}.test.js,${basename}.spec.js,${basename}.test.ts,${basename}.spec.ts,${basename}.test.jsx,${basename}.spec.jsx,${basename}.test.tsx,${basename}.spec.tsx",
+        "*.tsx": "${basename}.test.js,${basename}.spec.js,${basename}.test.ts,${basename}.spec.ts,${basename}.test.jsx,${basename}.spec.jsx,${basename}.test.tsx,${basename}.spec.tsx"
+    },
+
     /* ========================================================================== *\
      *                                TypeScript                                  *
     \* ========================================================================== */
