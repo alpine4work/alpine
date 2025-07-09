@@ -359,20 +359,22 @@ export class OpensearchIndex<
         this.config = {
             settings: {
                 index: {
-                    // When running tests in Jest, only use a single shard to speed things up.
-                    number_of_shards: import.meta.jest ? 1 : numberOfShards,
+                    // When running tests (Jest or Playwright), only use a single shard to speed
+                    // things up.
+                    number_of_shards: process.env.NODE_ENV === "test" ? 1 : numberOfShards,
                     number_of_routing_shards: numberOfRoutingShards,
                     sort: {
                         field: sort.map(({field}) => field),
                         order: sort.map(({order}) => order ?? "asc"),
                         missing: sort.map(({missing}) => missing ?? "_last"),
                     },
-                    // Always manually refresh in Jest unit tests.
-                    refresh_interval: import.meta.jest ? "-1" : refreshInterval,
+                    // Always manually refresh in tests (Jest or Playwright).
+                    refresh_interval: process.env.NODE_ENV === "test" ? "-1" : refreshInterval,
                     // One copy of all indexes to increase availability and avoid data loss.
                     //
-                    // When running tests in Jest, don't run any replicas to speed things up.
-                    number_of_replicas: import.meta.jest ? 0 : 1,
+                    // When running tests (Jest or Playwright), don't run any replicas to speed
+                    // things up.
+                    number_of_replicas: process.env.NODE_ENV === "test" ? 0 : 1,
                     // Docs with the same `routing` value should always go to one shard so we never
                     // need to do a cross network search when searching within a `routing` value.
                     routing_partition_size: 1,

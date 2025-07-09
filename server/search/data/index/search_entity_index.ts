@@ -359,7 +359,7 @@ assertEqualTypes<
  * Allow using the search entity indexes directly in Jest unit tests.
  */
 export function getSearchEntityIndexesForTest() {
-    assert(import.meta.jest);
+    assert(process.env.NODE_ENV === "test");
     return {SearchEntityKeywordIndex, SearchEntityEmbeddingChunkIndex};
 }
 

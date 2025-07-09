@@ -841,6 +841,40 @@ export class OpensearchClient implements OpensearchClientInterface {
 
             await fs.mkdir(dirname(ensureLocalCachePath), {recursive: true});
             await fs.writeFile(ensureLocalCachePath, ensureLocalCacheHash);
+
+            // After creating the index, wait for the index to have green status before
+            // allowing any new requests.
+            //
+            // [ElasticSearch integration tests wait for newly-created indexes to be
+            // `green` before proceeding][1]. We're following their example.
+            //
+            // [1]: https://discuss.elastic.co/t/no-shard-available-action-exception-in-integration-tests/262941/3
+            await fetchWithTracer(
+                tracer,
+                new URL(
+                    `/_cluster/health/${index.name}?wait_for_status=green&timeout=60s`,
+                    this._url,
+                ),
+                {
+                    sign: this._signer.sign,
+                    serviceName: "OpenSearch",
+                    route: `/_cluster/health/${index.name}`,
+                    method: "GET",
+                },
+                async response => {
+                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                    // float-64 size in cluster health. Ok to use native JSON parser instead of
+                    // `json-bigint`.
+                    const body = await response.json();
+                    if (!response.ok) {
+                        throw new InternalError(
+                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                            // so it's ok to stringify with native JSON parser.
+                            `OpenSearch health check failed: ${JSON.stringify(body)}`,
+                        );
+                    }
+                },
+            );
         });
     }
 

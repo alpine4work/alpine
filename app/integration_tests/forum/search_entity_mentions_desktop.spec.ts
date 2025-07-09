@@ -1,0 +1,213 @@
+import {Page, expect, test} from "@playwright/test";
+import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
+import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {getSearchEntityIndexesForTest} from "~/server/search/data/index/search_entity_index.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
+import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {quote} from "~/shared/helpers/string/quote.js";
+import {
+    SearchMentionEntityId,
+    SearchMentionEntityType,
+    parseSearchMentionEntityId,
+} from "~/shared/search/search_entity_id.js";
+
+const {context, services} = createTestServices();
+
+const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
+
+const testCaseByEntityType: Record<
+    SearchMentionEntityType,
+    {
+        create: (options: {
+            session: TestSpaceSession;
+            title: string;
+            access: "Public" | "Private" | AccessPolicy;
+        }) => Promise<{
+            id: SearchMentionEntityId;
+            updateTitle: (
+                page: Page,
+                options: {oldTitle: string; newTitle: string},
+            ) => Promise<void>;
+        }>;
+    }
+> = {
+    Document: {
+        create: async ({session, title, access}) => {
+            const document = await TestDocument.create(session, {title, access});
+
+            return {
+                id: `Document:${document.id}`,
+                updateTitle: async (page, {oldTitle, newTitle}) => {
+                    await page.getByRole("textbox", {name: "Document"}).focus();
+
+                    await page.getByRole("heading", {name: oldTitle}).evaluate(element => {
+                        const selection = globalThis.window.getSelection()!;
+                        const range = globalThis.document.createRange();
+
+                        // Select all content within the heading element
+                        range.selectNodeContents(element);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    });
+
+                    await page.keyboard.press("Backspace");
+                    await page.keyboard.type(newTitle);
+                },
+            };
+        },
+    },
+    Channel: {
+        create: async ({session, title, access}) => {
+            const channel = await TestChannel.create(session, {name: title, access});
+
+            return {
+                id: `Channel:${channel.id}`,
+                updateTitle: async (page, {oldTitle, newTitle}) => {
+                    await page.getByTestId("PeekStackOverlay").getByText(oldTitle).dblclick();
+                    await page.getByPlaceholder(oldTitle).fill(newTitle);
+                    await page.getByPlaceholder(oldTitle).press("Enter");
+                },
+            };
+        },
+    },
+    TaskCollection: {
+        create: async ({session, title, access}) => {
+            const collection = await TestTaskCollection.create(session, {name: title, access});
+
+            return {
+                id: `TaskCollection:${collection.id}`,
+                updateTitle: async (page, {oldTitle, newTitle}) => {
+                    await page.getByRole("heading", {name: oldTitle}).dblclick();
+                    await page.getByPlaceholder(oldTitle).fill(newTitle);
+                    await page.getByPlaceholder(oldTitle).press("Enter");
+                },
+            };
+        },
+    },
+    Task: {
+        create: async ({session, title, access}) => {
+            const task = await TestTask.create(session, {title});
+
+            const collection = await TestTaskCollection.create(session, {access});
+            await task.addCollection(session, collection);
+
+            return {
+                id: `Task:${task.id}`,
+                updateTitle: async (page, {newTitle}) => {
+                    await page.getByTestId("TaskDetailViewMain").getByLabel("Title").click();
+                    await page
+                        .getByTestId("TaskDetailViewMain")
+                        .getByLabel("Title")
+                        .press("ControlOrMeta+a");
+                    await page.getByTestId("TaskDetailViewMain").getByLabel("Title").fill(newTitle);
+                },
+            };
+        },
+    },
+    Post: {
+        create: async ({session, title, access}) => {
+            const channel = await TestChannel.create(session, {access});
+
+            const post = await channel.createPost(session, title);
+
+            return {
+                id: `Post:${post.id}`,
+                updateTitle: async (page, {newTitle}) => {
+                    await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
+                    await page.getByRole("menuitem", {name: "Edit"}).click();
+                    await page.getByLabel("Post").press("ControlOrMeta+a");
+                    await page.getByLabel("Post").fill(newTitle);
+                    await page.getByLabel("Post").press("ControlOrMeta+Enter");
+                },
+            };
+        },
+    },
+};
+
+for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEntityType)) {
+    test(quote`can render and update ${entityType}`, async ({context: browserContext, page}) => {
+        const space = await TestSpace.create(context, {name: "Test Space"});
+        const session = await space.createSession();
+
+        const entity = await testCase.create({
+            session,
+            title: "Lorem Ipsum",
+            access: "Public",
+        });
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+
+        // Force the entity to be indexed immediately. Documents wait ~10 seconds after
+        // they're created before they're indexed. We can't wait that long in a test.
+        await context.jobs.sendImmediately({
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                ...parseSearchMentionEntityId(entity.id),
+                updatedTraits: {type: "None"},
+            },
+        });
+
+        await expect(async () => {
+            expect(
+                await context.opensearch.getDocWithoutSourceIfExists(
+                    SearchEntityKeywordIndex,
+                    space.id,
+                    entity.id,
+                ),
+            ).not.toBeNull();
+        }).toPass({timeout: 5000});
+
+        const post = await channel.createPost(
+            session,
+            PostContentProsemirrorSchema.node("doc", {}, [
+                PostContentProsemirrorSchema.node("paragraph", {}, [
+                    PostContentProsemirrorSchema.text("Mention: "),
+                    PostContentProsemirrorSchema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: entity.id,
+                        }),
+                    }),
+                    PostContentProsemirrorSchema.text("."),
+                ]),
+            ]),
+        );
+
+        await services.signIn(browserContext, session);
+        await page.goto(`/s/${space.id}/posts/${post.id}`);
+
+        // Wait for React to mount
+        await page.waitForFunction("dev.contentEditor");
+
+        await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeVisible();
+        await expect(page.getByRole("link", {name: "Dolor Sit Amet"})).toBeHidden();
+
+        await page.getByRole("link", {name: "Lorem Ipsum"}).click();
+
+        await expect(page.getByTestId("PeekStack")).toBeVisible();
+
+        await entity.updateTitle(page, {oldTitle: "Lorem Ipsum", newTitle: "Dolor Sit Amet"});
+
+        await expect(page.getByRole("link", {name: "Dolor Sit Amet"})).toBeVisible();
+        await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeHidden();
+
+        await page.keyboard.press("Escape");
+
+        await expect(page.getByTestId("PeekStack")).toBeHidden();
+
+        await expect(page.getByRole("link", {name: "Dolor Sit Amet"})).toBeVisible();
+        await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeHidden();
+    });
+}
