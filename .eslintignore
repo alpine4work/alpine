@@ -6,3 +6,6 @@
 
 # CDK
 /admin/aws/output
+
+# VSCode
+!/.vscode

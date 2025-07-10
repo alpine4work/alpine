@@ -550,6 +550,9 @@ importers:
       '@types/tough-cookie':
         specifier: ^4.0.5
         version: 4.0.5
+      '@types/vscode':
+        specifier: ^1.74.0
+        version: 1.101.0
       '@types/wawoff2':
         specifier: ^1.0.2
         version: 1.0.2
@@ -3712,6 +3715,9 @@ packages:
 
   '@types/uuid@9.0.8':
     resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
+
+  '@types/vscode@1.101.0':
+    resolution: {integrity: sha512-ZWf0IWa+NGegdW3iU42AcDTFHWW7fApLdkdnBqwYEtHVIBGbTu0ZNQKP/kX3Ds/uMJXIMQNAojHR4vexCEEz5Q==}
 
   '@types/wawoff2@1.0.2':
     resolution: {integrity: sha512-UVq4NxMuBywz5gklafg1HcENrK02trh/q+ifyvO6xktflGXRtf11GYsia3/l5nxg2edFQRlnUT6ivnk898WDiw==}
@@ -13050,6 +13056,8 @@ snapshots:
   '@types/unist@3.0.2': {}
 
   '@types/uuid@9.0.8': {}
+
+  '@types/vscode@1.101.0': {}
 
   '@types/wawoff2@1.0.2':
     dependencies:

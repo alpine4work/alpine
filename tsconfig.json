@@ -53,6 +53,6 @@
         "allowJs": true,
         "skipLibCheck": true
     },
-    "include": ["**/*.ts", "**/*.tsx"],
+    "include": ["**/*.ts", "**/*.tsx", ".vscode/**/*.ts", ".vscode/**/*.tsx"],
     "exclude": ["node_modules", "bazel-*"]
 }

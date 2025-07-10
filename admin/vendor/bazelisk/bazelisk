@@ -12,4 +12,4 @@ if [ "$arch_name" = "aarch64" ]; then
     arch_name="arm64"
 fi
 
-"$workspace_path/admin/vendor/bazelisk/bazelisk-$platform_name-$arch_name" $@
+"$workspace_path/admin/vendor/bazelisk/bazelisk-$platform_name-$arch_name" "$@"

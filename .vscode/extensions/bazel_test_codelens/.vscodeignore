@@ -1,0 +1,9 @@
+src/**
+tsconfig.json
+node_modules/**
+.gitignore
+.local
+.github
+.vscode
+BUILD
+*.json

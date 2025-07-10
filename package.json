@@ -136,6 +136,7 @@
         "@types/statuses": "^2.0.5",
         "@types/testing-library__jest-dom": "^5.14.5",
         "@types/tough-cookie": "^4.0.5",
+        "@types/vscode": "^1.74.0",
         "@types/wawoff2": "^1.0.2",
         "@types/whatwg-mimetype": "^3.0.2",
         "@types/ws": "^8.5.3",

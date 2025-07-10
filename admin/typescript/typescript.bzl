@@ -24,6 +24,7 @@ def ts_project(
         test_data = [],
         tests = {},
         visibility = [],
+        module = "es6",
         **kwargs):
     """
     Macro for creating a TypeScript project that implements some codebase conventions.
@@ -43,6 +44,7 @@ def ts_project(
         test_data: Any data for this project that is only available in tests.
         tests: Provide extra arguments to individual tests. Keyed by test label.
         visibility: Controls who may depend on your target.
+        module: Do the built JavaScript files use the ES6 or CommonJS module system?
         **kwargs: Arguments that will be forwarded to `ts_project()` from `aspect_rules_ts`.
     """
 
@@ -61,6 +63,9 @@ def ts_project(
 
     tags = kwargs.pop("tags", default = [])
 
+    if module != "es6" and module != "commonjs":
+        fail("unrecognized module format `{}`".format(module))
+
     _ts_project(
         name = name,
         srcs = srcs,
@@ -71,7 +76,7 @@ def ts_project(
         # transpiled `.js` files as ES Modules.
         data = ["//:package_light_json_file"] + data,
         tsconfig = "//:tsconfig",
-        transpiler = partial.make(swc, **_SWC_KWARGS),
+        transpiler = partial.make(swc, **_SWC_COMMONJS_KWARGS) if module == "commonjs" else partial.make(swc, **_SWC_ES6_KWARGS),
         declaration = True,
         resolve_json_module = True,
         allow_js = True,
@@ -186,14 +191,19 @@ def ts_project(
                 **extra_kwargs
             )
 
-_SWC_KWARGS = {
-    "swcrc": "//admin/typescript:typescript_swc_config",
+_SWC_ES6_KWARGS = {
+    "swcrc": "//admin/typescript:typescript_swc_es6_config",
+    "source_maps": True,
+}
+
+_SWC_COMMONJS_KWARGS = {
+    "swcrc": "//admin/typescript:typescript_swc_commonjs_config",
     "source_maps": True,
 }
 
 def swc_compile(**kwargs):
     kwargs["map_outs"] = ["{}.map".format(js_out) for js_out in kwargs["js_outs"]]
-    kwargs.update(**_SWC_KWARGS)
+    kwargs.update(**_SWC_ES6_KWARGS)
 
     # Needs to be a string before passing into `swc_compile()`
     kwargs["source_maps"] = "true"

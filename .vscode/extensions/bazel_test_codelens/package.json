@@ -1,0 +1,34 @@
+{
+    "name": "bazel-test-codelens",
+    "displayName": "Bazel Test CodeLens",
+    "description": "CodeLens tool for running node tests via Bazel commands",
+    "version": "0.0.1",
+    "publisher": "local",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onLanguage:typescript",
+        "onLanguage:javascript"
+    ],
+    "main": "./out/bazel_test_codelens_extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "bazelTestCodeLens.runTest",
+                "title": "▶ Run Test"
+            },
+            {
+                "command": "bazelTestCodeLens.runTestSuite",
+                "title": "▶ Run Suite"
+            },
+            {
+                "command": "bazelTestCodeLens.copyTestCommand",
+                "title": "Copy Test Command"
+            }
+        ]
+    }
+}

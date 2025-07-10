@@ -2,4 +2,4 @@
 
 workspace_path=$(cd $(dirname $0)/../.. && pwd)
 
-"$workspace_path/admin/vendor/bazelisk/bazelisk" $@
+"$workspace_path/admin/vendor/bazelisk/bazelisk" "$@"
