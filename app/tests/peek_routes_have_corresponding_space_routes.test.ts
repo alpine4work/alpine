@@ -4,7 +4,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 
 // Increase test timeout since it might take a while to import all our routes.
 // Especially during a big test run in CI.
-import.meta.jest.setTimeout(1000 * 20);
+import.meta.jest.setTimeout(1000 * 60);
 
 const originalBeforeEach = globalThis.beforeEach;
 const originalAfterEach = globalThis.afterEach;
