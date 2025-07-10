@@ -12,6 +12,7 @@ import {useOverlayPortalElement} from "~/client/design/overlay_helpers.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {peekStackOverlayBorderRadius} from "~/client/styles/peek_shared_styles.js";
 import {blobsArtStyles} from "~/client/styles/styles.js";
+import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
 import {
     safe,
     safeFlatObjectString,
@@ -89,7 +90,12 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
                         process.env.NODE_ENV !== "production" ? `BlobArtCanvas` : undefined
                     }
                 />
-                <div className={blobsArtStyles.gradientClassName} />
+                <div
+                    className={blobsArtGradientClassName}
+                    // Our blob `<script>` writes a `style` attribute on this element. Tell React
+                    // not to log a hydration warning, this is expected.
+                    suppressHydrationWarning
+                />
                 <ScriptBeforeAppInitialRender script={generateBlobs} />
             </div>
             {(withBezelTop || withBezelX) && (

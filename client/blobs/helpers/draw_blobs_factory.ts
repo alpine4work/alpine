@@ -24,8 +24,7 @@ import {
     GlTextureInternalFormat,
     GlVertexAttribType,
 } from "~/client/helpers/gl/gl_types.js";
-// import from other to avoid importing the entire client styles
-import {blobsArtStyles} from "~/client/styles/other/styles_other.js";
+import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {easeInOutSin} from "~/shared/design/core/easing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
@@ -210,7 +209,7 @@ export function drawBlobFactoryToCanvas(
         // We create this here (as opposed to statically) to ensure we follow the colorScheme as
         // as soon as possible. If we server side render the gradient, we won't know the colorScheme.
         const gradient = assertExists(
-            canvas.parentElement?.getElementsByClassName(blobsArtStyles.gradientClassName)?.[0],
+            canvas.parentElement?.getElementsByClassName(blobsArtGradientClassName)?.[0],
         );
 
         const gradientBackground = formatCssLinearGradient(

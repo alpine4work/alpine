@@ -106,3 +106,9 @@ export const tableWrapper2ClassName =
 
 export const tableWrapper3ClassName =
     process.env.NODE_ENV !== "production" ? "content_tableWrapper3" : "c_tw3";
+
+// TODO: Maybe this blob class should go into its own file someday? Maybe
+// we should rename this file to something more generic like
+// `static_class_names.ts`?
+export const blobsArtGradientClassName =
+    process.env.NODE_ENV !== "production" ? "blobs_gradient" : "b_g";

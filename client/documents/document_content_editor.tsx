@@ -1725,7 +1725,6 @@ export function DocumentContentEditor({
                     />
                 )}
                 <OverlayScopeContextProvider>
-                    {blobsSettings !== null && <BlobsArt settings={blobsSettings} />}
                     <Box className={contentEditorStyles.containerClassName}>
                         <GlobalKeyDownEvent
                             onGlobalKeyDown={event => {

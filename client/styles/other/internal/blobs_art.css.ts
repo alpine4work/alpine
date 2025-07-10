@@ -1,7 +1,7 @@
-import {globalStyle} from "@vanilla-extract/css";
+import {globalStyle, style} from "@vanilla-extract/css";
+import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
 
-export const containerClassName = process.env.NODE_ENV !== "production" ? "blobs_container" : "b_c";
-globalStyle(`.${containerClassName}`, {
+export const containerClassName = style({
     zIndex: -50,
     position: "absolute",
     marginInline: "auto",
@@ -13,16 +13,13 @@ globalStyle(`.${containerClassName}`, {
     transformOrigin: "top center",
 });
 
-export const canvasClassName = process.env.NODE_ENV !== "production" ? "blobs_canvas" : "b_cv";
-globalStyle(`.${canvasClassName}`, {
+export const canvasClassName = style({
     position: "absolute",
     width: "full",
     height: "full",
 });
 
-/** This classname is also used as an identifier for drawing the gradient */
-export const gradientClassName = process.env.NODE_ENV !== "production" ? "blobs_gradient" : "b_g";
-globalStyle(`.${gradientClassName}`, {
+globalStyle(`.${blobsArtGradientClassName}`, {
     position: "absolute",
     inset: 0,
 });

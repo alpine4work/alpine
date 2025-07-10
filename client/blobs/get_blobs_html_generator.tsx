@@ -6,6 +6,7 @@ import {
     getBlobsCanvasId,
 } from "~/client/blobs/helpers/blobs_settings.js";
 import {blobsArtStyles} from "~/client/styles/styles.js";
+import {blobsArtGradientClassName} from "~/shared/content/content_styles.js";
 import {HtmlElementGenerator, HtmlScriptGenerator} from "~/shared/helpers/html/html_generator.js";
 import {
     safe,
@@ -50,7 +51,7 @@ export function getBlobsHtmlGenerator(
 
     // Set up gradient
     const gradientHtml = blobContainerHtml.appendChild(new HtmlElementGenerator("div"));
-    gradientHtml.setAttribute("class", blobsArtStyles.gradientClassName);
+    gradientHtml.setAttribute("class", blobsArtGradientClassName);
 
     const safeCanvasId = safeIdentifierString(canvasId);
     // eslint-disable-next-line string-quotes

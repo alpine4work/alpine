@@ -4081,12 +4081,8 @@ var GlResources = class {
     }
 };
 
-// client/styles/other/styles_other.js
-var blobsArtStyles = {
-    canvasClassName: "blobs_canvas",
-    containerClassName: "blobs_container",
-    gradientClassName: "blobs_gradient",
-};
+// shared/content/content_styles.js
+var blobsArtGradientClassName = true ? "blobs_gradient" : "b_g";
 
 // shared/design/core/colors.js
 var colors = {
@@ -4681,7 +4677,7 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
             (_b =
                 (_a = canvas.parentElement) == null
                     ? void 0
-                    : _a.getElementsByClassName(blobsArtStyles.gradientClassName)) == null
+                    : _a.getElementsByClassName(blobsArtGradientClassName)) == null
                 ? void 0
                 : _b[0],
         );
