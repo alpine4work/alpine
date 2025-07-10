@@ -20,6 +20,18 @@ ts_project(
             "tags": ["cpu:3"],
             "data": ["//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data_testonly"],
         },
+        "search_entity_index_documents_test": {
+            "size": "medium",
+            # Give this test at least three CPUs. Two for OpenSearch, one for the test
+            # process.
+            "tags": ["cpu:3"],
+        },
+        "search_entity_index_forum_test": {
+            "size": "medium",
+            # Give this test at least three CPUs. Two for OpenSearch, one for the test
+            # process.
+            "tags": ["cpu:3"],
+        },
         "search_entity_index_tasks_test": {
             "size": "medium",
             # Give this test at least three CPUs. Two for OpenSearch, one for the test
