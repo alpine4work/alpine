@@ -39,6 +39,10 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+// Increase timeout to reduce test flakiness. Working with images can be
+// expensive, especially on overloaded CI machines.
+import.meta.jest.setTimeout(30 * 1000);
+
 const jpegTestFixturePath = joinPath(
     runfilesPath,
     "cyberworlds/server/files/processor/test_fixtures/unsplash_annie_spratt_0ArJET2aSIQ.jpeg",
