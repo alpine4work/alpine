@@ -42,3 +42,6 @@ _tmp*
 
 # Cursor code editor configuration: you can add your own rules here.
 .cursorrules
+
+# Git
+*.orig
