@@ -6,11 +6,11 @@ import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 
 const metadataByRouteId: Record<
     AppSpaceRouteId | "routes/switch-space",
-    {readonly errorTitle: string; readonly isFullWidth?: true}
+    {readonly errorTitle: string; readonly spaceSideBarSpacing?: "Always" | "Never" | "Sometimes"}
 > = {
     "routes/s.$spaceId._index": {
         errorTitle: "Couldn’t open space",
-        isFullWidth: true,
+        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.channels.$channelId._index": {
         errorTitle: "Couldn’t open channel",
@@ -41,6 +41,7 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.documents.$documentId._index": {
         errorTitle: "Couldn’t open document",
+        spaceSideBarSpacing: "Never",
     },
     "routes/s.$spaceId.documents.$documentId.comments.$commentThreadId": {
         errorTitle: "Couldn’t open comment thread",
@@ -50,7 +51,7 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.inbox": {
         errorTitle: "Couldn’t open inbox",
-        isFullWidth: true,
+        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.more._index": {
         errorTitle: "Couldn’t open menu",
@@ -96,15 +97,15 @@ const metadataByRouteId: Record<
     },
     "routes/s.$spaceId.tasks._index": {
         errorTitle: "Couldn’t open tasks",
-        isFullWidth: true,
+        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.tasks.collections.$collectionId": {
         errorTitle: "Couldn’t open tasks",
-        isFullWidth: true,
+        spaceSideBarSpacing: "Always",
     },
     "routes/s.$spaceId.tasks.view": {
         errorTitle: "Couldn’t open tasks",
-        isFullWidth: true,
+        spaceSideBarSpacing: "Always",
     },
     "routes/switch-space": {
         errorTitle: "Couldn’t open menu",
@@ -149,12 +150,16 @@ export function useRouteErrorTitle() {
  * screen. The space sidebar does not contribute width to routes which aren't
  * full width which allows us to center non-full width route contents.
  */
-export function useIsFullWidthRoute() {
+export function useSpaceSideBarSpacing(): "Always" | "Never" | "Sometimes" {
     const {matches} = assertExists(useContext(DataRouterStateContext));
-    return matches.some(
-        match =>
-            cast<{[key: string]: (typeof metadataByRouteId)[AppSpaceRouteId]}>(metadataByRouteId)[
-                match.route.id
-            ]?.isFullWidth,
-    );
+
+    for (let i = matches.length - 1; i >= 0; i--) {
+        const spaceSideBarSpacing = cast<{
+            [key: string]: (typeof metadataByRouteId)[AppSpaceRouteId];
+        }>(metadataByRouteId)[matches[i]!.route.id]?.spaceSideBarSpacing;
+
+        if (spaceSideBarSpacing) return spaceSideBarSpacing;
+    }
+
+    return "Sometimes";
 }

@@ -13,7 +13,7 @@ import {usePreloadSearchByAffinity} from "~/client/search/use_search_state.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {SpaceLayoutSideBarSpaceButton} from "~/client/spaces/layout/internal/space_layout_side_bar_space_button.js";
-import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
+import {useSpaceSideBarSpacing} from "~/client/spaces/route_metadata.js";
 import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
@@ -40,6 +40,8 @@ export function SpaceLayoutSideBar({
     // product so the search modal should open immediately.
     usePreloadSearchByAffinity();
 
+    const spaceSideBarSpacing = useSpaceSideBarSpacing();
+
     return (
         <Box
             zIndex="80"
@@ -49,9 +51,11 @@ export function SpaceLayoutSideBar({
                 // Routes that take up the full screen width always allocate space for the
                 // space layout sidebar instead of using dynamic space that attempts to
                 // visually center content.
-                width: useIsFullWidthRoute()
-                    ? spaceLayoutStyles.sideBarWidth
-                    : spaceLayoutStyles.sideBarSpace,
+                width: {
+                    Always: spaceLayoutStyles.sideBarWidth,
+                    Never: 0,
+                    Sometimes: spaceLayoutStyles.sideBarSpace,
+                }[spaceSideBarSpacing],
             }}
         >
             <Box

@@ -18,12 +18,13 @@ export const contentClassName = style({
 export const contentWithWideRouteLayoutClassName = style({
     selectors: {
         [`${contentClassName}&`]: {
-            // Add padding so that when the sidebar width is 0 we have an equivalent amount
-            // of padding in our `<DocumentContentEditor>`. That way content within the
-            // editor isn't rendered underneath the space layout sidebar. This is important
-            // for wide tables which extend to the edge of the content editor.
-            paddingLeft: `calc(${spaceLayoutStyles.sideBarWidth} - ${spaceLayoutStyles.sideBarSpace} + ${screenPaddingXRem.desktop}rem)`,
-            paddingRight: `calc(${spaceLayoutStyles.sideBarWidth} - ${spaceLayoutStyles.sideBarSpace} + ${screenPaddingXRem.desktop}rem)`,
+            // Add the sidebar width in padding since we configure `spaceSideBarSpacing`
+            // for the document route to be `Never`. We add it to both the left and right
+            // so the document content is centered and full width elements (e.g. tables)
+            // are clipped horizontally at the same place on the left and right of the
+            // screen.
+            paddingLeft: `calc(${spaceLayoutStyles.sideBarWidth} + ${screenPaddingXRem.desktop}rem)`,
+            paddingRight: `calc(${spaceLayoutStyles.sideBarWidth} + ${screenPaddingXRem.desktop}rem)`,
         },
     },
 });

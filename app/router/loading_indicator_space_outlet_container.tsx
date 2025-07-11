@@ -7,7 +7,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {useInboxContext} from "~/client/inbox/inbox_context.js";
 import {isLoadingIndicatorLoaderData} from "~/client/remix/loading_indicator_loader_data.js";
 import {RouteShimmer} from "~/client/shimmer/route_shimmer.js";
-import {useIsFullWidthRoute} from "~/client/spaces/route_metadata.js";
+import {useSpaceSideBarSpacing} from "~/client/spaces/route_metadata.js";
 import {spaceLayoutStyles} from "~/client/styles/styles.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -96,7 +96,7 @@ function LoadingIndicatorDebugOverlay({
     withInboxBanner: boolean;
     hasSpaceLayoutSidebar: boolean;
 }) {
-    const isFullWidthRoute = useIsFullWidthRoute();
+    const spaceSideBarSpacing = useSpaceSideBarSpacing();
 
     return (
         <Box
@@ -107,9 +107,11 @@ function LoadingIndicatorDebugOverlay({
             pointerEvents="none"
             style={{
                 paddingLeft: hasSpaceLayoutSidebar
-                    ? isFullWidthRoute
-                        ? spaceLayoutStyles.sideBarWidth
-                        : spaceLayoutStyles.sideBarSpace
+                    ? {
+                          Always: spaceLayoutStyles.sideBarWidth,
+                          Never: 0,
+                          Sometimes: spaceLayoutStyles.sideBarSpace,
+                      }[spaceSideBarSpacing]
                     : undefined,
             }}
         >
