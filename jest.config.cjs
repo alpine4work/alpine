@@ -8,6 +8,9 @@ const baseJestConfig = {
     clearMocks: true,
     testPathIgnorePatterns: ["/node_modules/"],
     transformIgnorePatterns: ["/node_modules/"],
+    // Disable Jest's Babel plugin. We already run Jest with SWC compiled
+    // JavaScript files (built by Bazel).
+    transform: {},
 };
 
 module.exports = {
