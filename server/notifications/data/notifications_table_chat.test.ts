@@ -4503,5 +4503,134 @@ for (const [currentProcessingType, processingMultiple] of [
                 }),
             ]);
         });
+
+        test("multiline message content is printed in the text snippet", async () => {
+            const scenario = await createNotificationsScenario(context);
+
+            const chat = await TestChat.get(scenario.session1, scenario.session2);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const message1 = await chat.sendMessage(
+                scenario.session2,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Yes"),
+                        ]),
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("But actually this other thing"),
+                        ]),
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("And one final thing!"),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: message1.createdTime,
+                        author: await scenario.session2.get(),
+                        contentTextSnippet:
+                            "Yes. But actually this other thing. And one final thing!",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            const message2 = await chat.sendMessage(
+                scenario.session2,
+                assertMessageContent(
+                    MessageContentProsemirrorSchema.node("doc", {}, [
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("Yes"),
+                        ]),
+                        MessageContentProsemirrorSchema.node("paragraph", {}, []),
+                        MessageContentProsemirrorSchema.node("paragraph", {}, [
+                            MessageContentProsemirrorSchema.text("But actually this other thing"),
+                        ]),
+                    ]),
+                ),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChatEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session1.account.id,
+                    chatId: chat.id,
+                    chatAccountCount: 2,
+                    loudNotificationCount: 1,
+                    latestMessage: {
+                        createdTime: message2.createdTime,
+                        author: await scenario.session2.get(),
+                        contentTextSnippet: "Yes. But actually this other thing",
+                        isStickyMention: false,
+                    },
+                    otherChatAccount: null,
+                }),
+            ]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+        });
     });
 }

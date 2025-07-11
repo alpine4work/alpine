@@ -2676,7 +2676,11 @@ function getChannelStandaloneSearchResult(channel: ChannelModel): {
     descriptionTextSnippet: string;
     accessPolicy: AccessPolicy;
 } {
-    const descriptionContentSnippet = getContentSnippet(channel.description.doc.resolve(0), 3);
+    const descriptionContentSnippet = getContentSnippet(channel.description.doc.resolve(0), 3, {
+        // `printContentSingleLineTextSnippet()` collapses newlines. So also consider
+        // newlines to be collapsed when generating a snippet.
+        ignoreLineBreaks: true,
+    });
 
     const descriptionTextSnippet = printContentSingleLineTextSnippetForServer({
         doc: descriptionContentSnippet,

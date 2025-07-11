@@ -9,11 +9,27 @@ import {
     contentMentionTextTruncatedSuffix,
     truncateContentMentionText,
 } from "~/shared/content/truncate_content_mention_text.js";
-import {PostContent} from "~/shared/forum/post_content_schema.js";
+import {PostContent, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {countGraphemes, iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+
+export function getPostSearchEntityTitleContentSnippet(content: PostContent): PostContent {
+    // If the post has a heading, then we'll only use the heading as a title.
+    if (content.firstChild?.type.name === "heading")
+        return assertPostContent(content.type.create({}, content.firstChild));
+
+    return assertPostContent(
+        getContentSnippet(content.resolve(0), 1, {
+            maxLineGraphemeCount: contentMentionTextHardMaxGraphemeCount,
+            // This snippet will be printed with `printContentSingleLineTextSnippet()`
+            // which collapses newlines. So also consider newlines to be collapsed when
+            // generating a snippet.
+            ignoreLineBreaks: true,
+        }),
+    );
+}
 
 export function createPostSearchEntityTitle(
     channelName: string,
@@ -27,13 +43,26 @@ export function createPostSearchEntityTitle(
         ) => RenderContentMentionToTextSearchEntity | null;
     },
 ): string {
-    const contentText = printContentSingleLineTextSnippet(
-        // If the post has a heading, then we'll only use the heading as a title.
-        content.firstChild?.type.name === "heading"
-            ? content.type.create({}, content.firstChild)
-            : getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 4}),
+    return createPostSearchEntityTitleWithAlreadySnippedContent(
+        channelName,
+        getPostSearchEntityTitleContentSnippet(content),
         options,
     );
+}
+
+export function createPostSearchEntityTitleWithAlreadySnippedContent(
+    channelName: string,
+    contentSnippet: PostContent,
+    options: {
+        getAccountIfExists: (
+            accountId: ContentMentionAccountId,
+        ) => AccountModelWithoutSpaceData | null;
+        getSearchEntityIfExists: (
+            entityId: SearchMentionEntityId,
+        ) => RenderContentMentionToTextSearchEntity | null;
+    },
+): string {
+    const contentText = printContentSingleLineTextSnippet(contentSnippet, options);
 
     let isTitleDone = false;
     let title = `in ${channelName}: `;

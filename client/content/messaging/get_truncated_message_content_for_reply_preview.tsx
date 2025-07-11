@@ -37,7 +37,11 @@ export function getTruncatedMessageContentForReplyPreview(
             const segments = printContentSingleLineTextSnippetPreservingMarksForClient(
                 get,
                 {
-                    doc: getContentSnippet(message.payload.content.doc.resolve(0), 1),
+                    doc: getContentSnippet(message.payload.content.doc.resolve(0), 1, {
+                        // `printContentSingleLineTextSnippet()` collapses newlines. So also consider
+                        // newlines to be collapsed when generating a snippet.
+                        ignoreLineBreaks: true,
+                    }),
                     references: message.payload.content.references,
                 },
                 {

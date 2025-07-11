@@ -198,7 +198,7 @@ for (const [currentProcessingType, processingMultiple] of [
             processingType = currentProcessingType;
         });
 
-        test("commenting creates an inbox entry for all subscribers", async () => {
+        test("posting creates an inbox entry for all subscribers", async () => {
             const scenario = await createNotificationsScenario(context);
 
             const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
@@ -586,7 +586,7 @@ for (const [currentProcessingType, processingMultiple] of [
             expect(getCount3()).toEqual(1 * processingMultiple);
         });
 
-        test("commenting creates an inbox entry for all subscribers unless a subscriber has lost access", async () => {
+        test("posting creates an inbox entry for all subscribers unless a subscriber has lost access", async () => {
             const scenario = await createNotificationsScenario(context);
 
             const {getCount: getCount1} = notificationEventProcessingTestCounter.recordForTest(
@@ -11689,6 +11689,70 @@ for (const [currentProcessingType, processingMultiple] of [
                         isStickyMention: true,
                     },
                     otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("multiline post content is printed in the text snippet", async () => {
+            const scenario = await createNotificationsScenario(context);
+
+            const channel = await TestChannel.create(scenario.session1);
+
+            await runAllPromises([
+                subscribeToChannel(scenario.session1.action(), channel.id),
+                subscribeToChannel(scenario.session2.action(), channel.id),
+            ]);
+
+            const post = await channel.createPost(
+                scenario.session1,
+                PostContentProsemirrorSchema.node("doc", {}, [
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("Yes"),
+                    ]),
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("But actually this other thing"),
+                    ]),
+                    PostContentProsemirrorSchema.node("paragraph", {}, [
+                        PostContentProsemirrorSchema.text("And one final thing!"),
+                    ]),
+                ]),
+            );
+
+            await ProcessContextModule.waitForTestTasks();
+
+            expect(
+                await getInboxEntries(context.action(scenario.session1), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([]);
+
+            expect(
+                await getInboxEntries(context.action(scenario.session2), {
+                    spaceId: scenario.space.id,
+                    filter: "New",
+                    limit: 100,
+                    afterCursor: null,
+                }).then(massageInboxEntriesQuery),
+            ).toEqual([
+                new InboxChannelPostsEntryModel({
+                    isArchived: false,
+                    spaceId: scenario.space.id,
+                    accountId: scenario.session2.account.id,
+                    loudNotificationCount: 0,
+                    channel: {isPrivate: false, channel: await channel.getPreview()},
+                    bucketGeneration: 0,
+                    postCount: 1,
+                    postAuthorCount: 1,
+                    latestPost: {
+                        author: await scenario.session1.get(),
+                        createdTime: post.createdTime,
+                        contentTextSnippet:
+                            "Yes. But actually this other thing. And one final thing!",
+                    },
+                    otherPostAuthor: null,
                 }),
             ]);
         });

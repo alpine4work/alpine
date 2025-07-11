@@ -7,7 +7,12 @@ import {MessageContent, assertMessageContent} from "~/shared/messaging/message_c
  */
 export function getNotificationMessageContentSnippet(content: MessageContent): MessageContent {
     return assertMessageContent(
-        getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 1}),
+        getContentSnippet(content.resolve(0), 1, {
+            // This snippet will be printed with `printContentSingleLineTextSnippet()`
+            // which collapses newlines. So also consider newlines to be collapsed when
+            // generating a snippet.
+            ignoreLineBreaks: true,
+        }),
     );
 }
 
@@ -15,5 +20,12 @@ export function getNotificationMessageContentSnippet(content: MessageContent): M
  * Get the content snippet for `PostContent` for a notification event.
  */
 export function getNotificationPostContentSnippet(content: PostContent): PostContent {
-    return assertPostContent(getContentSnippet(content.resolve(0), {linesAbove: 0, linesBelow: 1}));
+    return assertPostContent(
+        getContentSnippet(content.resolve(0), 1, {
+            // This snippet will be printed with `printContentSingleLineTextSnippet()`
+            // which collapses newlines. So also consider newlines to be collapsed when
+            // generating a snippet.
+            ignoreLineBreaks: true,
+        }),
+    );
 }

@@ -25,7 +25,21 @@ import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 export function getContentSnippet(
     resolvedPos: ResolvedPos,
     lines: {linesAbove: number; linesBelow: number} | number,
-    {maxLineGraphemeCount = defaultMaxLineGraphemeCount}: {maxLineGraphemeCount?: number} = {},
+    {
+        maxLineGraphemeCount = defaultMaxLineGraphemeCount,
+        ignoreLineBreaks = false,
+    }: {
+        maxLineGraphemeCount?: number;
+
+        /**
+         * Don't consider a node that creates a line break (e.g. `paragraph` or
+         * `heading`) to be the end of a line. This is useful if you want to print your
+         * content snippet with `printContentSingleLineTextSnippet()`. Since
+         * `printContentSingleLineTextSnippet()` will collapse new lines, so you want
+         * your snippet to also consider newlines as "collapsed".
+         */
+        ignoreLineBreaks?: boolean;
+    } = {},
 ): Node {
     // So our target number of lines is `1 + linesAroundCount * 2`. We want the
     // line containing `resolvedPos`, `linesAroundCount` lines above, and
@@ -68,7 +82,7 @@ export function getContentSnippet(
                         isAtLineBreak: false,
                     };
 
-                    if (textNodeIndex === 0) {
+                    if (!ignoreLineBreaks && textNodeIndex === 0) {
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
                         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
@@ -104,7 +118,7 @@ export function getContentSnippet(
                         isAtLineBreak: false,
                     };
 
-                    if (textNodeIndex === node.childCount - 1) {
+                    if (!ignoreLineBreaks && textNodeIndex === node.childCount - 1) {
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
                         const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
@@ -151,7 +165,7 @@ export function getContentSnippet(
                         from = nodePos + childOffset;
                         break;
                     }
-                } else {
+                } else if (!ignoreLineBreaks) {
                     // If the node is line breaking then round remaining lines down since no other
                     // text can go on the line.
                     const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
@@ -195,7 +209,7 @@ export function getContentSnippet(
                             nodePos + childOffset + childNode.nodeSize - 1 - result.remainingLength;
                         break;
                     }
-                } else {
+                } else if (!ignoreLineBreaks) {
                     // If the node is line breaking then round remaining lines down since no other
                     // text can go on the line.
                     const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
