@@ -7,8 +7,10 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.languages.registerCodeLensProvider(
             [
-                {language: "typescript", pattern: "**/*.test.{ts,js,jsx,tsx}"},
-                {language: "javascript", pattern: "**/*.test.{ts,js,jsx,tsx}"},
+                {language: "typescript", pattern: "**/*.test.ts"},
+                {language: "javascript", pattern: "**/*.test.js"},
+                {language: "typescriptreact", pattern: "**/*.test.tsx"},
+                {language: "javascriptreact", pattern: "**/*.test.jsx"},
             ],
             provider,
         ),

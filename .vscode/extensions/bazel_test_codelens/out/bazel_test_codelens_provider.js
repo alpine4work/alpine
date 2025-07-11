@@ -77,8 +77,8 @@ class BazelTestCodeLensProvider {
         const codeLenses = [];
         const text = document.getText();
         const lines = text.split("\n");
-        const describeRegex = /describe\s*\(\s*([^,)]+)/;
-        const testRegex = /(it|test)\s*\(\s*([^,)]+)/;
+        const describeRegex = /^\s*describe\s*\(\s*([^,)]+)/;
+        const testRegex = /^\s*(it|test)\s*\(\s*([^,)]+)/;
         const suiteStack = [];
         for(let i = 0; i < lines.length; i++){
             const line = lines[i];

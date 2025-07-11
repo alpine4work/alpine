@@ -47,8 +47,8 @@ export class BazelTestCodeLensProvider implements vscode.CodeLensProvider {
         const text = document.getText();
         const lines = text.split("\n");
         // Just find any describe/test calls and capture the first argument
-        const describeRegex = /describe\s*\(\s*([^,)]+)/;
-        const testRegex = /(it|test)\s*\(\s*([^,)]+)/;
+        const describeRegex = /^\s*describe\s*\(\s*([^,)]+)/;
+        const testRegex = /^\s*(it|test)\s*\(\s*([^,)]+)/;
 
         // Parse the file to find describe blocks and their nesting
         const suiteStack: Array<{name: string; level: number; isDynamic: boolean}> = [];

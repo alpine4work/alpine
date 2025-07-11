@@ -62,11 +62,19 @@ function activate(context) {
     context.subscriptions.push(_vscode.languages.registerCodeLensProvider([
         {
             language: "typescript",
-            pattern: "**/*.test.{ts,js,jsx,tsx}"
+            pattern: "**/*.test.ts"
         },
         {
             language: "javascript",
-            pattern: "**/*.test.{ts,js,jsx,tsx}"
+            pattern: "**/*.test.js"
+        },
+        {
+            language: "typescriptreact",
+            pattern: "**/*.test.tsx"
+        },
+        {
+            language: "javascriptreact",
+            pattern: "**/*.test.jsx"
         }
     ], provider));
     context.subscriptions.push(_vscode.commands.registerCommand("bazelTestCodeLens.runTest", async (uri, testName)=>{

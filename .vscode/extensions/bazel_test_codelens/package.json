@@ -12,7 +12,9 @@
     ],
     "activationEvents": [
         "onLanguage:typescript",
-        "onLanguage:javascript"
+        "onLanguage:javascript",
+        "onLanguage:typescriptreact",
+        "onLanguage:javascriptreact"
     ],
     "main": "./out/bazel_test_codelens_extension.js",
     "contributes": {
