@@ -5,7 +5,6 @@ import {
     createChannel,
     getChannel,
     getChannelPreview,
-    getChannelPreviewAndAccessPolicy,
     updateChannelAccessPolicy,
 } from "~/server/forum/data/forum_table.js";
 import {TestPost, TestPostCreateOptions} from "~/server/forum/test_helpers/test_post.js";
@@ -104,7 +103,7 @@ export class TestChannel {
 
     public readonly access = new TestAccessPolicy({
         get: async () => {
-            const {accessPolicy} = await getChannelPreviewAndAccessPolicy(
+            const {accessPolicy} = await getChannelPreview(
                 this.context.systemAction(this.space.id),
                 this.id,
             );

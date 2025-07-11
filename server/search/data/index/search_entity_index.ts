@@ -118,7 +118,6 @@ import {
     AccountId,
     ChannelId,
     ContentMentionAccountId,
-    PostId,
     SpaceId,
     TaskCollectionId,
 } from "~/shared/id/types/id_types.js";
@@ -661,34 +660,6 @@ export async function processIndexSearchEntityJob(
             // `lastReadStartTime` of the current doc in the keywords index is sufficient.
             additionalWriteActions.length > 0
                 ? runAllPromises(additionalWriteActions.map(action => action(context)))
-                : null,
-
-            // We compute the title for post search entities in `getSearchEntity()`. The
-            // post's title may depend on entity mentions in the post's content. So we
-            // can only know if a post's title changed and we need to re-index dependents
-            // here after `getSearchEntity()`.
-            job.update.type === "Post"
-                ? (async () => {
-                      assert(job.update.type === "Post");
-
-                      const newTitle: string | null = newDocForKeywordIndex.title;
-                      const oldTitle: string | null = oldDocForKeywordIndex?.titleIfPost ?? null;
-
-                      if (newTitle === oldTitle) return;
-
-                      // Send the job immediately since we can't call `indexDocIfVersion()` until
-                      // this promise resolves.
-                      await context.jobs.sendImmediately({
-                          type: "IndexSearchEntityDependents",
-                          spaceId: job.spaceId,
-                          update: {
-                              type: "Post",
-                              postId: job.update.postId,
-                              updatedTraits: {type: "Some", traits: ["Title"]},
-                          },
-                          parentJobStartTime: job.parentJobStartTime ?? jobStartTime,
-                      });
-                  })()
                 : null,
         ]);
 
@@ -2340,29 +2311,6 @@ export async function getSearchMentionEntityIfPossible(
             media: entity.media,
         }),
     };
-}
-
-/**
- * Get the title and access policy of a post search entity. Only system actor's
- * can call this function since we don't do any authorization.
- */
-export async function getPostSearchEntityTitleIfExists(
-    context: SearchSystemActionContext,
-    postId: PostId,
-): Promise<{title: string | null} | null> {
-    context.actor.authorizeSystem();
-
-    const doc = await context.opensearch.getDocWithoutSourceIfExists(
-        SearchEntityKeywordIndex,
-        context.actor.getSpaceId(),
-        `Post:${postId}`,
-        {storedFields: ["title"]},
-    );
-
-    if (!doc) return null;
-    if (doc.routing !== context.actor.getSpaceId()) return null;
-
-    return {title: doc.fields.title?.[0] ?? null};
 }
 
 /**

@@ -1937,7 +1937,7 @@ test("post title updates if mentioned entities change", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(1);
-    expect(indexSearchEntityDependentsJobCount).toBe(1);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -1971,7 +1971,7 @@ test("post title updates if mentioned entities change", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(2);
-    expect(indexSearchEntityDependentsJobCount).toBe(2);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -1999,7 +1999,7 @@ test("post title updates if mentioned entities change", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(3);
-    expect(indexSearchEntityDependentsJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2033,7 +2033,7 @@ test("post title updates if mentioned entities change", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(4);
-    expect(indexSearchEntityDependentsJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2067,7 +2067,7 @@ test("post title updates if mentioned entities change", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(5);
-    expect(indexSearchEntityDependentsJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2091,7 +2091,7 @@ test("post title updates if mentioned entities change", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(6);
-    expect(indexSearchEntityDependentsJobCount).toBe(4);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2115,7 +2115,7 @@ test("post title updates if mentioned entities change", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(7);
-    expect(indexSearchEntityDependentsJobCount).toBe(5);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2160,7 +2160,9 @@ test("post mention updates if post updates", async () => {
                         entityId: `Document:${document1.id}`,
                     }),
                 }),
-                schema.text(". The quick brown fox jumps over the lazy "),
+                schema.text(
+                    ". The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4. The quick brown fox jumps over the lazy dog 5. The quick brown fox jumps over the lazy ",
+                ),
                 schema.node("mention", {
                     mention: cast<ContentMention>({
                         type: "SearchEntity",
@@ -2194,7 +2196,7 @@ test("post mention updates if post updates", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(1);
-    expect(indexSearchEntityDependentsJobCount).toBe(1);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2220,7 +2222,7 @@ test("post mention updates if post updates", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(1);
-    expect(indexSearchEntityDependentsJobCount).toBe(1);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2249,7 +2251,7 @@ test("post mention updates if post updates", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(2);
-    expect(indexSearchEntityDependentsJobCount).toBe(2);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2285,7 +2287,7 @@ test("post mention updates if post updates", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(3);
-    expect(indexSearchEntityDependentsJobCount).toBe(2);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2321,7 +2323,7 @@ test("post mention updates if post updates", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(4);
-    expect(indexSearchEntityDependentsJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2353,7 +2355,9 @@ test("post mention updates if post updates", async () => {
                             entityId: `Document:${document1.id}`,
                         }),
                     }),
-                    schema.text(". The quick brown fox jumps over the LAZY LAZY "),
+                    schema.text(
+                        ". The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4. The quick brown fox jumps over the lazy dog 5. The quick brown fox jumps over the lazy lazy ",
+                    ),
                     schema.node("mention", {
                         mention: cast<ContentMention>({
                             type: "SearchEntity",
@@ -2370,7 +2374,7 @@ test("post mention updates if post updates", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(5);
-    expect(indexSearchEntityDependentsJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(0);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2402,7 +2406,9 @@ test("post mention updates if post updates", async () => {
                             entityId: `Document:${document1.id}`,
                         }),
                     }),
-                    schema.text(". The quick brown fox jumps over the LAZY LAZY "),
+                    schema.text(
+                        ". The quick brown fox jumps over the lazy dog 1. The quick brown fox jumps over the lazy dog 2. The quick brown fox jumps over the lazy dog 3. The quick brown fox jumps over the lazy dog 4. The quick brown fox jumps over the lazy dog 5. The quick brown fox jumps over the LAZY LAZY ",
+                    ),
                     schema.node("mention", {
                         mention: cast<ContentMention>({
                             type: "SearchEntity",
@@ -2419,7 +2425,7 @@ test("post mention updates if post updates", async () => {
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(indexSearchEntityJobCount).toBe(6);
-    expect(indexSearchEntityDependentsJobCount).toBe(4);
+    expect(indexSearchEntityDependentsJobCount).toBe(1);
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -2436,6 +2442,565 @@ test("post mention updates if post updates", async () => {
             body: [
                 "You should check out Oof in Rab: The quick brown FOX FOX jumps over the lazy Pupper. Wow.",
             ],
+        },
+    });
+});
+
+test("can index post with cyclic mention", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Foo"});
+
+    const channel = await TestChannel.create(session, {name: "Bar"});
+
+    const post = await channel.createPost(session, "Qux");
+
+    await updatePostContent(session.action(), {
+        postId: post.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("Qux: "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Post:${post.id}`,
+                        }),
+                    }),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(2);
+    expect(indexSearchEntityDependentsJobCount).toBe(1);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: Qux: […]"],
+        },
+    });
+
+    await context.jobs.sendImmediately({
+        type: "IndexSearchEntity",
+        spaceId: space.id,
+        update: {
+            type: "Post",
+            postId: post.id,
+            updatedTraits: {type: "Some", traits: []},
+        },
+    });
+
+    expect(indexSearchEntityJobCount).toBe(3);
+    expect(indexSearchEntityDependentsJobCount).toBe(1);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: Qux: […]"],
+        },
+    });
+
+    await updatePostContent(session.action(), {
+        postId: post.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("Qux: "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Post:${post.id}`,
+                        }),
+                    }),
+                    schema.text(" (test)"),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(4);
+    expect(indexSearchEntityDependentsJobCount).toBe(2);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: Qux: […] (test)"],
+        },
+    });
+
+    await updatePostContent(session.action(), {
+        postId: post.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("Qux: "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Post:${post.id}`,
+                        }),
+                    }),
+                    schema.text(" (test 2)"),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(5);
+    expect(indexSearchEntityDependentsJobCount).toBe(3);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${post.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: Qux: […] (test 2)"],
+        },
+    });
+});
+
+test("can index post with cyclic mention a couple layers deep", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({name: "Foo"});
+
+    const channel = await TestChannel.create(session, {name: "Bar"});
+
+    const postA = await channel.createPost(session, "a0");
+
+    const postB = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("b "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Post:${postA.id}`,
+                    }),
+                }),
+            ]),
+        ]),
+    );
+
+    const postC = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("c "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Post:${postB.id}`,
+                    }),
+                }),
+            ]),
+        ]),
+    );
+
+    const postE = await channel.createPost(
+        session,
+        schema.node("doc", {}, [
+            schema.node("paragraph", {}, [
+                schema.text("e "),
+                schema.node("mention", {
+                    mention: cast<ContentMention>({
+                        type: "SearchEntity",
+                        entityId: `Post:${postC.id}`,
+                    }),
+                }),
+            ]),
+        ]),
+    );
+
+    await updatePostContent(session.action(), {
+        postId: postA.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("a1 "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Post:${postC.id}`,
+                        }),
+                    }),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(7);
+    expect(indexSearchEntityDependentsJobCount).toBe(1);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postA.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postA.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: a1 Foo in Bar: c Foo in Bar: b […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postB.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postB.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: b Foo in Bar: a1 Foo in Bar: c […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postC.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postC.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: c Foo in Bar: b Foo in Bar: a1 […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postE.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postE.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a1 […]"],
+        },
+    });
+
+    await updatePostContent(session.action(), {
+        postId: postA.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("a2 "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Post:${postC.id}`,
+                        }),
+                    }),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(11);
+    expect(indexSearchEntityDependentsJobCount).toBe(2);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postA.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postA.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: a2 Foo in Bar: c Foo in Bar: b […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postB.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postB.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: b Foo in Bar: a2 Foo in Bar: c […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postC.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postC.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: c Foo in Bar: b Foo in Bar: a2 […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postE.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postE.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a2 […]"],
+        },
+    });
+
+    await updatePostContent(session.action(), {
+        postId: postA.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("a3 "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Post:${postC.id}`,
+                        }),
+                    }),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(15);
+    expect(indexSearchEntityDependentsJobCount).toBe(3);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postA.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postA.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: a3 Foo in Bar: c Foo in Bar: b […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postB.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postB.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: b Foo in Bar: a3 Foo in Bar: c […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postC.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postC.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: c Foo in Bar: b Foo in Bar: a3 […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postE.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postE.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a3 […]"],
+        },
+    });
+
+    await updatePostContent(session.action(), {
+        postId: postB.id,
+        content: assertPostContent(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("d "),
+                    schema.node("mention", {
+                        mention: cast<ContentMention>({
+                            type: "SearchEntity",
+                            entityId: `Post:${postA.id}`,
+                        }),
+                    }),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(indexSearchEntityJobCount).toBe(19);
+    expect(indexSearchEntityDependentsJobCount).toBe(4);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postA.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postA.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: a3 Foo in Bar: c Foo in Bar: d […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postB.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postB.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: d Foo in Bar: a3 Foo in Bar: c […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postC.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postC.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: c Foo in Bar: d Foo in Bar: a3 […]"],
+        },
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postE.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `Post:${postE.id}`,
+        routing: space.id,
+        version: expect.any(Object),
+        fields: {
+            body: ["in Bar: e Foo in Bar: c Foo in Bar: d Foo in Bar: a3 […]"],
         },
     });
 });

@@ -108,6 +108,7 @@ import {
     maxChannelTopContributorCount,
 } from "~/shared/forum/channel_model.js";
 import {ChannelBroadcastRealtimeEventTransactionSchema} from "~/shared/forum/channel_realtime_protocol.js";
+import {getPostSearchEntityTitleContentSnippet} from "~/shared/forum/create_post_search_entity_title.js";
 import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
 import {
     PostContent,
@@ -1970,97 +1971,6 @@ export async function getChannelPreview(
 }
 
 /**
- * Gets a preview channel object and its `AccessPolicy` with the provided
- * `ChannelId`. Returns null if the channel doesn't exist, returns a `Result`
- * with a `PermissionDeniedError` if access isn't authorized.
- *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
- */
-export async function getChannelPreviewAndAccessPolicyIfPossible(
-    context: ServerActionContext,
-    channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<Result<
-    {
-        readonly preview: ChannelPreviewModel;
-        readonly accessPolicy: AccessPolicy;
-    },
-    ErrorBase
-> | null> {
-    const channelItem = await getChannelPreviewItemForAuthorizationIfExists(
-        context,
-        channelId,
-        options,
-    );
-    if (!channelItem) return null;
-
-    const result = await authorizeChannelItemAccessIfPossible(context, channelItem, "View");
-    if (!result.ok) return result;
-
-    return {
-        ok: true,
-        value: {
-            preview: new ChannelPreviewModel({
-                id: channelId,
-                spaceId: channelItem.spaceId,
-                createdTime: channelItem.createdTime,
-                version:
-                    "id" in channelItem ? channelItem.version : channelItem.updateLockVersion ?? 0,
-                name: channelItem.name,
-                accessPolicy: channelItem.accessPolicy,
-            }),
-            accessPolicy: channelItem.accessPolicy,
-        },
-    };
-}
-
-/**
- * Gets a preview channel object and its `AccessPolicy` with the provided
- * `ChannelId`. Returns null if the channel doesn't exist, throws a
- * `PermissionDeniedError` if access isn't authorized.
- *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
- */
-export async function getChannelPreviewAndAccessPolicyIfExists(
-    context: ServerActionContext,
-    channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<{
-    readonly preview: ChannelPreviewModel;
-    readonly accessPolicy: AccessPolicy;
-} | null> {
-    const channel = await getChannelPreviewAndAccessPolicyIfPossible(context, channelId, options);
-    if (!channel) return null;
-    return unwrapResult(channel);
-}
-
-/**
- * Gets a preview channel object and its `AccessPolicy` with the provided
- * `ChannelId`. Throws if the channel doesn't exist or you don't have access
- * to it.
- *
- * The result is cached. If you call this for the same `ChannelId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
- */
-export async function getChannelPreviewAndAccessPolicy(
-    context: ServerActionContext,
-    channelId: ChannelId,
-    options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<{
-    readonly preview: ChannelPreviewModel;
-    readonly accessPolicy: AccessPolicy;
-}> {
-    const channel = await getChannelPreviewAndAccessPolicyIfExists(context, channelId, options);
-    if (!channel) throw createChannelNotFoundError(channelId);
-    return channel;
-}
-
-/**
  * Get the channel name and description content without references. Used for
  * building a search entity which will load content references on its own in a
  * way that tracks dependencies.
@@ -3221,7 +3131,7 @@ export async function getPostIfPossible(
 export async function getPostContentAndChannelPreview(
     context: ServerActionContext,
     postId: PostId,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<{
     version: number;
     createdTime: Date;
@@ -3229,6 +3139,41 @@ export async function getPostContentAndChannelPreview(
     content: PostContent;
     channel: ChannelPreviewModel;
 }> {
+    const postResult = await getPostContentAndChannelPreviewIfPossible(context, postId, options);
+    if (!postResult) throw createPostNotFoundError(postId);
+    return unwrapResult(postResult);
+}
+
+export async function getPostContentAndChannelPreviewIfExists(
+    context: ServerActionContext,
+    postId: PostId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<{
+    version: number;
+    createdTime: Date;
+    authorId: AccountId;
+    content: PostContent;
+    channel: ChannelPreviewModel;
+} | null> {
+    const postResult = await getPostContentAndChannelPreviewIfPossible(context, postId, options);
+    if (!postResult) return null;
+    return unwrapResult(postResult);
+}
+
+export async function getPostContentAndChannelPreviewIfPossible(
+    context: ServerActionContext,
+    postId: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<Result<
+    {
+        version: number;
+        createdTime: Date;
+        authorId: AccountId;
+        content: PostContent;
+        channel: ChannelPreviewModel;
+    },
+    ErrorBase
+> | null> {
     const postItemPromise = ForumRealtimeTable.getItemIfExists(
         context,
         {
@@ -3244,18 +3189,23 @@ export async function getPostContentAndChannelPreview(
     PostItemAuthorizationCache.set(context, consistency, postId, postItemPromise);
 
     const postItem = await postItemPromise;
-    if (!postItem) throw createPostNotFoundError(postId);
+    if (!postItem) return null;
 
-    const channel = await getChannelPreviewAndAccessPolicy(context, postItem.channelId, {
+    const channelResult = await getChannelPreviewIfPossible(context, postItem.channelId, {
         consistency,
     });
+    assert(channelResult);
+    if (!channelResult.ok) return channelResult;
 
     return {
-        version: postItem.updateLockVersion ?? 0,
-        createdTime: postItem.createdTime,
-        authorId: postItem.authorId,
-        content: postItem.content,
-        channel: channel.preview,
+        ok: true,
+        value: {
+            version: postItem.updateLockVersion ?? 0,
+            createdTime: postItem.createdTime,
+            authorId: postItem.authorId,
+            content: postItem.content,
+            channel: channelResult.value,
+        },
     };
 }
 
@@ -3373,31 +3323,6 @@ export async function getPostAuthorAndChannelPreview(context: ServerActionContex
     const result = await getPostAuthorAndChannelPreviewIfPossible(context, postId);
     if (!result) throw createPostNotFoundError(postId);
     return unwrapResult(result);
-}
-
-/**
- * Get the `ChannelPreviewModel` for a post.
- *
- * The result is cached. If you call this for the same `PostId` multiple
- * times in the same action you'll get the same result without issuing a
- * network request.
- */
-export async function getPostChannelPreviewIfPossible(
-    context: ServerActionContext,
-    postId: PostId,
-    options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<Result<{authorId: AccountId; channel: ChannelPreviewModel}, ErrorBase> | null> {
-    const postItem = await getPostItemForAuthorizationIfExists(context, postId, options);
-    if (!postItem) return null;
-
-    const channelResult = await getChannelPreviewIfPossible(context, postItem.channelId, options);
-
-    // The channel referenced by `postItem` must always exist.
-    assert(channelResult);
-
-    if (!channelResult.ok) return channelResult;
-
-    return {ok: true, value: {authorId: postItem.authorId, channel: channelResult.value}};
 }
 
 /**
@@ -3593,13 +3518,25 @@ export function updatePostContent(
             ]);
         }
 
+        const updatedTraits: Array<"Title"> = [];
+
+        // If the start of the post changed, then we need to update anyone who
+        // mentioned the post.
+        if (
+            !getPostSearchEntityTitleContentSnippet(oldPostItem.content).eq(
+                getPostSearchEntityTitleContentSnippet(newPostItem.content),
+            )
+        ) {
+            updatedTraits.push("Title");
+        }
+
         context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: newPostItem.spaceId,
             update: {
                 type: "Post",
                 postId,
-                updatedTraits: {type: "Some", traits: []},
+                updatedTraits: {type: "Some", traits: updatedTraits},
             },
         });
 

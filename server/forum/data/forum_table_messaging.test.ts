@@ -6,7 +6,7 @@ import {
     createPost,
     createPostComment,
     deletePostComment,
-    getChannelPreviewAndAccessPolicy,
+    getChannelPreview,
     getPost,
     getPostComment,
     getPostCommentPayload,
@@ -87,7 +87,7 @@ testMessagingImplementation<PostId>(context, {
             messageCount: 0,
             doesInsideViewerSessionHaveRoomAccess: true,
             revokeInsideSession: async (context, session) => {
-                const {accessPolicy} = await getChannelPreviewAndAccessPolicy(context, channel.id);
+                const {accessPolicy} = await getChannelPreview(context, channel.id);
 
                 const newAccessPolicy: AccessPolicy = {
                     ...accessPolicy,

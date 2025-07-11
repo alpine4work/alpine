@@ -10,9 +10,9 @@ import {
 import {
     getChannelNameAndDescriptionContentAndContributors,
     getChannelPreviewIfExists,
-    getPostChannelPreviewIfPossible,
     getPostCommentPayload,
     getPostContentAndChannelPreview,
+    getPostContentAndChannelPreviewIfExists,
     maxChannelContributionCount,
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
@@ -30,7 +30,6 @@ import {
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {SearchSystemActionContext} from "~/server/search/data/index/search_action_context.js";
-import {getPostSearchEntityTitleIfExists} from "~/server/search/data/index/search_entity_index.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionFromIndex,
@@ -53,19 +52,23 @@ import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
+import {
+    createPostSearchEntityTitle,
+    createPostSearchEntityTitleWithAlreadySnippedContent,
+    getPostSearchEntityTitleContentSnippet,
+} from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -90,6 +93,7 @@ import {MessagePayload} from "~/shared/messaging/message_model.js";
 import {
     SearchDynamicEntityId,
     SearchDynamicEntityIdObject,
+    SearchEntityId,
     SearchMentionEntityId,
     parseSearchMentionEntityId,
     printSearchDynamicEntityId,
@@ -413,41 +417,33 @@ class SearchEntityReadState {
         return contentAndChannel;
     }
 
-    public async getPostAuthorAndTitleIfExists(postId: PostId): Promise<{
-        author: AccountModelWithoutSpaceData;
-        title: string | null;
-        channelAccessPolicy: AccessPolicy;
+    public async getPostContentTitleSnippetAndChannelIfExists(postId: PostId): Promise<{
+        version: number;
+        createdTime: Date;
+        authorId: AccountId;
+        contentTitleSnippet: PostContent;
+        channel: ChannelPreviewModel;
     } | null> {
         this._recordDependencyId(`Post:${postId}:Title`);
 
-        const [postForTitle, postForChannelResult] = await runAllPromises([
-            getPostSearchEntityTitleIfExists(this._context, postId),
-            getPostChannelPreviewIfPossible(this._context, postId, {
-                consistency: "StrongWithinCache",
-            }).then(async post => {
-                if (!post || !post.ok) return post;
+        const contentAndChannel = await getPostContentAndChannelPreviewIfExists(
+            this._context,
+            postId,
+            {consistency: "StrongWithinCache"},
+        );
+        if (!contentAndChannel) return null;
 
-                return {
-                    ok: true as const,
-                    value: {
-                        author: assertExists(await this.getAccountIfExists(post.value.authorId)),
-                        channelId: post.value.channel.id,
-                        channelAccessPolicy: post.value.channel.accessPolicy,
-                    },
-                };
-            }),
-        ]);
-
-        if (!postForChannelResult) return null;
-
-        const {author, channelId, channelAccessPolicy} = unwrapResult(postForChannelResult);
-
-        this._recordDependencyId(`Channel:${channelId}:Authorization`);
+        // If the access policy on the channel changes we need to re-index posts so
+        // they have the new access policy.
+        this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Authorization`);
+        this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Preview`);
 
         return {
-            author,
-            title: postForTitle?.title ?? null,
-            channelAccessPolicy,
+            version: contentAndChannel.version,
+            createdTime: contentAndChannel.createdTime,
+            authorId: contentAndChannel.authorId,
+            contentTitleSnippet: getPostSearchEntityTitleContentSnippet(contentAndChannel.content),
+            channel: contentAndChannel.channel,
         };
     }
 
@@ -731,8 +727,18 @@ export function isSearchEntityIndexAccessPolicySubset(
 
 async function getSearchContentReferences(
     state: SearchEntityReadState,
+    originEntityId: SearchEntityId,
     accessPolicy: SearchEntityIndexAccessPolicy,
     content: Node,
+    // The `seen` argument is required since it's very risky if you accidentally
+    // forget to provide the argument. Specifically when you're calling this
+    // function recursively. If there's a cycle and you forget to provide the
+    // `seen` set then we'll keep iterating forever and the function never
+    // terminates!
+    //
+    // If you're not calling this function recursively you can pass in `emptySet`
+    // which would be the default if this argument were optional.
+    seen: ReadonlySet<SearchEntityId>,
 ): Promise<{
     getAccountIfExists: (
         accountId: AccountId | ContentMentionAccountId,
@@ -741,6 +747,8 @@ async function getSearchContentReferences(
         entityId: SearchMentionEntityId,
     ) => RenderContentMentionToTextSearchEntity | null;
 }> {
+    seen = new Set(addToIterable(seen, originEntityId));
+
     const referencedIds = getContentReferencedIdsForNode(content);
 
     const [accounts, searchEntityEntries] = await runAllPromises([
@@ -755,7 +763,20 @@ async function getSearchContentReferences(
                 ): Promise<
                     [SearchMentionEntityId, RenderContentMentionToTextSearchEntity] | null
                 > => {
-                    const entity = await getSearchMentionEntityIfExists(state, entityId);
+                    // If we've already seen this `entityId` then instead of loading it again
+                    // (which would cause an infinite loop), break the cycle.
+                    if (seen.has(entityId)) {
+                        return [
+                            entityId,
+                            {
+                                isPrivate: false,
+                                title: "[…]",
+                                getAccountMediaShortName: null,
+                            },
+                        ];
+                    }
+
+                    const entity = await getSearchMentionEntityIfExists(state, entityId, seen);
                     if (!entity) return null;
 
                     const entityAccessPolicy =
@@ -840,6 +861,7 @@ async function getSearchContentReferences(
 async function getSearchMentionEntityIfExists(
     state: SearchEntityReadState,
     entityId: SearchMentionEntityId,
+    seen: ReadonlySet<SearchEntityId>,
 ): Promise<{
     accessPolicy: AccessPolicy | SearchEntityIndexAccessPolicy;
     title: string | null;
@@ -882,14 +904,32 @@ async function getSearchMentionEntityIfExists(
             return {accessPolicy: collection.accessPolicy, title: collection.name};
         }
         case "Post": {
-            const post = await state.getPostAuthorAndTitleIfExists(entityIdObject.postId);
+            const post = await state.getPostContentTitleSnippetAndChannelIfExists(
+                entityIdObject.postId,
+            );
             if (!post) return null;
 
+            const [author, contentReferences] = await runAllPromises([
+                state.getAccount(post.authorId),
+                getSearchContentReferences(
+                    state,
+                    entityId,
+                    getSearchEntityIndexAccessPolicy(post.channel.accessPolicy),
+                    post.contentTitleSnippet,
+                    seen,
+                ),
+            ]);
+
+            const title = createPostSearchEntityTitleWithAlreadySnippedContent(
+                post.channel.name,
+                post.contentTitleSnippet,
+                contentReferences,
+            );
+
             return {
-                accessPolicy: post.channelAccessPolicy,
-                title: post.title,
-                getAccountMediaShortName: () =>
-                    getAccountShortNameWithoutFullNameTooltip(post.author),
+                accessPolicy: post.channel.accessPolicy,
+                title,
+                getAccountMediaShortName: () => getAccountShortNameWithoutFullNameTooltip(author),
             };
         }
         default:
@@ -1001,6 +1041,8 @@ async function getDocumentSearchEntity(
     state: SearchEntityReadState,
     documentId: DocumentId,
 ): Promise<SearchEntity> {
+    const entityId: SearchEntityId = `Document:${documentId}`;
+
     const {
         createdTime,
         version,
@@ -1018,7 +1060,13 @@ async function getDocumentSearchEntity(
 
     const accessPolicy = getSearchEntityIndexAccessPolicy(content.attrs.accessPolicy);
 
-    const contentReferences = await getSearchContentReferences(state, accessPolicy, content);
+    const contentReferences = await getSearchContentReferences(
+        state,
+        entityId,
+        accessPolicy,
+        content,
+        emptySet,
+    );
 
     const {title, getFullText, getEmbeddingChunks} = chunkDocumentSearchContent(content, {
         tokenizer: state.tokenizer,
@@ -1048,7 +1096,7 @@ async function getDocumentSearchEntity(
     }
 
     return {
-        id: `Document:${documentId}`,
+        id: entityId,
         accessPolicy,
         createdTime,
         title,
@@ -1129,6 +1177,8 @@ async function getDocumentCommentSearchEntity(
         commentIndex: number;
     },
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`;
+
     const {
         createdTime,
         authorId,
@@ -1150,8 +1200,10 @@ async function getDocumentCommentSearchEntity(
     if (commentPayload.type === "Content") {
         const contentReferences = await getSearchContentReferences(
             state,
+            id,
             accessPolicy,
             commentPayload.content,
+            emptySet,
         );
 
         content = chunkSearchContent(commentPayload.content, {
@@ -1168,7 +1220,7 @@ async function getDocumentCommentSearchEntity(
     }
 
     return {
-        id: `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
+        id,
         accessPolicy,
         createdTime,
         title: null,
@@ -1185,6 +1237,8 @@ async function getChannelSearchEntity(
     state: SearchEntityReadState,
     channelId: ChannelId,
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `Channel:${channelId}`;
+
     const channel = await state.getChannelNameAndDescriptionContentAndContributors(channelId);
 
     const truncatedName = new Lazy(() =>
@@ -1195,8 +1249,10 @@ async function getChannelSearchEntity(
 
     const contentReferences = await getSearchContentReferences(
         state,
+        id,
         accessPolicy,
         channel.description,
+        emptySet,
     );
 
     const {getFullText, getEmbeddingChunks} = chunkSearchContent(channel.description, {
@@ -1214,7 +1270,7 @@ async function getChannelSearchEntity(
     });
 
     return {
-        id: `Channel:${channelId}`,
+        id,
         accessPolicy,
         createdTime: channel.createdTime,
         title: channel.name,
@@ -1244,6 +1300,8 @@ async function getPostSearchEntity(
     state: SearchEntityReadState,
     postId: PostId,
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `Post:${postId}`;
+
     const post = await state.getPostContentAndChannel(postId);
 
     const truncatedChannelName = new Lazy(() =>
@@ -1264,7 +1322,13 @@ async function getPostSearchEntity(
 
     const accessPolicy = getSearchEntityIndexAccessPolicy(post.channel.accessPolicy);
 
-    const contentReferences = await getSearchContentReferences(state, accessPolicy, post.content);
+    const contentReferences = await getSearchContentReferences(
+        state,
+        id,
+        accessPolicy,
+        post.content,
+        emptySet,
+    );
 
     const {getFullText, getEmbeddingChunks} = chunkSearchContent(post.content, {
         tokenizer: state.tokenizer,
@@ -1285,7 +1349,7 @@ async function getPostSearchEntity(
     });
 
     return {
-        id: `Post:${postId}`,
+        id,
         accessPolicy,
         createdTime: post.createdTime,
         title: createPostSearchEntityTitle(post.channel.name, post.content, {
@@ -1305,6 +1369,8 @@ async function getPostCommentSearchEntity(
     state: SearchEntityReadState,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `PostComment:${postId}-${commentIndex}`;
+
     const {
         createdTime,
         authorId,
@@ -1326,8 +1392,10 @@ async function getPostCommentSearchEntity(
     if (commentPayload.type === "Content") {
         const contentReferences = await getSearchContentReferences(
             state,
+            id,
             accessPolicy,
             commentPayload.content,
+            emptySet,
         );
 
         content = chunkSearchContent(commentPayload.content, {
@@ -1344,7 +1412,7 @@ async function getPostCommentSearchEntity(
     }
 
     return {
-        id: `PostComment:${postId}-${commentIndex}`,
+        id,
         accessPolicy,
         createdTime,
         title: null,
@@ -1466,6 +1534,8 @@ async function getChatMessageSearchEntity(
     state: SearchEntityReadState,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `ChatMessage:${chatId}-${messageIndex}`;
+
     const [{accountIds: chatAccountIds}, {createdTime, authorId, payload: messagePayload}] =
         await runAllPromises([
             state.getChatAccountIds(chatId),
@@ -1489,8 +1559,10 @@ async function getChatMessageSearchEntity(
     if (messagePayload.type === "Content") {
         const contentReferences = await getSearchContentReferences(
             state,
+            id,
             accessPolicy,
             messagePayload.content,
+            emptySet,
         );
 
         content = chunkSearchContent(messagePayload.content, {
@@ -1513,7 +1585,7 @@ async function getChatMessageSearchEntity(
     }
 
     return {
-        id: `ChatMessage:${chatId}-${messageIndex}`,
+        id,
         accessPolicy,
         createdTime,
         title: null,
@@ -1608,6 +1680,8 @@ async function getTaskSearchEntity(
     state: SearchEntityReadState,
     taskId: TaskId,
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `Task:${taskId}`;
+
     const {
         task,
         referencedTaskById,
@@ -1626,7 +1700,7 @@ async function getTaskSearchEntity(
     // Index no content for deleted tasks.
     if (task.isDeleted()) {
         return {
-            id: `Task:${taskId}`,
+            id,
             accessPolicy,
             createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
             title: null,
@@ -1655,8 +1729,10 @@ async function getTaskSearchEntity(
 
     const contentReferences = await getSearchContentReferences(
         state,
+        id,
         accessPolicy,
         notesContent.content,
+        emptySet,
     );
 
     const notesChunkResult = chunkSearchContent(notesContent.content, {
@@ -1757,7 +1833,7 @@ async function getTaskSearchEntity(
     const body = notesChunkResult.getFullText();
 
     return {
-        id: `Task:${taskId}`,
+        id,
         accessPolicy,
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
@@ -1825,6 +1901,8 @@ async function getTaskCommentSearchEntity(
     state: SearchEntityReadState,
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<SearchEntity> {
+    const id: SearchEntityId = `TaskComment:${taskId}-${commentIndex}`;
+
     const [
         {task, referencedTaskById, referencedCollectionById},
         {createdTime, authorId, payload: commentPayload},
@@ -1852,8 +1930,10 @@ async function getTaskCommentSearchEntity(
     if (commentPayload.type === "Content") {
         const contentReferences = await getSearchContentReferences(
             state,
+            id,
             accessPolicy,
             commentPayload.content,
+            emptySet,
         );
 
         content = chunkSearchContent(commentPayload.content, {
@@ -1870,7 +1950,7 @@ async function getTaskCommentSearchEntity(
     }
 
     return {
-        id: `TaskComment:${taskId}-${commentIndex}`,
+        id,
         accessPolicy,
         createdTime,
         title: null,
