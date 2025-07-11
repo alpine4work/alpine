@@ -77,6 +77,8 @@ import {
     fromTaskActionModel,
     fromTaskUpdateTaskActionModel,
 } from "~/shared/tasks/actions/task_action_model.js";
+import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
+import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
 import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -567,27 +569,9 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
                     if (!taskEntry?.task) return null;
                     const {task} = taskEntry;
 
-                    if (task.isDeleted()) {
-                        return {
-                            id: `Task:${task.id}`,
-                            title: null,
-                            titleVersion: null,
-                            media: null,
-                        };
-                    }
-
                     return {
+                        ...getTaskSearchEntityBase(task),
                         id: `Task:${task.id}`,
-                        title: task.getTitle().getText(),
-                        titleVersion: {type: "TaskTitle", snapshot: task.getTitle().getSnapshot()},
-                        media: {
-                            type: "TaskDisplayStatus",
-                            displayStatus: task.getDisplayStatus(),
-                            version: maxHybridLogicalTime(
-                                task.rawData.status.version,
-                                task.rawData.assigneeStatus.version,
-                            ),
-                        },
                     };
                 },
             );
@@ -597,27 +581,9 @@ export class TaskClientStore implements SearchEntityRegistryFriend {
                     if (!collectionEntry?.collection) return null;
                     const {collection} = collectionEntry;
 
-                    if (collection.isDeleted()) {
-                        return {
-                            id: `TaskCollection:${collection.id}`,
-                            title: null,
-                            titleVersion: null,
-                            media: null,
-                        };
-                    }
-
                     return {
+                        ...getTaskCollectionSearchEntityBase(collection),
                         id: `TaskCollection:${collection.id}`,
-                        title: collection.rawData.name.value,
-                        titleVersion: {
-                            type: "HybridLogicalTime",
-                            time: collection.rawData.name.version,
-                        },
-                        media: {
-                            type: "TaskCollectionColor",
-                            color: collection.rawData.color.value,
-                            version: collection.rawData.color.version,
-                        },
                     };
                 },
             );

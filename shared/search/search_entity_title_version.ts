@@ -1,5 +1,8 @@
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {
+    compareHybridLogicalTimes,
+    zeroHybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {realmTaskTitleClientId} from "~/shared/id/realm_task_title_client_id.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
@@ -24,6 +27,7 @@ export const SearchEntityTitleVersionSchema = Schema.union({
     TaskTitle: Schema.object({
         type: Schema.value("TaskTitle"),
         snapshot: TaskTitleSnapshotSchema,
+        deletedTime: HybridLogicalTimeSchema.optional(),
     }),
 });
 
@@ -88,9 +92,15 @@ export function compareSearchEntityTitleVersion(
 
     if (version2.type !== "TaskTitle") return -1;
 
-    return compareTaskTitleSnapshotForSearchEntityTitleVersion(
-        decodeTaskTitleSnapshot(version1.snapshot),
-        decodeTaskTitleSnapshot(version2.snapshot),
+    return (
+        compareHybridLogicalTimes(
+            version1.deletedTime ?? zeroHybridLogicalTime,
+            version2.deletedTime ?? zeroHybridLogicalTime,
+        ) ||
+        compareTaskTitleSnapshotForSearchEntityTitleVersion(
+            decodeTaskTitleSnapshot(version1.snapshot),
+            decodeTaskTitleSnapshot(version2.snapshot),
+        )
     );
 }
 

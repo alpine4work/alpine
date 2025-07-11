@@ -60,7 +60,6 @@ import {
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -100,6 +99,8 @@ import {
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityTitleVersion} from "~/shared/search/search_entity_title_version.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
+import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
+import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
@@ -1697,26 +1698,31 @@ async function getTaskSearchEntity(
         expectedAccessLevel: "View",
     });
 
+    const {title, titleVersion, media} = getTaskSearchEntityBase(task);
+
     // Index no content for deleted tasks.
     if (task.isDeleted()) {
         return {
             id,
             accessPolicy,
             createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
-            title: null,
-            titleVersion: null,
+            title,
+            titleVersion,
             body: null,
-            media: null,
+            media,
             embeddingChunks: emptyArray,
             creatorId: null,
             contributorIds: emptyMap,
         };
     }
 
-    const title = addFallbackToTaskTitle(task.getTitle().getText());
-
     const truncatedTitle = new Lazy(() =>
-        truncateTokens(state.tokenizer, title, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(
+            state.tokenizer,
+            // Should only be null when task is deleted.
+            assertExists(title),
+            searchEntityEmbeddingPreambleTitleTokenCount,
+        ),
     );
 
     const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
@@ -1837,16 +1843,9 @@ async function getTaskSearchEntity(
         accessPolicy,
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
-        titleVersion: {type: "TaskTitle", snapshot: task.getTitle().getSnapshot()},
+        titleVersion,
         body: body.length > 0 ? body : null,
-        media: {
-            type: "TaskDisplayStatus",
-            displayStatus: task.getDisplayStatus(),
-            version: maxHybridLogicalTime(
-                task.rawData.status.version,
-                task.rawData.assigneeStatus.version,
-            ),
-        },
+        media,
         embeddingChunks: body.length > 0 ? notesChunkResult.getEmbeddingChunks() : emptyArray,
         creatorId: task.getCreator().accountId,
         contributorIds,
@@ -1861,16 +1860,18 @@ async function getTaskCollectionSearchEntity(
 
     const accessPolicy = getSearchEntityIndexAccessPolicy(collection.getAccessPolicy());
 
+    const {title, titleVersion, media} = getTaskCollectionSearchEntityBase(collection);
+
     // Index no content for deleted collections.
     if (collection.isDeleted()) {
         return {
             id: `TaskCollection:${collectionId}`,
             accessPolicy,
             createdTime: new Date(collection.getCreatedTime()[0]),
-            title: null,
-            titleVersion: null,
+            title,
+            titleVersion,
             body: null,
-            media: null,
+            media,
             embeddingChunks: emptyArray,
             creatorId: null,
             contributorIds: emptyMap,
@@ -1881,14 +1882,10 @@ async function getTaskCollectionSearchEntity(
         id: `TaskCollection:${collectionId}`,
         accessPolicy,
         createdTime: new Date(collection.getCreatedTime()[0]),
-        title: collection.getName(),
-        titleVersion: {type: "HybridLogicalTime", time: collection.rawData.name.version},
+        title,
+        titleVersion,
         body: null,
-        media: {
-            type: "TaskCollectionColor",
-            color: collection.getColor(),
-            version: collection.rawData.color.version,
-        },
+        media,
         embeddingChunks: emptyArray,
         creatorId: collection.rawData.creatorId,
         // In the future we could keep track of which accounts were adding tasks to the

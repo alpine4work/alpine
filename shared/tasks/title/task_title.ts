@@ -386,9 +386,11 @@ export function createTaskTitleFromText(
     titleText: string,
     options?: {clientIdForTest?: number},
 ): TaskTitle {
-    const prosemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, [
-        TaskTitleProsemirrorSchema.text(titleText),
-    ]);
+    const prosemirrorNode = TaskTitleProsemirrorSchema.node(
+        "doc",
+        {},
+        titleText.length > 0 ? [TaskTitleProsemirrorSchema.text(titleText)] : [],
+    );
 
     const doc = createDoc(options);
     prosemirrorToYXmlFragment(prosemirrorNode, doc.getXmlFragment("doc"));
