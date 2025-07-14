@@ -2294,7 +2294,10 @@ function drawContentEditorTablePluginHoveringStateDecorations(
 
             decorations.push(
                 Decoration.widget(tablePos, view => {
-                    let element: globalThis.Node | null = view.domAtPos(tablePos).node;
+                    // HACK(calebmer): I've seen some cases where `view.domAtPos()` returns the
+                    // previous node when we pass in `tablePos`?? `tablePos + 2` reliably gets us
+                    // either the first `<td>`, the first `<tr>`, or `<tbody>`.
+                    let element: globalThis.Node | null = view.domAtPos(tablePos + 2).node;
                     while (
                         element instanceof HTMLElement &&
                         !element.classList.contains(tableWrapperClassName)
