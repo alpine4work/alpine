@@ -763,15 +763,16 @@ function createCodeBlockParseRules(): Array<TagParseRule> {
         });
     });
 
-    const getContent = (node: globalThis.Node, schema: ProsemirrorSchema): Fragment => {
+    const getContent = (nodeFromParser: globalThis.Node, schema: ProsemirrorSchema): Fragment => {
         const parser = DOMParser.fromSchema(
             CodeBlockIntermediateProsemirrorSchema.getOrSetDefault(schema),
         );
 
         // Make sure `node` is a root element. `normalizeLists()` will iterate through
         // next children to determine where to put `<br>` elements and we don't want
-        // that iteration to escape `node`.
-        node.parentElement?.removeChild(node);
+        // that iteration to escape `node`. Clone the node to work with an isolated
+        // copy that preserves the original DOM structure for subsequent parsing.
+        const node = nodeFromParser.cloneNode(true);
 
         // If the code ends with a single newline then cut out that newline. This is
         // because implicitly there will be a line break between the code block and the

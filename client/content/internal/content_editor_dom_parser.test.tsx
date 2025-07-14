@@ -699,3 +699,44 @@ test("don't infinitely recurse when pasting code block content with extra wrappi
         'doc(title, codeBlock(codeBlockLine("let a = 1;"), codeBlockLine("let b = 2;"), codeBlockLine("console.log(a + b);")))',
     );
 });
+
+test("will paste markdown with content after code block from web browser", () => {
+    render(
+        <TestContentEditor
+            initialContent={DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [{type: "title"}, {type: "paragraph"}],
+            })}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(3))));
+
+    expect(getDoc().toString()).toEqual("doc(title, paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 3, head: 3});
+
+    // This simulates pasting markdown content from a web browser that includes:
+    // 1. Some text before the code block
+    // 2. A code block
+    // 3. Some text after the code block
+    fireEvent.paste(
+        getTextbox(),
+        pasteHtmlTextClipboardEvent(
+            `<div>
+                <p>This is some text before the code block.</p>
+                <pre><code>function example() {
+    console.log("Hello World");
+}</code></pre>
+                <p>This text should appear after the code block but doesn't get pasted.</p>
+                <p>Neither does this paragraph.</p>
+            </div>`,
+        ),
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(title, paragraph("This is some text before the code block."), codeBlock(codeBlockLine("function example() {"), codeBlockLine("    console.log(\\"Hello World\\");"), codeBlockLine("}")), paragraph("This text should appear after the code block but doesn\'t get pasted."), paragraph("Neither does this paragraph."))',
+    );
+});
