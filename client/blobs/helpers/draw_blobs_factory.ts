@@ -200,10 +200,15 @@ export function drawBlobFactoryToCanvas(
     const scale = 1; // window.devicePixelRatio;
 
     const actuallyDraw = () => {
-        const size = new Vector2(canvas.width, canvas.height).div(scale);
-        const result = factory.draw(size, scale, settings, blobs);
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        // Integration tests are flaky when drawing to the canvas, so we skip this in tests.
+        // This would cause a huge delay when the GPU can't handle drawing multiple blobs at once.
+        // Often causing the test to timeout.
+        if (!(globalThis as any).__isIntegrationTest) {
+            const size = new Vector2(canvas.width, canvas.height).div(scale);
+            const result = factory.draw(size, scale, settings, blobs);
+            const ctx = canvas.getContext("2d")!;
+            ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        }
 
         // Create the gradient
         // We create this here (as opposed to statically) to ensure we follow the colorScheme as

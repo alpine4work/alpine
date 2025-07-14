@@ -8,6 +8,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
+import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
@@ -485,6 +486,121 @@ test("can paste URL to add file entity to document", async ({
 
     await expect(page.getByText("foobar")).toBeVisible();
     await expect(page.getByText("quxbuz")).toBeHidden();
+});
+
+test("can paste URL to add file entity to document with blobs cover", async ({
+    context: browserContext,
+    page,
+    viewport,
+}) => {
+    assert(viewport);
+
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    await services.signIn(browserContext, session);
+
+    const document0 = await TestDocument.create(session);
+    await document0.access.grantDefault(session);
+
+    const document1 = await TestDocument.create(session, {
+        title: "foo",
+        initialCover: {
+            type: "Blobs",
+            seed: "a",
+            themeColor: "blue",
+            hueSpread: 10,
+        },
+    });
+    await document1.access.grantDefault(session);
+    const document1Content = await getDocumentContent(session.action(), document1.id);
+    await document1Content.updateContentPreview(session.action());
+
+    const document2 = await TestDocument.create(session, {
+        title: "bar",
+        initialCover: {
+            type: "Blobs",
+            seed: "b",
+            themeColor: "red",
+            hueSpread: 15,
+        },
+    });
+    await document2.access.grantDefault(session);
+    const document2Content = await getDocumentContent(session.action(), document2.id);
+    await document2Content.updateContentPreview(session.action());
+
+    await page.goto(`/s/${space.id}/documents/${document0.id}`);
+
+    // Wait for React to mount
+    await page.waitForFunction("dev.contentEditor");
+
+    const canPrimaryInputHover = await page.evaluate(
+        () => !window.matchMedia("(hover: none)").matches,
+    );
+
+    const contentEditor = page.getByRole("textbox", {name: "Document"});
+    await contentEditor.focus();
+
+    if (canPrimaryInputHover) {
+        await contentEditor.click({
+            position: {x: viewport.width / 2, y: viewport.height - 100},
+        });
+    } else {
+        await page
+            .getByRole("textbox", {name: "Document"})
+            .tap({position: {x: viewport.width / 2, y: viewport.height - 150}});
+    }
+
+    // This validates we can render different blobs
+    // As well as the same blobs multiple times
+    const documentPasteOrder = [document1, document2, document1];
+    const expectedCoverBlobsData = [
+        document1Content.content.attrs.cover,
+        document2Content.content.attrs.cover,
+        document1Content.content.attrs.cover,
+    ];
+
+    for (const document of documentPasteOrder) {
+        await page.keyboard.press("Enter");
+        await page.keyboard.type("1");
+        await page.keyboard.press("Enter");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const url = new URL(`/s/${space.id}/documents/${document.id}`, services.getBaseUrl());
+
+        await contentEditor.evaluate((documentElement, url) => {
+            const pasteEvent = new Event("paste", {bubbles: true, cancelable: true});
+
+            Object.assign(pasteEvent, {
+                clipboardData: {
+                    types: ["text/plain"],
+                    getData: (type: string) => {
+                        if (type !== "text/plain") return null;
+                        return url;
+                    },
+                },
+            });
+
+            documentElement.dispatchEvent(pasteEvent);
+        }, url.toString());
+    }
+
+    // Check all the covers, make sure they are the correct blob data
+    const covers = page.getByTestId("BlobsArtCanvas");
+    await expect(covers).toHaveCount(3);
+
+    const coverElements = await covers.elementHandles();
+    const coverBlobsData = await Promise.all(
+        coverElements.map(coverElement =>
+            coverElement?.evaluate(e => ({
+                type: "Blobs",
+                seed: (e as any)._blobsDrawn.seed as string,
+                themeColor: (e as any)._blobsDrawn.themeColor as ThemeColor,
+                hueSpread: (e as any)._blobsDrawn.hueSpread as number,
+            })),
+        ),
+    );
+
+    // our blob data should match the order we pasted the urls
+    expect(coverBlobsData).toEqual(expectedCoverBlobsData);
 });
 
 test("can paste `<iframe>` HTML to add file entity to document", async ({

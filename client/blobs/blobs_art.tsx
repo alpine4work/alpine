@@ -87,7 +87,7 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
                     width={blobsCanvasWidthPx}
                     height={blobsCanvasHeightPx}
                     data-testid={
-                        process.env.NODE_ENV !== "production" ? `BlobArtCanvas` : undefined
+                        process.env.NODE_ENV !== "production" ? `BlobsArtCanvas` : undefined
                     }
                 />
                 <div

@@ -5,6 +5,10 @@ const {devices, defineConfig} = require("@playwright/test");
 const timeout = 30 * 1000;
 const actionTimeout = 5 * 1000;
 
+// Allow overriding the mobile device via environment variable
+// This is useful for environments where the default device is not suitable
+const mobileDevice = process.env.PLAYWRIGHT_MOBILE_DEVICE || "iPhone 12";
+
 module.exports = defineConfig({
     testDir: "./app/integration_tests",
     testMatch: ["**/*.spec.js"],
@@ -32,7 +36,7 @@ module.exports = defineConfig({
         },
         {
             name: "webkit_mobile",
-            use: {...devices["iPhone 12"]},
+            use: {...devices[mobileDevice]},
         },
     ],
 });

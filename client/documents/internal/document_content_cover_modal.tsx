@@ -66,6 +66,11 @@ function DocumentContentCoverBlobsArtOption({
                 position="relative"
                 boxShadow="elevation-5-without-border"
                 borderRadius="1.5"
+                data-testid={
+                    process.env.NODE_ENV !== "production"
+                        ? "DocumentContentCoverBlobsArtOption"
+                        : undefined
+                }
             >
                 <Box
                     // Render a border using an absolutely positioned `<div>` instead of using

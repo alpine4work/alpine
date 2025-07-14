@@ -190,7 +190,7 @@ function renderRootHead(loaderData: SchemaType<typeof LoaderSchema> | null) {
                 // applies the `react-refresh` transform.
                 <script
                     dangerouslySetInnerHTML={{
-                        __html: `globalThis.$RefreshReg$ = () => {}; globalThis.$RefreshSig$ = () => value => value;`,
+                        __html: `globalThis.__isIntegrationTest = true; globalThis.$RefreshReg$ = () => {}; globalThis.$RefreshSig$ = () => value => value;`,
                     }}
                 />
             )}

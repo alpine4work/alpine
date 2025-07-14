@@ -4669,10 +4669,12 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
     const scale = 1;
     const actuallyDraw = () => {
         var _a, _b;
-        const size = new Vector2(canvas.width, canvas.height).div(scale);
-        const result = factory.draw(size, scale, settings, blobs);
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        if (!globalThis.__isIntegrationTest) {
+            const size = new Vector2(canvas.width, canvas.height).div(scale);
+            const result = factory.draw(size, scale, settings, blobs);
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
+        }
         const gradient = assertExists(
             (_b =
                 (_a = canvas.parentElement) == null

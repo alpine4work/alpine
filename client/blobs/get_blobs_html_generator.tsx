@@ -49,6 +49,10 @@ export function getBlobsHtmlGenerator(
     canvasHtml.setAttribute("width", blobsCanvasWidthPx);
     canvasHtml.setAttribute("height", blobsCanvasHeightPx);
 
+    if (process.env.NODE_ENV !== "production") {
+        canvasHtml.setAttribute("data-testid", `BlobsArtCanvas`);
+    }
+
     // Set up gradient
     const gradientHtml = blobContainerHtml.appendChild(new HtmlElementGenerator("div"));
     gradientHtml.setAttribute("class", blobsArtGradientClassName);

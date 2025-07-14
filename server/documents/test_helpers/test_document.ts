@@ -16,6 +16,7 @@ import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
@@ -71,6 +72,7 @@ export class TestDocument {
         session: TestSpaceSession,
         options: {
             id?: DocumentId;
+            initialCover?: DocumentContentCover;
         } & (
             | {
                   title?: string;
@@ -111,7 +113,7 @@ export class TestDocument {
             }
 
             content = assertDocumentContent(
-                schema.node("doc", {accessPolicy}, [
+                schema.node("doc", {accessPolicy, cover: options.initialCover}, [
                     schema.node("title", {}, options.title ? [schema.text(options.title)] : []),
                     ...(options.body
                         ? options.body
