@@ -75,7 +75,13 @@ export function SearchEntityView({
 
     const entityData = useSearchEntityModel(result.model);
     const typeDisplay = useMemo(() => getSearchEntityTypeDisplay(result.id), [result.id]);
-    const showTitle = entityData.title !== null && !typeDisplay.isPost;
+    const showTitle =
+        (entityData.title !== null ||
+            // If there's no body snippet and we have a `null` title then showing the title
+            // will render "Deleted ${entityNoun}". For example, tasks in the suggested
+            // list render in this state once they've been deleted.
+            !result.bodyTextSnippet) &&
+        typeDisplay.type !== "Post";
 
     const contextMenuActions: Array<Array<MenuAction>> = [];
 
@@ -189,9 +195,8 @@ export function SearchEntityView({
                         {showTitle && (
                             <>
                                 <SearchEntityViewTitle
-                                    icon={typeDisplay.icon}
-                                    title={entityData.title}
-                                    media={entityData.media}
+                                    typeDisplay={typeDisplay}
+                                    entityData={entityData}
                                 />
                                 {result.bodyTextSnippet && result.bodyTextSnippet.length > 0 && (
                                     <Spacer space={searchEntityViewTitleMarginBottom} />
@@ -228,7 +233,7 @@ export function SearchEntityView({
                             {!showTitle && (
                                 <SearchEntityViewTitlePrefix
                                     icon={typeDisplay.icon}
-                                    media={entityData.media}
+                                    entityData={entityData}
                                 />
                             )}
                             {typeDisplay.isAccountMediaAuthor &&
@@ -238,7 +243,7 @@ export function SearchEntityView({
                                         account={entityData.media.account}
                                         isTooltipDisabled={true}
                                     />
-                                    {typeDisplay.isPost ? " " : ": "}
+                                    {typeDisplay.type === "Post" ? " " : ": "}
                                 </>
                             ) : null}
                             {result.bodyTextSnippet?.map(({isHighlighted, text}, index) => {

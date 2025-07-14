@@ -3,6 +3,7 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
@@ -153,6 +154,8 @@ const searchEntityIdTestMap: GetSearchEntityIdActualTestMapType<SearchEntityId> 
     SearchFavorites: null,
 };
 
+export type SearchEntityType = keyof typeof searchEntityIdTestMap;
+
 function isIdAndMessageIndex(string: string): boolean {
     const [idString = "", messageIndexString = ""] = string.split("-", 2);
     if (!isId(idString)) return false;
@@ -177,16 +180,22 @@ type GetSearchEntityIdTestMapType<Id extends string> = MergeObjectIntersection<
 const searchDynamicEntityIdTestMap: GetSearchEntityIdTestMapType<SearchDynamicEntityId> = {
     Account: true,
     Document: true,
+    DocumentComment: true,
     Channel: true,
     Chat: true,
+    ChatMessage: true,
     Task: true,
     TaskCollection: true,
-    DocumentComment: true,
+    TaskComment: true,
     Post: true,
     PostComment: true,
-    ChatMessage: true,
-    TaskComment: true,
 };
+
+export type SearchDynamicEntityType = keyof typeof searchDynamicEntityIdTestMap;
+
+export function isSearchDynamicEntityType(string: string): string is SearchDynamicEntityType {
+    return hasOwnProperty(searchDynamicEntityIdTestMap, string);
+}
 
 const searchStaticEntityIdTestMap: GetSearchEntityIdTestMapType<SearchStaticEntityId> = {
     TaskPersonal: true,

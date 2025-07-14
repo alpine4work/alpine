@@ -9,6 +9,7 @@ import {taskBrandIconSvg} from "~/client/icons/brand/task_brand_icon_svg.js";
 import {taskCollectionBrandIconSvg} from "~/client/icons/brand/task_collection_brand_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/icons/create_svg_html_generator.js";
 import {lockIconSvg} from "~/client/icons/lock_icon_svg.js";
+import {trashIconSvg} from "~/client/icons/trash_icon_svg.js";
 import {getSearchDynamicEntityPath} from "~/client/search/core/get_search_entity_path.js";
 import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
@@ -29,6 +30,7 @@ import {
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
+    deletedSearchEntityTitle,
     missingSearchEntityTitle,
     privateSearchEntityTitle,
 } from "~/shared/search/missing_and_private_search_entity_titles.js";
@@ -151,15 +153,14 @@ export function renderContentMentionToHtml(
 
             const searchEntity = references.searchEntityById.get(mention.entityId);
 
+            href = !isInert
+                ? getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout)
+                : null;
+
             if (!searchEntity) {
-                href = null;
                 media = null;
                 text = `${missingSearchEntityTitle} ${getSearchEntityNoun(entityIdObject.type)}`;
             } else if (searchEntity.isPrivate) {
-                href = !isInert
-                    ? getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout)
-                    : null;
-
                 media = null;
                 text = `${privateSearchEntityTitle} ${getSearchEntityNoun(entityIdObject.type)}`;
 
@@ -172,18 +173,40 @@ export function renderContentMentionToHtml(
                     }),
                 );
             } else {
-                href = !isInert
-                    ? getSearchDynamicEntityPath(spaceId, entityIdObject, routeLayout)
-                    : null;
-
                 const searchEntityData = get(
                     searchEntityRegistry.getEntityStore(searchEntity.entity),
                 );
 
-                media = searchEntityData.media;
+                // If `title` is null then we assume the entity was deleted. Otherwise, all
+                // mentionable entities should have a non-null title.
+                if (searchEntityData.title === null) {
+                    media = null;
+                    text = `${deletedSearchEntityTitle} ${getSearchEntityNoun(
+                        entityIdObject.type,
+                    )}`;
 
-                const title = truncateContentMentionText(searchEntityData.title ?? "");
-                text = title.length > 0 ? title : missingSearchEntityTitle;
+                    html.appendChild(
+                        renderContentMentionIcon({
+                            width: "wide",
+                            children: createSvgHtmlGenerator(
+                                trashIconSvg({size: `${contentStyles.mentionIconSizeEm}em`}),
+                            ),
+                        }),
+                    );
+                } else {
+                    media = searchEntityData.media;
+
+                    const entityTitle = truncateContentMentionText(searchEntityData.title);
+
+                    if (entityTitle.length === 0) {
+                        const entityIdObject = parseSearchMentionEntityId(mention.entityId);
+                        text = `${missingSearchEntityTitle} ${getSearchEntityNoun(
+                            entityIdObject.type,
+                        )}`;
+                    } else {
+                        text = entityTitle;
+                    }
+                }
             }
             break;
         }

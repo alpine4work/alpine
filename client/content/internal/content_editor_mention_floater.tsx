@@ -80,7 +80,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {isSearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
+import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
+import {
+    isSearchDynamicEntityType,
+    isSearchMentionEntityId,
+} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";
@@ -1028,7 +1033,7 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             onPress={onPress}
         >
             <Box display="flex" alignItems="flex-start">
-                <SearchEntityViewTitlePrefix icon={typeDisplay.icon} media={entityData.media} />
+                <SearchEntityViewTitlePrefix icon={typeDisplay.icon} entityData={entityData} />
                 <Box
                     fontSize={fontSize}
                     overflow="hidden"
@@ -1056,10 +1061,16 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
                                 account={entityData.media.account}
                                 isTooltipDisabled={true}
                             />
-                            {typeDisplay.isPost ? " " : ": "}
+                            {typeDisplay.type === "Post" ? " " : ": "}
                         </>
                     )}
-                    {renderTextWithEmojiFontFamily(entityData.title ?? "")}
+                    {entityData.title !== null
+                        ? renderTextWithEmojiFontFamily(entityData.title)
+                        : isSearchDynamicEntityType(typeDisplay.type)
+                        ? // If `title` is null then we assume the entity was deleted. Otherwise, all
+                          // mentionable entities should have a non-null title.
+                          `${deletedSearchEntityTitle} ${getSearchEntityNoun(typeDisplay.type)}`
+                        : null}
                 </Box>
             </Box>
         </ContentEditorMentionFloaterItemBase>

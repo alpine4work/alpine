@@ -36,9 +36,8 @@ function SearchAffinityEntityView({
             }}
         >
             <SearchEntityViewTitle
-                icon={typeDisplay.icon}
-                title={entityData.title}
-                media={entityData.media}
+                typeDisplay={typeDisplay}
+                entityData={entityData}
                 lineClamp={lineClamp}
             />
         </Box>

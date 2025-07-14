@@ -8896,7 +8896,9 @@ exports[`unknown search entity mention 1`] = `
   <p
     class="content_paragraph"
   >
-    <span>
+    <a
+      href="/s/pv9hmw9x4nkzpnn404ntddmbp0/documents/qkanxhj066jh311428tsr0psp4"
+    >
       <span>
         <span>
           <span>
@@ -8916,7 +8918,7 @@ exports[`unknown search entity mention 1`] = `
           Unknown document
         </span>
       </span>
-    </span>
+    </a>
     <img
       alt=""
     />

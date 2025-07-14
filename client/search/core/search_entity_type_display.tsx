@@ -14,6 +14,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     SearchDynamicEntityIdObject,
     SearchEntityId,
+    SearchEntityType,
     parseSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
 
@@ -33,9 +34,9 @@ import {
  *   "in ${channelName}: " expecting the author name to be added in front.
  */
 export type SearchEntityTypeDisplay = {
+    type: SearchEntityType;
     icon: ReactNode;
     isAccountMediaAuthor?: boolean;
-    isPost?: boolean;
 };
 
 // NOTE(calebmer): The icons used here for create actions are the same icons
@@ -44,40 +45,40 @@ export type SearchEntityTypeDisplay = {
 export function getSearchEntityTypeDisplay(entityId: SearchEntityId): SearchEntityTypeDisplay {
     switch (entityId) {
         case "CreateChatMessage": {
-            return {icon: <ChatBrandIcon />};
+            return {type: entityId, icon: <ChatBrandIcon />};
         }
         case "CreatePost": {
-            return {icon: <PostBrandIcon />};
+            return {type: entityId, icon: <PostBrandIcon />};
         }
         case "CreateDocument": {
-            return {icon: <DocumentBrandIcon />};
+            return {type: entityId, icon: <DocumentBrandIcon />};
         }
         case "CreateTask": {
-            return {icon: <TaskBrandIcon />};
+            return {type: entityId, icon: <TaskBrandIcon />};
         }
         case "CreateChannel": {
-            return {icon: <ChannelBrandIcon />};
+            return {type: entityId, icon: <ChannelBrandIcon />};
         }
         case "CreateTaskCollection": {
-            return {icon: <TaskCollectionBrandIcon />};
+            return {type: entityId, icon: <TaskCollectionBrandIcon />};
         }
         case "CreateTaskView": {
-            return {icon: <TaskQueryBrandIcon />};
+            return {type: entityId, icon: <TaskQueryBrandIcon />};
         }
         case "TaskPersonal": {
             // Using the simpler single task icon for the personal task view instead of the
             // more advanced task collection icon or task view icon (which are technically
             // closer).
-            return {icon: <TaskBrandIcon />};
+            return {type: entityId, icon: <TaskBrandIcon />};
         }
         case "TaskQueryFilteredToCreatorIsCurrentAccount":
         case "TaskQueryFilteredToAssigneeIsCurrentAccount":
         case "TaskQueryFilteredToAssigneeIsCurrentAccountAndAssigneeStatusIsActive":
         case "TaskQueryFilteredToAssignerIsCurrentAccount": {
-            return {icon: <TaskQueryBrandIcon />};
+            return {type: entityId, icon: <TaskQueryBrandIcon />};
         }
         case "SearchFavorites": {
-            return {icon: <SearchFavoritesBrandIcon />};
+            return {type: entityId, icon: <SearchFavoritesBrandIcon />};
         }
         default: {
             const entityIdObject = parseSearchDynamicEntityId(entityId);
@@ -91,50 +92,37 @@ export function getSearchDynamicEntityTypeDisplay(
 ): SearchEntityTypeDisplay {
     switch (type) {
         case "Account": {
-            return {icon: <ChatBrandIcon />};
+            return {type, icon: <ChatBrandIcon />};
         }
         case "Document": {
-            return {icon: <DocumentBrandIcon />};
+            return {type, icon: <DocumentBrandIcon />};
         }
         case "DocumentComment": {
-            return {
-                icon: <DocumentCommentBrandIcon />,
-                isAccountMediaAuthor: true,
-            };
+            return {type, icon: <DocumentCommentBrandIcon />, isAccountMediaAuthor: true};
         }
         case "Channel": {
-            return {icon: <ChannelBrandIcon />};
+            return {type, icon: <ChannelBrandIcon />};
         }
         case "Post": {
-            return {
-                icon: <PostBrandIcon />,
-                isAccountMediaAuthor: true,
-                isPost: true,
-            };
+            return {type, icon: <PostBrandIcon />, isAccountMediaAuthor: true};
         }
         case "PostComment": {
-            return {
-                icon: <PostCommentBrandIcon />,
-                isAccountMediaAuthor: true,
-            };
+            return {type, icon: <PostCommentBrandIcon />, isAccountMediaAuthor: true};
         }
         case "Chat": {
-            return {icon: <ChatBrandIcon />};
+            return {type, icon: <ChatBrandIcon />};
         }
         case "ChatMessage": {
-            return {
-                icon: <ChatBrandIcon />,
-                isAccountMediaAuthor: true,
-            };
+            return {type, icon: <ChatBrandIcon />, isAccountMediaAuthor: true};
         }
         case "Task": {
-            return {icon: <TaskBrandIcon />};
+            return {type, icon: <TaskBrandIcon />};
         }
         case "TaskCollection": {
-            return {icon: <TaskCollectionBrandIcon />};
+            return {type, icon: <TaskCollectionBrandIcon />};
         }
         case "TaskComment": {
-            return {icon: <TaskCommentBrandIcon />, isAccountMediaAuthor: true};
+            return {type, icon: <TaskCommentBrandIcon />, isAccountMediaAuthor: true};
         }
         default:
             throw exhaustive(type);

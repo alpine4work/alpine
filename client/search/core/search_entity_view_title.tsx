@@ -1,4 +1,4 @@
-import {IconContext} from "phosphor-react";
+import {IconContext, Trash} from "phosphor-react";
 import {ReactNode} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
@@ -6,6 +6,7 @@ import {Box} from "~/client/design/box.js";
 import {TaskDisplayStatusCircle} from "~/client/design/task_display_status_circle.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
+import {SearchEntityTypeDisplay} from "~/client/search/core/search_entity_type_display.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
 import {
     searchEntityViewMediaSize,
@@ -17,17 +18,21 @@ import {colorSchemeVars, contentStyles} from "~/client/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
+import {deletedSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
+import {isSearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
 
 export function SearchEntityViewTitle({
-    icon,
-    title,
-    media,
+    typeDisplay,
+    entityData,
     lineClamp = 2,
 }: {
-    icon: ReactNode;
-    title: string | null;
-    media: SearchEntityMediaModel | null;
+    typeDisplay: SearchEntityTypeDisplay;
+    entityData: {
+        title: string | null;
+        media: SearchEntityMediaModel | null;
+    };
     lineClamp?: number;
 }) {
     const spacingScale = useSpacingScale();
@@ -53,18 +58,24 @@ export function SearchEntityViewTitle({
                 fontFeatureSettings: '"calt" on',
             }}
         >
-            <SearchEntityViewTitlePrefix icon={icon} media={media} />
-            {title !== null ? renderTextWithEmojiFontFamily(title) : null}
+            <SearchEntityViewTitlePrefix icon={typeDisplay.icon} entityData={entityData} />
+            {entityData.title !== null
+                ? renderTextWithEmojiFontFamily(entityData.title)
+                : isSearchDynamicEntityType(typeDisplay.type)
+                ? // If `title` is null then we assume the entity was deleted. Otherwise, all
+                  // mentionable entities should have a non-null title.
+                  `${deletedSearchEntityTitle} ${getSearchEntityNoun(typeDisplay.type)}`
+                : null}
         </Box>
     );
 }
 
 export function SearchEntityViewTitlePrefix({
     icon,
-    media,
+    entityData,
 }: {
     icon: ReactNode;
-    media: SearchEntityMediaModel | null;
+    entityData: {title: string | null; media: SearchEntityMediaModel | null};
 }) {
     const spacingScale = useSpacingScale();
 
@@ -90,7 +101,23 @@ export function SearchEntityViewTitlePrefix({
                     {icon}
                 </IconContext.Provider>
             </Box>
-            {media && <SearchEntityViewMedia media={media} />}
+            {entityData.title === null ? (
+                <Box
+                    position="relative"
+                    display="inline-flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    marginRight="1"
+                    style={{
+                        height: searchEntityViewTitleLineHeightPx[spacingScale],
+                        verticalAlign: "top",
+                    }}
+                >
+                    <Trash size={spacing["4"]} />
+                </Box>
+            ) : entityData.media !== null ? (
+                <SearchEntityViewMedia media={entityData.media} />
+            ) : null}
         </>
     );
 }
