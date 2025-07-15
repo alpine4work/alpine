@@ -47,7 +47,7 @@ export async function loader({context: unauthenticatedContext, params, request}:
     const url = new URL(request.url);
 
     const [
-        {task},
+        task,
         {commentCount, comments, otherReferencedComments, lastCommentChangeTime},
         inboxEntry,
     ] = await runAllPromises([

@@ -1345,17 +1345,16 @@ export function commitTaskActionTransaction(
             });
         }
 
-        const {processPromise} = afterCommitTaskActionTransaction(context, actionTransactionItem);
+        const startTime = Date.now();
 
-        // Try and wait until the transaction is processed before returning to the
-        // client. We only wait up to 100ms then let the transaction processing
-        // finish in the background.
-        //
-        // Given the client only sends one `commitTaskActionTransaction()` request at a
-        // time, this helps reduce conflicts when indexing many sequential actions on
-        // the same task (e.g. from typing in the title). And helps other users
-        // connected to realtime see these actions in the same order they were made.
-        await Promise.race([processPromise.catch(() => {}), wait(100)]);
+        const {processPromise} = await afterCommitTaskActionTransaction(
+            context,
+            actionTransactionItem,
+        );
+
+        // Make sure `endTime` is greater than `startTime` in case there was clock
+        // skew.
+        const endTime = Math.max(startTime, Date.now());
 
         // Send a notification for all collections updated via the `UpdateAccessPolicy`
         // action in this transaction.
@@ -1379,11 +1378,21 @@ export function commitTaskActionTransaction(
             }
         }
 
+        // Try and wait until the transaction is processed before returning to the
+        // client. We only wait up to 100ms then let the transaction processing
+        // finish in the background.
+        //
+        // Given the client only sends one `commitTaskActionTransaction()` request at a
+        // time, this helps reduce conflicts when indexing many sequential actions on
+        // the same task (e.g. from typing in the title). And helps other users
+        // connected to realtime see these actions in the same order they were made.
+        await Promise.race([processPromise.catch(() => {}), wait(100 - (endTime - startTime))]);
+
         return {extraActions};
     });
 }
 
-function afterCommitTaskActionTransaction(
+async function afterCommitTaskActionTransaction(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     actionTransactionItem: TaskActionTransactionItem,
 ) {
@@ -1398,6 +1407,17 @@ function afterCommitTaskActionTransaction(
         clientId: actionTransactionItem.clientId,
         processPromise,
     });
+
+    // Always wait for us to apply the transaction in `TaskRealtimeService`. This
+    // allows us to have read-after-write consistency with
+    // `commitTaskActionTransaction()` as the write and `context.tasks.loadQuery()`
+    // as the read (or anything else that makes a request to
+    // `TaskRealtimeService`).
+    //
+    // If you wait for `commitTaskActionTransaction()` to finish, you're guaranteed
+    // any read to a `TaskRealtimeService` instance will see your newly committed
+    // data.
+    await processPromise.applyActionTransactionInRealtimeServicePromise;
 
     return {processPromise};
 }
@@ -1463,25 +1483,46 @@ function processTaskActionTransaction(
         Omit<ServerSessionActionContextModules, "actor"> & {tasks: TaskContextModuleBase}
     >,
     actionTransactionItem: TaskActionTransactionItem,
-) {
-    return context.tracer.withSpan("Process task action transaction", async (context, span) => {
-        span.addData({
-            tasks: {
-                actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
-                actionCount: actionTransactionItem.actions.length,
-                actionTransactionId: actionTransactionItem.actionTransactionId,
-            },
-        });
+): Promise<void> & {
+    applyActionTransactionInRealtimeServicePromise: Promise<void>;
+} {
+    let applyActionTransactionInRealtimeServicePromise: Promise<void> | null = null;
 
-        // Process the action transaction in the background.
-        await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
+    const promise = context.tracer.withSpan(
+        "Process task action transaction",
+        async (context, span) => {
+            span.addData({
+                tasks: {
+                    actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
+                    actionCount: actionTransactionItem.actions.length,
+                    actionTransactionId: actionTransactionItem.actionTransactionId,
+                },
+            });
 
-        // Once we've finished processing, flip the `wasProcessed` flag to true which
-        // will also remove this transaction from our unprocessed transactions index.
-        await TaskActionTable.createOrReplaceItem(context, {
-            ...actionTransactionItem,
-            wasProcessed: true,
-        });
+            applyActionTransactionInRealtimeServicePromise =
+                context.tasks.applyActionTransactionInRealtimeService(actionTransactionItem);
+
+            // Process the action transaction in the background.
+            await runAllPromises([
+                context.tasks.indexActionTransactionAssumingItsCommitted(actionTransactionItem),
+                applyActionTransactionInRealtimeServicePromise,
+            ]);
+
+            // Once we've finished processing, flip the `wasProcessed` flag to true which
+            // will also remove this transaction from our unprocessed transactions index.
+            await TaskActionTable.createOrReplaceItem(context, {
+                ...actionTransactionItem,
+                wasProcessed: true,
+            });
+        },
+    );
+
+    return Object.assign(promise, {
+        // Must return the apply action transaction promise separately.
+        // `commitTaskActionTransaction()` waits for this before returning.
+        applyActionTransactionInRealtimeServicePromise: assertExists(
+            cast<Promise<void> | null>(applyActionTransactionInRealtimeServicePromise),
+        ),
     });
 }
 
@@ -3635,7 +3676,7 @@ export function deleteTaskAndAllChildren(
 
         await DynamoTableSchema.executeTransaction(context, transactionEntries);
 
-        afterCommitTaskActionTransaction(context, actionTransactionItem);
+        await afterCommitTaskActionTransaction(context, actionTransactionItem);
 
         return {
             spaceId: actionTransactionItem.spaceId,
@@ -3916,8 +3957,8 @@ export function internalGetUpdateOurAccountNameTaskTransactionEntries(
 
     return actionTransactionItems.map(actionTransactionItem =>
         TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem, {
-            onAfterTransactionExecutedSuccessfully: () => {
-                afterCommitTaskActionTransaction(context, actionTransactionItem);
+            onAfterTransactionExecutedSuccessfully: async () => {
+                await afterCommitTaskActionTransaction(context, actionTransactionItem);
             },
         }),
     );
@@ -4030,8 +4071,24 @@ async function getTaskItemForAuthorization(
     }>,
     taskId: TaskId,
     loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | null,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<TaskEssentialAttributesItemBase> {
+    const taskItem = await getTaskItemForAuthorizationIfExists(context, taskId, loaders, options);
+    if (!taskItem) throw createTaskNotFoundError(taskId);
+    return taskItem;
+}
+
+async function getTaskItemForAuthorizationIfExists(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    taskId: TaskId,
+    loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | null,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+): Promise<TaskEssentialAttributesItemBase | null> {
     const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
@@ -4051,13 +4108,12 @@ async function getTaskItemForAuthorization(
             ),
     );
 
-    if (!taskItem) throw createTaskNotFoundError(taskId);
     return taskItem;
 }
 
 const TaskCollectionItemAuthorizationCache = new DynamoContextCache<
     TaskCollectionId,
-    TaskCollectionEssentialAttributesItem
+    TaskCollectionEssentialAttributesItem | null
 >({
     // Allow sharing this cache because the loaded DynamoDB item doesn't depend
     // on who the actor is.
@@ -4092,8 +4148,33 @@ async function getTaskCollectionItemForAuthorization(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<TaskCollectionEssentialAttributesItemBase> {
+    const collectionItem = await getTaskCollectionItemForAuthorizationIfExists(
+        context,
+        collectionId,
+        loaders,
+        options,
+    );
+    if (!collectionItem) throw createTaskCollectionNotFoundError(collectionId);
+    return collectionItem;
+}
+
+async function getTaskCollectionItemForAuthorizationIfExists(
+    context: Context<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+        cache: CacheContextModule;
+        dynamo: DynamoContextModule;
+    }>,
+    collectionId: TaskCollectionId,
+    loaders: {
+        getCollectionIndexDocIfExists: (
+            collectionId: TaskCollectionId,
+        ) => TaskCollectionIndexDoc | undefined;
+    } | null,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+): Promise<TaskCollectionEssentialAttributesItemBase | null> {
     const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
     if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
 
@@ -4101,8 +4182,8 @@ async function getTaskCollectionItemForAuthorization(
         context,
         consistency,
         collectionId,
-        async consistency => {
-            const item = await TaskTable.getItemIfExists(
+        async consistency =>
+            TaskTable.getItemIfExists(
                 context,
                 {
                     partitionType: "TaskCollection",
@@ -4110,11 +4191,7 @@ async function getTaskCollectionItemForAuthorization(
                     collectionId,
                 },
                 {consistency},
-            );
-
-            if (!item) throw createTaskCollectionNotFoundError(collectionId);
-            return item;
-        },
+            ),
     );
 }
 
@@ -4363,12 +4440,13 @@ export async function authorizeTaskCollectionAccessIfPossible(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
-): Promise<Result<{spaceId: SpaceId}, ErrorBase>> {
-    const collectionItem = await getTaskCollectionItemForAuthorization(
+): Promise<Result<{spaceId: SpaceId}, ErrorBase> | null> {
+    const collectionItem = await getTaskCollectionItemForAuthorizationIfExists(
         context,
         collectionId,
         loaders,
     );
+    if (!collectionItem) return null;
 
     const result = await authorizeTaskCollectionItemAccessIfPossibleForActor(
         context,
@@ -4475,8 +4553,9 @@ export async function authorizeTaskAccessIfPossible(
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
     options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<Result<{spaceId: SpaceId; createdTime: HybridLogicalTime}, ErrorBase>> {
-    const taskItem = await getTaskItemForAuthorization(context, taskId, loaders, options);
+): Promise<Result<{spaceId: SpaceId; createdTime: HybridLogicalTime}, ErrorBase> | null> {
+    const taskItem = await getTaskItemForAuthorizationIfExists(context, taskId, loaders, options);
+    if (!taskItem) return null;
 
     const result = await authorizeTaskItemAccessIfPossibleForActor(
         context,

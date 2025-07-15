@@ -1,10 +1,18 @@
 import murmurhash from "murmurhash";
+import {Node} from "prosemirror-model";
 import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
-import {printContentSingleLineTextSnippetForServer} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
+import {
+    getContentReferencesForServerPrintSingleLineTextSnippet,
+    printContentSingleLineTextSnippetForServer,
+} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {ServerContentSessionActionContextModules} from "~/server/context/server_content_action_context.js";
 import {getDocumentPreviewIfPossible} from "~/server/documents/data/documents_table.js";
-import {getChannelIfPossible} from "~/server/forum/data/forum_table.js";
+import {
+    getChannelIfPossible,
+    getChannelPreviewIfPossible,
+    getPostContentAndChannelPreviewIfPossible,
+} from "~/server/forum/data/forum_table.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
@@ -75,14 +83,18 @@ import {
 import {
     authorizeSpaceAccess,
     getAccount,
+    getAccountIfExists,
     getSpaceAccountNameSearchIndex,
     getSpaceAccountSettings,
 } from "~/server/spaces/spaces_table.js";
+import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {
     getTaskCollectionSearchResultBodyTextSnippetIfPossible,
     getTaskCollectionSearchResultIfPossible,
 } from "~/server/tasks/data/task_table.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
+import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {ContextBatcher} from "~/shared/context/batch_context_module.js";
@@ -92,6 +104,10 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
+import {
+    createPostSearchEntityTitleWithAlreadySnippedContent,
+    getPostSearchEntityTitleContentSnippet,
+} from "~/shared/forum/create_post_search_entity_title.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
@@ -106,10 +122,13 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.js";
 import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
 import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
@@ -130,6 +149,7 @@ import {
     getSearchMentionEntityTypes,
     isSearchMentionEntityId,
     parseSearchDynamicEntityId,
+    parseSearchMentionEntityId,
     printSearchDynamicEntityId,
 } from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModel} from "~/shared/search/search_entity_media_model.js";
@@ -148,6 +168,8 @@ import {SearchOptions, standardSearchOptions} from "~/shared/search/search_optio
 import {searchStaticEntityById} from "~/shared/search/search_static_entity.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {searchShortcutFavoriteEntityMaxCount} from "~/shared/spaces/space_account_settings.js";
+import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
+import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -2079,8 +2101,8 @@ const SearchEntityCache = new ContextCache<
 >({whenActorChanges: "SafelyReset"});
 
 const SearchEntityBatcher = new ContextBatcher<
-    SearchSessionActionContextModules,
-    {spaceId: SpaceId; entityId: SearchDynamicEntityId},
+    SearchSessionActionContextModules & {tasks: TaskContextModuleBase},
+    {spaceId: SpaceId; entityId: SearchDynamicEntityId; seen: ReadonlySet<SearchEntityId>},
     SearchEntityModelBaseResult | null
 >(async (context, inputs) => {
     const commands = inputs.map(({spaceId, entityId}) => {
@@ -2105,7 +2127,7 @@ const SearchEntityBatcher = new ContextBatcher<
 
     return runAllPromises(
         commands.map(async (command, index) => {
-            const spaceId = inputs[index]!.spaceId;
+            const {spaceId, seen} = inputs[index]!;
             const doc = docsById.get(command.id);
 
             // Make sure the doc we get is from the right space. Providing a `routing`
@@ -2123,44 +2145,34 @@ const SearchEntityBatcher = new ContextBatcher<
 
             if (!doc) {
                 const entityId = fromSearchEntityIdForKeywordIndex(commands[index]!.id);
-                const entityIdObject = parseSearchDynamicEntityId(entityId);
 
-                // If we couldn't find a document search entity that might be because the
-                // document hasn't been indexed in OpenSearch yet. Document indexing is
-                // throttled since updates to a document happen many times per minute (even once
-                // per keystroke). That means right after a document is created it won't show up
-                // in the OpenSearch index until the throttled indexing job runs (10s throttle +
-                // indexing time).
+                if (!isSearchMentionEntityId(entityId)) return null;
+
+                // If we couldn't a specific search entity that might be because the search
+                // entity hasn't been indexed in OpenSearch yet. Document indexing, for
+                // example, is throttled since updates to a document happen many times per
+                // minute (even once per keystroke). That means right after a document is
+                // created it won't show up in the OpenSearch index until the throttled
+                // indexing job runs (10s throttle + indexing time).
                 //
-                // Instead of not showing the document to the user in their search affinity list
-                // (which would be a very bad UX since how else will the user find documents
-                // they just created but accidentally navigated away from?) we read the document
-                // from DynamoDB (where the document will definitely exist) if the document is
-                // not found in the OpenSearch index.
+                // Instead of not showing the document to the user in a mention or in the
+                // author's search affinity list (which would be a very bad UX since how else
+                // will the user find documents they just created but accidentally navigated
+                // away from?) we read the document from DynamoDB (where the document will
+                // definitely exist) if the document is not found in the OpenSearch index.
                 //
-                // If the document was found in the OpenSearch index but its access policy
+                // If the entity WAS found in the OpenSearch index but its access policy
                 // doesn't allow us to read it then we don't check DynamoDB since we expect the
                 // same result.
-                if (entityIdObject.type === "Document") {
-                    const documentResult = await getDocumentPreviewIfPossible(
-                        context,
-                        entityIdObject.documentId,
-                    );
-                    if (documentResult) {
-                        if (!documentResult.ok) {
-                            return {isPrivate: true};
-                        }
-                        return {
-                            isPrivate: false,
-                            id: entityId,
-                            title: documentResult.value.getTitle(),
-                            titleVersion: {type: "Integer", version: documentResult.value.version},
-                            media: null,
-                        };
-                    }
-                }
-
-                return null;
+                return fallbackGetSearchEntityBaseIfPossible(
+                    // Expect strong read consistency since if we can't find the entity in
+                    // OpenSearch that implies it was just created so we're running the risk of
+                    // eventual consistency lag anyway.
+                    context.dynamo.expectStrongReadConsistency(),
+                    spaceId,
+                    entityId,
+                    seen,
+                );
             }
 
             const entityId = fromSearchEntityIdForKeywordIndex(doc.id);
@@ -2192,6 +2204,198 @@ const SearchEntityBatcher = new ContextBatcher<
     );
 });
 
+export const fallbackGetSearchEntityBaseIfPossibleTestCounter =
+    new TestCounter<SearchMentionEntityId>();
+
+/**
+ * If we can't find a search entity in OpenSearch then we run this fallback
+ * which tries to load the search entity from its original source. Which is
+ * DynamoDB for most things but we load tasks from `TaskRealtimeService`.
+ */
+async function fallbackGetSearchEntityBaseIfPossible(
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    spaceId: SpaceId,
+    entityId: SearchMentionEntityId,
+    seen: ReadonlySet<SearchEntityId>,
+): Promise<SearchEntityModelBaseResult | null> {
+    fallbackGetSearchEntityBaseIfPossibleTestCounter.incrementForTest(entityId);
+
+    const entityIdObject = parseSearchMentionEntityId(entityId);
+
+    switch (entityIdObject.type) {
+        case "Document": {
+            const documentResult = await getDocumentPreviewIfPossible(
+                context,
+                entityIdObject.documentId,
+                {consistency: "StrongWithinCache"},
+            );
+            if (!documentResult) return null;
+            if (!documentResult.ok) return {isPrivate: true};
+
+            return {
+                isPrivate: false,
+                id: entityId,
+                title: documentResult.value.getTitle(),
+                titleVersion: {type: "Integer", version: documentResult.value.version},
+                media: null,
+            };
+        }
+        case "Channel": {
+            const channelResult = await getChannelPreviewIfPossible(
+                context,
+                entityIdObject.channelId,
+                {consistency: "StrongWithinCache"},
+            );
+            if (!channelResult) return null;
+            if (!channelResult.ok) return {isPrivate: true};
+
+            return {
+                isPrivate: false,
+                id: entityId,
+                title: channelResult.value.name,
+                titleVersion: {type: "Integer", version: channelResult.value.version},
+                media: null,
+            };
+        }
+        case "Task": {
+            const taskResult = await context.tasks.getTaskWithoutDependenciesIfPossible(
+                spaceId,
+                entityIdObject.taskId,
+            );
+            if (!taskResult) return null;
+            if (!taskResult.ok) return {isPrivate: true};
+            const task = taskResult.value;
+
+            return {
+                ...getTaskSearchEntityBase(task),
+                isPrivate: false,
+                id: entityId,
+            };
+        }
+        case "TaskCollection": {
+            const collectionResult = await context.tasks.getCollectionIfPossible(
+                spaceId,
+                entityIdObject.collectionId,
+            );
+            if (!collectionResult) return null;
+            if (!collectionResult.ok) return {isPrivate: true};
+            const collection = collectionResult.value;
+
+            return {
+                ...getTaskCollectionSearchEntityBase(collection),
+                isPrivate: false,
+                id: entityId,
+            };
+        }
+        case "Post": {
+            const postResult = await getPostContentAndChannelPreviewIfPossible(
+                context,
+                entityIdObject.postId,
+                {consistency: "StrongWithinCache"},
+            );
+            if (!postResult) return null;
+            if (!postResult.ok) return {isPrivate: true};
+            const post = postResult.value;
+
+            const postContentTitleSnippet = getPostSearchEntityTitleContentSnippet(post.content);
+
+            const [author, references] = await runAllPromises([
+                getAccount(
+                    // It's fine to read references with eventual consistency.
+                    context.dynamo.unexpectStrongReadConsistency(),
+                    spaceId,
+                    post.authorId,
+                ),
+                fallbackGetSearchContentReferences(
+                    // It's fine to read references with eventual consistency.
+                    context.dynamo.unexpectStrongReadConsistency(),
+                    spaceId,
+                    entityId,
+                    postContentTitleSnippet,
+                    seen,
+                ),
+            ]);
+
+            const title = createPostSearchEntityTitleWithAlreadySnippedContent(
+                post.channel.name,
+                postContentTitleSnippet,
+                getContentReferencesForServerPrintSingleLineTextSnippet(references),
+            );
+
+            return {
+                isPrivate: false,
+                id: entityId,
+                title,
+                titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
+                media: {type: "Account", account: author},
+            };
+        }
+        default:
+            throw exhaustive(entityIdObject);
+    }
+}
+
+async function fallbackGetSearchContentReferences(
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
+    spaceId: SpaceId,
+    originEntityId: SearchEntityId,
+    content: Node,
+    seen: ReadonlySet<SearchEntityId>,
+): Promise<ContentReferences> {
+    seen = new Set(addToIterable(seen, originEntityId));
+
+    const referencedIds = getContentReferencedIdsForNode(content);
+    const referencedSearchEntityIds = Array.from(referencedIds.searchEntityIds);
+
+    const [referencedAccounts, referencedSearchEntities] = await runAllPromises([
+        runAllPromises(
+            mapIterable(referencedIds.accountIds, accountId => {
+                // You may have copy/pasted some content from a different space. In that case a
+                // mentioned user may not exist.
+                return getAccountIfExists(context, spaceId, accountId);
+            }),
+        ),
+        runAllPromises(
+            mapIterable(referencedSearchEntityIds, entityId => {
+                // If we've already seen this `entityId` then instead of loading it again
+                // (which would cause an infinite loop), break the cycle.
+                if (seen.has(entityId)) {
+                    return {
+                        isPrivate: false,
+                        entity: new SearchEntityModel({
+                            id: entityId,
+                            title: "[…]",
+                            titleVersion: null,
+                            media: null,
+                        }),
+                    };
+                }
+
+                // You may have copy/pasted some content from a different space. In that case a
+                // mentioned entity may not exist.
+                return getSearchMentionEntityIfPossible(context, spaceId, entityId, seen);
+            }),
+        ),
+    ]);
+
+    return {
+        ...emptyContentReferences,
+        accountById: new Map(
+            filterMapIterable(referencedAccounts, account => {
+                if (!account) return;
+                return [account.id, account];
+            }),
+        ),
+        searchEntityById: new Map(
+            filterMapIterable(referencedSearchEntities, (searchEntity, index) => {
+                if (!searchEntity) return;
+                const searchEntityId = referencedSearchEntityIds[index]!;
+                return [searchEntityId, searchEntity];
+            }),
+        ),
+    };
+}
+
 /**
  * Get the titles and media of the provided search entity if the search
  * entity exists and the account has access to the search entity. The media
@@ -2199,14 +2403,15 @@ const SearchEntityBatcher = new ContextBatcher<
  * ready.
  */
 async function getSearchEntityBaseIfPossible(
-    context: SearchSessionActionContext,
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
+    seen: ReadonlySet<SearchEntityId> = emptySet,
 ): Promise<SearchEntityModelBaseResult | null> {
     await authorizeSpaceAccess(context, spaceId);
 
     return SearchEntityCache.get(context, `${spaceId}:${entityId}`, () => {
-        return context.batch.execute(SearchEntityBatcher, {spaceId, entityId});
+        return context.batch.execute(SearchEntityBatcher, {spaceId, entityId, seen});
     });
 }
 
@@ -2217,7 +2422,7 @@ async function getSearchEntityBaseIfPossible(
  * `SearchEntityRegistry`.
  */
 export async function getSearchEntityIfPossible(
-    context: SearchSessionActionContext,
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     entityId: SearchDynamicEntityId,
 ): Promise<
@@ -2256,7 +2461,7 @@ export async function getSearchEntityIfPossible(
  * automatically batch reads to OpenSearch.
  */
 export async function getSearchAffinityEntityIfPossible(
-    context: SearchSessionActionContext,
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     entityId: SearchAffinityEntityId & SearchDynamicEntityId,
 ): Promise<
@@ -2295,11 +2500,12 @@ export async function getSearchAffinityEntityIfPossible(
  * automatically batch reads to OpenSearch.
  */
 export async function getSearchMentionEntityIfPossible(
-    context: SearchSessionActionContext,
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     entityId: SearchMentionEntityId,
+    seen?: ReadonlySet<SearchEntityId>,
 ): Promise<{isPrivate: false; entity: SearchEntityModel} | {isPrivate: true} | null> {
-    const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId);
+    const entity = await getSearchEntityBaseIfPossible(context, spaceId, entityId, seen);
     if (entity === null || entity.isPrivate === true) return entity;
 
     return {
@@ -2330,7 +2536,7 @@ export async function getSearchMentionEntityIfPossible(
  * exist in `results` and vice versa.
  */
 export async function searchByAffinity(
-    context: SearchSessionActionContext,
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
 ): Promise<{
     hasMoreFavoriteResults: boolean;
@@ -3037,7 +3243,7 @@ export async function searchTaskCollectionsByAffinity(
  * `OrderKey`.
  */
 export async function getAllSearchFavoriteEntities(
-    context: SearchSessionActionContext,
+    context: Context<SearchSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
 ): Promise<ReadonlyArray<SearchFavoriteEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);

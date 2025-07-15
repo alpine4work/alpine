@@ -1,5 +1,5 @@
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
-import {getContentReferencesForPrintSingleLineTextSnippet} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
+import {getContentReferencesForClientPrintSingleLineTextSnippet} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
@@ -17,6 +17,6 @@ export function renderContentMentionToTextForClient(
 ): string {
     return renderContentMentionToText(
         mention,
-        getContentReferencesForPrintSingleLineTextSnippet(get, references, options),
+        getContentReferencesForClientPrintSingleLineTextSnippet(get, references, options),
     );
 }

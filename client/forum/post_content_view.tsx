@@ -7,7 +7,7 @@ import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.j
 import {ContentView} from "~/client/content/content_view.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
-import {getContentReferencesForPrintSingleLineTextSnippet} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
+import {getContentReferencesForClientPrintSingleLineTextSnippet} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -135,7 +135,7 @@ export function PostContentView({
                         title: createPostSearchEntityTitle(
                             post.channel.name,
                             post.content.doc,
-                            getContentReferencesForPrintSingleLineTextSnippet(
+                            getContentReferencesForClientPrintSingleLineTextSnippet(
                                 get,
                                 post.content.references,
                                 {accountRegistry, searchEntityRegistry},

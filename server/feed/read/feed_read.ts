@@ -15,7 +15,10 @@ import {getFileChannelEntityModelIfPossible} from "~/server/forum/data/get_file_
 import {getAccount} from "~/server/spaces/spaces_table.js";
 import {getFileTaskCollectionEntityModelIfPossible} from "~/server/tasks/data/get_file_task_collection_entity_model_if_possible.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
-import {authorizeTaskCollectionAccessIfPossible} from "~/server/tasks/data/task_table.js";
+import {
+    authorizeTaskCollectionAccessIfPossible,
+    createTaskCollectionNotFoundError,
+} from "~/server/tasks/data/task_table.js";
 import {Context} from "~/shared/context/context.js";
 import {ErrorBase} from "~/shared/error/error.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
@@ -57,7 +60,13 @@ async function authorizeFeedEntryIfPossible(
             return authorizeDocumentAccessIfPossible(context, entry.documentId, "View");
         }
         case "TaskCollection": {
-            return authorizeTaskCollectionAccessIfPossible(context, entry.collectionId, "View");
+            const result = await authorizeTaskCollectionAccessIfPossible(
+                context,
+                entry.collectionId,
+                "View",
+            );
+            if (!result) throw createTaskCollectionNotFoundError(entry.collectionId);
+            return result;
         }
         case "Channel": {
             return authorizeChannelAccessIfPossible(context, entry.channelId, "View");

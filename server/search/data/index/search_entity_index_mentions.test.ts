@@ -14,6 +14,7 @@ import {
 } from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
@@ -63,9 +64,20 @@ afterEach(() => {
 const context = createTestContext({
     shouldStartOpensearch: true,
     getSearchEntityIfPossible: async (context, spaceId, entityId) => {
+        const newContext = context.clone({
+            tasks: new TestTaskContextModule({
+                shouldSkipIndexing: !testContext.isOpensearchEnabled,
+                dangerouslyEscalateToSystemContext: testContext.escalateToSystemContext,
+                // Always return null for any `getTaskWithoutDependenciesIfPossible()` calls or
+                // `getCollectionIfPossible()` calls made by
+                // `fallbackGetSearchEntityBaseIfPossible()` instead of throwing.
+                alwaysNotFound: true,
+            }),
+        });
+
         return getSearchMentionEntityIfPossible(
             // @ts-expect-error
-            context,
+            newContext,
             spaceId,
             entityId,
         );
@@ -91,6 +103,8 @@ const context = createTestContext({
         }
     },
 });
+
+const testContext = context;
 
 const testCaseByEntityType: Record<
     SearchMentionEntityType,

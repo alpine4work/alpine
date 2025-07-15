@@ -6,7 +6,9 @@ import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
     authorizeTaskAccess,
+    authorizeTaskAccessIfPossible,
     authorizeTaskCollectionAccess,
+    authorizeTaskCollectionAccessIfPossible,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
 } from "~/server/tasks/data/task_table.js";
@@ -26,9 +28,11 @@ import {
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
+import {ErrorBase} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {Result} from "~/shared/helpers/control/result.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
@@ -553,8 +557,29 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
-    ) {
+    ): Promise<void> {
         await authorizeTaskAccess(context, taskId, expectedAccessLevel, {
+            getTaskIndexDocIfExists: taskId =>
+                this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
+            getCollectionIndexDocIfExists: collectionId =>
+                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        });
+    }
+
+    /**
+     * Authorizes that an account actor has access to a task. Throws an error if
+     * we're unauthorized.
+     *
+     * Will use in-memory tasks/collections when available and otherwise will load
+     * from DynamoDB.
+     */
+    public authorizeTaskAccessIfPossible(
+        context: ServerActionContext,
+        spaceId: SpaceId,
+        taskId: TaskId,
+        expectedAccessLevel: AccessLevel,
+    ): Promise<Result<unknown, ErrorBase> | null> {
+        return authorizeTaskAccessIfPossible(context, taskId, expectedAccessLevel, {
             getTaskIndexDocIfExists: taskId =>
                 this._storeBySpaceId.get(spaceId)?.getTaskIfLoaded(taskId),
             getCollectionIndexDocIfExists: collectionId =>
@@ -574,8 +599,27 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
-    ) {
+    ): Promise<void> {
         await authorizeTaskCollectionAccess(context, collectionId, expectedAccessLevel, {
+            getCollectionIndexDocIfExists: collectionId =>
+                this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
+        });
+    }
+
+    /**
+     * Authorizes that an account actor has access to a collection. Throws an error
+     * if we're unauthorized.
+     *
+     * Will use in-memory tasks/collections when available and otherwise will load
+     * from DynamoDB.
+     */
+    public async authorizeCollectionAccessIfPossible(
+        context: ServerActionContext,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+        expectedAccessLevel: AccessLevel,
+    ): Promise<Result<unknown, ErrorBase> | null> {
+        return authorizeTaskCollectionAccessIfPossible(context, collectionId, expectedAccessLevel, {
             getCollectionIndexDocIfExists: collectionId =>
                 this._storeBySpaceId.get(spaceId)?.getCollectionIfLoaded(collectionId),
         });

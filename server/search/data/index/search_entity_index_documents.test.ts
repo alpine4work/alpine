@@ -19,6 +19,7 @@ import {
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
@@ -1491,7 +1492,7 @@ test("newly created documents will be visible in search even before indexing", a
         body: null,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1508,7 +1509,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session2), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1534,7 +1535,7 @@ test("newly created documents will be visible in search even before indexing", a
         body: null,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1551,7 +1552,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session2), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1570,7 +1571,7 @@ test("newly created documents will be visible in search even before indexing", a
 
     await document.access.revokeDefault(session1);
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1587,7 +1588,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session2), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [],
@@ -1604,7 +1605,7 @@ test("newly created documents will be visible in search even before indexing", a
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1621,7 +1622,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session2), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1640,7 +1641,7 @@ test("newly created documents will be visible in search even before indexing", a
 
     await document.access.revokeDefault(session1);
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1657,7 +1658,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session2), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1677,7 +1678,7 @@ test("newly created documents will be visible in search even before indexing", a
     import.meta.jest.advanceTimersByTime(10 * 1000);
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -1694,7 +1695,7 @@ test("newly created documents will be visible in search even before indexing", a
         ],
     });
 
-    expect(await searchByAffinity(session2.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session2), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [],

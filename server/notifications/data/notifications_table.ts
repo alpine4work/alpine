@@ -3670,10 +3670,12 @@ const processNotificationCreateTaskCommentEvent = createNotificationEventProcess
             accountIds,
         };
     },
-    authorizeAccess: (context, event) => {
-        return authorizeTaskAccessIfPossible(context, event.taskId, "View", null, {
-            consistency: "StrongWithinCache",
-        });
+    authorizeAccess: async (context, event) => {
+        return assertExists(
+            await authorizeTaskAccessIfPossible(context, event.taskId, "View", null, {
+                consistency: "StrongWithinCache",
+            }),
+        );
     },
     updateInboxEntry: (context, event, {info: {}, accountId}) => {
         return updateInboxEntry(

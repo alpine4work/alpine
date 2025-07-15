@@ -1,5 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {getSearchEntityPath} from "~/client/search/core/get_search_entity_path.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {getSearchEntityIndexesForTest} from "~/server/search/data/index/search_entity_index.js";
@@ -10,9 +11,11 @@ import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collecti
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+import {generateId} from "~/shared/id/id.js";
 import {
     SearchMentionEntityId,
     SearchMentionEntityType,
@@ -210,4 +213,64 @@ for (const [entityType, testCase] of getObjectEntriesWithKeyofType(testCaseByEnt
         await expect(page.getByRole("link", {name: "Dolor Sit Amet"})).toBeVisible();
         await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeHidden();
     });
+
+    test(
+        quote`can render ${entityType} immediately after creation (possibly before it’s indexed)`,
+        async ({context: browserContext, page, viewport}) => {
+            assert(viewport);
+
+            const space = await TestSpace.create(context, {name: "Test Space"});
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/s/${space.id}/documents/${generateId()}?create`);
+
+            // Wait for React to mount
+            await page.waitForFunction("dev.contentEditor");
+
+            await page.getByRole("textbox", {name: "Document"}).focus();
+
+            await page
+                .getByRole("textbox", {name: "Document"})
+                .click({position: {x: viewport.width / 2, y: viewport.height - 100}});
+
+            await page.getByRole("textbox", {name: "Document"}).pressSequentially("Mention: ");
+
+            const entity = await testCase.create({
+                session,
+                title: "Lorem Ipsum",
+                access: "Public",
+            });
+
+            await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeHidden();
+
+            await page.getByRole("textbox", {name: "Document"}).evaluate(
+                (documentElement, url) => {
+                    const pasteEvent = new Event("paste", {bubbles: true, cancelable: true});
+
+                    Object.assign(pasteEvent, {
+                        clipboardData: {
+                            types: ["text/plain"],
+                            getData: (type: string) => {
+                                if (type !== "text/plain") return null;
+                                return url;
+                            },
+                        },
+                    });
+
+                    documentElement.dispatchEvent(pasteEvent);
+                },
+                `${services.getBaseUrl()}${getSearchEntityPath({
+                    spaceId: space.id,
+                    entityId: entity.id,
+                    randomSeed: generateId(),
+                    currentTime: new Date(),
+                    routeLayout: "wide",
+                })}`,
+            );
+
+            await expect(page.getByRole("link", {name: "Lorem Ipsum"})).toBeVisible();
+            await expect(page.getByRole("link", {name: "Unknown"})).toBeHidden();
+        },
+    );
 }

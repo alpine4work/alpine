@@ -31,7 +31,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {SpaceId, TaskRealtimeClientId} from "~/shared/id/types/id_types.js";
-import {SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -45,7 +44,6 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {
-    TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
     TaskRealtimeLoadQueriesInput,
     TaskRealtimeLoadQueriesOutput,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
@@ -297,14 +295,47 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
         return {ok: true, queries, extraQueries, updateEvent};
     }
 
+    public override getTaskWithoutDependenciesIfPossible(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                actor: DynamoSessionActorContextModule;
+            }>,
+    ): Promise<never> {
+        throw new UnimplementedError(
+            "`TestTaskContextModuleWithRealtimeServer.getTaskWithoutDependenciesIfPossible()` should be implementable but we haven’t implemented it yet",
+        );
+    }
+
     public override getTaskWithoutDependencies(
         this: TaskContextModuleBase &
             ContextModuleBase<{
                 actor: DynamoSessionActorContextModule;
             }>,
-    ): Promise<SchemaType<typeof TaskRealtimeGetTaskWithoutDependenciesOutputSchema>> {
+    ): Promise<never> {
         throw new UnimplementedError(
             "`TestTaskContextModuleWithRealtimeServer.getTaskWithoutDependencies()` should be implementable but we haven’t implemented it yet",
+        );
+    }
+
+    public override getCollectionIfPossible(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                actor: DynamoSessionActorContextModule;
+            }>,
+    ): Promise<never> {
+        throw new UnimplementedError(
+            "`TestTaskContextModuleWithRealtimeServer.getCollectionIfPossible()` should be implementable but we haven’t implemented it yet",
+        );
+    }
+
+    public override getCollection(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                actor: DynamoSessionActorContextModule;
+            }>,
+    ): Promise<never> {
+        throw new UnimplementedError(
+            "`TestTaskContextModuleWithRealtimeServer.getCollection()` should be implementable but we haven’t implemented it yet",
         );
     }
 }

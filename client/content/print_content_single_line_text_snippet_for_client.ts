@@ -27,7 +27,7 @@ export function printContentSingleLineTextSnippetForClient(
 ): string {
     return printContentSingleLineTextSnippet(
         content.doc,
-        getContentReferencesForPrintSingleLineTextSnippet(get, content.references, options),
+        getContentReferencesForClientPrintSingleLineTextSnippet(get, content.references, options),
     );
 }
 
@@ -41,12 +41,16 @@ export function printContentSingleLineTextSnippetPreservingMarksForClient(
     },
 ): Array<{marks: ReadonlyArray<Mark>; text: string}> {
     return printContentSingleLineTextSnippetPreservingMarks(content.doc, {
-        ...getContentReferencesForPrintSingleLineTextSnippet(get, content.references, options),
+        ...getContentReferencesForClientPrintSingleLineTextSnippet(
+            get,
+            content.references,
+            options,
+        ),
         shouldPreserveMark: options.shouldPreserveMark,
     });
 }
 
-export function getContentReferencesForPrintSingleLineTextSnippet(
+export function getContentReferencesForClientPrintSingleLineTextSnippet(
     get: <Value>(store: Store<Value>) => Value,
     references: ContentReferences,
     {

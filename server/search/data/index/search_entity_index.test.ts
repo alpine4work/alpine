@@ -40,6 +40,7 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -1844,6 +1845,8 @@ test("get search entities only sees entities the account has access to", async (
     await context.opensearch.refresh(SearchEntityKeywordIndex);
     await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
 
+    const testContext = context;
+
     const getSearchEntityIds = async (context: TestSessionActionContext, space: TestSpace) => {
         const entityIds: Array<SearchDynamicEntityId> = [
             `Document:${document.id}`,
@@ -1859,7 +1862,18 @@ test("get search entities only sees entities the account has access to", async (
         ];
 
         const entityResults = await runAllPromises(
-            entityIds.map(entityId => getSearchEntityIfPossible(context, space.id, entityId)),
+            entityIds.map(entityId =>
+                getSearchEntityIfPossible(
+                    context.clone({
+                        tasks: new TestTaskContextModule({
+                            shouldSkipIndexing: !testContext.isOpensearchEnabled,
+                            dangerouslyEscalateToSystemContext: testContext.escalateToSystemContext,
+                        }),
+                    }),
+                    space.id,
+                    entityId,
+                ),
+            ),
         );
 
         return filterMapArray(entityResults, entityResult =>
@@ -2675,7 +2689,7 @@ test("search by affinity can include my tasks", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -2740,7 +2754,7 @@ test("search by affinity can include the task personal view in favorites", async
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -2800,7 +2814,7 @@ test("search by affinity can include the task personal view in favorites even if
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -2889,7 +2903,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [],
         results: [
@@ -2931,7 +2945,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document3.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -2984,7 +2998,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document4.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3037,7 +3051,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document5.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3100,7 +3114,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document4.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3163,7 +3177,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document4.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3231,7 +3245,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document5.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3294,7 +3308,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document6.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3367,7 +3381,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document7.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3450,7 +3464,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document8.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3533,7 +3547,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document9.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3617,7 +3631,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3701,7 +3715,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3785,7 +3799,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3859,7 +3873,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: false,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -3944,7 +3958,7 @@ test("search by affinity will also return up to five favorites", async () => {
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -4047,7 +4061,7 @@ test("search by affinity will also return up to five favorites", async () => {
         entityId: `Document:${document14.id}`,
     });
 
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -4142,7 +4156,7 @@ test("search by affinity will also return up to five favorites", async () => {
     // `false` because there are truly only 4 favorites the user has access to. But
     // because there are >11 favorited entities and we don't check whether the user
     // has access to all of them we can't be certain there aren't more favorites.
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -4221,7 +4235,7 @@ test("search by affinity will also return up to five favorites", async () => {
     // `false` because there are truly only 2 favorites the user has access to. But
     // because there are >11 favorited entities and we don't check whether the user
     // has access to all of them we can't be certain there aren't more favorites.
-    expect(await searchByAffinity(session1.action(), space.id)).toEqual({
+    expect(await searchByAffinity(TestTask.action(session1), space.id)).toEqual({
         hasMoreFavoriteResults: true,
         favoriteResults: [
             new SearchFavoriteEntityResultModel({
@@ -4603,13 +4617,21 @@ test("make sure cross space reads don’t work", async () => {
     expect(await testSearch(session2)).toEqual([]);
 
     expect(
-        await getSearchEntityIfPossible(session1.action(), space1.id, `Channel:${channel.id}`),
+        await getSearchEntityIfPossible(
+            TestTask.action(session1),
+            space1.id,
+            `Channel:${channel.id}`,
+        ),
     ).not.toBeNull();
     expect(
-        await getSearchEntityIfPossible(session2.action(), space2.id, `Channel:${channel.id}`),
+        await getSearchEntityIfPossible(
+            TestTask.action(session2),
+            space2.id,
+            `Channel:${channel.id}`,
+        ),
     ).toBeNull();
     await expect(
-        getSearchEntityIfPossible(session2.action(), space1.id, `Channel:${channel.id}`),
+        getSearchEntityIfPossible(TestTask.action(session2), space1.id, `Channel:${channel.id}`),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -4633,7 +4655,7 @@ test("reading search entities is batched and cached", async () => {
 
     expect(getCount()).toEqual(0);
 
-    const actionContext = session.action();
+    const actionContext = TestTask.action(session);
 
     await runAllPromises([
         getSearchEntityIfPossible(actionContext, space.id, `Channel:${channel1.id}`),

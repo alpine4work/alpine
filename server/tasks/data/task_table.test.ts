@@ -64,6 +64,7 @@ import {
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -17576,7 +17577,7 @@ test("account can remove access from itself", async () => {
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -17595,7 +17596,7 @@ test("account can remove access from itself", async () => {
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -17617,7 +17618,7 @@ test("account can remove access from itself", async () => {
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -17640,27 +17641,27 @@ test("can authorize task with system actor and anonymous actor and impersonated 
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
     await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
     expect(
-        (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit"))?.ok,
     ).toEqual(true);
 
     await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
     expect(
-        (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit"))?.ok,
     ).toEqual(false);
 
     await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
         UnauthenticatedError,
     );
     expect(
-        (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit"))?.ok,
     ).toEqual(false);
 
     await authorizeTaskAccess(
@@ -17675,7 +17676,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
                 task1.id,
                 "Edit",
             )
-        ).ok,
+        )?.ok,
     ).toEqual(true);
 
     await expect(
@@ -17692,7 +17693,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
                 task1.id,
                 "Edit",
             )
-        ).ok,
+        )?.ok,
     ).toEqual(false);
 
     await commitTaskActionTransaction(TestTask.action(session1), space.id, [
@@ -17710,27 +17711,27 @@ test("can authorize task with system actor and anonymous actor and impersonated 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
     await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
     expect(
-        (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit"))?.ok,
     ).toEqual(true);
 
     await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
     expect(
-        (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit"))?.ok,
     ).toEqual(false);
 
     await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
         UnauthenticatedError,
     );
     expect(
-        (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit"))?.ok,
     ).toEqual(false);
 
     await expect(
@@ -17747,7 +17748,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
                 task1.id,
                 "Edit",
             )
-        ).ok,
+        )?.ok,
     ).toEqual(false);
 
     await expect(
@@ -17764,7 +17765,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
                 task1.id,
                 "Edit",
             )
-        ).ok,
+        )?.ok,
     ).toEqual(false);
 
     await expect(
@@ -17785,27 +17786,27 @@ test("can authorize task with system actor and anonymous actor and impersonated 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
     await authorizeTaskAccess(space.systemAction(), task1.id, "Edit");
     expect(
-        (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(space.systemAction(), task1.id, "Edit"))?.ok,
     ).toEqual(true);
 
     await expect(authorizeTaskAccess(otherSpace.systemAction(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
     expect(
-        (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(otherSpace.systemAction(), task1.id, "Edit"))?.ok,
     ).toEqual(false);
 
     await expect(authorizeTaskAccess(context.anonymousAction(), task1.id, "Edit")).rejects.toThrow(
         UnauthenticatedError,
     );
     expect(
-        (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit")).ok,
+        (await authorizeTaskAccessIfPossible(context.anonymousAction(), task1.id, "Edit"))?.ok,
     ).toEqual(false);
 
     await expect(
@@ -17822,7 +17823,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
                 task1.id,
                 "Edit",
             )
-        ).ok,
+        )?.ok,
     ).toEqual(false);
 
     await expect(
@@ -17839,7 +17840,7 @@ test("can authorize task with system actor and anonymous actor and impersonated 
                 task1.id,
                 "Edit",
             )
-        ).ok,
+        )?.ok,
     ).toEqual(false);
 });
 
@@ -17860,7 +17861,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -17900,7 +17901,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -17922,7 +17923,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -17945,7 +17946,7 @@ test("account can remove access from itself then grant it back with lease", asyn
     );
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 });
@@ -17967,7 +17968,7 @@ test("account can remove access from itself but can’t grant it back with an in
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18007,7 +18008,7 @@ test("account can remove access from itself but can’t grant it back with an in
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18029,7 +18030,7 @@ test("account can remove access from itself but can’t grant it back with an in
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18056,7 +18057,7 @@ test("account can remove access from itself but can’t grant it back with an in
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -18079,7 +18080,7 @@ test("account can remove access from itself but can’t use another account’s 
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18119,7 +18120,7 @@ test("account can remove access from itself but can’t use another account’s 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18141,7 +18142,7 @@ test("account can remove access from itself but can’t use another account’s 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18168,7 +18169,7 @@ test("account can remove access from itself but can’t use another account’s 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -18191,7 +18192,7 @@ test("account can remove access from itself but can’t grant itself access back
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18231,7 +18232,7 @@ test("account can remove access from itself but can’t grant itself access back
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18253,7 +18254,7 @@ test("account can remove access from itself but can’t grant itself access back
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18307,7 +18308,7 @@ test("account can remove access from itself but can’t grant itself access back
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -18329,7 +18330,7 @@ test("account can remove access from itself but can’t grant itself access back
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18369,7 +18370,7 @@ test("account can remove access from itself but can’t grant itself access back
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18391,7 +18392,7 @@ test("account can remove access from itself but can’t grant itself access back
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18424,7 +18425,7 @@ test("account can remove access from itself but can’t grant itself access back
             PermissionDeniedError,
         );
         expect(
-            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok,
+            (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok,
         ).toEqual(false);
     } finally {
         Date.now = originalDateNow;
@@ -18448,7 +18449,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18486,7 +18487,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     );
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18505,7 +18506,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18527,7 +18528,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18554,7 +18555,7 @@ test("won’t create lease if committed action doesn’t remove access", async (
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -18577,7 +18578,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18637,7 +18638,7 @@ test("can’t create lease with actions you aren’t allowed to commit", async (
     );
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 });
@@ -18659,7 +18660,7 @@ test("account can’t remove access from itself then grant it back with lease th
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18724,7 +18725,7 @@ test("account can’t remove access from itself then grant it back with lease th
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18774,7 +18775,7 @@ test("account can’t remove access from itself then grant it back with lease th
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18869,7 +18870,7 @@ test("account can’t remove access from itself then grant it back with lease th
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18905,7 +18906,7 @@ test("account can’t remove access from itself then grant it back with lease th
     );
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 });
@@ -18927,7 +18928,7 @@ test("account can remove access from itself but can’t grant it back if another
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -18967,7 +18968,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -18989,7 +18990,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -19018,7 +19019,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -19040,7 +19041,7 @@ test("account can remove access from itself but can’t grant it back if another
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -19080,7 +19081,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -19102,7 +19103,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -19131,7 +19132,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -19153,7 +19154,7 @@ test("account can remove access from itself but can’t grant it back if another
     await task1.addCollection(session2, collection1);
 
     await authorizeTaskAccess(session1.action(), task1.id, "Edit");
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -19193,7 +19194,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -19215,7 +19216,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
@@ -19249,7 +19250,7 @@ test("account can remove access from itself but can’t grant it back if another
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit")).rejects.toThrow(
         PermissionDeniedError,
     );
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 });
@@ -21083,10 +21084,12 @@ test("can authorize task collections in various states as various actors", async
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
     ) => {
-        const result = await authorizeTaskCollectionAccessIfPossible(
-            context,
-            collectionId,
-            expectedAccessLevel,
+        const result = assertExists(
+            await authorizeTaskCollectionAccessIfPossible(
+                context,
+                collectionId,
+                expectedAccessLevel,
+            ),
         );
 
         try {
@@ -22971,37 +22974,37 @@ test("can authorize tasks in various states as various actors", async () => {
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), publicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), publicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), publicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), publicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(context.anonymousAction(), publicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), publicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSpace.systemAction(), publicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23009,48 +23012,48 @@ test("can authorize tasks in various states as various actors", async () => {
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), publicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), publicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), publicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), publicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23058,11 +23061,11 @@ test("can authorize tasks in various states as various actors", async () => {
             context.anonymousAction(),
             publicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), publicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
@@ -23070,70 +23073,70 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSpace.systemAction(),
             publicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), publicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), publicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), publicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), publicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(context.anonymousAction(), publicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), publicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSpace.systemAction(), publicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23141,43 +23144,43 @@ test("can authorize tasks in various states as various actors", async () => {
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), publicDeletedTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), publicDeletedTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), publicDeletedTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
@@ -23185,56 +23188,56 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSession.action(),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
@@ -23242,92 +23245,92 @@ test("can authorize tasks in various states as various actors", async () => {
             session1.action(),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session2.action(),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session3.action(),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSession.action(),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), publicDeletedTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), publicDeletedTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), publicDeletedTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23335,91 +23338,91 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSession.action(),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             publicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), privateTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), privateTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), privateTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), privateTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(context.anonymousAction(), privateTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), privateTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSpace.systemAction(), privateTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23427,48 +23430,48 @@ test("can authorize tasks in various states as various actors", async () => {
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), privateTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), privateTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), privateTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), privateTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23476,11 +23479,11 @@ test("can authorize tasks in various states as various actors", async () => {
             context.anonymousAction(),
             privateTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), privateTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
@@ -23488,70 +23491,70 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSpace.systemAction(),
             privateTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), privateTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), privateTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), privateTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), privateTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(context.anonymousAction(), privateTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), privateTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSpace.systemAction(), privateTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23559,43 +23562,43 @@ test("can authorize tasks in various states as various actors", async () => {
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), privateDeletedTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), privateDeletedTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), privateDeletedTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23603,56 +23606,56 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSession.action(),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
@@ -23660,92 +23663,92 @@ test("can authorize tasks in various states as various actors", async () => {
             session1.action(),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session2.action(),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session3.action(),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSession.action(),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), privateDeletedTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), privateDeletedTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), privateDeletedTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23753,76 +23756,76 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSession.action(),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             privateDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), urlPublicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), urlPublicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), urlPublicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), urlPublicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
@@ -23830,11 +23833,11 @@ test("can authorize tasks in various states as various actors", async () => {
             context.anonymousAction(),
             urlPublicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), urlPublicTask.id, "View").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
@@ -23842,50 +23845,50 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSpace.systemAction(),
             urlPublicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), urlPublicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), urlPublicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), urlPublicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23893,18 +23896,18 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSession.action(),
             urlPublicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             urlPublicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), urlPublicTask.id, "Comment").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
@@ -23912,55 +23915,55 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSpace.systemAction(),
             urlPublicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
         await authorizeTaskAccessIfPossible(session1.action(), urlPublicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(session2.action(), urlPublicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(session3.action(), urlPublicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(otherSession.action(), urlPublicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(false);
     expect(
@@ -23968,11 +23971,11 @@ test("can authorize tasks in various states as various actors", async () => {
             context.anonymousAction(),
             urlPublicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(space.systemAction(), urlPublicTask.id, "Edit").then(
-            result => result.ok,
+            result => result?.ok,
         ),
     ).toEqual(true);
     expect(
@@ -23980,35 +23983,35 @@ test("can authorize tasks in various states as various actors", async () => {
             otherSpace.systemAction(),
             urlPublicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
@@ -24016,77 +24019,77 @@ test("can authorize tasks in various states as various actors", async () => {
             session1.action(),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             session2.action(),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             session3.action(),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSession.action(),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(true);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedTask.id,
             "View",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
@@ -24094,77 +24097,77 @@ test("can authorize tasks in various states as various actors", async () => {
             session1.action(),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session2.action(),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session3.action(),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSession.action(),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Comment",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 
     expect(
@@ -24172,77 +24175,77 @@ test("can authorize tasks in various states as various actors", async () => {
             session1.action(),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session2.action(),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             session3.action(),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSession.action(),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.anonymousAction(),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             space.systemAction(),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             otherSpace.systemAction(),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session2.account.id),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(space.id, session3.account.id),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
     expect(
         await authorizeTaskAccessIfPossible(
             context.impersonatedAccountAction(otherSpace.id, session1.account.id),
             urlPublicDeletedTask.id,
             "Edit",
-        ).then(result => result.ok),
+        ).then(result => result?.ok),
     ).toEqual(false);
 });
 
@@ -24272,27 +24275,27 @@ test("account has access to tasks they create and tasks they’re assigned until
 
     await expect(authorizeTaskAccess(session1.action(), task2.id, "Edit")).resolves.not.toThrow();
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View"))?.ok).toEqual(
         true,
     );
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "View")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "View"))?.ok).toEqual(
         true,
     );
 
     expect(
-        (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Comment")).ok,
+        (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Comment"))?.ok,
     ).toEqual(true);
 
     expect(
-        (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Comment")).ok,
+        (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Comment"))?.ok,
     ).toEqual(true);
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         true,
     );
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Edit"))?.ok).toEqual(
         true,
     );
 
@@ -24325,27 +24328,27 @@ test("account has access to tasks they create and tasks they’re assigned until
         "Account doesn’t have access to space",
     );
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "View"))?.ok).toEqual(
         false,
     );
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "View")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "View"))?.ok).toEqual(
         false,
     );
 
     expect(
-        (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Comment")).ok,
+        (await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Comment"))?.ok,
     ).toEqual(false);
 
     expect(
-        (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Comment")).ok,
+        (await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Comment"))?.ok,
     ).toEqual(false);
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task1.id, "Edit"))?.ok).toEqual(
         false,
     );
 
-    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Edit")).ok).toEqual(
+    expect((await authorizeTaskAccessIfPossible(session1.action(), task2.id, "Edit"))?.ok).toEqual(
         false,
     );
 });

@@ -30,12 +30,12 @@ import {
     authorizeSpaceAccess,
     authorizeSpaceAccessIfPossible,
 } from "~/server/spaces/spaces_table.js";
+import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
     TaskSystemActionContext,
     TaskSystemActionContextModules,
 } from "~/server/tasks/data/task_action_context.js";
-import {authorizeTaskCollectionIndexDocAccessIfPossibleForActor} from "~/server/tasks/data/task_table.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -66,6 +66,9 @@ import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeGetCollectionOutput,
+    TaskRealtimeGetCollectionOutputSchema,
+    TaskRealtimeGetTaskWithoutDependenciesOutput,
     TaskRealtimeGetTaskWithoutDependenciesOutputSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
@@ -88,6 +91,11 @@ type TaskRealtimeServiceRoute =
           readonly type: "GetTaskWithoutDependencies";
           readonly spaceId: SpaceId;
           readonly taskId: TaskId;
+      }
+    | {
+          readonly type: "GetCollection";
+          readonly spaceId: SpaceId;
+          readonly collectionId: TaskCollectionId;
       };
 
 type Options = ServiceOptions<typeof options>;
@@ -389,15 +397,18 @@ export async function run({
                     throw new PermissionDeniedError("Only `AppService` can load queries");
                 }
 
-                return baseActionContext.with(
+                const output = await baseActionContext.with(
                     {actor: actorContextModule},
-                    async originalContext => {
-                        await server.authorizeTaskAccess(
+                    async (
+                        originalContext,
+                    ): Promise<TaskRealtimeGetTaskWithoutDependenciesOutput> => {
+                        const result = await server.authorizeTaskAccessIfPossible(
                             originalContext,
                             spaceId,
                             route.taskId,
                             "View",
                         );
+                        if (!result?.ok) return {ok: true, taskResult: result};
 
                         return dangerouslyEscalateToSystemContext(
                             originalContext,
@@ -416,42 +427,85 @@ export async function run({
                                     isCollectionAccessAuthorized: async (
                                         collectionId: TaskCollectionId,
                                     ) => {
-                                        const collection = await server.getCollection(
-                                            context,
-                                            spaceId,
-                                            collectionId,
-                                        );
-
                                         const result =
-                                            await authorizeTaskCollectionIndexDocAccessIfPossibleForActor(
+                                            await server.authorizeCollectionAccessIfPossible(
                                                 context,
-                                                originalContext.actor,
-                                                collection,
+                                                spaceId,
+                                                collectionId,
                                                 "View",
                                             );
 
-                                        return result.ok;
+                                        return result?.ok ?? false;
                                     },
                                 };
 
                                 const taskModel = await prepareTaskForClient(task, prepareContext);
 
-                                return new Response(
-                                    JSON.stringify(
-                                        TaskRealtimeGetTaskWithoutDependenciesOutputSchema.serialize(
-                                            {
-                                                ok: true,
-                                                task: taskModel,
-                                            },
-                                        ),
-                                    ),
-                                    {
-                                        status: 200,
-                                        headers: {"content-type": "application/json"},
-                                    },
-                                );
+                                return {
+                                    ok: true,
+                                    taskResult: {ok: true, value: taskModel},
+                                };
                             },
                         );
+                    },
+                );
+
+                return new Response(
+                    JSON.stringify(
+                        TaskRealtimeGetTaskWithoutDependenciesOutputSchema.serialize(output),
+                    ),
+                    {
+                        status: 200,
+                        headers: {"content-type": "application/json"},
+                    },
+                );
+            }
+            case "GetCollection": {
+                if (request.method !== "GET") {
+                    throw new InvalidArgumentError(quote`Invalid request method ${request.method}`);
+                }
+
+                if (actorContextModule.serviceName !== "AppService") {
+                    throw new PermissionDeniedError("Only `AppService` can load queries");
+                }
+
+                const output = await baseActionContext.with(
+                    {actor: actorContextModule},
+                    async (originalContext): Promise<TaskRealtimeGetCollectionOutput> => {
+                        const result = await server.authorizeCollectionAccessIfPossible(
+                            originalContext,
+                            spaceId,
+                            route.collectionId,
+                            "View",
+                        );
+                        if (!result?.ok) return {ok: true, collectionResult: result};
+
+                        return dangerouslyEscalateToSystemContext(
+                            originalContext,
+                            spaceId,
+                            async context => {
+                                const collection = await server.getCollection(
+                                    context,
+                                    spaceId,
+                                    route.collectionId,
+                                );
+
+                                const collectionModel = prepareTaskCollectionForClient(collection);
+
+                                return {
+                                    ok: true,
+                                    collectionResult: {ok: true, value: collectionModel},
+                                };
+                            },
+                        );
+                    },
+                );
+
+                return new Response(
+                    JSON.stringify(TaskRealtimeGetCollectionOutputSchema.serialize(output)),
+                    {
+                        status: 200,
+                        headers: {"content-type": "application/json"},
                     },
                 );
             }
@@ -506,6 +560,22 @@ export async function run({
                             type: "GetTaskWithoutDependencies",
                             spaceId,
                             taskId: pathnameSegments[2],
+                        },
+                    ];
+                }
+                case "getCollection": {
+                    if (pathnameSegments.length !== 3) return ["/*", {type: "NotFound"}];
+
+                    if (!pathnameSegments[2] || !isId<TaskCollectionId>(pathnameSegments[2])) {
+                        return ["/*", {type: "NotFound"}];
+                    }
+
+                    return [
+                        "/:spaceId/getCollection/:collectionId",
+                        {
+                            type: "GetCollection",
+                            spaceId,
+                            collectionId: pathnameSegments[2],
                         },
                     ];
                 }

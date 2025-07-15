@@ -1,6 +1,10 @@
+import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
+import {ContentReferences, ContentWithReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
+import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
+import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Calls `printContentSingleLineTextSnippet()` to print some content using the
@@ -16,11 +20,24 @@ import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_
  * client.
  */
 export function printContentSingleLineTextSnippetForServer(content: ContentWithReferences) {
-    return printContentSingleLineTextSnippet(content.doc, {
-        getAccountIfExists: accountId =>
-            content.references.accountById.get(accountId)?.initialData ?? null,
+    return printContentSingleLineTextSnippet(
+        content.doc,
+        getContentReferencesForServerPrintSingleLineTextSnippet(content.references),
+    );
+}
+
+export function getContentReferencesForServerPrintSingleLineTextSnippet(
+    references: ContentReferences,
+): {
+    getAccountIfExists: (accountId: ContentMentionAccountId) => AccountModelWithoutSpaceData | null;
+    getSearchEntityIfExists: (
+        entityId: SearchMentionEntityId,
+    ) => RenderContentMentionToTextSearchEntity | null;
+} {
+    return {
+        getAccountIfExists: accountId => references.accountById.get(accountId)?.initialData ?? null,
         getSearchEntityIfExists: entityId => {
-            const entity = content.references.searchEntityById.get(entityId);
+            const entity = references.searchEntityById.get(entityId);
             if (!entity) return null;
             if (entity.isPrivate) return entity;
 
@@ -39,5 +56,5 @@ export function printContentSingleLineTextSnippetForServer(content: ContentWithR
                         : null,
             };
         },
-    });
+    };
 }

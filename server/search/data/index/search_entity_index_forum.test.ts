@@ -5,7 +5,10 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createPost, updateChannelName, updatePostContent} from "~/server/forum/data/forum_table.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {waitForExpect} from "~/server/helpers/test/wait_for_expect.js";
 import {
+    fallbackGetSearchEntityBaseIfPossibleTestCounter,
     getSearchEntityIndexesForTest,
     getSearchMentionEntityIfPossible,
     processIndexSearchEntityDependentsJob,
@@ -36,7 +39,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {standardSearchOptions} from "~/shared/search/search_options.js";
@@ -77,6 +80,8 @@ beforeEach(() => {
     indexSearchEntityDependentsJobCount = 0;
 });
 
+const indexSearchEntityTestCheckpoint = new TestCheckpoint<SpaceId>();
+
 const context = createTestContext({
     shouldStartOpensearch: true,
     getSearchEntityIfPossible: async (context, spaceId, entityId) => {
@@ -90,6 +95,8 @@ const context = createTestContext({
     processJob: async (actionContext, job, jobStartTime, span) => {
         switch (job.type) {
             case "IndexSearchEntity": {
+                await indexSearchEntityTestCheckpoint.waitForTest(job.spaceId);
+
                 if (job.update.type === "Post") {
                     indexSearchEntityJobCount++;
                 }
@@ -2450,9 +2457,15 @@ test("can index post with cyclic mention", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Foo"});
 
+    const pausePromise = indexSearchEntityTestCheckpoint.pauseForTest(space.id);
+
     const channel = await TestChannel.create(session, {name: "Bar"});
 
     const post = await channel.createPost(session, "Qux");
+
+    const {getCount} = fallbackGetSearchEntityBaseIfPossibleTestCounter.recordForTest(
+        `Post:${post.id}`,
+    );
 
     await updatePostContent(session.action(), {
         postId: post.id,
@@ -2470,6 +2483,55 @@ test("can index post with cyclic mention", async () => {
             ]),
         ),
     });
+
+    // `updatePostContent()` generates a realtime event which reads some search
+    // entity fallbacks. Wait for that to happen before continuing.
+    await waitForExpect(() => {
+        expect(getCount()).toEqual(1);
+    });
+
+    const {unpause} = await pausePromise;
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(getCount()).toEqual(1);
+
+    expect(
+        await getSearchMentionEntityIfPossible(
+            TestTask.action(session),
+            space.id,
+            `Post:${post.id}`,
+        ),
+    ).toEqual({
+        isPrivate: false,
+        entity: new SearchEntityModel({
+            id: `Post:${post.id}`,
+            title: "in Bar: Qux: […]",
+            titleVersion: {type: "Integers", versions: [1, 0]},
+            media: {type: "Account", account: expect.any(AccountModel)},
+        }),
+    });
+
+    // Make sure we used the entity fallback code path.
+    expect(getCount()).toEqual(2);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${post.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    unpause();
 
     await runAllTimersAndWaitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
@@ -2607,6 +2669,8 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Foo"});
 
+    const pausePromise = indexSearchEntityTestCheckpoint.pauseForTest(space.id);
+
     const channel = await TestChannel.create(session, {name: "Bar"});
 
     const postA = await channel.createPost(session, "a0");
@@ -2673,10 +2737,150 @@ test("can index post with cyclic mention a couple layers deep", async () => {
         ),
     });
 
+    const {unpause} = await pausePromise;
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postA.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postB.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postC.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postE.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(
+        await getSearchMentionEntityIfPossible(
+            TestTask.action(session),
+            space.id,
+            `Post:${postA.id}`,
+        ),
+    ).toEqual({
+        isPrivate: false,
+        entity: new SearchEntityModel({
+            id: `Post:${postA.id}`,
+            title: "in Bar: a1 Foo in Bar: c Foo in Bar: b […]",
+            titleVersion: {type: "Integers", versions: [1, 0]},
+            media: {type: "Account", account: expect.any(AccountModel)},
+        }),
+    });
+
+    expect(
+        await getSearchMentionEntityIfPossible(
+            TestTask.action(session),
+            space.id,
+            `Post:${postB.id}`,
+        ),
+    ).toEqual({
+        isPrivate: false,
+        entity: new SearchEntityModel({
+            id: `Post:${postB.id}`,
+            title: "in Bar: b Foo in Bar: a1 Foo in Bar: c […]",
+            titleVersion: {type: "Integers", versions: [0, 0]},
+            media: {type: "Account", account: expect.any(AccountModel)},
+        }),
+    });
+
+    expect(
+        await getSearchMentionEntityIfPossible(
+            TestTask.action(session),
+            space.id,
+            `Post:${postC.id}`,
+        ),
+    ).toEqual({
+        isPrivate: false,
+        entity: new SearchEntityModel({
+            id: `Post:${postC.id}`,
+            title: "in Bar: c Foo in Bar: b Foo in Bar: a1 […]",
+            titleVersion: {type: "Integers", versions: [0, 0]},
+            media: {type: "Account", account: expect.any(AccountModel)},
+        }),
+    });
+
+    expect(
+        await getSearchMentionEntityIfPossible(
+            TestTask.action(session),
+            space.id,
+            `Post:${postE.id}`,
+        ),
+    ).toEqual({
+        isPrivate: false,
+        entity: new SearchEntityModel({
+            id: `Post:${postE.id}`,
+            title: "in Bar: e Foo in Bar: c Foo in Bar: b Foo in Bar: a1 […]",
+            titleVersion: {type: "Integers", versions: [0, 0]},
+            media: {type: "Account", account: expect.any(AccountModel)},
+        }),
+    });
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postA.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postB.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postC.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    expect(
+        await context.opensearch.getDocWithoutSourceIfExists(
+            SearchEntityKeywordIndex,
+            space.id,
+            `Post:${postE.id}`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual(null);
+
+    unpause();
+
     await runAllTimersAndWaitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(indexSearchEntityJobCount).toBe(7);
+    expect(indexSearchEntityJobCount).toBe(5);
     expect(indexSearchEntityDependentsJobCount).toBe(1);
 
     expect(
@@ -2763,7 +2967,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     await runAllTimersAndWaitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(indexSearchEntityJobCount).toBe(11);
+    expect(indexSearchEntityJobCount).toBe(9);
     expect(indexSearchEntityDependentsJobCount).toBe(2);
 
     expect(
@@ -2850,7 +3054,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     await runAllTimersAndWaitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(indexSearchEntityJobCount).toBe(15);
+    expect(indexSearchEntityJobCount).toBe(13);
     expect(indexSearchEntityDependentsJobCount).toBe(3);
 
     expect(
@@ -2937,7 +3141,7 @@ test("can index post with cyclic mention a couple layers deep", async () => {
     await runAllTimersAndWaitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-    expect(indexSearchEntityJobCount).toBe(19);
+    expect(indexSearchEntityJobCount).toBe(17);
     expect(indexSearchEntityDependentsJobCount).toBe(4);
 
     expect(
