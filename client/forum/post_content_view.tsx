@@ -145,11 +145,12 @@ export function PostContentView({
                             type: "Integers",
                             versions: [post.version, post.channel.version],
                         },
-                        media: null,
+                        media: {type: "Account", account: post.author},
                     });
                 });
             }, [
                 accountRegistry,
+                post.author,
                 post.channel.name,
                 post.channel.version,
                 post.content.doc,
