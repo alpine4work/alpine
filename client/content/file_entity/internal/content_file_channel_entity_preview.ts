@@ -4,6 +4,7 @@ import {renderAccountAvatar} from "~/client/accounts/account_avatar_html.js";
 import {accountAvatarPileSizes} from "~/client/accounts/account_avatar_pile_size.js";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
+import {setupContentFileEntityPreviewContainer} from "~/client/content/file_entity/internal/content_file_entity_preview_container.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
 import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
@@ -28,11 +29,10 @@ import {
     sprinkles,
 } from "~/client/styles/styles.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -89,69 +89,23 @@ export function renderContentFileChannelEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
 
-    const remPx = remPxBySpacingScale[spacingScale];
-    const blockMaxWidthPx = contentStyles.blockMaxWidthRem[platform] * remPx;
-
-    const isSmallerThanHalfOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx) / 2;
-
-    const isSmallerThanThirdOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 2) / 3;
-
-    // This case is primarily for `<MessageInputFileEntityPreview>`. We need to
-    // render super small previews in that case.
-    const isSmallerThanFourthOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 3) / 4;
-
-    const transformScale =
-        (isSmallerThanFourthOfBlockMaxWidth
-            ? fontSizesBySpacingScale["50"].small.fontSize / 2
-            : fontSizesBySpacingScale[
-                  isSmallerThanThirdOfBlockMaxWidth
-                      ? "50"
-                      : isSmallerThanHalfOfBlockMaxWidth
-                      ? "75"
-                      : "100"
-              ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
-
-    const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
-    const containerPadding = isSmallerThanFourthOfBlockMaxWidth
-        ? "2"
-        : isSmallerThanThirdOfBlockMaxWidth
-        ? "3"
-        : isSmallerThanHalfOfBlockMaxWidth
-        ? "4"
-        : "5";
-
-    const scaledWidthPx =
-        (layout.width - convertRemLengthToPx(containerPadding, spacingScale) * 2) / transformScale;
-
-    containerHtml.setAttribute(
-        "class",
-        sprinkles({
-            padding: containerPadding,
-        }),
-    );
-
-    const scaledContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
-
-    scaledContainerHtml.setAttribute(
-        "class",
-        sprinkles({
+    const {
+        scaledContainerHtml,
+        transformScale,
+        scaledWidthPx,
+        blockMaxWidthPx,
+        isSmallerThanHalfOfBlockMaxWidth,
+    } = setupContentFileEntityPreviewContainer(html, {
+        layout,
+        platform,
+        spacingScale,
+        transformScaleBaseFontSize: "100",
+        scaledContainerClassName: sprinkles({
             display: "flex",
             flexDirection: "column",
             gap: channelViewHeaderSectionGap,
         }),
-    );
-
-    scaledContainerHtml.setAttribute(
-        "style",
-        [
-            `transform: scale(${transformScale})`,
-            "transform-origin: 0 0",
-            `width: ${scaledWidthPx}px`,
-        ].join("; "),
-    );
+    });
 
     {
         const nameContainerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));

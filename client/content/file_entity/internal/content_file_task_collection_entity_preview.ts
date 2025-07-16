@@ -1,3 +1,4 @@
+import {setupContentFileEntityPreviewContainer} from "~/client/content/file_entity/internal/content_file_entity_preview_container.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {renderTaskDisplayStatusCircle} from "~/client/design/task_display_status_circle_html.js";
 import {getTaskCollectionColor} from "~/client/styles/get_task_collection_color.js";
@@ -6,10 +7,8 @@ import {
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/styles/tasks_shared_styles.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {Store} from "~/shared/store/store.js";
@@ -32,55 +31,12 @@ export function renderContentFileTaskCollectionEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileTaskCollectionEntityModelSchema);
 
-    const remPx = remPxBySpacingScale[spacingScale];
-    const blockMaxWidthPx = contentStyles.blockMaxWidthRem[platform] * remPx;
-
-    const isSmallerThanHalfOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx) / 2;
-
-    const isSmallerThanThirdOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 2) / 3;
-
-    // This case is primarily for `<MessageInputFileEntityPreview>`. We need to
-    // render super small previews in that case.
-    const isSmallerThanFourthOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 3) / 4;
-
-    const transformScale =
-        (isSmallerThanFourthOfBlockMaxWidth
-            ? fontSizesBySpacingScale["50"].small.fontSize / 2
-            : fontSizesBySpacingScale[
-                  isSmallerThanThirdOfBlockMaxWidth
-                      ? "50"
-                      : isSmallerThanHalfOfBlockMaxWidth
-                      ? "75"
-                      : "100"
-              ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
-
-    const containerHtml = html.appendChild(new HtmlElementGenerator("div"));
-
-    const containerPadding = isSmallerThanFourthOfBlockMaxWidth
-        ? "2"
-        : isSmallerThanThirdOfBlockMaxWidth
-        ? "3"
-        : isSmallerThanHalfOfBlockMaxWidth
-        ? "4"
-        : "5";
-    containerHtml.setAttribute("class", sprinkles({padding: containerPadding}));
-
-    const scaledContainerHtml = containerHtml.appendChild(new HtmlElementGenerator("div"));
-
-    scaledContainerHtml.setAttribute(
-        "style",
-        [
-            `transform: scale(${transformScale})`,
-            "transform-origin: 0 0",
-            `width: ${
-                (layout.width - convertRemLengthToPx(containerPadding, spacingScale) * 2) /
-                transformScale
-            }px`,
-        ].join("; "),
-    );
+    const {scaledContainerHtml} = setupContentFileEntityPreviewContainer(html, {
+        layout,
+        platform,
+        spacingScale,
+        transformScaleBaseFontSize: "100",
+    });
 
     {
         const headerHtml = scaledContainerHtml.appendChild(new HtmlElementGenerator("div"));

@@ -3,20 +3,19 @@ import classNames from "classnames";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {getBlobsHtmlGenerator} from "~/client/blobs/get_blobs_html_generator.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
+import {setupContentFileEntityPreviewContainer} from "~/client/content/file_entity/internal/content_file_entity_preview_container.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
 import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/remix/route_layout_context.js";
 import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
-import {contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {contentStyles} from "~/client/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Platform} from "~/shared/design/core/platform.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {parseRemLength} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -75,77 +74,34 @@ export function renderContentFileDocumentEntityPreview(
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileDocumentEntityModelSchema);
 
-    const remPx = remPxBySpacingScale[spacingScale];
-    const blockMaxWidthPx = contentStyles.blockMaxWidthRem[platform] * remPx;
-
-    const isSmallerThanHalfOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx) / 2;
-
-    const isSmallerThanThirdOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 2) / 3;
-
-    // This case is primarily for `<MessageInputFileEntityPreview>`. We need to
-    // render super small previews in that case.
-    const isSmallerThanFourthOfBlockMaxWidth =
-        layout.width <= (blockMaxWidthPx - contentStyles.fileRowGapWidthRem * remPx * 3) / 4;
-
-    const padding = isSmallerThanFourthOfBlockMaxWidth
-        ? "2"
-        : isSmallerThanThirdOfBlockMaxWidth
-        ? "3"
-        : isSmallerThanHalfOfBlockMaxWidth
-        ? "4"
-        : "5";
-    const paddingPx = parseRemLength(padding) * remPx;
-
-    html.setAttribute(
-        "class",
-        classNames(html.getAttribute("class"), sprinkles({paddingX: padding})),
-    );
-
-    // By default, scale font size 100 text to font size 75. Scale to smaller font
-    // sizes depending on the width of our preview.
-    const transformScale =
-        (isSmallerThanFourthOfBlockMaxWidth
-            ? fontSizesBySpacingScale["25"].small.fontSize / 2
-            : fontSizesBySpacingScale[
-                  isSmallerThanThirdOfBlockMaxWidth
-                      ? "25"
-                      : isSmallerThanHalfOfBlockMaxWidth
-                      ? "50"
-                      : "75"
-              ].small.fontSize) / fontSizesBySpacingScale["100"].small.fontSize;
-
-    // The width we need to render our document at to fill the downscaled entity
-    // preview.
-    const scaledWidthPx = (layout.width - paddingPx * 2) / transformScale;
-
-    // The margin top we want to use for our document.
-    //
-    // - At least use 150% of our x padding
-    // - If our content reaches the block max width and is centered then we want to
-    //   use the same centering margin x as the margin top
-    const marginTopPx = Math.max(
-        paddingPx * 1.5,
-        (layout.width - blockMaxWidthPx * transformScale) / 2,
-    );
-
-    const scaledDocHtml = html.appendChild(new HtmlElementGenerator("div"));
-
-    scaledDocHtml.setAttribute(
-        "style",
-        [
-            `width: ${scaledWidthPx}px`,
-            "transform-origin: 0 0",
-            `transform: translateY(${marginTopPx}px) scale(${transformScale}) translateY(-${
-                contentStyles.titlePaddingTop[getPlatformRouteLayout(platform, "narrow")]
-            })`,
+    const {
+        scaledContainerHtml: scaledDocHtml,
+        transformScale,
+        scaledWidthPx,
+        blockMaxWidthPx,
+    } = setupContentFileEntityPreviewContainer(html, {
+        layout,
+        platform,
+        spacingScale,
+        withoutContainerPaddingY: true,
+        transformScaleBaseFontSize: "75",
+        scaledContainerStyles: [
             // Document title top margin is computed using safe area inset. So zero out
             // safe area inset which shouldn't apply here.
             "--safe-area-inset-top-base: 0px",
             "--safe-area-inset-top: 0px",
-        ].join("; "),
-    );
+        ],
+        calculateScaledContainerTransformStyle: config => {
+            // Document-specific margin top calculation
+            const marginTopPx = Math.max(
+                config.paddingPx * 1.5,
+                (layout.width - config.blockMaxWidthPx * config.transformScale) / 2,
+            );
+            return `translateY(${marginTopPx}px) scale(${config.transformScale}) translateY(-${
+                contentStyles.titlePaddingTop[getPlatformRouteLayout(platform, "narrow")]
+            })`;
+        },
+    });
 
     const content = fileEntity.preview?.content ?? {
         doc: createDummyDocumentContent(fileEntity.titleWithoutFallback),
