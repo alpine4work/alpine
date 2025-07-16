@@ -86,9 +86,10 @@ test("code block collapses onto the same line", () => {
     const doc = schema.node("doc", {}, [
         schema.node("paragraph", {}, [schema.text("This is a code block")]),
         schema.node("codeBlock", {}, [
-            schema.node("codeBlockLine", {}, [
-                schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);"),
-            ]),
+            schema.node("codeBlockLine", {}, [schema.text("let a = 1;")]),
+            schema.node("codeBlockLine", {}, [schema.text("let b = 1;")]),
+            schema.node("codeBlockLine", {}, [schema.text("let c = a + b;")]),
+            schema.node("codeBlockLine", {}, [schema.text("console.log(c);")]),
         ]),
         schema.node("paragraph", {}, [schema.text("This paragraph follows the code block.")]),
     ]);
@@ -100,6 +101,58 @@ test("code block collapses onto the same line", () => {
         }),
     ).toEqual(
         "This is a code block. let a = 1; let b = 1; let c = a + b; console.log(c); This paragraph follows the code block.",
+    );
+});
+
+test("code block trims indentation when collapsing onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("This is a code block")]),
+        schema.node("codeBlock", {}, [
+            schema.node("codeBlockLine", {}, [schema.text("function main() {")]),
+            schema.node("codeBlockLine", {}, [schema.text("  let a = 1;")]),
+            schema.node("codeBlockLine", {}, [schema.text("  let b = 1;")]),
+            schema.node("codeBlockLine", {}, [schema.text("  let c = a + b;")]),
+            schema.node("codeBlockLine", {}, [schema.text("  if (isDevelopmentEnvironment) {")]),
+            schema.node("codeBlockLine", {}, [schema.text("    console.log(c);")]),
+            schema.node("codeBlockLine", {}, [schema.text("  }")]),
+            schema.node("codeBlockLine", {}, [schema.text("}")]),
+        ]),
+        schema.node("paragraph", {}, [schema.text("This paragraph follows the code block.")]),
+    ]);
+
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
+        "This is a code block. function main() { let a = 1; let b = 1; let c = a + b; if (isDevelopmentEnvironment) { console.log(c); } } This paragraph follows the code block.",
+    );
+});
+
+test("code block trims tab character indentation when collapsing onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("This is a code block")]),
+        schema.node("codeBlock", {}, [
+            schema.node("codeBlockLine", {}, [schema.text("function main() {")]),
+            schema.node("codeBlockLine", {}, [schema.text("\tlet a = 1;")]),
+            schema.node("codeBlockLine", {}, [schema.text("\tlet b = 1;")]),
+            schema.node("codeBlockLine", {}, [schema.text("\tlet c = a + b;")]),
+            schema.node("codeBlockLine", {}, [schema.text("\tif (isDevelopmentEnvironment) {")]),
+            schema.node("codeBlockLine", {}, [schema.text("\t\tconsole.log(c);")]),
+            schema.node("codeBlockLine", {}, [schema.text("\t}")]),
+            schema.node("codeBlockLine", {}, [schema.text("}")]),
+        ]),
+        schema.node("paragraph", {}, [schema.text("This paragraph follows the code block.")]),
+    ]);
+
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+        }),
+    ).toEqual(
+        "This is a code block. function main() { let a = 1; let b = 1; let c = a + b; if (isDevelopmentEnvironment) { console.log(c); } } This paragraph follows the code block.",
     );
 });
 

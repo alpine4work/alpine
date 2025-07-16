@@ -140,13 +140,17 @@ export function createPostSearchEntityTitleWithAlreadySnippedContent(
             }
         });
 
+    title = title.trim();
+
     // If the title ends with a `.` then remove it from the title. To match how
     // other titles look.
     if (title.endsWith(".")) title = title.slice(0, -1);
 
     // Make sure `truncateContentMentionText()` doesn't change the title. We don't
     // want to double truncate when rendering the title in a mention.
-    assert(title === truncateContentMentionText(title));
+    if (process.env.NODE_ENV !== "production") {
+        assert(title === truncateContentMentionText(title));
+    }
 
     return title;
 }

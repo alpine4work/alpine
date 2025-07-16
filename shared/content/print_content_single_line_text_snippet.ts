@@ -112,8 +112,13 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     let breakPunctuation: string | null = null;
     let preservedMarks: ReadonlyArray<Mark> = emptyArray;
     const orderListItemNumberByNode = new Map<Node, number>();
+    let isTrimmingStart = false;
 
     const print = (text: string) => {
+        if (isTrimmingStart) text = text.trimStart();
+        if (text.length === 0) return;
+        isTrimmingStart = false;
+
         // Break punctuation is used to separate content which otherwise would have
         // rendered on separate lines. For example, we put a period after a heading
         // then print the paragraph which follows.
@@ -218,11 +223,15 @@ export function printContentSingleLineTextSnippetPreservingMarks(
             case "codeBlock": {
                 for (const childNode of node.content.content) {
                     for (const grandChildNode of childNode.content.content) {
+                        isTrimmingStart = true;
+
                         printInlineNode(
                             grandChildNode,
                             // Pretend that children of `codeBlock` have the `code` mark.
                             [node.type.schema.mark("code")],
                         );
+
+                        isTrimmingStart = false;
                     }
                     breakPunctuation = "";
                 }
