@@ -10,6 +10,7 @@ ts_project(
     ],
     tests = {
         "search_entity_table_test": {"size": "medium"},
+        "search_entity_table_index_embedding_chunks_job_test": {"size": "medium"},
     },
     visibility = [
         "//admin/crawl:__pkg__",
