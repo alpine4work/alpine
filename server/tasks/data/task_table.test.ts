@@ -15,7 +15,6 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {addSpaceAccountForTest, removeSpaceAccount} from "~/server/spaces/spaces_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
@@ -101,6 +100,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
+import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 let jobs: Array<JobDescription> = [];
 

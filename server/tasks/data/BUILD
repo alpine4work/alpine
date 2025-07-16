@@ -11,6 +11,7 @@ ts_project(
         "//server/spaces/test_helpers",
         "//server/tasks/test_helpers",
         "//shared/tasks/test_helpers",
+        "//shared/test_helpers",
     ],
     tests = {
         "task_index_test": {

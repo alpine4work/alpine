@@ -13,6 +13,7 @@ ts_project(
         "//server/tasks/test_helpers",
         "//shared/tasks/test_helpers",
         "//shared/tracer/dev",
+        "//shared/test_helpers",
     ],
     tests = {
         # These are kind of chunky tests that use OpenSearch. We configure OpenSearch

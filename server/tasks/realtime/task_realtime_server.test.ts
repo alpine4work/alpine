@@ -1,6 +1,5 @@
 import {updateOurAccountName} from "~/server/accounts/update_name/update_our_account_name.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {
@@ -34,6 +33,7 @@ import {
     defaultTaskQueryNormalizedSorts,
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
+import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 

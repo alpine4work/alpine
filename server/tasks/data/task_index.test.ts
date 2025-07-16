@@ -2,7 +2,6 @@ import {updateOurAccountName} from "~/server/accounts/update_name/update_our_acc
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {internalGetSearchAffinityEntities} from "~/server/search/data/table/search_entity_table.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -26,6 +25,7 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
+import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const context = createTestContext({shouldStartOpensearch: true});
 

@@ -1,0 +1,4159 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large fourth-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 224px;
+      transform-origin: 0 0;
+      transform: translateY(15px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(78.57142857142861px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(78.57142857142861px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(78.57142857142861px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(78.57142857142861px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(78.57142857142861px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(78.57142857142861px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(70px) scale(0.8571428571428571) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(70px) scale(0.8571428571428571) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(70px) scale(0.8571428571428571) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(70px) scale(0.8571428571428571) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(70px) scale(0.8571428571428571) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large full-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 875px;
+      transform-origin: 0 0;
+      transform: translateY(70px) scale(0.8571428571428571) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large half-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 330.90909090909093px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: large third-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 238px;
+      transform-origin: 0 0;
+      transform: translateY(22.5px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium fourth-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 229.6px;
+      transform-origin: 0 0;
+      transform: translateY(13.5px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(110.71428571428572px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(110.71428571428572px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(110.71428571428572px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(110.71428571428572px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(110.71428571428572px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(110.71428571428572px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(103px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(103px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(103px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(103px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(103px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium full-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 880.8333333333334px;
+      transform-origin: 0 0;
+      transform: translateY(103px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium half-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 336px;
+      transform-origin: 0 0;
+      transform: translateY(27px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: medium third-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 242.2px;
+      transform-origin: 0 0;
+      transform: translateY(20.25px) scale(0.7142857142857143)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small fourth-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_2_default__HASH sprinkles_paddingRight_2_default__HASH"
+>
+  <div
+    style="
+      width: 235.2px;
+      transform-origin: 0 0;
+      transform: translateY(12px) scale(0.35714285714285715)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(142.8571428571429px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(142.8571428571429px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(142.8571428571429px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(142.8571428571429px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(142.8571428571429px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(142.8571428571429px) scale(0.8571428571428571)
+        translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(136px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(136px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(136px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(136px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(136px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small full-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 886.6666666666667px;
+      transform-origin: 0 0;
+      transform: translateY(136px) scale(0.8571428571428571)
+        translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 303.33333333333337px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.8571428571428571) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 303.33333333333337px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.8571428571428571) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 303.33333333333337px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.8571428571428571) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 303.33333333333337px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.8571428571428571) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 303.33333333333337px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.8571428571428571) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_5_default__HASH sprinkles_paddingRight_5_default__HASH"
+>
+  <div
+    style="
+      width: 303.33333333333337px;
+      transform-origin: 0 0;
+      transform: translateY(30px) scale(0.8571428571428571) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 341.0909090909091px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 341.0909090909091px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 341.0909090909091px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 341.0909090909091px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 341.0909090909091px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small half-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 341.0909090909091px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width desktop basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 213.8181818181818px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width desktop document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 213.8181818181818px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width desktop empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 213.8181818181818px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width desktop empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 213.8181818181818px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width desktop long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 213.8181818181818px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width desktop long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_4_default__HASH sprinkles_paddingRight_4_default__HASH"
+>
+  <div
+    style="
+      width: 213.8181818181818px;
+      transform-origin: 0 0;
+      transform: translateY(24px) scale(0.7857142857142857) translateY(-3.5rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width mobile basic-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 246.4px;
+      transform-origin: 0 0;
+      transform: translateY(18px) scale(0.7142857142857143) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Test Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width mobile document-with-preview 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 246.4px;
+      transform-origin: 0 0;
+      transform: translateY(18px) scale(0.7142857142857143) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Document with Preview</h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width mobile empty-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 246.4px;
+      transform-origin: 0 0;
+      transform: translateY(18px) scale(0.7142857142857143) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1 class="content_title">Empty Content Document</h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width mobile empty-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 246.4px;
+      transform-origin: 0 0;
+      transform: translateY(18px) scale(0.7142857142857143) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH content_emptyTitleClassName__HASH content_emptyBodyClassName__HASH"
+    >
+      <h1
+        class="content_title"
+        data-placeholder="Untitled"
+        aria-label="Untitled"
+      ></h1>
+      <p class="content_paragraph" data-placeholder="Share your ideas…"></p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width mobile long-content-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 246.4px;
+      transform-origin: 0 0;
+      transform: translateY(18px) scale(0.7142857142857143) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">Long Content Document</h1>
+      <p class="content_paragraph">
+        0. This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 1. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content. 2. This is a very long content that should be
+        truncated properly in the preview and demonstrate how the document
+        preview handles overflow text content. 3. This is a very long content
+        that should be truncated properly in the preview and demonstrate how the
+        document preview handles overflow text content. 4. This is a very long
+        content that should be truncated properly in the preview and demonstrate
+        how the document preview handles overflow text content. 5. This is a
+        very long content that should be truncated properly in the preview and
+        demonstrate how the document preview handles overflow text content. 6.
+        This is a very long content that should be truncated properly in the
+        preview and demonstrate how the document preview handles overflow text
+        content. 7. This is a very long content that should be truncated
+        properly in the preview and demonstrate how the document preview handles
+        overflow text content.
+      </p>
+    </div>
+  </div>
+</div>
+"
+`;
+
+exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: small third-width mobile long-title-document 1`] = `
+"<div
+  class="sprinkles_paddingLeft_3_default__HASH sprinkles_paddingRight_3_default__HASH"
+>
+  <div
+    style="
+      width: 246.4px;
+      transform-origin: 0 0;
+      transform: translateY(18px) scale(0.7142857142857143) translateY(-4.25rem);
+      --safe-area-inset-top-base: 0px;
+      --safe-area-inset-top: 0px;
+    "
+  >
+    <div
+      class="content_docClassName__HASH content_narrowRouteLayoutDocClassName__HASH content_withUserSelectNoneDocClassName__HASH"
+    >
+      <h1 class="content_title">
+        This is a very long document title that should be truncated properly in
+        the preview
+      </h1>
+      <p class="content_paragraph">Sample content</p>
+    </div>
+  </div>
+</div>
+"
+`;

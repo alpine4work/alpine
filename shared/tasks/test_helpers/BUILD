@@ -18,5 +18,6 @@ ts_project(
         "//:node_modules/chalk",
         "//shared/helpers",
         "//shared/tasks",
+        "//shared/test_helpers",
     ],
 )

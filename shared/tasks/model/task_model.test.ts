@@ -25,10 +25,26 @@ import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPriorityRegister} from "~/shared/tasks/task_priority.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {
+    createTestTaskModel,
+    updateTestTaskWithTitle,
+} from "~/shared/tasks/test_helpers/task_model_test_helpers.js";
+import {
     TaskTitleModel,
     createTaskTitleFromText,
     emptyTaskTitle,
 } from "~/shared/tasks/title/task_title.js";
+
+function getActionReferencedSortableAccountWrapper(creatorAccountId: AccountId) {
+    return (otherAccountId: AccountId) => {
+        assert(creatorAccountId === otherAccountId);
+
+        return {
+            accountId: creatorAccountId,
+            workingAccountName: "Test",
+            workingAccountNameVersion: 0,
+        };
+    };
+}
 
 test("merging identical tasks returns a referentially equal value to the first one", () => {
     const spaceId = generateId<SpaceId>();
@@ -36,44 +52,16 @@ test("merging identical tasks returns a referentially equal value to the first o
     const accountId = generateId<AccountId>();
     const createdTime: HybridLogicalTime = [Date.now(), 0];
 
-    const task1 = TaskModel.createFromAction(
+    const getActionReferencedSortableAccount = getActionReferencedSortableAccountWrapper(accountId);
+    const commonTaskCreationProperties = {
         spaceId,
         taskId,
+        creatorId: accountId,
         createdTime,
-        {
-            type: "Create",
-            creatorId: accountId,
-            creatorTimeZone: defaultTimeZone,
-        },
-        otherAccountId => {
-            assert(accountId === otherAccountId);
-
-            return {
-                accountId,
-                workingAccountName: "Test",
-                workingAccountNameVersion: 0,
-            };
-        },
-    );
-    const task2 = TaskModel.createFromAction(
-        spaceId,
-        taskId,
-        createdTime,
-        {
-            type: "Create",
-            creatorId: accountId,
-            creatorTimeZone: defaultTimeZone,
-        },
-        otherAccountId => {
-            assert(accountId === otherAccountId);
-
-            return {
-                accountId,
-                workingAccountName: "Test",
-                workingAccountNameVersion: 0,
-            };
-        },
-    );
+        getActionReferencedSortableAccount,
+    };
+    const task1 = createTestTaskModel(commonTaskCreationProperties);
+    const task2 = createTestTaskModel(commonTaskCreationProperties);
 
     expect(task1.merge(task2)).toBe(task1);
     expect(task1.merge(task2)).not.toBe(task2);
@@ -87,44 +75,16 @@ test("merging tasks returns a referentially equal value to the first one if the 
     const accountId = generateId<AccountId>();
     const createdTime: HybridLogicalTime = [Date.now(), 0];
 
-    const task1a = TaskModel.createFromAction(
+    const getActionReferencedSortableAccount = getActionReferencedSortableAccountWrapper(accountId);
+    const commonTaskCreationProperties = {
         spaceId,
         taskId,
+        creatorId: accountId,
         createdTime,
-        {
-            type: "Create",
-            creatorId: accountId,
-            creatorTimeZone: defaultTimeZone,
-        },
-        otherAccountId => {
-            assert(accountId === otherAccountId);
-
-            return {
-                accountId,
-                workingAccountName: "Test",
-                workingAccountNameVersion: 0,
-            };
-        },
-    );
-    const task2 = TaskModel.createFromAction(
-        spaceId,
-        taskId,
-        createdTime,
-        {
-            type: "Create",
-            creatorId: accountId,
-            creatorTimeZone: defaultTimeZone,
-        },
-        otherAccountId => {
-            assert(accountId === otherAccountId);
-
-            return {
-                accountId,
-                workingAccountName: "Test",
-                workingAccountNameVersion: 0,
-            };
-        },
-    );
+        getActionReferencedSortableAccount,
+    };
+    const task1a = createTestTaskModel(commonTaskCreationProperties);
+    const task2 = createTestTaskModel(commonTaskCreationProperties);
 
     const task1b = new TaskModel({
         ...task1a.rawData,
@@ -160,17 +120,12 @@ describe("getCloneActions", () => {
     };
 
     beforeEach(() => {
-        task = TaskModel.createFromAction(
+        task = createTestTaskModel({
             spaceId,
-            generateId<TaskId>(),
+            creatorId: accountId,
             createdTime,
-            {
-                type: "Create",
-                creatorId: accountId,
-                creatorTimeZone: timeZone,
-            },
             getActionReferencedSortableAccount,
-        );
+        });
     });
 
     function findActions<T extends TaskTaskAction>(
@@ -239,18 +194,7 @@ describe("getCloneActions", () => {
 
     test("copies title", () => {
         const expected = "Test Task";
-        task = task.applyAction(
-            {
-                type: "UpdateTask",
-                taskId: task.id,
-                time: clock.now(),
-                taskAction: {
-                    type: "UpdateTitle",
-                    titleUpdate: createTaskTitleFromText(expected),
-                },
-            },
-            getActionReferencedSortableAccount,
-        );
+        task = updateTestTaskWithTitle({task, title: expected});
 
         const {actions} = task.getDuplicateActions({
             creatorId: accountId,
@@ -258,7 +202,6 @@ describe("getCloneActions", () => {
             creatorTimeZone: timeZone,
         });
         const titleAction = findAction<TaskUpdateTitleAction>(actions, "UpdateTitle");
-
         // create a model and play the update on it
         const titleModel = new TaskTitleModel(emptyTaskTitle.get()).apply(
             titleAction.taskAction.titleUpdate,
@@ -275,19 +218,8 @@ describe("getCloneActions", () => {
 
     for (const {initial, expected} of titleCopiesCases) {
         test(`adds suffix to title without existing suffix: ${initial} -> ${expected}`, () => {
+            task = updateTestTaskWithTitle({task, title: initial});
             const title = createTaskTitleFromText(initial);
-            task = task.applyAction(
-                {
-                    type: "UpdateTask",
-                    taskId: task.id,
-                    time: clock.now(),
-                    taskAction: {
-                        type: "UpdateTitle",
-                        titleUpdate: title,
-                    },
-                },
-                getActionReferencedSortableAccount,
-            );
 
             const {actions} = task.getDuplicateActions({
                 creatorId: accountId,

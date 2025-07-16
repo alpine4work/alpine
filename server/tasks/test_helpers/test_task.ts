@@ -10,7 +10,6 @@ import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestCommentRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -52,6 +51,7 @@ import {
     createTaskTitleFromText,
     emptyTaskTitle,
 } from "~/shared/tasks/title/task_title.js";
+import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 const schema = TaskNotesContentProsemirrorSchema;
 

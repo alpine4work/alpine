@@ -4,7 +4,6 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {removeSpaceAccount} from "~/server/spaces/spaces_table.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {queryTaskIndexTestCounter} from "~/server/tasks/data/task_index.js";
@@ -83,6 +82,7 @@ import {
 } from "~/shared/tasks/task_realtime_protocol.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
 import {TaskTitleModel, emptyTaskTitle} from "~/shared/tasks/title/task_title.js";
+import {testClock} from "~/shared/test_helpers/test_clock.js";
 import {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
 const context = createTestContext({shouldStartOpensearch: true});

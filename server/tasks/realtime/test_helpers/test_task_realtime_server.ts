@@ -5,7 +5,6 @@ import {
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TaskSystemActionContext} from "~/server/tasks/data/task_action_context.js";
@@ -47,6 +46,7 @@ import {
     TaskRealtimeLoadQueriesInput,
     TaskRealtimeLoadQueriesOutput,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
+import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 /**
  * Wait for OpenSearch to have indexed all our action transactions.

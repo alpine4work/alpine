@@ -20,5 +20,6 @@ ts_project(
         "//server/tasks/data",
         "//shared/helpers",
         "//shared/id",
+        "//shared/test_helpers",
     ],
 )

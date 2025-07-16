@@ -1,6 +1,5 @@
 import {TestAccessPolicy} from "~/server/access/test_helpers/test_access_policy.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -14,6 +13,7 @@ import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {testClock} from "~/shared/test_helpers/test_clock.js";
 
 let testTaskCollectionCount = 1;
 
