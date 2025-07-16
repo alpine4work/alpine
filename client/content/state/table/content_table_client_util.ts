@@ -99,6 +99,15 @@ export function isPosInContentTable($pos: ResolvedPos): boolean {
     return false;
 }
 
+export function getContentTableIfExists($pos: ResolvedPos): Node | null {
+    for (let depth = $pos.depth; depth > 0; depth--) {
+        if ($pos.node(depth).type.name === "tableRow") {
+            return $pos.node(depth - 1);
+        }
+    }
+    return null;
+}
+
 /**
  * Retrieves the resolved position of the currently selected table cell in the
  * editor state.

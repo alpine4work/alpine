@@ -35,6 +35,7 @@ import {Fragment, Node, Slice} from "prosemirror-model";
 import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
+    getContentTableIfExists,
     isSelectionInContentTable,
     nextContentTableCell,
     selectionContentTableCell,
@@ -126,6 +127,13 @@ function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
         if (sel instanceof ContentTableCellSelection) {
             cellSel = sel;
         } else {
+            // We only turn this shift-arrow key press into a cell selection if both the
+            // selection head and anchor are in the same table.
+            const selHeadTable = getContentTableIfExists(sel.$head);
+            const selAnchorTable = getContentTableIfExists(sel.$anchor);
+            if (!selHeadTable || !selAnchorTable) return false;
+            if (selHeadTable !== selAnchorTable) return false;
+
             const end = atEndOfCell(view, axis, dir, true);
             if (end == null) return false;
             cellSel = new ContentTableCellSelection(state.doc.resolve(end));
