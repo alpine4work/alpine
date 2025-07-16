@@ -10,12 +10,17 @@ import {
     RenderContentMentionToTextSearchEntity,
     renderContentMentionToText,
 } from "~/shared/content/render_content_mention_to_text.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
+import {getFileContentTypeStartOfSentenceNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileEntityStartOfSentenceNoun} from "~/shared/files/get_file_entity_noun.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.js";
+import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
@@ -52,6 +57,7 @@ export function printContentSingleLineTextSnippet(
     {
         getAccountIfExists,
         getSearchEntityIfExists,
+        getFileIfExists,
     }: {
         getAccountIfExists: (
             accountId: ContentMentionAccountId,
@@ -59,12 +65,14 @@ export function printContentSingleLineTextSnippet(
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
+        getFileIfExists: (fileId: FileId) => {readonly contentType: FileContentType} | null;
     },
 ): string {
     const segments = printContentSingleLineTextSnippetPreservingMarks(content, {
         shouldPreserveMark: () => false,
         getAccountIfExists,
         getSearchEntityIfExists,
+        getFileIfExists,
     });
 
     if (segments.length === 0) return "";
@@ -104,20 +112,26 @@ export function printContentSingleLineTextSnippetPreservingMarks(
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
+        getFileIfExists: (fileId: FileId) => {readonly contentType: FileContentType} | null;
     },
 ): Array<{marks: ReadonlyArray<Mark>; text: string}> {
-    const {shouldPreserveMark} = options;
+    const {shouldPreserveMark, getFileIfExists} = options;
 
     const segments: Array<{marks: ReadonlyArray<Mark>; text: string}> = [];
     let breakPunctuation: string | null = null;
     let preservedMarks: ReadonlyArray<Mark> = emptyArray;
     const orderListItemNumberByNode = new Map<Node, number>();
+    let fileNounNumberState: {noun: string; number: number} | null;
     let isTrimmingStart = false;
 
     const print = (text: string) => {
         if (isTrimmingStart) text = text.trimStart();
         if (text.length === 0) return;
         isTrimmingStart = false;
+
+        // Reset file noun number whenever we print non-file text. File noun number
+        // should only be shared for adjacent files of the same type.
+        fileNounNumberState = null;
 
         // Break punctuation is used to separate content which otherwise would have
         // rendered on separate lines. For example, we put a period after a heading
@@ -167,7 +181,7 @@ export function printContentSingleLineTextSnippetPreservingMarks(
     };
 
     const printBlockNode = (parentNode: Node, node: Node) => {
-        const typeName = node.type.name as ContentBlockNodeTypeName | "title";
+        const typeName = node.type.name as ContentBlockNodeTypeName | "title" | "fileRowTable";
 
         switch (typeName) {
             case "paragraph": {
@@ -237,14 +251,52 @@ export function printContentSingleLineTextSnippetPreservingMarks(
                 }
                 break;
             }
-            // Purely visual blocks that don't have a text representation.
-            case "divider":
-            case "fileRow":
+            // Divider doesn't have a good single-line text representation.
+            case "divider": {
+                break;
+            }
+            // Don't print a single-line text representation of floating files since we
+            // likely won't print in the location a user would expect.
             case "fileFloat": {
                 break;
             }
+            case "fileRow":
+            case "fileRowTable": {
+                for (const childNode of node.content.content) {
+                    const fileId: FileId | FileEntityId | null = childNode.attrs.fileId;
+
+                    let noun: string;
+                    if (!fileId) {
+                        noun = getFileContentTypeStartOfSentenceNoun("application/octet-stream");
+                    } else if (isId<FileId>(fileId)) {
+                        const file = getFileIfExists(fileId);
+                        noun = getFileContentTypeStartOfSentenceNoun(file?.contentType);
+                    } else {
+                        noun = getFileEntityStartOfSentenceNoun(parseFileEntityId(fileId).type);
+                    }
+
+                    const fileNounNumber =
+                        fileNounNumberState?.noun === noun ? fileNounNumberState.number + 1 : 1;
+
+                    if (fileNounNumber > 1) {
+                        print(`${noun} ${fileNounNumber}`);
+                    } else {
+                        print(noun);
+                    }
+
+                    fileNounNumberState = {noun, number: fileNounNumber};
+                    breakPunctuation = ".";
+                }
+                break;
+            }
             case "table": {
-                // TODO(rohitt-gupta, #tables): Implement single line printing for tables.
+                for (const childRowNode of node.content.content) {
+                    for (const childCellNode of childRowNode.content.content) {
+                        for (const childNode of childCellNode.content.content) {
+                            printBlockNode(node, childNode);
+                        }
+                    }
+                }
                 break;
             }
             default:

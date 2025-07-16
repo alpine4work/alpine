@@ -2060,6 +2060,9 @@ function handleTaskRowTitleInputPaste(
                 getSearchEntityIfExists: () => {
                     throw new UnimplementedError("Should be unreachable");
                 },
+                getFileIfExists: () => {
+                    throw new UnimplementedError("Should be unreachable");
+                },
             }),
             childTasks: [],
         };

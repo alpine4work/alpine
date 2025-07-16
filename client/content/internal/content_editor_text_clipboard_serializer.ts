@@ -1,5 +1,6 @@
 import {Fragment, Node, Slice} from "prosemirror-model";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {renderContentMentionToTextForClient} from "~/client/content/render_content_mention_to_text_for_client.js";
 import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
@@ -87,6 +88,7 @@ export function contentEditorTextClipboardSerializer(
                     {
                         accountRegistry: getAccountRegistry(spaceId),
                         searchEntityRegistry: getSearchEntityRegistry(spaceId),
+                        fileRegistry: getFileRegistry(spaceId),
                     },
                 );
             }

@@ -1,5 +1,6 @@
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+import {generateId} from "~/shared/id/id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
@@ -25,6 +26,7 @@ test("headings collapse onto the same line", () => {
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         // eslint-disable-next-line string-quotes
@@ -76,6 +78,7 @@ test("list items collapse onto the same line", () => {
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         "1. a. 2. b. 1. b-a. 2. b-b. 3. b-c. b-c-a. 1. b-c-a-a. 2. b-c-a-b. b-c-b. b-c-c. b-c-d. 3. c",
@@ -98,6 +101,7 @@ test("code block collapses onto the same line", () => {
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         "This is a code block. let a = 1; let b = 1; let c = a + b; console.log(c); This paragraph follows the code block.",
@@ -173,6 +177,7 @@ test("code block collapses multiple lines of text onto the same line", () => {
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         "This paragraph precedes. codeBlockLine1 codeBlockLine2 codeBlockLine3 This paragraph follows.",
@@ -200,6 +205,7 @@ test("code block with marks collapses multiple lines of text onto the same line"
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         "This paragraph precedes. codeBlockLine1 codeBlockLine2 codeBlockLine3 This paragraph follows.",
@@ -227,6 +233,7 @@ test("quote blocks collapse onto the same line", () => {
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         "paragraph1. paragraph2. paragraph3. paragraph4. 1. paragraph5. paragraph6. paragraph7",
@@ -253,6 +260,69 @@ test("breaks collapse onto the same line", () => {
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual("foo bar. buz qux");
+});
+
+test("adjacent files of the same type increment a count", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("foo")]),
+        schema.node("fileRow", {}, [schema.node("file", {fileId: `Document:${generateId()}`})]),
+        schema.node("fileRow", {}, [
+            schema.node("file", {fileId: `Document:${generateId()}`}),
+            schema.node("file", {fileId: `Document:${generateId()}`}),
+            schema.node("file", {fileId: `Document:${generateId()}`}),
+        ]),
+        schema.node("fileRow", {}, [
+            schema.node("file", {fileId: `Document:${generateId()}`}),
+            schema.node("file", {fileId: `Channel:${generateId()}`}),
+            schema.node("file", {fileId: `Document:${generateId()}`}),
+        ]),
+        schema.node("fileRow", {}, [schema.node("file", {fileId: `Document:${generateId()}`})]),
+        schema.node("paragraph", {}, [schema.text("bar")]),
+        schema.node("fileRow", {}, [schema.node("file", {fileId: `Document:${generateId()}`})]),
+    ]);
+
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
+        }),
+    ).toEqual(
+        "foo. Document. Document 2. Document 3. Document 4. Document 5. Channel. Document. Document 2. bar. Document",
+    );
+});
+
+test("prints a table top to bottom, left to right", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("foo")]),
+        schema.node("table", {}, [
+            schema.node("tableRow", {}, [
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("a1")])]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("b1")])]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("c1")])]),
+            ]),
+            schema.node("tableRow", {}, [
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("a2")])]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("b2")])]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("c2")])]),
+            ]),
+            schema.node("tableRow", {}, [
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("a3")])]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("b3")])]),
+                schema.node("tableCell", {}, [schema.node("paragraph", {}, [schema.text("c3")])]),
+            ]),
+        ]),
+        schema.node("paragraph", {}, [schema.text("bar")]),
+    ]);
+
+    expect(
+        printContentSingleLineTextSnippet(doc, {
+            getAccountIfExists: () => null,
+            getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
+        }),
+    ).toEqual("foo. a1. b1. c1. a2. b2. c2. a3. b3. c3. bar");
 });

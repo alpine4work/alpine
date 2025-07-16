@@ -2,6 +2,7 @@ import prettyBytes from "pretty-bytes";
 import {
     ServerActionContext,
     ServerSessionActionContext,
+    ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
@@ -1507,7 +1508,7 @@ async function getFileItemIfExistsAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
 ): Promise<FileItem | null> {
     const item = await getFileItemIfExistsWithCache(context, spaceId, fileId, {consistency});
     if (!item) return null;
@@ -1553,7 +1554,7 @@ export async function getFileIfExistsAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel | null> {
     const item = await getFileItemIfExistsAsUploader(context, spaceId, fileId, options);
     if (!item) return null;
@@ -1572,11 +1573,35 @@ export async function getFileAsUploader(
     context: ServerActionContext,
     spaceId: SpaceId,
     fileId: FileId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<FileModel> {
     const file = await getFileIfExistsAsUploader(context, spaceId, fileId, options);
     if (!file) throw new NotFoundError("File not found");
     return file;
+}
+
+export function getFileIfExistsAsSystem(
+    context: ServerSystemActionContext,
+    fileId: FileId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+) {
+    context.actor.authorizeSystem();
+
+    // `getFileIfExistsAsUploader()` works for system actors. This is a convenience
+    // function with a nicer name for system actors.
+    return getFileIfExistsAsUploader(context, context.actor.getSpaceId(), fileId, options);
+}
+
+export function getFileAsSystem(
+    context: ServerSystemActionContext,
+    fileId: FileId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+) {
+    context.actor.authorizeSystem();
+
+    // `getFileAsUploader()` works for system actors. This is a convenience
+    // function with a nicer name for system actors.
+    return getFileAsUploader(context, context.actor.getSpaceId(), fileId, options);
 }
 
 const fileAuthorizerAttachmentTargetTypesByTableSchema = new WeakMap<object, Set<string>>();

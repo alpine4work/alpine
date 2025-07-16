@@ -6,6 +6,7 @@ import {useAccountRegistry} from "~/client/accounts/account_registry_context.js"
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentView} from "~/client/content/content_view.js";
 import {ContentViewWithSeeMoreToggle} from "~/client/content/content_view_with_see_more_toggle.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {getContentViewLastParagraphChild} from "~/client/content/get_content_view_depth_to_last_paragraph_child.js";
 import {getContentReferencesForClientPrintSingleLineTextSnippet} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -122,6 +123,7 @@ export function PostContentView({
     const {currentAccount} = useSpaceContext();
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
+    const fileRegistry = useFileRegistry();
 
     // Update `SearchEntityRegistry` with the post content. Now as the post content
     // changes in realtime, any `SearchEntityModel`s rendered elsewhere in
@@ -138,7 +140,7 @@ export function PostContentView({
                             getContentReferencesForClientPrintSingleLineTextSnippet(
                                 get,
                                 post.content.references,
-                                {accountRegistry, searchEntityRegistry},
+                                {accountRegistry, searchEntityRegistry, fileRegistry},
                             ),
                         ),
                         titleVersion: {
@@ -150,6 +152,7 @@ export function PostContentView({
                 });
             }, [
                 accountRegistry,
+                fileRegistry,
                 post.author,
                 post.channel.name,
                 post.channel.version,

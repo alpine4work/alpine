@@ -1,5 +1,6 @@
 import {Fragment, ReactNode} from "react";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
+import {FileRegistry} from "~/client/content/file_registry.js";
 import {printContentSingleLineTextSnippetPreservingMarksForClient} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {
@@ -25,11 +26,13 @@ export function getTruncatedMessageContentForReplyPreview(
         messageNoun,
         accountRegistry,
         searchEntityRegistry,
+        fileRegistry,
     }: {
         message: MessageModel;
         messageNoun: string;
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
+        fileRegistry: FileRegistry;
     },
 ): ReactNode {
     switch (message.payload.type) {
@@ -52,6 +55,7 @@ export function getTruncatedMessageContentForReplyPreview(
                         mark.type.name === "strike",
                     accountRegistry,
                     searchEntityRegistry,
+                    fileRegistry,
                 },
             );
 

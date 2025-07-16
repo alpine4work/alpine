@@ -22,6 +22,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountRegistry} from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {
     ContentEditorMobileLinkModal,
     ContentEditorMobileLinkModalState,
@@ -1437,6 +1438,7 @@ function MessageInputReplyingToMessage<
     const spacingScale = useSpacingScale();
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
+    const fileRegistry = useFileRegistry();
 
     const truncatedContent = useStore(
         useMemo(
@@ -1447,9 +1449,10 @@ function MessageInputReplyingToMessage<
                         messageNoun,
                         accountRegistry,
                         searchEntityRegistry,
+                        fileRegistry,
                     }),
                 ),
-            [accountRegistry, messageNoun, replyingToMessage, searchEntityRegistry],
+            [accountRegistry, fileRegistry, messageNoun, replyingToMessage, searchEntityRegistry],
         ),
     );
 

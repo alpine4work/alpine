@@ -7,6 +7,7 @@ import {
     getDocumentContent,
     getDocumentTitleIfExists,
 } from "~/server/documents/data/documents_table.js";
+import {getFileIfExistsAsSystem} from "~/server/files/data/files_table.js";
 import {
     getChannelNameAndDescriptionContentAndContributors,
     getChannelPreviewIfExists,
@@ -51,6 +52,7 @@ import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_co
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     createPostSearchEntityTitle,
@@ -83,6 +85,7 @@ import {
     ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
+    FileId,
     PostId,
     TaskCollectionId,
     TaskId,
@@ -310,6 +313,17 @@ class SearchEntityReadState {
         return getAccount(this._context, this._context.actor.getSpaceId(), accountId, {
             consistency: "Strong",
         });
+    }
+
+    public async getFileContentTypeIfExists(fileId: FileId): Promise<FileContentType | null> {
+        // We don't need to record a dependency on the file since file types never
+        // change! Files are immutable. We'll never need to reindex.
+        const file = await getFileIfExistsAsSystem(this._context, fileId, {
+            consistency: "StrongWithinCache",
+        });
+
+        if (!file) return null;
+        return file.contentType;
     }
 
     public getDocumentContent(documentId: DocumentId): Promise<{
@@ -747,12 +761,13 @@ async function getSearchContentReferences(
     getSearchEntityIfExists: (
         entityId: SearchMentionEntityId,
     ) => RenderContentMentionToTextSearchEntity | null;
+    getFileIfExists: (fileId: FileId) => {readonly contentType: FileContentType} | null;
 }> {
     seen = new Set(addToIterable(seen, originEntityId));
 
     const referencedIds = getContentReferencedIdsForNode(content);
 
-    const [accounts, searchEntityEntries] = await runAllPromises([
+    const [accounts, searchEntityEntries, fileEntries] = await runAllPromises([
         runAllPromises(
             mapIterable(referencedIds.accountIds, accountId => state.getAccountIfExists(accountId)),
         ),
@@ -840,6 +855,18 @@ async function getSearchContentReferences(
                 },
             ),
         ),
+        runAllPromises(
+            mapIterable(
+                referencedIds.fileIds,
+                async (
+                    fileId,
+                ): Promise<[FileId, {readonly contentType: FileContentType}] | null> => {
+                    const contentType = await state.getFileContentTypeIfExists(fileId);
+                    if (!contentType) return null;
+                    return [fileId, {contentType}];
+                },
+            ),
+        ),
     ]);
 
     const accountById = new Map<ContentMentionAccountId, AccountModelWithoutSpaceData>(
@@ -853,9 +880,14 @@ async function getSearchContentReferences(
         searchEntityEntries.filter(isNonNullable),
     );
 
+    const fileById = new Map<FileId, {readonly contentType: FileContentType}>(
+        fileEntries.filter(isNonNullable),
+    );
+
     return {
         getAccountIfExists: accountId => accountById.get(accountId) ?? null,
         getSearchEntityIfExists: entityId => searchEntityById.get(entityId) ?? null,
+        getFileIfExists: fileId => fileById.get(fileId) ?? null,
     };
 }
 
@@ -1356,6 +1388,7 @@ async function getPostSearchEntity(
         title: createPostSearchEntityTitle(post.channel.name, post.content, {
             getAccountIfExists: contentReferences.getAccountIfExists,
             getSearchEntityIfExists: contentReferences.getSearchEntityIfExists,
+            getFileIfExists: contentReferences.getFileIfExists,
         }),
         titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
         body: `in ${post.channel.name}: ${getFullText()}`,

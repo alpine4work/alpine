@@ -9,10 +9,11 @@ import {
     contentMentionTextTruncatedSuffix,
     truncateContentMentionText,
 } from "~/shared/content/truncate_content_mention_text.js";
+import {FileContentType} from "~/shared/files/file_content_type.js";
 import {PostContent, assertPostContent} from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {countGraphemes, iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 export function getPostSearchEntityTitleContentSnippet(content: PostContent): PostContent {
@@ -41,6 +42,7 @@ export function createPostSearchEntityTitle(
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
+        getFileIfExists: (fileId: FileId) => {readonly contentType: FileContentType} | null;
     },
 ): string {
     return createPostSearchEntityTitleWithAlreadySnippedContent(
@@ -60,6 +62,7 @@ export function createPostSearchEntityTitleWithAlreadySnippedContent(
         getSearchEntityIfExists: (
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
+        getFileIfExists: (fileId: FileId) => {readonly contentType: FileContentType} | null;
     },
 ): string {
     const contentText = printContentSingleLineTextSnippet(contentSnippet, options);

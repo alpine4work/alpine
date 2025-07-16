@@ -2,7 +2,7 @@ import {FileEntityIdObject} from "~/shared/files/file_entity_id.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**
- * Get a user friendly noun for the file entity.
+ * Get a user friendly, English, noun for the file entity.
  */
 export function getFileEntityNoun(type: FileEntityIdObject["type"]): string {
     switch (type) {
@@ -12,6 +12,25 @@ export function getFileEntityNoun(type: FileEntityIdObject["type"]): string {
             return "task collection";
         case "Channel":
             return "channel";
+        default:
+            throw exhaustive(type);
+    }
+}
+
+/**
+ * Get a user friendly, English, noun for the file entity. This noun is
+ * capitalized so you can use it at the start of a sentence (following English
+ * formatting rules). Unlike `getFileEntityNoun()` which returns the file
+ * entity noun in lowercase.
+ */
+export function getFileEntityStartOfSentenceNoun(type: FileEntityIdObject["type"]): string {
+    switch (type) {
+        case "Document":
+            return "Document";
+        case "TaskCollection":
+            return "Task collection";
+        case "Channel":
+            return "Channel";
         default:
             throw exhaustive(type);
     }

@@ -1,5 +1,6 @@
 import {Slice} from "prosemirror-model";
 import {getAccountRegistry} from "~/client/accounts/account_registry_context.js";
+import {getFileRegistry} from "~/client/content/file_registry_context.js";
 import {printContentSingleLineTextSnippetForClient} from "~/client/content/print_content_single_line_text_snippet_for_client.js";
 import {getSearchEntityRegistry} from "~/client/search/core/search_entity_registry_context.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
@@ -45,6 +46,7 @@ export function getContentEditorMobileLinkModalSelectionSliceText(
                 {
                     accountRegistry: getAccountRegistry(spaceId),
                     searchEntityRegistry: getSearchEntityRegistry(spaceId),
+                    fileRegistry: getFileRegistry(spaceId),
                 },
             ),
             isEditable: false,

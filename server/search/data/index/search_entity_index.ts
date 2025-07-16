@@ -1511,6 +1511,7 @@ export async function searchByKeywords(
                       // index.
                       getAccountIfExists: () => null,
                       getSearchEntityIfExists: () => null,
+                      getFileIfExists: () => null,
                   }).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : emptyArray;
 
@@ -2004,6 +2005,7 @@ export async function searchBySemantics(
                       // index.
                       getAccountIfExists: () => null,
                       getSearchEntityIfExists: () => null,
+                      getFileIfExists: () => null,
                   }).map(segment => ({isHighlighted: segment.marks.length > 0, text: segment.text}))
                 : [];
 

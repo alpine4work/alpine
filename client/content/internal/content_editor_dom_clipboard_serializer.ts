@@ -116,6 +116,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 {
                     accountRegistry: getAccountRegistry(spaceId),
                     searchEntityRegistry: getSearchEntityRegistry(spaceId),
+                    fileRegistry: getFileRegistry(spaceId),
                 },
             );
 

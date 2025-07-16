@@ -1,5 +1,6 @@
 import {Mark} from "prosemirror-model";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
+import {FileRegistry} from "~/client/content/file_registry.js";
 import {SearchEntityRegistry} from "~/client/search/core/search_entity_registry.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
@@ -9,7 +10,8 @@ import {
     printContentSingleLineTextSnippetPreservingMarks,
 } from "~/shared/content/print_content_single_line_text_snippet.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
-import {ContentMentionAccountId} from "~/shared/id/types/id_types.js";
+import {FileModelData} from "~/shared/files/file_model.js";
+import {ContentMentionAccountId, FileId} from "~/shared/id/types/id_types.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {Store} from "~/shared/store/store.js";
 
@@ -23,6 +25,7 @@ export function printContentSingleLineTextSnippetForClient(
     options: {
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
+        fileRegistry: FileRegistry;
     },
 ): string {
     return printContentSingleLineTextSnippet(
@@ -38,6 +41,7 @@ export function printContentSingleLineTextSnippetPreservingMarksForClient(
         shouldPreserveMark: (mark: Mark) => boolean;
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
+        fileRegistry: FileRegistry;
     },
 ): Array<{marks: ReadonlyArray<Mark>; text: string}> {
     return printContentSingleLineTextSnippetPreservingMarks(content.doc, {
@@ -56,15 +60,18 @@ export function getContentReferencesForClientPrintSingleLineTextSnippet(
     {
         accountRegistry,
         searchEntityRegistry,
+        fileRegistry,
     }: {
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
+        fileRegistry: FileRegistry;
     },
 ): {
     getAccountIfExists: (accountId: ContentMentionAccountId) => AccountModelWithoutSpaceData | null;
     getSearchEntityIfExists: (
         entityId: SearchMentionEntityId,
     ) => RenderContentMentionToTextSearchEntity | null;
+    getFileIfExists: (fileId: FileId) => FileModelData | null;
 } {
     return {
         getAccountIfExists: accountId => {
@@ -94,6 +101,11 @@ export function getContentReferencesForClientPrintSingleLineTextSnippet(
                           }
                         : null,
             };
+        },
+        getFileIfExists: fileId => {
+            const file = references.fileById?.get(fileId);
+            if (!file) return null;
+            return get(fileRegistry.getFileStore(file));
         },
     };
 }

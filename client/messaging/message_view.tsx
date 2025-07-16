@@ -23,6 +23,7 @@ import {
 } from "~/client/accounts/account_registry_context.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {useFileRegistry} from "~/client/content/file_registry_context.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/content/has_standalone_margin_by_content_block_node_type_name.js";
 import {getTruncatedMessageContentForReplyPreview} from "~/client/content/messaging/get_truncated_message_content_for_reply_preview.js";
 import {MessageViewFiles} from "~/client/content/messaging/message_view_files.js";
@@ -1397,6 +1398,7 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
     const spacingScale = useSpacingScale();
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
+    const fileRegistry = useFileRegistry();
 
     const truncatedContent = useStore(
         useMemo(
@@ -1407,9 +1409,10 @@ function MessageViewParent<RoomKey extends string, Message extends MessageModel<
                         messageNoun,
                         accountRegistry,
                         searchEntityRegistry,
+                        fileRegistry,
                     }),
                 ),
-            [accountRegistry, messageNoun, parentMessage, searchEntityRegistry],
+            [accountRegistry, fileRegistry, messageNoun, parentMessage, searchEntityRegistry],
         ),
     );
 
