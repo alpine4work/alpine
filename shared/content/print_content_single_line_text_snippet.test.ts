@@ -128,6 +128,7 @@ test("code block trims indentation when collapsing onto the same line", () => {
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         "This is a code block. function main() { let a = 1; let b = 1; let c = a + b; if (isDevelopmentEnvironment) { console.log(c); } } This paragraph follows the code block.",
@@ -154,6 +155,7 @@ test("code block trims tab character indentation when collapsing onto the same l
         printContentSingleLineTextSnippet(doc, {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         }),
     ).toEqual(
         "This is a code block. function main() { let a = 1; let b = 1; let c = a + b; if (isDevelopmentEnvironment) { console.log(c); } } This paragraph follows the code block.",

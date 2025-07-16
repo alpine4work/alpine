@@ -23,9 +23,10 @@ test("creates title for document with file that doesn’t exist", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
-    ).toEqual("in Foundations:");
+    ).toEqual("in Foundations: Document");
 });
 
 test("creates title for document with file that does exist", () => {
@@ -54,9 +55,10 @@ test("creates title for document with file that does exist", () => {
                         getAccountMediaShortName: null,
                     };
                 },
+                getFileIfExists: () => null,
             },
         ),
-    ).toEqual("in Foundations:");
+    ).toEqual("in Foundations: Document");
 });
 
 test("creates title for content that has a trailing space", () => {
@@ -71,6 +73,7 @@ test("creates title for content that has a trailing space", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Foundations: Ends with a trailing space:");
@@ -86,6 +89,7 @@ test("creates title for content that has a trailing space", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Foundations: Ends with a trailing tab:");
@@ -103,6 +107,7 @@ test("creates title for content that has a trailing space", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Foundations: Ends with a trailing no-break space:");
@@ -116,6 +121,7 @@ test("creates title with empty content", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in General:");
@@ -134,6 +140,7 @@ test("creates title with heading only", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Engineering: Project Roadmap");
@@ -151,6 +158,7 @@ test("creates title with single short sentence", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Design: New design system launched");
@@ -170,6 +178,7 @@ test("creates title with multiple sentences fitting in soft max", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Updates: First sentence. Second sentence");
@@ -189,6 +198,7 @@ test("creates title with long first sentence", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual(
@@ -231,6 +241,7 @@ test("creates title with mentions", () => {
                     };
                 },
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Team: Hey John Doe check this out");
@@ -253,6 +264,7 @@ test("creates title with code block", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
         // eslint-disable-next-line string-quotes
@@ -282,6 +294,7 @@ test("creates title with list items", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Tasks: First item. Second item");
@@ -301,6 +314,7 @@ test("creates title with quote block", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Quotes: This is a quote");
@@ -324,6 +338,7 @@ test("creates title with formatted text", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Formatting: This is bold and italic text");
@@ -347,6 +362,7 @@ test("creates title with link", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Links: Check out this link for more");
@@ -366,6 +382,7 @@ test("creates title near max boundary cases", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Test: Short first. Second sentence that is a bit longer");
@@ -383,6 +400,7 @@ test("creates title near max boundary cases", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Test: This first sentence is exactly thirty-three");
@@ -400,6 +418,7 @@ test("creates title with emoji content", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Fun: Hello 👋 World 🌍!");
@@ -421,6 +440,7 @@ test("creates title with break nodes", () => {
             {
                 getAccountIfExists: () => null,
                 getSearchEntityIfExists: () => null,
+                getFileIfExists: () => null,
             },
         ),
     ).toEqual("in Breaks: Line one Line two");
@@ -455,6 +475,7 @@ test("verifies title never triggers assert with truncateContentMentionText", () 
         const title = createPostSearchEntityTitle(channel, assertPostContent(content), {
             getAccountIfExists: () => null,
             getSearchEntityIfExists: () => null,
+            getFileIfExists: () => null,
         });
 
         // This should always be true - the assert in the function should never fire
