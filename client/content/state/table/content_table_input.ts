@@ -64,9 +64,6 @@ export const handleContentTableKeyDown = keydownHandler({
     "Shift-ArrowUp": shiftArrow("vert", -1),
     "Shift-ArrowDown": shiftArrow("vert", 1),
 
-    Tab: arrow("horiz", 1),
-    "Shift-Tab": arrow("horiz", -1),
-
     Backspace: deleteContentTableCellSelection,
     "Mod-Backspace": deleteContentTableCellSelection,
     Delete: deleteContentTableCellSelection,
@@ -88,10 +85,20 @@ function arrow(axis: Axis, dir: ContentTableInputDirection): Command {
         if (!view) return false;
         const sel = state.selection;
         if (sel instanceof ContentTableCellSelection) {
-            return maybeSetSelection(state, dispatch, Selection.near(sel.$headCell, dir));
+            return maybeSetSelection(
+                state,
+                dispatch,
+                // Create a text selection at the start of the head cell.
+                Selection.near(sel.$headCell, 1),
+            );
         }
+
+        // Arrow up/down for selections that aren't cell selection is handled by
+        // `content_editor_keymap_plugin.ts`'s `selectVertically()` function.
+        if (axis === "vert") return false;
+
         if (axis != "horiz" && !sel.empty) return false;
-        const end = atEndOfCell(view, axis, dir);
+        const end = atEndOfCell(view, axis, dir, false);
         if (end == null) return false;
         if (axis == "horiz") {
             return maybeSetSelection(
@@ -119,7 +126,7 @@ function shiftArrow(axis: Axis, dir: ContentTableInputDirection): Command {
         if (sel instanceof ContentTableCellSelection) {
             cellSel = sel;
         } else {
-            const end = atEndOfCell(view, axis, dir);
+            const end = atEndOfCell(view, axis, dir, true);
             if (end == null) return false;
             cellSel = new ContentTableCellSelection(state.doc.resolve(end));
         }
@@ -182,19 +189,41 @@ export function handleContentTablePaste(
 
 // Check whether the cursor is at the end of a cell (so that further
 // motion would move out of the cell)
-function atEndOfCell(view: EditorView, axis: Axis, dir: number): null | number {
+function atEndOfCell(view: EditorView, axis: Axis, dir: number, shiftKey: boolean): null | number {
     if (!(view.state.selection instanceof TextSelection)) return null;
+
     const {$head} = view.state.selection;
+
     for (let d = $head.depth - 1; d >= 0; d--) {
         const parent = $head.node(d),
             index = dir < 0 ? $head.index(d) : $head.indexAfter(d);
+
         if (index != (dir < 0 ? 0 : parent.childCount)) return null;
+
         if (parent.type.name === "tableCell") {
             const cellPos = $head.before(d);
             const dirStr: "up" | "down" | "left" | "right" =
                 axis == "vert" ? (dir > 0 ? "down" : "up") : dir > 0 ? "right" : "left";
-            return view.endOfTextblock(dirStr) ? cellPos : null;
+
+            if (!view.endOfTextblock(dirStr)) return null;
+
+            // If the user is holding shift then we only want to move into cell selection
+            // if they are both at the last line of the textblock and they're at the end
+            // of content in the textblock.
+            //
+            // This mirrors a similar check in `content_editor_keymap_plugin.ts`'s
+            // `selectVertically()` function.
+            if (
+                shiftKey &&
+                axis === "vert" &&
+                $head.parentOffset !== (dir > 0 ? $head.parent.nodeSize - 2 : 0)
+            ) {
+                return null;
+            }
+
+            return cellPos;
         }
     }
+
     return null;
 }

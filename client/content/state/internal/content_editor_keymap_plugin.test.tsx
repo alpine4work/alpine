@@ -83,7 +83,7 @@ function TestContentEditor({
             <ContentEditor
                 aria-label="Test"
                 state={state}
-                onChange={setState}
+                onChange={state => act(() => setState(state))}
                 fileAttachmentTarget={fileAttachmentTarget}
                 commentFileAttachmentTarget={commentFileAttachmentTarget}
             />
@@ -121,9 +121,7 @@ function dispatch(buildTransaction: (state: EditorState) => Transaction) {
     // Each of these test transactions should be a single history stack item.
     closeHistory(transaction);
 
-    act(() => {
-        editor.dispatch(transaction);
-    });
+    editor.dispatch(transaction);
 }
 
 // Creates a string representing the keyboard event for test output
@@ -426,13 +424,6 @@ async function simulateTyping(
     } else {
         lastEditableChild.parentNode.replaceChild(document.createTextNode(text), lastEditableChild);
     }
-
-    // Wait for the mutation observer microtask
-    // https://dom.spec.whatwg.org/#queue-a-mutation-observer-compound-microtask
-    //
-    // The `await Promise.resolve()` fixes a bug in the interaction of React and
-    // Zone.js
-    await Promise.resolve(act(() => Promise.resolve()));
 }
 
 function findFirstEditableChild(node: Node): Node | null {

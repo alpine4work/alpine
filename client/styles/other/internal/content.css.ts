@@ -2346,10 +2346,14 @@ const tableColumnResizeHandleHalfWidth: RemLength = `${
     parseRemLength(tableColumnResizeHandleWidth) / 2
 }rem`;
 
-// We need more margin bottom than top to render the drop shadow on the
-// "Add row" button without clipping.
 const tableWrapper2MarginTop = tableColumnResizeHandleHalfWidth;
-const tableWrapper2MarginBottom = spacing["6"];
+
+const tableWrapper2MarginBottom = addRemLengths(
+    // Column resize handle width is also used for the add row bumper height.
+    tableColumnResizeHandleHalfWidth,
+    // Make sure we don't clip the add row bumper.
+    "0.5",
+);
 
 globalStyle(tableWrapperClassName, {
     ...omitObject(blockStyles, ["maxWidth", "marginLeft", "marginRight"]),

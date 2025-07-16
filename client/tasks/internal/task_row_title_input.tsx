@@ -31,6 +31,7 @@ import {flushSync} from "react-dom";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {isBrowserSpellcheckEnabled} from "~/client/content/is_browser_spellcheck_enabled.js";
 import {parseContentFromClipboard} from "~/client/content/parse_content_from_clipboard.js";
+import {findElementVerticalNavigationPosition} from "~/client/content/state/find_element_vertical_navigation_position.js";
 import {buildSharedContentEditorInputRulesPlugin} from "~/client/content/state/shared/build_shared_content_editor_input_rules_plugin.js";
 import {sharedContentEditorTrackSelectionWithinPlugin} from "~/client/content/state/shared/shared_content_editor_track_selection_within_plugin.js";
 import {navigationBarHeight} from "~/client/design/navigation_bar_helpers.js";
@@ -1505,25 +1506,16 @@ function TaskRowTitleInput(
                 }
 
                 runWhenViewIsReady(view => {
-                    const viewRect = view.dom.getBoundingClientRect();
+                    const position = findElementVerticalNavigationPosition(side, view.dom, coord);
 
-                    const posResult = view.posAtCoords({
-                        left: coord,
-                        top:
-                            side === "top"
-                                ? viewRect.top +
-                                  parseFloat(getComputedStyle(view.dom).paddingTop) +
-                                  1
-                                : viewRect.bottom -
-                                  parseFloat(getComputedStyle(view.dom).paddingBottom) -
-                                  1,
-                    });
-
-                    const selection = posResult
-                        ? new TextSelection(view.state.doc.resolve(posResult.pos))
-                        : coord > viewRect.right
-                        ? Selection.atEnd(view.state.doc)
-                        : Selection.atStart(view.state.doc);
+                    const selection =
+                        position === null
+                            ? Selection.atStart(view.state.doc)
+                            : new TextSelection(
+                                  view.state.doc.resolve(
+                                      view.posAtDOM(position.node, position.offset),
+                                  ),
+                              );
 
                     // When in dual modality, the `isFocused` state must be true for the editor to
                     // be `contenteditable="true"` and thus focusable.

@@ -34,20 +34,19 @@ import {
     dedentListItemCommand,
     indentListItemCommand,
 } from "~/client/content/state/indent_and_dedent_list_item_commands.js";
+import {createHandleContentEditorVerticalArrowKeyDown} from "~/client/content/state/internal/create_handle_content_editor_vertical_arrow_key_down.js";
 import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/state/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
 import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/state/internal/split_block_with_code_block_line_leading_indentation.js";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/state/shared/add_shared_content_editor_keymap_commands.js";
 import {isSelectionInContentTable} from "~/client/content/state/table/content_table_client_util.js";
+import {handleContentTableKeyDown} from "~/client/content/state/table/content_table_input.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
-import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
-import {contentStyles} from "~/client/styles/styles.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     ContentProsemirrorSchema,
     contentCodeBlockIndentationSpaceCount,
 } from "~/shared/content/content_schema.js";
-import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type Command = (
@@ -1717,264 +1716,6 @@ export function buildContentEditorKeymapPlugin(
         return false;
     });
 
-    // We try to preserve the browser behavior of keeping the cursor in the same X
-    // position as it navigates vertically while we navigate through files. This
-    // implementation isn't perfect but creates a slightly better experience.
-    // Notably we don't know the browsers own X value it's trying to maintain, we
-    // only know the X value before selection entered a file gallery.
-    let lastArrowNavigationCoordState: {
-        setTime: Date;
-        coord: number;
-        cleanup: () => void;
-    } | null = null;
-
-    function setLastArrowNavigationCoordState(coord: number) {
-        lastArrowNavigationCoordState?.cleanup();
-        lastArrowNavigationCoordState = null;
-
-        const clearLastArrowNavigationCoord = () => {
-            if (
-                lastArrowNavigationCoordState &&
-                // If we just set this ref, don't clear it. We're processing browser events
-                // that happened because of the arrow navigation.
-                new Date().getTime() - lastArrowNavigationCoordState.setTime.getTime() > 100
-            ) {
-                lastArrowNavigationCoordState.cleanup();
-                lastArrowNavigationCoordState = null;
-            }
-        };
-
-        document.addEventListener("focus", clearLastArrowNavigationCoord);
-        document.addEventListener("blur", clearLastArrowNavigationCoord);
-        document.addEventListener("selectionchange", clearLastArrowNavigationCoord);
-
-        lastArrowNavigationCoordState = {
-            setTime: new Date(),
-            coord,
-            cleanup: () => {
-                document.removeEventListener("focus", clearLastArrowNavigationCoord);
-                document.removeEventListener("blur", clearLastArrowNavigationCoord);
-                document.removeEventListener("selectionchange", clearLastArrowNavigationCoord);
-            },
-        };
-    }
-
-    // Forked from `selectVertically()`:
-    // https://github.com/ProseMirror/prosemirror-view/blob/d97a3c1f8cecb9d34f426e3d70fd3bd098d5ebf6/src/capturekeys.ts#L247-L264
-    //
-    // We want to have the same vertical selection logic as ProseMirror but with
-    // more accurate navigation based on DOM geometry. So pressing the down arrow
-    // on the right side of a text block should go to the rightmost file.
-    function selectFileVertically(view: EditorView, dir: number, event: KeyboardEvent) {
-        const {state} = view;
-        const {selection} = state;
-        if ((selection instanceof TextSelection && !selection.empty) || event.shiftKey)
-            return false;
-        if (getClientInfo().isAppleDevice && event.metaKey) return false;
-        const {$from} = selection;
-
-        if (!$from.parent.inlineContent || view.endOfTextblock(dir < 0 ? "up" : "down")) {
-            // NOTE(calebmer): If our selection is inside a file then we want to move the
-            // selection to a position below (or above) our file based on DOM geometry. Not
-            // based on ProseMirror tree layout (which is the default).
-            //
-            // - If we're moving from a file to a file we'll move to the file below (or
-            //   above) ours.
-            // - If we're moving from a file to text then we'll select text directly below
-            //   our file.
-            if (
-                selection instanceof NodeSelection &&
-                selection.node.type.name === "file" &&
-                selection.$anchor.parent.type.groups.includes("fileRowLike")
-            ) {
-                const fileElement = view.nodeDOM(selection.$anchor.pos);
-
-                if (fileElement instanceof Element) {
-                    const fileRect = fileElement.getBoundingClientRect();
-
-                    // Elements that aren't attached to the DOM (so aren't laid out) have a zeroed
-                    // out bounding client rect. Ignore these elements.
-                    if (
-                        fileRect.left !== 0 ||
-                        fileRect.right !== 0 ||
-                        fileRect.top !== 0 ||
-                        fileRect.bottom !== 0
-                    ) {
-                        const nextElement =
-                            dir > 0
-                                ? fileElement?.parentElement?.nextElementSibling
-                                : fileElement?.parentElement?.previousElementSibling;
-
-                        const nextRect = nextElement?.getBoundingClientRect();
-
-                        const posResult = view.posAtCoords({
-                            left:
-                                lastArrowNavigationCoordState?.coord ??
-                                fileRect.left + (fileRect.right - fileRect.left) / 2,
-                            top:
-                                dir > 0
-                                    ? nextRect
-                                        ? nextRect.top + 1
-                                        : fileRect.bottom +
-                                          convertRemLengthToPx(
-                                              contentStyles.paragraphMargin,
-                                              getSpacingScaleWithoutListening(),
-                                          )
-                                    : nextRect
-                                    ? nextRect.bottom - 1
-                                    : fileRect.top -
-                                      convertRemLengthToPx(
-                                          contentStyles.paragraphMargin,
-                                          getSpacingScaleWithoutListening(),
-                                      ),
-                        });
-
-                        if (posResult !== null) {
-                            let nextSelection = Selection.near(
-                                state.doc.resolve(posResult.pos),
-                                -dir,
-                            );
-
-                            // If moving vertically kept us in the same `fileRow` then try searching for a
-                            // selection with a bias in the other direction. This is needed when you have
-                            // images in a T shape like this:
-                            //
-                            // ```
-                            //     ┌────────┐┌────────────┐
-                            //     │        ││            │
-                            //     │  1     ││  2         │
-                            //     │        ││            │
-                            //     │        ││            │
-                            //     └────────┘└────────────┘
-                            //            ┌────────┐
-                            //            │        │
-                            //            │  3     │
-                            //            │        │
-                            //            │        │
-                            //            │        │
-                            //            │        │
-                            //            └────────┘
-                            // ```
-                            //
-                            // If your selection is in 1 then the coordinate below 1 will be between 2 and
-                            // 3. So a bias of -1 selects 2.
-                            if (nextSelection.$anchor.parent === selection.$anchor.parent) {
-                                nextSelection = Selection.near(
-                                    state.doc.resolve(posResult.pos),
-                                    dir,
-                                );
-                            }
-
-                            if (
-                                !(nextSelection instanceof NodeSelection) ||
-                                nextSelection.node !== selection.node
-                            ) {
-                                // Preserve the last arrow navigation coord if we used it.
-                                if (lastArrowNavigationCoordState)
-                                    lastArrowNavigationCoordState.setTime = new Date();
-
-                                view.dispatch(
-                                    state.tr.setSelection(nextSelection).scrollIntoView(),
-                                );
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            const {$anchor, $head} = state.selection;
-            const $side = dir > 0 ? $anchor.max($head) : $anchor.min($head);
-            const $start = !$side.parent.inlineContent
-                ? $side
-                : $side.depth
-                ? state.doc.resolve(dir > 0 ? $side.after() : $side.before())
-                : null;
-            const nextSelection = $start && Selection.findFrom($start, dir);
-
-            if (nextSelection && nextSelection instanceof NodeSelection) {
-                // NOTE(calebmer): If our selection is moving into a file out of anything else
-                // (e.g. paragraph) then we want to move into the file closest to the current
-                // selection based on DOM geometry not based on ProseMirror tree order (which
-                // is the default).
-                //
-                // If our current selection is a file and our next selection is a file it
-                // should be handled in our branch above. This branch should only happen when
-                // the next selection is a file but the current selection is not.
-                if (
-                    nextSelection.node.type.name === "file" &&
-                    nextSelection.$anchor.parent.type.groups.includes("fileRowLike")
-                ) {
-                    const coords = view.coordsAtPos($side.pos);
-
-                    // Make sure coords exist and isn't entirely zeroed out which ProseMirror may
-                    // return when it doesn't have layout information.
-                    if (
-                        coords &&
-                        (coords.top !== 0 ||
-                            coords.bottom !== 0 ||
-                            coords.left !== 0 ||
-                            coords.right !== 0)
-                    ) {
-                        const coordX = coords.left + (coords.right - coords.left) / 2;
-
-                        const fileRowElement = view.nodeDOM(nextSelection.$anchor.before());
-                        const fileRowRect =
-                            fileRowElement instanceof Element
-                                ? fileRowElement.getBoundingClientRect()
-                                : null;
-
-                        const posCoords = {
-                            left: coordX,
-                            top:
-                                dir > 0
-                                    ? fileRowRect
-                                        ? fileRowRect.top + 1
-                                        : coords.bottom +
-                                          convertRemLengthToPx(
-                                              contentStyles.paragraphMargin,
-                                              getSpacingScaleWithoutListening(),
-                                          )
-                                    : fileRowRect
-                                    ? fileRowRect.bottom - 1
-                                    : coords.top -
-                                      convertRemLengthToPx(
-                                          contentStyles.paragraphMargin,
-                                          getSpacingScaleWithoutListening(),
-                                      ),
-                        };
-
-                        const posResult = view.posAtCoords(posCoords);
-
-                        if (posResult !== null) {
-                            // Save the last arrow navigation coord we used.
-                            setLastArrowNavigationCoordState(coordX);
-
-                            const $pos = state.doc.resolve(posResult.pos);
-
-                            const nextSelection =
-                                $pos.nodeAfter?.type.name === "file"
-                                    ? new NodeSelection($pos)
-                                    : $pos.nodeBefore?.type.name === "file"
-                                    ? new NodeSelection(state.doc.resolve($pos.pos - 1))
-                                    : Selection.near(state.doc.resolve(posResult.pos), dir);
-
-                            view.dispatch(state.tr.setSelection(nextSelection).scrollIntoView());
-                            return true;
-                        }
-                    }
-                }
-
-                // Since we computed the same `nextSelection` ProseMirror would we might as
-                // well return it and save ProseMirror the work.
-                view.dispatch(state.tr.setSelection(nextSelection).scrollIntoView());
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     keys.set("Mod-a", selectAll);
 
     // Toggle inline formats
@@ -2095,24 +1836,18 @@ export function buildContentEditorKeymapPlugin(
 
     const handleKeyDown = keydownHandler(Object.fromEntries(keys));
 
+    const handleVerticalArrowKeyDown = createHandleContentEditorVerticalArrowKeyDown();
+
     return new Plugin({
         props: {
             handleKeyDown: (view, event) => {
-                // We don't use `prosemirror-keymap` for these event handlers since we want the
-                // `KeyboardEvent` itself to mimic the exact implementation from
-                // `prosemirror-view` for vertical navigation.
-                {
-                    if (event.key === "ArrowDown" && selectFileVertically(view, 1, event)) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return true;
-                    }
-
-                    if (event.key === "ArrowUp" && selectFileVertically(view, -1, event)) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return true;
-                    }
+                // First, run our content table `keydown` handlers. That way the
+                // `Shift-ArrowUp` and `Shift-ArrowDown` handlers can run before
+                // our vertical navigation logic.
+                if (handleContentTableKeyDown(view, event)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return true;
                 }
 
                 // Our codebase convention is to call `event.preventDefault()` and
@@ -2124,12 +1859,30 @@ export function buildContentEditorKeymapPlugin(
                 // events we've already handled. Particularly important for undo where we have
                 // a global undo handler and a local undo handler. If our local undo handles
                 // the keyboard shortcut we don't want to run our global handler.
-                const result = handleKeyDown(view, event);
-                if (result) {
+                if (handleKeyDown(view, event)) {
                     event.preventDefault();
                     event.stopPropagation();
+                    return true;
                 }
-                return result;
+
+                // We don't use `prosemirror-keymap` for these event handlers since we want the
+                // `KeyboardEvent` itself to mimic the exact implementation from
+                // `prosemirror-view` for vertical navigation.
+                {
+                    if (event.key === "ArrowDown" && handleVerticalArrowKeyDown(view, 1, event)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return true;
+                    }
+
+                    if (event.key === "ArrowUp" && handleVerticalArrowKeyDown(view, -1, event)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return true;
+                    }
+                }
+
+                return false;
             },
 
             handleTextInput: (view, from, to, text) => {

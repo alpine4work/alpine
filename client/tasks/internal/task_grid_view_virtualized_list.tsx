@@ -1295,12 +1295,12 @@ export function useTaskGridViewVirtualizedListBase({
             }
         };
 
-        document.addEventListener("focus", clearLastArrowNavigationCoord);
-        document.addEventListener("blur", clearLastArrowNavigationCoord);
+        document.addEventListener("focusin", clearLastArrowNavigationCoord);
+        document.addEventListener("focusout", clearLastArrowNavigationCoord);
         document.addEventListener("selectionchange", clearLastArrowNavigationCoord);
         return () => {
-            document.removeEventListener("focus", clearLastArrowNavigationCoord);
-            document.removeEventListener("blur", clearLastArrowNavigationCoord);
+            document.removeEventListener("focusin", clearLastArrowNavigationCoord);
+            document.removeEventListener("focusout", clearLastArrowNavigationCoord);
             document.removeEventListener("selectionchange", clearLastArrowNavigationCoord);
         };
     }, []);

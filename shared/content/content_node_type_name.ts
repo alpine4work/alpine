@@ -91,6 +91,7 @@ export const contentBlockNodeTypeNames = {
     divider: true,
     fileRow: true,
     fileFloat: true,
+    fileRowTable: true,
     table: true,
 };
 
@@ -129,7 +130,7 @@ export function assertContentTypeNamesCoverProsemirrorSchema(schema: Prosemirror
             assert(hasOwnProperty(contentTextblockNodeTypeNames, type.name));
         }
 
-        if (type.groups.includes("block")) {
+        if (type.groups.includes("block") || type.groups.includes("tableBlock")) {
             assert(hasOwnProperty(contentBlockNodeTypeNames, type.name));
         }
     }

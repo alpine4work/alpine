@@ -25,5 +25,6 @@ export const hasStandaloneMarginByContentBlockNodeTypeName: {[key: string]: bool
     quoteBlock: true,
     codeBlock: true,
     fileRow: true,
+    fileRowTable: true,
     table: true,
 });

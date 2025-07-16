@@ -51,7 +51,6 @@ import {
     selectContentTableRow,
 } from "~/client/content/state/table/content_table_commands.js";
 import {fixContentTables} from "~/client/content/state/table/content_table_fix_tables.js";
-import {handleContentTableKeyDown} from "~/client/content/state/table/content_table_input.js";
 import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/content/state/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
 import {ContentEditorTableLayout} from "~/client/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {forceUpdateAllChildOverlayPositions} from "~/client/design/overlay_helpers.js";
@@ -157,8 +156,6 @@ export function contentEditorTablePlugin(): Plugin {
                     handleMouseDown(view, event);
                 },
             },
-
-            handleKeyDown: handleContentTableKeyDown,
 
             createSelectionBetween: view => {
                 return contentEditorTablePluginKey.getState(view.state)?.type ===
