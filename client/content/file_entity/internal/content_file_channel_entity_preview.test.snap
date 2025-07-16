@@ -11,6 +11,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -163,6 +164,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -331,6 +333,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -499,6 +502,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -654,6 +658,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -806,6 +811,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -958,6 +964,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -1110,6 +1117,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -1278,6 +1286,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -1446,6 +1455,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -1601,6 +1611,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -1753,6 +1764,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
       "
     >
       <div
@@ -1901,7 +1913,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -2049,7 +2066,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -2213,7 +2235,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -2377,7 +2404,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -2528,7 +2560,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -2676,7 +2713,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -2824,7 +2866,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -2972,7 +3019,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -3136,7 +3188,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -3300,7 +3357,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -3451,7 +3513,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -3599,7 +3666,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 750px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 750px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -3751,6 +3823,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -3903,6 +3976,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -4071,6 +4145,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -4239,6 +4314,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -4394,6 +4470,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -4546,6 +4623,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -4698,6 +4776,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -4850,6 +4929,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -5018,6 +5098,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -5186,6 +5267,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -5341,6 +5423,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -5493,6 +5576,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
       "
     >
       <div
@@ -5645,6 +5729,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -5797,6 +5882,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -5965,6 +6051,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -6133,6 +6220,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -6288,6 +6376,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -6440,6 +6529,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -6592,6 +6682,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -6744,6 +6835,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -6912,6 +7004,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -7080,6 +7173,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -7235,6 +7329,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -7387,6 +7482,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: la
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
       "
     >
       <div
@@ -7539,6 +7635,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -7691,6 +7788,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -7859,6 +7957,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -8027,6 +8126,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -8182,6 +8282,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -8334,6 +8435,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -8486,6 +8588,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -8638,6 +8741,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -8806,6 +8910,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -8974,6 +9079,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -9129,6 +9235,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -9281,6 +9388,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
       "
     >
       <div
@@ -9429,7 +9537,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -9577,7 +9690,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -9741,7 +9859,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -9905,7 +10028,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -10056,7 +10184,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -10204,7 +10337,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -10352,7 +10490,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -10500,7 +10643,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -10664,7 +10812,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -10828,7 +10981,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -10979,7 +11137,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -11127,7 +11290,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 755px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 755px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -11279,6 +11447,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -11431,6 +11600,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -11599,6 +11769,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -11767,6 +11938,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -11922,6 +12094,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -12074,6 +12247,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -12226,6 +12400,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -12378,6 +12553,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -12546,6 +12722,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -12714,6 +12891,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -12869,6 +13047,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -13021,6 +13200,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
       "
     >
       <div
@@ -13173,6 +13353,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -13325,6 +13506,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -13493,6 +13675,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -13661,6 +13844,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -13816,6 +14000,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -13968,6 +14153,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -14120,6 +14306,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -14272,6 +14459,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -14440,6 +14628,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -14608,6 +14797,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -14763,6 +14953,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -14915,6 +15106,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: me
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
       "
     >
       <div
@@ -15067,6 +15259,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -15219,6 +15412,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -15387,6 +15581,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -15555,6 +15750,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -15710,6 +15906,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -15862,6 +16059,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -16014,6 +16212,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -16166,6 +16365,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -16334,6 +16534,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -16502,6 +16703,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -16657,6 +16859,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -16809,6 +17012,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.39285714285714285);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
       "
     >
       <div
@@ -16957,7 +17161,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -17105,7 +17314,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -17269,7 +17483,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -17433,7 +17652,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -17584,7 +17808,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -17732,7 +17961,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -17880,7 +18114,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -18028,7 +18267,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -18192,7 +18436,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -18356,7 +18605,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -18507,7 +18761,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -18655,7 +18914,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 760px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 760px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -18803,7 +19067,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 260px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 260px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -18951,7 +19220,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 260px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 260px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -19115,7 +19389,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 260px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 260px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -19279,7 +19558,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 260px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 260px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -19430,7 +19714,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 260px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 260px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -19578,7 +19867,12 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
   >
     <div
       class="sprinkles_display_flex_default__HASH sprinkles_flexDirection_column_default__HASH sprinkles_gap_5_default__HASH"
-      style="transform: scale(1); transform-origin: 0 0; width: 260px"
+      style="
+        transform: scale(1);
+        transform-origin: 0 0;
+        width: 260px;
+        min-width: 100%;
+      "
     >
       <div
         class="sprinkles_display_flex_default__HASH sprinkles_justifyContent_space-between_default__HASH sprinkles_alignItems_center_default__HASH sprinkles_gap_3_default__HASH sprinkles_marginBottom_-1_default__HASH"
@@ -19730,6 +20024,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
       "
     >
       <div
@@ -19882,6 +20177,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
       "
     >
       <div
@@ -20050,6 +20346,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
       "
     >
       <div
@@ -20218,6 +20515,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
       "
     >
       <div
@@ -20373,6 +20671,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
       "
     >
       <div
@@ -20525,6 +20824,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
       "
     >
       <div
@@ -20677,6 +20977,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
       "
     >
       <div
@@ -20829,6 +21130,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
       "
     >
       <div
@@ -20997,6 +21299,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
       "
     >
       <div
@@ -21165,6 +21468,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
       "
     >
       <div
@@ -21320,6 +21624,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
       "
     >
       <div
@@ -21472,6 +21777,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.8571428571428571);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
       "
     >
       <div
@@ -21624,6 +21930,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
       "
     >
       <div
@@ -21776,6 +22083,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
       "
     >
       <div
@@ -21944,6 +22252,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
       "
     >
       <div
@@ -22112,6 +22421,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
       "
     >
       <div
@@ -22267,6 +22577,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
       "
     >
       <div
@@ -22419,6 +22730,7 @@ exports[`renderContentFileChannelEntityPreview - HTML Snapshots spacingScale: sm
         transform: scale(0.7857142857142857);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
       "
     >
       <div

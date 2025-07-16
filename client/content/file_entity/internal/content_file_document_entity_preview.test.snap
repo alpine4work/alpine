@@ -11,6 +11,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -38,6 +39,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -65,6 +67,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -92,6 +95,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -123,6 +127,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -169,6 +174,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -199,6 +205,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -226,6 +233,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -253,6 +261,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -280,6 +289,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -311,6 +321,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -357,6 +368,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 203.63636363636365px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -387,6 +399,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -414,6 +427,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -441,6 +455,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -468,6 +483,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -499,6 +515,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -545,6 +562,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -575,6 +593,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -602,6 +621,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -629,6 +649,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -656,6 +677,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -687,6 +709,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -733,6 +756,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 875px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -763,6 +787,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -790,6 +815,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -817,6 +843,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -844,6 +871,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -875,6 +903,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -921,6 +950,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -951,6 +981,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -978,6 +1009,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1005,6 +1037,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1032,6 +1065,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1063,6 +1097,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1109,6 +1144,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1139,6 +1175,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1166,6 +1203,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1193,6 +1231,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1220,6 +1259,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1251,6 +1291,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1297,6 +1338,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1327,6 +1369,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1354,6 +1397,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1381,6 +1425,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1408,6 +1453,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1439,6 +1485,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1485,6 +1532,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: l
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 216.36363636363637px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1515,6 +1563,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1542,6 +1591,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1569,6 +1619,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1596,6 +1647,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1627,6 +1679,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1673,6 +1726,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1703,6 +1757,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1730,6 +1785,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1757,6 +1813,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1784,6 +1841,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1815,6 +1873,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1861,6 +1920,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 208.72727272727272px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1891,6 +1951,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1918,6 +1979,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1945,6 +2007,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -1972,6 +2035,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2003,6 +2067,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2049,6 +2114,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2079,6 +2145,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2106,6 +2173,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2133,6 +2201,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2160,6 +2229,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2191,6 +2261,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2237,6 +2308,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 880.8333333333334px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2267,6 +2339,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2294,6 +2367,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2321,6 +2395,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2348,6 +2423,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2379,6 +2455,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2425,6 +2502,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2455,6 +2533,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2482,6 +2561,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2509,6 +2589,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2536,6 +2617,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2567,6 +2649,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2613,6 +2696,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 308px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2643,6 +2727,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2670,6 +2755,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2697,6 +2783,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2724,6 +2811,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2755,6 +2843,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2801,6 +2890,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2831,6 +2921,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2858,6 +2949,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2885,6 +2977,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2912,6 +3005,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2943,6 +3037,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -2989,6 +3084,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: m
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 220.1818181818182px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3019,6 +3115,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3046,6 +3143,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3073,6 +3171,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3100,6 +3199,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3131,6 +3231,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3177,6 +3278,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3207,6 +3309,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3234,6 +3337,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3261,6 +3365,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3288,6 +3393,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3319,6 +3425,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3365,6 +3472,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 213.8181818181818px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3395,6 +3503,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3422,6 +3531,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3449,6 +3559,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3476,6 +3587,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3507,6 +3619,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3553,6 +3666,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3583,6 +3697,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3610,6 +3725,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3637,6 +3753,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3664,6 +3781,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3695,6 +3813,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3741,6 +3860,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 886.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3771,6 +3891,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3798,6 +3919,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3825,6 +3947,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3852,6 +3975,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3883,6 +4007,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3929,6 +4054,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 303.33333333333337px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3959,6 +4085,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -3986,6 +4113,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4013,6 +4141,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4040,6 +4169,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4071,6 +4201,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4117,6 +4248,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 312.6666666666667px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4147,6 +4279,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4174,6 +4307,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4201,6 +4335,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4228,6 +4363,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4259,6 +4395,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4305,6 +4442,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-3.5rem);
         transform-origin: 0 0;
         width: 196px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4335,6 +4473,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4362,6 +4501,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4389,6 +4529,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4416,6 +4557,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4447,6 +4589,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "
@@ -4493,6 +4636,7 @@ exports[`renderContentFileDocumentEntityPreview - HTML Snapshots spacingScale: s
           translateY(-4.25rem);
         transform-origin: 0 0;
         width: 224px;
+        min-width: 100%;
         --safe-area-inset-top-base: 0px;
         --safe-area-inset-top: 0px;
       "

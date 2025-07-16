@@ -109,6 +109,7 @@ export function setupContentFileEntityPreviewContainer(
             `transform: ${transform}`,
             "transform-origin: 0 0",
             `width: ${scaledWidthPx}px`,
+            `min-width: 100%`,
         ];
         const scaledContainerStyles = [
             ...commonScaledContainerStyles,
