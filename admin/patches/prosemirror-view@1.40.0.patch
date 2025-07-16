@@ -1,5 +1,5 @@
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3a6f550bb 100644
+index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..79c370a38f6a230e3ee7e9ffbd0217968bea0b0a 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -216,8 +216,32 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -106,7 +106,39 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
    return docView;
  }
  var TextViewDesc = function (_NodeViewDesc) {
-@@ -2703,6 +2785,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2338,6 +2420,14 @@ function apply(view, sel) {
+   view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
+   return true;
+ }
++function getContentTableCellIfExists($pos) {
++  for (var depth = $pos.depth; depth > 0; depth--) {
++    if ($pos.node(depth).type.name === "tableCell") {
++      return $pos.node(depth);
++    }
++  }
++  return null;
++}  
+ function selectHorizontally(view, dir, mods) {
+   var sel = view.state.selection;
+   if (sel instanceof prosemirrorState.TextSelection) {
+@@ -2352,6 +2442,16 @@ function selectHorizontally(view, dir, mods) {
+     } else if (view.endOfTextblock(dir > 0 ? "forward" : "backward")) {
+       var next = moveSelectionBlock(view.state, dir);
+       if (next && next instanceof prosemirrorState.NodeSelection) return apply(view, next);
++      // NOTE(calebmer): If this arrow left/right moves in/out of a table then don't let the
++      // browser handle the event. Since the browser sometimes doesn't do what we expect.
++      //
++      // Example:
++      // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/khwxr14hsfjsp3d8eqdcbbfdd0
++      if (next) {
++        var cell1 = getContentTableCellIfExists(sel.$head);
++        var cell2 = getContentTableCellIfExists(next.$head);
++        if (cell1 !== cell2) return apply(view, next);
++      }
+       return false;
+     } else if (!(mac && mods.indexOf("m") > -1)) {
+       var _$head = sel.$head,
+@@ -2703,6 +2803,12 @@ function parseFromClipboard(view, text, html, plainText, $context) {
        html = f(html, view);
      });
      dom = readHTML(html);
@@ -119,7 +151,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
      if (webkit) restoreReplacedSpaces(dom);
    }
    var contextNode = dom && dom.querySelector("[data-pm-slice]");
-@@ -3499,7 +3587,9 @@ editHandlers.drop = function (view, _event) {
+@@ -3499,7 +3605,9 @@ editHandlers.drop = function (view, _event) {
    }
    var move = !!(dragging && dragMoves(view, event));
    if (view.someProp("handleDrop", function (f) {
@@ -130,7 +162,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
    })) {
      event.preventDefault();
      return;
-@@ -3538,9 +3628,33 @@ handlers.focus = function (view) {
+@@ -3538,9 +3646,33 @@ handlers.focus = function (view) {
      view.dom.classList.add("ProseMirror-focused");
      view.domObserver.start();
      view.focused = true;
@@ -167,7 +199,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
    }
  };
  handlers.blur = function (view, _event) {
-@@ -4209,6 +4323,7 @@ var DOMObserver = function () {
+@@ -4209,6 +4341,7 @@ var DOMObserver = function () {
      this.currentSelection = new SelectionState();
      this.onCharData = null;
      this.suppressingSelectionUpdates = false;
@@ -175,7 +207,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
      this.lastChangedTextNode = null;
      this.observer = window.MutationObserver && new window.MutationObserver(function (mutations) {
        for (var i = 0; i < mutations.length; i++) _this11.queue.push(mutations[i]);
-@@ -4295,13 +4410,25 @@ var DOMObserver = function () {
+@@ -4295,13 +4428,25 @@ var DOMObserver = function () {
    }, {
      key: "onSelectionChange",
      value: function onSelectionChange() {
@@ -202,7 +234,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
      }
    }, {
      key: "setCurSelection",
-@@ -4858,6 +4985,10 @@ var EditorView = function () {
+@@ -4858,6 +5003,10 @@ var EditorView = function () {
    function EditorView(place, props) {
      var _this15 = this;
      _classCallCheck(this, EditorView);
@@ -213,7 +245,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
      this._root = null;
      this.focused = false;
      this.trackWrites = null;
-@@ -4889,6 +5020,8 @@ var EditorView = function () {
+@@ -4889,6 +5038,8 @@ var EditorView = function () {
      this.domObserver.start();
      initInput(this);
      this.updatePluginViews();
@@ -222,7 +254,7 @@ index 5e205ad095f6d5f0acc87fc4ee294fcd3e96b88d..2555a72c5c27af071a72a19da7d347b3
    }
    _createClass(EditorView, [{
      key: "composing",
-@@ -5284,3 +5417,7 @@ exports.DecorationSet = DecorationSet;
+@@ -5284,3 +5435,7 @@ exports.DecorationSet = DecorationSet;
  exports.EditorView = EditorView;
  exports.__endComposition = __endComposition;
  exports.__parseFromClipboard = __parseFromClipboard;
@@ -305,7 +337,7 @@ index 31d9a81fcd5b095612450b892805122f000909c4..cb246e42425776d18cb4214573d2b0d9
 +    startDOM: DOMNode,
 +): void;
 diff --git a/dist/index.js b/dist/index.js
-index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2f9095105 100644
+index 2358e14a51b18a7050f17eb4c045c4e2422a4360..194ff61c4dce04c539f17db37d0f40d98893e546 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -220,16 +220,38 @@ function scrollRectIntoView(view, rect, startDOM) {
@@ -430,7 +462,39 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
      return docView;
  }
  class TextViewDesc extends NodeViewDesc {
-@@ -2844,6 +2925,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
+@@ -2416,6 +2497,14 @@ function apply(view, sel) {
+     view.dispatch(view.state.tr.setSelection(sel).scrollIntoView());
+     return true;
+ }
++function getContentTableCellIfExists($pos) {
++    for (let depth = $pos.depth; depth > 0; depth--) {
++        if ($pos.node(depth).type.name === "tableCell") {
++            return $pos.node(depth);
++        }
++    }
++    return null;
++}    
+ function selectHorizontally(view, dir, mods) {
+     let sel = view.state.selection;
+     if (sel instanceof TextSelection) {
+@@ -2433,6 +2522,16 @@ function selectHorizontally(view, dir, mods) {
+             let next = moveSelectionBlock(view.state, dir);
+             if (next && (next instanceof NodeSelection))
+                 return apply(view, next);
++            // NOTE(calebmer): If this arrow left/right moves in/out of a table then don't let the
++            // browser handle the event. Since the browser sometimes doesn't do what we expect.
++            //
++            // Example:
++            // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/khwxr14hsfjsp3d8eqdcbbfdd0
++            if (next) {
++                const cell1 = getContentTableCellIfExists(sel.$head);
++                const cell2 = getContentTableCellIfExists(next.$head);
++                if (cell1 !== cell2) return apply(view, next);
++            }
+             return false;
+         }
+         else if (!(mac && mods.indexOf("m") > -1)) {
+@@ -2844,6 +2943,10 @@ function parseFromClipboard(view, text, html, plainText, $context) {
      else {
          view.someProp("transformPastedHTML", f => { html = f(html, view); });
          dom = readHTML(html);
@@ -441,7 +505,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
          if (webkit)
              restoreReplacedSpaces(dom);
      }
-@@ -3749,7 +3834,9 @@ editHandlers.drop = (view, _event) => {
+@@ -3749,7 +3852,9 @@ editHandlers.drop = (view, _event) => {
          slice = parseFromClipboard(view, getText(event.dataTransfer), brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"), false, $mouse);
      }
      let move = !!(dragging && dragMoves(view, event));
@@ -452,7 +516,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
          event.preventDefault();
          return;
      }
-@@ -3796,10 +3883,34 @@ handlers.focus = view => {
+@@ -3796,10 +3901,34 @@ handlers.focus = view => {
          view.dom.classList.add("ProseMirror-focused");
          view.domObserver.start();
          view.focused = true;
@@ -491,7 +555,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
      }
  };
  handlers.blur = (view, _event) => {
-@@ -4563,6 +4674,7 @@ class DOMObserver {
+@@ -4563,6 +4692,7 @@ class DOMObserver {
          this.currentSelection = new SelectionState;
          this.onCharData = null;
          this.suppressingSelectionUpdates = false;
@@ -499,7 +563,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
          this.lastChangedTextNode = null;
          this.observer = window.MutationObserver &&
              new window.MutationObserver(mutations => {
-@@ -4631,8 +4743,13 @@ class DOMObserver {
+@@ -4631,8 +4761,13 @@ class DOMObserver {
          setTimeout(() => this.suppressingSelectionUpdates = false, 50);
      }
      onSelectionChange() {
@@ -514,7 +578,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
          if (this.suppressingSelectionUpdates)
              return selectionToDOM(this.view);
          // Deletions on IE11 fire their events in the wrong order, giving
-@@ -4645,6 +4762,10 @@ class DOMObserver {
+@@ -4645,6 +4780,10 @@ class DOMObserver {
                  return this.flushSoon();
          }
          this.flush();
@@ -525,7 +589,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
      }
      setCurSelection() {
          this.currentSelection.set(this.view.domSelectionRange());
-@@ -5257,6 +5378,9 @@ class EditorView {
+@@ -5257,6 +5396,9 @@ class EditorView {
      added to the document.
      */
      constructor(place, props) {
@@ -535,7 +599,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
          this._root = null;
          /**
          @internal
-@@ -5319,6 +5443,8 @@ class EditorView {
+@@ -5319,6 +5461,8 @@ class EditorView {
          this.domObserver.start();
          initInput(this);
          this.updatePluginViews();
@@ -544,7 +608,7 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
      }
      /**
      Holds `true` when a
-@@ -5820,3 +5946,8 @@ function checkStateComponent(plugin) {
+@@ -5820,3 +5964,8 @@ function checkStateComponent(plugin) {
  }
  
  export { Decoration, DecorationSet, EditorView, __endComposition, __parseFromClipboard };
@@ -553,6 +617,43 @@ index 2358e14a51b18a7050f17eb4c045c4e2422a4360..2f2d69c69b217501f8964905798098a2
 +export { serializeForClipboard as __serializeForClipboard };
 +// NOTE(calebmer): Exported so we can build our own scroll into view logic.
 +export { scrollRectIntoView as __scrollRectIntoView };
+diff --git a/src/capturekeys.ts b/src/capturekeys.ts
+index 35f3632c7c75ece384b9a82f7cf8406de2080f66..afdc58a9130a1dbad526d82ea6d88bc4eae1b181 100644
+--- a/src/capturekeys.ts
++++ b/src/capturekeys.ts
+@@ -16,6 +16,15 @@ function apply(view: EditorView, sel: Selection) {
+   return true
+ }
+ 
++function getContentTableCellIfExists($pos) {
++  for (let depth = $pos.depth; depth > 0; depth--) {
++    if ($pos.node(depth).type.name === "tableCell") {
++      return $pos.node(depth)
++    }
++  }
++  return null
++}  
++
+ function selectHorizontally(view: EditorView, dir: number, mods: string) {
+   let sel = view.state.selection
+   if (sel instanceof TextSelection) {
+@@ -29,6 +38,16 @@ function selectHorizontally(view: EditorView, dir: number, mods: string) {
+     } else if (view.endOfTextblock(dir > 0 ? "forward" : "backward")) {
+       let next = moveSelectionBlock(view.state, dir)
+       if (next && (next instanceof NodeSelection)) return apply(view, next)
++      // NOTE(calebmer): If this arrow left/right moves in/out of a table then don't let the
++      // browser handle the event. Since the browser sometimes doesn't do what we expect.
++      //
++      // Example:
++      // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/khwxr14hsfjsp3d8eqdcbbfdd0
++      if (next) {
++        const cell1 = getContentTableCellIfExists(sel.$head)
++        const cell2 = getContentTableCellIfExists(next.$head)
++        if (cell1 !== cell2) return apply(view, next)
++      }
+       return false
+     } else if (!(browser.mac && mods.indexOf("m") > -1)) {
+       let $head = sel.$head, node = $head.textOffset ? null : dir < 0 ? $head.nodeBefore : $head.nodeAfter, desc
 diff --git a/src/clipboard.ts b/src/clipboard.ts
 index 6f4d867829ac818e25368a4cd87b1864f9fd51e7..715f6aeb4eddedf57bf2f626b5f0c5dbc0efe13e 100644
 --- a/src/clipboard.ts
