@@ -47,7 +47,10 @@ import {
     ContentProsemirrorSchema,
     contentCodeBlockIndentationSpaceCount,
 } from "~/shared/content/content_schema.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
+import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 type Command = (
     state: EditorState,
@@ -498,6 +501,60 @@ export function buildContentEditorKeymapPlugin(
 
         // Run quick undos triggered with `Backspace`.
         contentEditorQuickUndoCommand("Backspace"),
+
+        // If you're at the start of a text block (e.g. `paragraph`) at the start of a
+        // `tableCell` then instead of deleting table structure, navigate to the
+        // previous cell in right-to-left bottom-to-top order. If you press backspace
+        // in the top left-cell it will select the table and you can hit backspace
+        // again to delete the table.
+        (state, dispatch) => {
+            const {doc, selection} = state;
+            const {$from, $to} = selection;
+
+            const isCollapsedSelection = $from.pos === $to.pos;
+            if (!isCollapsedSelection) return false;
+
+            const node = $from.node();
+
+            const isAtStartOfTextblockNode = node.isTextblock && $from.parentOffset === 0;
+            if (!isAtStartOfTextblockNode) return false;
+
+            const tableCell = $from.node(-1);
+            if (tableCell.type.name !== "tableCell") return false;
+
+            const isTextblockNodeFirstChildOfTableCell = $from.index(-1) === 0;
+            if (!isTextblockNodeFirstChildOfTableCell) return false;
+
+            const table = $from.node(-3);
+            const tablePos = $from.start(-3);
+            const tableMap = ContentTableMap.get(table);
+
+            const isTopLeftTableCell = $from.index(-2) === 0 && $from.index(-3) === 0;
+
+            if (isTopLeftTableCell) {
+                dispatch?.(
+                    state.tr.setSelection(
+                        new ContentTableCellSelection(
+                            doc.resolve(
+                                tablePos +
+                                    tableMap.positionAt(tableMap.height - 1, tableMap.width - 1),
+                            ),
+                            doc.resolve(tablePos + tableMap.positionAt(0, 0)),
+                        ),
+                    ),
+                );
+            } else {
+                dispatch?.(
+                    state.tr.setSelection(
+                        // `assertExists()` should be safe. If this is the first cell then the branch
+                        // above should run and select the table.
+                        assertExists(Selection.findFrom(doc.resolve($from.before()), -1)),
+                    ),
+                );
+            }
+
+            return true;
+        },
 
         // If "Backspace" is pressed in an empty non-paragraph textblock (like a
         // header) then we want to convert that textblock back to a paragraph.
@@ -993,6 +1050,65 @@ export function buildContentEditorKeymapPlugin(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
         actuallyDeleteSelection(false),
+
+        // If you're at the end of a text block (e.g. `paragraph`) at the end of a
+        // `tableCell` then instead of deleting table structure, navigate to the
+        // previous cell in right-to-left bottom-to-top order. If you press delete in
+        // the top left-cell it will select the table and you can hit delete again to
+        // delete the table.
+        (state, dispatch) => {
+            const {doc, selection} = state;
+            const {$from, $to} = selection;
+
+            const isCollapsedSelection = $from.pos === $to.pos;
+            if (!isCollapsedSelection) return false;
+
+            const node = $from.node();
+
+            const isAtEndOfTextblockNode =
+                node.isTextblock && $from.parentOffset === node.nodeSize - 2;
+            if (!isAtEndOfTextblockNode) return false;
+
+            const tableCell = $from.node(-1);
+            if (tableCell.type.name !== "tableCell") return false;
+
+            const isTextblockNodeLastChildOfTableCell =
+                $from.index(-1) === tableCell.childCount - 1;
+            if (!isTextblockNodeLastChildOfTableCell) return false;
+
+            const tableRow = $from.node(-2);
+            const table = $from.node(-3);
+            const tablePos = $from.start(-3);
+            const tableMap = ContentTableMap.get(table);
+
+            const isBottomRightTableCell =
+                $from.index(-2) === tableRow.childCount - 1 &&
+                $from.index(-3) === table.childCount - 1;
+
+            if (isBottomRightTableCell) {
+                dispatch?.(
+                    state.tr.setSelection(
+                        new ContentTableCellSelection(
+                            doc.resolve(tablePos + tableMap.positionAt(0, 0)),
+                            doc.resolve(
+                                tablePos +
+                                    tableMap.positionAt(tableMap.height - 1, tableMap.width - 1),
+                            ),
+                        ),
+                    ),
+                );
+            } else {
+                dispatch?.(
+                    state.tr.setSelection(
+                        // `assertExists()` should be safe. If this is the last cell then the branch
+                        // above should run and select the table.
+                        assertExists(Selection.findFrom(doc.resolve($from.after()), 1)),
+                    ),
+                );
+            }
+
+            return true;
+        },
 
         // If delete is pressed in an empty paragraph, remove the paragraph.
         //
