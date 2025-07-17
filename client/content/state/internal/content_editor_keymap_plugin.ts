@@ -288,12 +288,9 @@ export function buildContentEditorKeymapPlugin(
         // We have similar logic in `handleTextInput` below when we create our keymap
         // plugin.
         (state, dispatch) => {
-            // 1. If we've selected a file.
             if (!(state.selection instanceof NodeSelection)) return false;
             if (state.selection.node.type.name !== "file") return false;
-            if (!state.selection.$anchor.parent.type.groups.includes("fileRowLike")) {
-                return false;
-            }
+            if (!state.selection.$anchor.parent.type.groups.includes("fileRowLike")) return false;
 
             if (dispatch) {
                 const transaction = state.tr.insert(
@@ -306,6 +303,37 @@ export function buildContentEditorKeymapPlugin(
                         .setSelection(
                             TextSelection.near(
                                 transaction.doc.resolve(state.selection.$anchor.after() + 1),
+                            ),
+                        )
+                        .scrollIntoView(),
+                );
+            }
+
+            return true;
+        },
+
+        // If the user presses enter while table cells are selected we create a new
+        // paragraph underneath the table so the user can continue typing. This is
+        // different from the usual behavior of enter deleting the selection and
+        // replacing it with a paragraph. Tables are typically added with a lot of
+        // intention from the user so protect them from accidentally deleting their
+        // table by typing over it.
+        (state, dispatch) => {
+            if (!(state.selection instanceof ContentTableCellSelection)) return false;
+
+            if (dispatch) {
+                const transaction = state.tr.insert(
+                    state.selection.tablePos + state.selection.table.nodeSize - 1,
+                    schema.node("paragraph"),
+                );
+
+                dispatch(
+                    transaction
+                        .setSelection(
+                            TextSelection.near(
+                                transaction.doc.resolve(
+                                    state.selection.tablePos + state.selection.table.nodeSize,
+                                ),
                             ),
                         )
                         .scrollIntoView(),
@@ -362,12 +390,9 @@ export function buildContentEditorKeymapPlugin(
         // with a paragraph. Files are typically added with a lot of intention from the user
         // so protect them from accidentally deleting their file by typing over it.
         (state, dispatch) => {
-            // 1. If we've selected a file.
             if (!(state.selection instanceof NodeSelection)) return false;
             if (state.selection.node.type.name !== "file") return false;
-            if (!state.selection.$anchor.parent.type.groups.includes("fileRowLike")) {
-                return false;
-            }
+            if (!state.selection.$anchor.parent.type.groups.includes("fileRowLike")) return false;
 
             if (dispatch) {
                 const transaction = state.tr.insert(
@@ -381,6 +406,33 @@ export function buildContentEditorKeymapPlugin(
                             TextSelection.near(
                                 transaction.doc.resolve(state.selection.$anchor.before() + 1),
                             ),
+                        )
+                        .scrollIntoView(),
+                );
+            }
+
+            return true;
+        },
+
+        // If the user presses alt+enter while table cells are selected we create a new
+        // paragraph above the table so the user can continue typing. This is
+        // different from the usual behavior of enter deleting the selection and
+        // replacing it with a paragraph. Tables are typically added with a lot of
+        // intention from the user so protect them from accidentally deleting their
+        // table by typing over it.
+        (state, dispatch) => {
+            if (!(state.selection instanceof ContentTableCellSelection)) return false;
+
+            if (dispatch) {
+                const transaction = state.tr.insert(
+                    state.selection.tablePos - 1,
+                    schema.node("paragraph"),
+                );
+
+                dispatch(
+                    transaction
+                        .setSelection(
+                            TextSelection.near(transaction.doc.resolve(state.selection.tablePos)),
                         )
                         .scrollIntoView(),
                 );
