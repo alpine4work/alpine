@@ -942,8 +942,59 @@ export function buildContentEditorKeymapPlugin(
             );
         },
 
-        // NOTE: To be honest, I (Caleb) am not sure what this does, but it is in
-        // the ProseMirror base keymap so I assume it is important.
+        // [Reimplement `selectNodeBackward()`][1] except if we see a `table` node
+        // create a cell selection for the table instead of `NodeSelection` (which
+        // won't work since tables aren't selectable).
+        //
+        // After selecting the table you can hit backspace again to clear it and
+        // backspace again to delete the table.
+        //
+        // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L132-L151
+        (state, dispatch, view) => {
+            const {$head, empty} = state.selection;
+            let $cut: ResolvedPos | null = $head;
+            if (!empty) return false;
+
+            if ($head.parent.isTextblock) {
+                if (view ? !view.endOfTextblock("backward", state) : $head.parentOffset > 0)
+                    return false;
+
+                $cut = findCutBefore($head);
+            }
+
+            const table = $cut && $cut.nodeBefore;
+            if (table?.type.name !== "table") return false;
+
+            const tablePos = $cut!.pos - table.nodeSize + 1;
+            const tableMap = ContentTableMap.get(table);
+
+            const anchor = tableMap.positionAt(0, 0);
+            const head = tableMap.positionAt(tableMap.height - 1, tableMap.width - 1);
+
+            dispatch?.(
+                state.tr.setSelection(
+                    new ContentTableCellSelection(
+                        state.doc.resolve(tablePos + anchor),
+                        state.doc.resolve(tablePos + head),
+                    ),
+                ),
+            );
+
+            return true;
+
+            function findCutBefore($pos: ResolvedPos): ResolvedPos | null {
+                if (!$pos.parent.type.spec.isolating) {
+                    for (let i = $pos.depth - 1; i >= 0; i--) {
+                        if ($pos.index(i) > 0) return $pos.doc.resolve($pos.before(i + 1));
+                        if ($pos.node(i).type.spec.isolating) break;
+                    }
+                }
+                return null;
+            }
+        },
+
+        // If we can't join with the previous block, the fallback is to select the
+        // previous block.
         selectNodeBackward,
     );
 
@@ -1331,11 +1382,15 @@ export function buildContentEditorKeymapPlugin(
                 nextNode = state.doc.resolve($from.after(nextNodeDepth)).nodeAfter;
             }
 
+            // Don't delete across isolating nodes (like tables).
+            if (nextNode?.type.spec.isolating) return false;
+
             let nextTextblockNode: Node | null = nextNode;
             let depthToNextTextblockNode = 0;
             while (nextTextblockNode && !nextTextblockNode.isTextblock) {
                 depthToNextTextblockNode++;
                 nextTextblockNode = nextTextblockNode.firstChild;
+                if (nextTextblockNode?.type.spec.isolating) return false;
             }
 
             if (!nextTextblockNode) return false;
@@ -1408,8 +1463,65 @@ export function buildContentEditorKeymapPlugin(
         // delete then join with the next block.
         joinForward,
 
-        // NOTE: To be honest, I (Caleb) am not sure what this does, but it is in
-        // the ProseMirror base keymap so I assume it is important.
+        // [Reimplement `selectNodeForward()`][1] except if we see a `table` node
+        // create a cell selection for the table instead of `NodeSelection` (which
+        // won't work since tables aren't selectable).
+        //
+        // After selecting the table you can hit delete again to clear it and
+        // delete again to delete the table.
+        //
+        // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/20c7d42ab8b5d8642fb9efc6261b7541c9dc23c2/src/commands.ts#L211-L230
+        (state, dispatch, view) => {
+            const {$head, empty} = state.selection;
+            let $cut: ResolvedPos | null = $head;
+            if (!empty) return false;
+
+            if ($head.parent.isTextblock) {
+                if (
+                    view
+                        ? !view.endOfTextblock("forward", state)
+                        : $head.parentOffset < $head.parent.content.size
+                ) {
+                    return false;
+                }
+                $cut = findCutAfter($head);
+            }
+
+            const table = $cut && $cut.nodeAfter;
+            if (table?.type.name !== "table") return false;
+
+            const tablePos = $cut!.pos + 1;
+            const tableMap = ContentTableMap.get(table);
+
+            const head = tableMap.positionAt(0, 0);
+            const anchor = tableMap.positionAt(tableMap.height - 1, tableMap.width - 1);
+
+            dispatch?.(
+                state.tr.setSelection(
+                    new ContentTableCellSelection(
+                        state.doc.resolve(tablePos + anchor),
+                        state.doc.resolve(tablePos + head),
+                    ),
+                ),
+            );
+
+            return true;
+
+            function findCutAfter($pos: ResolvedPos) {
+                if (!$pos.parent.type.spec.isolating) {
+                    for (let i = $pos.depth - 1; i >= 0; i--) {
+                        const parent = $pos.node(i);
+                        if ($pos.index(i) + 1 < parent.childCount)
+                            return $pos.doc.resolve($pos.after(i + 1));
+                        if (parent.type.spec.isolating) break;
+                    }
+                }
+                return null;
+            }
+        },
+
+        // If we can't join with the previous block, the fallback is to select the
+        // next block.
         selectNodeForward,
     );
 

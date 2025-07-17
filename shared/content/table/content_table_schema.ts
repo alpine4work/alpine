@@ -91,7 +91,7 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                 },
             },
             copyable: true,
-            selectable: true,
+            selectable: false,
             isolating: true,
             parseDOM: [
                 {
@@ -157,7 +157,7 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         tableRow: {
             content: "tableCell{2,}",
             isolating: true,
-            selectable: true,
+            selectable: false,
             copyable: true,
             parseDOM: [{tag: "tr"}],
             toDOM() {
@@ -166,7 +166,7 @@ export const contentTableProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
         },
         tableCell: {
             content: "tableBlock+",
-            selectable: true,
+            selectable: false,
             isolating: true,
             copyable: true,
             parseDOM: [{tag: "td"}],
