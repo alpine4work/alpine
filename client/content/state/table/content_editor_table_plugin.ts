@@ -60,6 +60,7 @@ import {dotsSixVerticalIconSvg} from "~/client/icons/dots_six_vertical_icon_svg.
 import {plusIconSvg} from "~/client/icons/plus_icon_svg.js";
 import {getSpacingScaleWithoutListening} from "~/client/remix/spacing_scale_context.js";
 import {colorSchemeVars, contentStyles, sprinkles} from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
     fileClassName,
     tableWrapper2ClassName,
@@ -244,14 +245,11 @@ export function contentEditorTablePlugin(): Plugin {
 
 type ContentEditorTablePluginAction =
     | {
-          readonly type: "ClearDraggingSelectionStartCellPos";
+          readonly type: "Reset";
       }
     | {
           readonly type: "SetDraggingSelectionStartCellPos";
           readonly pos: number;
-      }
-    | {
-          readonly type: "ClearHovering";
       }
     | {
           readonly type: "FinishHoveringMouseOverDelay";
@@ -290,9 +288,6 @@ type ContentEditorTablePluginAction =
           readonly type: "SetHoveringAddRowBumper";
           readonly mouseOverTime: number;
           readonly cellPos: number;
-      }
-    | {
-          readonly type: "ClearDraggingGrip";
       }
     | {
           readonly type: "SetDraggingGrip";
@@ -545,16 +540,11 @@ function applyContentEditorTablePluginStateAction(
     state: ContentEditorTablePluginState,
 ): ContentEditorTablePluginState {
     switch (action.type) {
-        case "ClearDraggingSelectionStartCellPos": {
-            if (state?.type !== "DraggingCellSelection") return state;
+        case "Reset": {
             return null;
         }
         case "SetDraggingSelectionStartCellPos": {
             return {type: "DraggingCellSelection", startCellPos: action.pos};
-        }
-        case "ClearHovering": {
-            if (state?.type !== "Hovering") return state;
-            return null;
         }
         case "FinishHoveringMouseOverDelay": {
             if (state?.type !== "Hovering") return state;
@@ -648,10 +638,6 @@ function applyContentEditorTablePluginStateAction(
                 },
             };
         }
-        case "ClearDraggingGrip": {
-            if (state?.type !== "DraggingGrip") return state;
-            return null;
-        }
         case "SetDraggingGrip": {
             return {
                 type: "DraggingGrip",
@@ -669,7 +655,18 @@ function applyContentEditorTablePluginStateAction(
 }
 
 // Handles mouse movement to update the active column handle
-function handleMouseMove(view: EditorView, event: MouseEvent): void {
+function handleMouseMove(
+    view: EditorView & {getAccessLevel?: () => AccessLevel},
+    event: MouseEvent,
+): void {
+    // View-only users can't access table controls.
+    if (!hasAccessLevel(view.getAccessLevel!(), "Edit")) {
+        if (contentEditorTablePluginKey.getState(view.state) !== null) {
+            dispatchContentEditorTablePluginAction({type: "Reset"})(view.state, view.dispatch);
+        }
+        return;
+    }
+
     const pluginState = contentEditorTablePluginKey.getState(view.state);
     if ((pluginState && pluginState.type !== "Hovering") || pluginState?.hovering.dragging) return;
 
@@ -1026,14 +1023,11 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
         cellPos !== (pluginState?.hovering.cellPos ?? null)
     ) {
         if (cellPos === null) {
-            dispatchContentEditorTablePluginAction({type: "ClearHovering"})(
-                view.state,
-                view.dispatch,
-            );
+            dispatchContentEditorTablePluginAction({type: "Reset"})(view.state, view.dispatch);
         } else {
             switch (type) {
                 case null: {
-                    dispatchContentEditorTablePluginAction({type: "ClearHovering"})(
+                    dispatchContentEditorTablePluginAction({type: "Reset"})(
                         view.state,
                         view.dispatch,
                     );
@@ -1082,14 +1076,25 @@ function handleMouseMove(view: EditorView, event: MouseEvent): void {
 function handleMouseLeave(view: EditorView): void {
     const pluginState = contentEditorTablePluginKey.getState(view.state);
     if (pluginState?.type === "Hovering" && !pluginState.hovering.dragging) {
-        dispatchContentEditorTablePluginAction({type: "ClearHovering"})(view.state, view.dispatch);
+        dispatchContentEditorTablePluginAction({type: "Reset"})(view.state, view.dispatch);
     }
 }
 
 // Initiates the column resizing process on mouse down
-function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
+function handleMouseDown(
+    view: EditorView & {getAccessLevel?: () => AccessLevel},
+    event: MouseEvent,
+): boolean {
     // Ignore right clicks.
     if (event.button !== 0) return false;
+
+    // View-only users can't access table controls.
+    if (!hasAccessLevel(view.getAccessLevel!(), "Edit")) {
+        if (contentEditorTablePluginKey.getState(view.state) !== null) {
+            dispatchContentEditorTablePluginAction({type: "Reset"})(view.state, view.dispatch);
+        }
+        return false;
+    }
 
     if (handleDraggingCellSelectionMouseDown(view, event)) return true;
 
@@ -1168,7 +1173,10 @@ function handleMouseDown(view: EditorView, event: MouseEvent): boolean {
 //
 // Originally, this function is from `prosemirror-tables`'s `src/input.ts`
 // file.
-function handleDraggingCellSelectionMouseDown(view: EditorView, startEvent: MouseEvent): boolean {
+function handleDraggingCellSelectionMouseDown(
+    view: EditorView & {getAccessLevel?: () => AccessLevel},
+    startEvent: MouseEvent,
+): boolean {
     if (startEvent.ctrlKey || startEvent.metaKey) return false;
 
     // if the user is resizing a column, don't create a cell selection
@@ -1236,14 +1244,17 @@ function handleDraggingCellSelectionMouseDown(view: EditorView, startEvent: Mous
         document.removeEventListener("mouseup", handleMouseUp);
         document.removeEventListener("dragstart", handleDragStart);
         if (contentEditorTablePluginKey.getState(view.state)?.type === "DraggingCellSelection") {
-            dispatchContentEditorTablePluginAction({type: "ClearDraggingSelectionStartCellPos"})(
-                view.state,
-                view.dispatch,
-            );
+            dispatchContentEditorTablePluginAction({type: "Reset"})(view.state, view.dispatch);
         }
     }
 
     function handleMouseMove(event: MouseEvent): void {
+        // Cancel drag if view-only user.
+        if (!hasAccessLevel(view.getAccessLevel!(), "Edit")) {
+            stop();
+            return;
+        }
+
         const pluginState = contentEditorTablePluginKey.getState(view.state);
         const anchor =
             pluginState?.type === "DraggingCellSelection" ? pluginState.startCellPos : null;
@@ -1292,7 +1303,7 @@ function cellUnderMouse(view: EditorView, event: MouseEvent): ResolvedPos | null
 }
 
 function handleColumnResizeHandleMouseDown(
-    view: EditorView & {getRouteLayout?: () => RouteLayout},
+    view: EditorView & {getRouteLayout?: () => RouteLayout; getAccessLevel?: () => AccessLevel},
     event: MouseEvent,
 ): boolean {
     {
@@ -1348,6 +1359,12 @@ function handleColumnResizeHandleMouseDown(
 
         const tableElement = pluginState.hovering.dragging.state.getTableElement(view);
         if (!tableElement) {
+            finish();
+            return;
+        }
+
+        // Cancel drag if view-only user.
+        if (!hasAccessLevel(view.getAccessLevel!(), "Edit")) {
             finish();
             return;
         }
@@ -1509,7 +1526,10 @@ function handleColumnResizeHandleMouseDown(
     return true;
 }
 
-function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolean {
+function handleGripMouseDown(
+    view: EditorView & {getAccessLevel?: () => AccessLevel},
+    initialEvent: MouseEvent,
+): boolean {
     // Must have a cell selection to drag the cell selection.
     if (!(view.state.selection instanceof ContentTableCellSelection)) return false;
 
@@ -1557,6 +1577,12 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
 
         const pluginState = contentEditorTablePluginKey.getState(view.state);
         if (pluginState?.type !== "DraggingGrip") {
+            finish();
+            return;
+        }
+
+        // Cancel drag if view-only user.
+        if (!hasAccessLevel(view.getAccessLevel!(), "Edit")) {
             finish();
             return;
         }
@@ -1668,9 +1694,7 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
         const pluginState = contentEditorTablePluginKey.getState(view.state);
         if (pluginState?.type !== "DraggingGrip") return;
 
-        dispatchContentEditorTablePluginAction({
-            type: "ClearDraggingGrip",
-        })(view.state, view.dispatch);
+        dispatchContentEditorTablePluginAction({type: "Reset"})(view.state, view.dispatch);
 
         // If the user has selected the full table, we allow grips to be clicked and
         // turn the cursor into a grabbing cursor as feedback for clicking, but
@@ -2098,7 +2122,7 @@ function createContentEditorTablePluginDecorationElementCache(
                     view.dispatch(
                         // Also clear hovering state since adding a row with the "add row button" means
                         // the mouse implicitly won't be at the end of the table anymore.
-                        transaction.setMeta(contentEditorTablePluginKey, {type: "ClearHovering"}),
+                        transaction.setMeta(contentEditorTablePluginKey, {type: "Reset"}),
                     );
                 });
             },

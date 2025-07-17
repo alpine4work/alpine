@@ -1287,6 +1287,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             }),
             table: createContentEditorTableNodeView({
                 getRouteLayout: () => routeLayoutRef.current,
+                getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
             }),
         };
 
@@ -3387,6 +3388,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         viewRef.current = Object.assign(view, {
             insertFiles,
             getRouteLayout: () => routeLayoutRef.current,
+            getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
         });
 
         return () => {

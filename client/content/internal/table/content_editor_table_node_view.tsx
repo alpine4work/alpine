@@ -67,6 +67,7 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/styles/styles.js";
+import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {
     fileClassName,
     fileRowLikeClassName,
@@ -83,8 +84,10 @@ import {Rectangle} from "~/shared/helpers/geometry/rectangle.js";
 
 export function createContentEditorTableNodeView({
     getRouteLayout,
+    getAccessLevel,
 }: {
     getRouteLayout: () => RouteLayout;
+    getAccessLevel: () => AccessLevel;
 }): NodeViewConstructor {
     return (node, view, getPos) => {
         const tableWrapperElement = document.createElement("div");
@@ -305,6 +308,8 @@ export function createContentEditorTableNodeView({
         }
 
         function handleContextMenu(event: MouseEvent) {
+            if (!hasAccessLevel(getAccessLevel(), "Edit")) return;
+
             let selectedTableRect = isInContentTable(view.state)
                 ? selectedContentTableRect(view.state)
                 : null;
