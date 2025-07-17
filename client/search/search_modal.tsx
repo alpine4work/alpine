@@ -1198,7 +1198,7 @@ function SearchModalPeekContent({
                         // peek concept. For now, I'm calling it "preview". We should make sure
                         // documentation, marketing, and other copy in the product align with this name.
                         // If we decide to call it something else publicly, this needs to be renamed.
-                        tooltipContentOverride="Shift-click to open preview"
+                        tooltipContentOverride="Shift-click to open in peek"
                         pressErrorTitle="Couldn’t expand"
                         // We check `event.shiftKey`because this determines whether we open in a peek
                         // or navigate to full screen. Therefore we want the route not to open in a
