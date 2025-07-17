@@ -4,7 +4,11 @@ import {
     getContentSnippet,
     setDefaultMaxLineGraphemeCountForTest,
 } from "~/shared/content/get_content_snippet.js";
-import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {
+    DocumentWithoutTitleContentProsemirrorSchema as schema,
+    DocumentContentProsemirrorSchema as schema2,
+} from "~/shared/documents/document_content_schema.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import {generateId} from "~/shared/id/id.js";
@@ -20,7 +24,7 @@ const mark = schema.mark.bind(schema);
 const text = schema.text.bind(schema);
 
 function expectSnippet(
-    {pos, lines}: {pos: number; lines: number},
+    {pos, lines}: {pos: number; lines: number | {linesAbove: number; linesBelow: number}},
     sourceNode: Node,
     expectedNode: Node,
 ) {
@@ -4662,5 +4666,977 @@ test("snips double break nodes as empty lines", () => {
                 node("break"),
             ]),
         ]),
+    );
+});
+
+test("doesn’t snip cells in a table row when snipping content after", () => {
+    expectSnippet(
+        {pos: 0, lines: {linesAbove: 0, linesBelow: 2}},
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {type: "title", content: [{type: "text", text: "Test Document"}]},
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Vestibulum sit amet augue nisl. Nullam sodales feugiat neque ut laoreet. Cras viverra feugiat interdum.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Etiam ipsum eros, pretium id rhoncus nec, imperdiet ut augue. Aliquam sagittis augue ac luctus imperdiet. Curabitur ac nulla sem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Nullam est neque, egestas vitae ornare sed, porta sodales tortor.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Mauris sollicitudin euismod erat at accumsan. Suspendisse aliquam vel mauris sit amet tempor. Vivamus condimentum tortor vitae tellus viverra dictum. Nullam facilisis finibus ipsum nec dignissim. Maecenas eu elit felis. Quisque lorem purus, blandit a quam vel, consectetur ultrices lorem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Integer dictum tempus purus, sit amet tempus sapien mattis vitae.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Pellentesque magna ante, dapibus eget consectetur vitae, consequat et dui. Duis nec pulvinar erat, in efficitur mi. Maecenas leo lacus, placerat ac justo tempor, tincidunt condimentum orci.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Curabitur vestibulum convallis mattis.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Suspendisse ac molestie augue. Vivamus bibendum, ex sed placerat laoreet, eros urna egestas sapien, vel luctus tortor ligula ac eros.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Aenean congue et massa sit amet tincidunt. Ut lacinia pulvinar bibendum. Aenean ante risus, sollicitudin nec felis sodales, eleifend porta massa. Cras quis euismod mi. Pellentesque in luctus augue.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+            ],
+        }),
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {type: "title", content: [{type: "text", text: "Test Document"}]},
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Vestibulum sit amet augue nisl. Nullam sodales feugiat neque ut laoreet. Cras viverra feugiat interdum.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Etiam ipsum eros, pretium id rhoncus nec, imperdiet ut augue. Aliquam sagittis augue ac luctus imperdiet. Curabitur ac nulla sem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Nullam est neque, egestas vitae ornare sed, porta sodales tortor.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        }),
+    );
+});
+
+test("doesn’t snip cells in a table row when snipping content after (large cells)", () => {
+    expectSnippet(
+        {pos: 0, lines: {linesAbove: 0, linesBelow: 2}},
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {type: "title", content: [{type: "text", text: "Test Document"}]},
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Vestibulum sit amet augue nisl. Nullam sodales feugiat neque ut laoreet. Cras viverra feugiat interdum.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Etiam ipsum eros, pretium id rhoncus nec, imperdiet ut augue. Aliquam sagittis augue ac luctus imperdiet. Curabitur ac nulla sem.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Nullam est neque, egestas vitae ornare sed, porta sodales tortor.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Mauris sollicitudin euismod erat at accumsan. Suspendisse aliquam vel mauris sit amet tempor. Vivamus condimentum tortor vitae tellus viverra dictum. Nullam facilisis finibus ipsum nec dignissim. Maecenas eu elit felis. Quisque lorem purus, blandit a quam vel, consectetur ultrices lorem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Integer dictum tempus purus, sit amet tempus sapien mattis vitae.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Pellentesque magna ante, dapibus eget consectetur vitae, consequat et dui. Duis nec pulvinar erat, in efficitur mi. Maecenas leo lacus, placerat ac justo tempor, tincidunt condimentum orci.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Curabitur vestibulum convallis mattis.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Suspendisse ac molestie augue. Vivamus bibendum, ex sed placerat laoreet, eros urna egestas sapien, vel luctus tortor ligula ac eros.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Aenean congue et massa sit amet tincidunt. Ut lacinia pulvinar bibendum. Aenean ante risus, sollicitudin nec felis sodales, eleifend porta massa. Cras quis euismod mi. Pellentesque in luctus augue.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+            ],
+        }),
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {type: "title", content: [{type: "text", text: "Test Document"}]},
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    // TODO(calebmer): This can be optimized. We should snip within the cell
+                                    // instead of including the full cell.
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Vestibulum sit amet augue nisl. Nullam sodales feugiat neque ut laoreet. Cras viverra feugiat interdum.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    // TODO(calebmer): This can be optimized. We should snip within the cell
+                                    // instead of including the full cell.
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Etiam ipsum eros, pretium id rhoncus nec, imperdiet ut augue. Aliquam sagittis augue ac luctus imperdiet. Curabitur ac nulla sem.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Nullam est neque, egestas vitae ornare sed, porta sodales tortor.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        }),
+    );
+});
+
+test("doesn’t snip cells in a table row when snipping content before", () => {
+    expectSnippet(
+        {pos: -1, lines: {linesAbove: 1, linesBelow: 0}},
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {type: "title", content: [{type: "text", text: "Test Document"}]},
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Vestibulum sit amet augue nisl. Nullam sodales feugiat neque ut laoreet. Cras viverra feugiat interdum.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Etiam ipsum eros, pretium id rhoncus nec, imperdiet ut augue. Aliquam sagittis augue ac luctus imperdiet. Curabitur ac nulla sem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Nullam est neque, egestas vitae ornare sed, porta sodales tortor.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Mauris sollicitudin euismod erat at accumsan. Suspendisse aliquam vel mauris sit amet tempor. Vivamus condimentum tortor vitae tellus viverra dictum. Nullam facilisis finibus ipsum nec dignissim. Maecenas eu elit felis. Quisque lorem purus, blandit a quam vel, consectetur ultrices lorem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Integer dictum tempus purus, sit amet tempus sapien mattis vitae.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Pellentesque magna ante, dapibus eget consectetur vitae, consequat et dui. Duis nec pulvinar erat, in efficitur mi. Maecenas leo lacus, placerat ac justo tempor, tincidunt condimentum orci.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Curabitur vestibulum convallis mattis.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Suspendisse ac molestie augue. Vivamus bibendum, ex sed placerat laoreet, eros urna egestas sapien, vel luctus tortor ligula ac eros.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Aenean congue et massa sit amet tincidunt. Ut lacinia pulvinar bibendum. Aenean ante risus, sollicitudin nec felis sodales, eleifend porta massa. Cras quis euismod mi. Pellentesque in luctus augue.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+            ],
+        }),
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Curabitur vestibulum convallis mattis.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Suspendisse ac molestie augue. Vivamus bibendum, ex sed placerat laoreet, eros urna egestas sapien, vel luctus tortor ligula ac eros.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Aenean congue et massa sit amet tincidunt. Ut lacinia pulvinar bibendum. Aenean ante risus, sollicitudin nec felis sodales, eleifend porta massa. Cras quis euismod mi. Pellentesque in luctus augue.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+            ],
+        }),
+    );
+});
+
+test("doesn’t snip cells in a table row when snipping content before (large cells)", () => {
+    expectSnippet(
+        {pos: -1, lines: {linesAbove: 1, linesBelow: 0}},
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {type: "title", content: [{type: "text", text: "Test Document"}]},
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Vestibulum sit amet augue nisl. Nullam sodales feugiat neque ut laoreet. Cras viverra feugiat interdum.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Etiam ipsum eros, pretium id rhoncus nec, imperdiet ut augue. Aliquam sagittis augue ac luctus imperdiet. Curabitur ac nulla sem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Nullam est neque, egestas vitae ornare sed, porta sodales tortor.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Mauris sollicitudin euismod erat at accumsan. Suspendisse aliquam vel mauris sit amet tempor. Vivamus condimentum tortor vitae tellus viverra dictum. Nullam facilisis finibus ipsum nec dignissim. Maecenas eu elit felis. Quisque lorem purus, blandit a quam vel, consectetur ultrices lorem.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Integer dictum tempus purus, sit amet tempus sapien mattis vitae.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: [
+                                        {
+                                            type: "paragraph",
+                                            content: [
+                                                {
+                                                    type: "text",
+                                                    text: "Pellentesque magna ante, dapibus eget consectetur vitae, consequat et dui. Duis nec pulvinar erat, in efficitur mi. Maecenas leo lacus, placerat ac justo tempor, tincidunt condimentum orci.",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Curabitur vestibulum convallis mattis.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Suspendisse ac molestie augue. Vivamus bibendum, ex sed placerat laoreet, eros urna egestas sapien, vel luctus tortor ligula ac eros.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Aenean congue et massa sit amet tincidunt. Ut lacinia pulvinar bibendum. Aenean ante risus, sollicitudin nec felis sodales, eleifend porta massa. Cras quis euismod mi. Pellentesque in luctus augue.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+            ],
+        }),
+        schema2.nodeFromJSON({
+            type: "doc",
+            attrs: {
+                accessPolicy: {accountGrantById: {}, defaultGrant: null, urlGrant: null},
+                hasPresentShortcut: false,
+            },
+            content: [
+                {
+                    type: "table",
+                    attrs: {
+                        columnWidths: [1, 1, 1],
+                        tableWidth: 1,
+                        hasHeaderRow: false,
+                        hasHeaderColumn: false,
+                    },
+                    content: [
+                        {
+                            type: "tableRow",
+                            content: [
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Curabitur vestibulum convallis mattis.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Suspendisse ac molestie augue. Vivamus bibendum, ex sed placerat laoreet, eros urna egestas sapien, vel luctus tortor ligula ac eros.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                                {
+                                    type: "tableCell",
+                                    content: createArrayWithLength(5, () => ({
+                                        type: "paragraph",
+                                        content: [
+                                            {
+                                                type: "text",
+                                                text: "Aenean congue et massa sit amet tincidunt. Ut lacinia pulvinar bibendum. Aenean ante risus, sollicitudin nec felis sodales, eleifend porta massa. Cras quis euismod mi. Pellentesque in luctus augue.",
+                                            },
+                                        ],
+                                    })),
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: "paragraph",
+                    content: [{type: "text", text: "x".repeat(79)}],
+                },
+            ],
+        }),
     );
 });

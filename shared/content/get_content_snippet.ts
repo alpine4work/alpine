@@ -3,6 +3,8 @@ import {findSpans as findUnicodeDefaultWordBoundarySpans} from "unicode-default-
 import {ContentNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
 
 /**
@@ -41,6 +43,8 @@ export function getContentSnippet(
         ignoreLineBreaks?: boolean;
     } = {},
 ): Node {
+    const options = {maxLineGraphemeCount, ignoreLineBreaks};
+
     // So our target number of lines is `1 + linesAroundCount * 2`. We want the
     // line containing `resolvedPos`, `linesAroundCount` lines above, and
     // `linesAroundCount` lines below. However we don't know where proportionally
@@ -144,43 +148,96 @@ export function getContentSnippet(
         const nodeOffset = resolvedPos.pos - nodePos;
 
         if (remainingBefore.lineCount > 0) {
-            for (const {node: childNode, offset: childOffset} of iterateChildNodesBefore(
-                node,
-                nodeOffset,
-            )) {
-                if (childNode.isText) {
-                    remainingBefore = {
-                        lineCount: consumeLinesOfText(
-                            childNode.text!,
-                            remainingBefore.lineCount,
-                            maxLineGraphemeCount,
-                        ).remainingLineCount,
-                        isAtLineBreak: false,
-                    };
+            for (const child of iterateChildNodesBefore(node, nodeOffset)) {
+                if (!child.isFork) {
+                    const [newRemainingBefore, newFrom] = consumeNodeBefore(
+                        nodePos + child.offset,
+                        child.node,
+                        remainingBefore,
+                        options,
+                    );
 
-                    // We don't cut leading text both because `consumeLinesOfText()` counts
-                    // forwards (so using `remainingLength` to slice could incorrectly split a
-                    // grapheme) and because it would break the text's layout.
-                    if (remainingBefore.lineCount <= 0) {
-                        from = nodePos + childOffset;
+                    remainingBefore = newRemainingBefore;
+
+                    if (newFrom !== null) {
+                        from = newFrom;
                         break;
                     }
-                } else if (!ignoreLineBreaks) {
-                    // If the node is line breaking then round remaining lines down since no other
-                    // text can go on the line.
-                    const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
-                    const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
-                    for (let i = 0; i < lineBreakCount; i++) {
-                        remainingBefore = {
-                            lineCount: remainingBefore.isAtLineBreak
-                                ? remainingBefore.lineCount - 1
-                                : Math.floor(remainingBefore.lineCount),
-                            isAtLineBreak: true,
-                        };
+                } else {
+                    const branches = child.branches.map(forkedChildren => {
+                        let forkedFrom: number | null = null;
+                        let forkedRemainingBefore = remainingBefore;
+
+                        for (const forkedChild of forkedChildren) {
+                            const [newForkedRemainingBefore, newForkedFrom] = consumeNodeBefore(
+                                nodePos + forkedChild.offset,
+                                forkedChild.node,
+                                forkedRemainingBefore,
+                                options,
+                            );
+
+                            forkedRemainingBefore = newForkedRemainingBefore;
+
+                            if (newForkedFrom !== null) {
+                                forkedFrom = newForkedFrom;
+                                break;
+                            }
+                        }
+
+                        return [forkedRemainingBefore, forkedFrom] as const;
+                    });
+
+                    let newFrom: number | null = null;
+                    let isFirstBranch = true;
+                    let isNewFromFromFirstBranch = false;
+                    let remainingBeforeLineCount = remainingBefore.lineCount;
+
+                    for (const [forkedRemainingBefore, newForkedFrom] of branches) {
+                        // Determine the minimum remaining line count after looking at all
+                        // branches.
+                        if (forkedRemainingBefore.lineCount < remainingBeforeLineCount) {
+                            remainingBeforeLineCount = forkedRemainingBefore.lineCount;
+                        }
+
+                        if (newForkedFrom !== null && newFrom === null) {
+                            newFrom = newForkedFrom;
+                            isNewFromFromFirstBranch = isFirstBranch;
+                        }
+
+                        isFirstBranch = false;
                     }
 
-                    if (remainingBefore.lineCount <= 0) {
-                        from = nodePos + childOffset;
+                    remainingBefore = {
+                        lineCount: remainingBeforeLineCount,
+                        isAtLineBreak: true,
+                    };
+
+                    // If `newFrom` isn't from the first branch then we end the selection at the
+                    // start of the `tableRow` node. Since we can't cut out cells from a table row.
+                    //
+                    // TODO(calebmer): This is suboptimal since we'll include ENTIRE cells before
+                    // the last cell. An optimal solution:
+                    //
+                    // - Would snip cells individually as individual cells grow too long
+                    //
+                    // - Would empty out cells after the first ~10 or so since those cells will be
+                    //   offscreen when rendering a content snippet (we still need empty
+                    //   `tableCell`s to maintain layout but we don't need their content)
+                    //
+                    // - Would account for table columns being skinner than the block width and
+                    //   would lower `maxLineGraphemeCount`
+                    //
+                    // However, making these optimizations would require a big refactor to
+                    // `getContentSnippet()`. For now, we're keeping the basic structure which only
+                    // cuts content between a `from` and `to` range. This solution will work fine
+                    // for most small tables but may lead to much larger snippets than expected for
+                    // large tables.
+                    if (newFrom !== null) {
+                        if (isNewFromFromFirstBranch) {
+                            from = newFrom;
+                        } else {
+                            from = nodePos + child.offset;
+                        }
                         break;
                     }
                 }
@@ -188,43 +245,95 @@ export function getContentSnippet(
         }
 
         if (remainingAfter.lineCount > 0) {
-            for (const {node: childNode, offset: childOffset} of iterateChildNodesAfter(
-                node,
-                nodeOffset,
-            )) {
-                if (childNode.isText) {
-                    const result = consumeLinesOfText(
-                        childNode.text!,
-                        remainingAfter.lineCount,
-                        maxLineGraphemeCount,
+            for (const child of iterateChildNodesAfter(node, nodeOffset)) {
+                if (!child.isFork) {
+                    const [newRemainingAfter, newTo] = consumeNodeAfter(
+                        nodePos + child.offset,
+                        child.node,
+                        remainingAfter,
+                        options,
                     );
 
-                    remainingAfter = {
-                        lineCount: result.remainingLineCount,
-                        isAtLineBreak: false,
-                    };
+                    remainingAfter = newRemainingAfter;
 
-                    if (remainingAfter.lineCount <= 0) {
-                        to =
-                            nodePos + childOffset + childNode.nodeSize - 1 - result.remainingLength;
+                    if (newTo !== null) {
+                        to = newTo;
                         break;
                     }
-                } else if (!ignoreLineBreaks) {
-                    // If the node is line breaking then round remaining lines down since no other
-                    // text can go on the line.
-                    const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
-                    const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
-                    for (let i = 0; i < lineBreakCount; i++) {
-                        remainingAfter = {
-                            lineCount: remainingAfter.isAtLineBreak
-                                ? remainingAfter.lineCount - 1
-                                : Math.floor(remainingAfter.lineCount),
-                            isAtLineBreak: true,
-                        };
+                } else {
+                    const branches = child.branches.map(forkedChildren => {
+                        let forkedTo: number | null = null;
+                        let forkedRemainingAfter = remainingAfter;
+
+                        for (const forkedChild of forkedChildren) {
+                            const [newForkedRemainingAfter, newForkedTo] = consumeNodeAfter(
+                                nodePos + forkedChild.offset,
+                                forkedChild.node,
+                                forkedRemainingAfter,
+                                options,
+                            );
+
+                            forkedRemainingAfter = newForkedRemainingAfter;
+
+                            if (newForkedTo !== null) {
+                                forkedTo = newForkedTo;
+                                break;
+                            }
+                        }
+
+                        return [forkedRemainingAfter, forkedTo] as const;
+                    });
+
+                    let newTo: number | null = null;
+                    let isNewToFromLastBranch = false;
+                    let remainingAfterLineCount = remainingAfter.lineCount;
+
+                    for (const [forkedRemainingAfter, newForkedTo] of branches) {
+                        // Determine the minimum remaining line count after looking at all
+                        // branches.
+                        if (forkedRemainingAfter.lineCount < remainingAfterLineCount) {
+                            remainingAfterLineCount = forkedRemainingAfter.lineCount;
+                        }
+
+                        if (newForkedTo !== null) {
+                            newTo = newForkedTo;
+                            isNewToFromLastBranch = true;
+                        } else {
+                            isNewToFromLastBranch = false;
+                        }
                     }
 
-                    if (remainingAfter.lineCount <= 0) {
-                        to = nodePos + childOffset + childNode.nodeSize;
+                    remainingAfter = {
+                        lineCount: remainingAfterLineCount,
+                        isAtLineBreak: true,
+                    };
+
+                    // If `newTo` isn't from the last branch then we end the selection at the end
+                    // of the `tableRow` node. Since we can't cut out cells from a table row.
+                    //
+                    // TODO(calebmer): This is suboptimal since we'll include ENTIRE cells before
+                    // the last cell. An optimal solution:
+                    //
+                    // - Would snip cells individually as individual cells grow too long
+                    //
+                    // - Would empty out cells after the first ~10 or so since those cells will be
+                    //   offscreen when rendering a content snippet (we still need empty
+                    //   `tableCell`s to maintain layout but we don't need their content)
+                    //
+                    // - Would account for table columns being skinner than the block width and
+                    //   would lower `maxLineGraphemeCount`
+                    //
+                    // However, making these optimizations would require a big refactor to
+                    // `getContentSnippet()`. For now, we're keeping the basic structure which only
+                    // cuts content between a `from` and `to` range. This solution will work fine
+                    // for most small tables but may lead to much larger snippets than expected for
+                    // large tables.
+                    if (newTo !== null) {
+                        if (isNewToFromLastBranch) {
+                            to = newTo;
+                        } else {
+                            to = nodePos + child.offset + child.node.nodeSize;
+                        }
                         break;
                     }
                 }
@@ -286,10 +395,23 @@ export function getContentSnippet(
     return resolvedPos.doc.cut(from, to);
 }
 
+type IterateChildNodesValue =
+    | {
+          isFork: false;
+          node: Node;
+          offset: number;
+      }
+    | {
+          isFork: true;
+          node: Node;
+          offset: number;
+          branches: Array<Iterable<{node: Node; offset: number}>>;
+      };
+
 function* iterateChildNodesAfter(
     node: Node,
     afterOffset: number,
-): IterableIterator<{node: Node; offset: number}> {
+): Iterable<IterateChildNodesValue> {
     const childResult = node.childAfter(afterOffset);
     if (!childResult.node) return;
 
@@ -297,7 +419,6 @@ function* iterateChildNodesAfter(
 
     if (childResult.offset >= afterOffset) {
         yield* iterateChildNodesAfterDescendants(childResult.node, offset);
-        yield {node: childResult.node, offset};
     }
 
     offset += childResult.node.nodeSize;
@@ -305,7 +426,6 @@ function* iterateChildNodesAfter(
     for (let i = childResult.index + 1; i < node.childCount; i++) {
         const childNode = node.child(i);
         yield* iterateChildNodesAfterDescendants(childNode, offset);
-        yield {node: childNode, offset};
         offset += childNode.nodeSize;
     }
 }
@@ -313,21 +433,48 @@ function* iterateChildNodesAfter(
 function* iterateChildNodesAfterDescendants(
     node: Node,
     offset: number,
-): IterableIterator<{node: Node; offset: number}> {
+): Iterable<IterateChildNodesValue> {
+    // Table rows "fork" their children. While generating a snippet we need to
+    // consider each branch of the fork individually.
+    if (node.type.name === "tableRow") {
+        yield {
+            isFork: true,
+            node,
+            offset,
+            branches: node.content.content.map(tableCellNode => {
+                const iterable = concatIterables(
+                    mapIterable(iterateChildNodesAfterDescendants(tableCellNode, offset), item => {
+                        // There won't be any recursive `tableRow`s.
+                        assert(!item.isFork);
+                        return item;
+                    }),
+                    [{isFork: false, node: tableCellNode, offset}],
+                );
+
+                offset += tableCellNode.nodeSize;
+
+                return iterable;
+            }),
+        };
+        return;
+    }
+
+    const initialOffset = offset;
     offset += 1;
 
     for (let i = 0; i < node.childCount; i++) {
         const childNode = node.child(i);
         yield* iterateChildNodesAfterDescendants(childNode, offset);
-        yield {node: childNode, offset};
         offset += childNode.nodeSize;
     }
+
+    yield {isFork: false, node, offset: initialOffset};
 }
 
 function* iterateChildNodesBefore(
     node: Node,
     beforeOffset: number,
-): IterableIterator<{node: Node; offset: number}> {
+): Iterable<IterateChildNodesValue> {
     const childResult = node.childBefore(beforeOffset);
     if (!childResult.node) return;
 
@@ -335,29 +482,57 @@ function* iterateChildNodesBefore(
 
     if (childResult.offset + childResult.node.nodeSize <= beforeOffset) {
         yield* iterateChildNodesBackwardsDescendants(childResult.node, offset);
-        yield {node: childResult.node, offset};
     }
 
     for (let i = childResult.index - 1; i >= 0; i--) {
         const childNode = node.child(i);
         offset -= childNode.nodeSize;
         yield* iterateChildNodesBackwardsDescendants(childNode, offset);
-        yield {node: childNode, offset};
     }
 }
 
 function* iterateChildNodesBackwardsDescendants(
     node: Node,
     offset: number,
-): IterableIterator<{node: Node; offset: number}> {
+): Iterable<IterateChildNodesValue> {
+    // Table rows "fork" their children. While generating a snippet we need to
+    // consider each branch of the fork individually.
+    if (node.type.name === "tableRow") {
+        yield {
+            isFork: true,
+            node,
+            offset,
+            branches: node.content.content.map(tableCellNode => {
+                const iterable = concatIterables(
+                    mapIterable(
+                        iterateChildNodesBackwardsDescendants(tableCellNode, offset),
+                        item => {
+                            // There won't be any recursive `tableRow`s.
+                            assert(!item.isFork);
+                            return item;
+                        },
+                    ),
+                    [{isFork: false, node: tableCellNode, offset}],
+                );
+
+                offset += tableCellNode.nodeSize;
+
+                return iterable;
+            }),
+        };
+        return;
+    }
+
+    const initialOffset = offset;
     offset += node.nodeSize;
 
     for (let i = node.childCount - 1; i >= 0; i--) {
         const childNode = node.child(i);
         offset -= childNode.nodeSize;
         yield* iterateChildNodesBackwardsDescendants(childNode, offset);
-        yield {node: childNode, offset};
     }
+
+    yield {isFork: false, node, offset: initialOffset};
 }
 
 /**
@@ -410,6 +585,137 @@ function consumeLinesOfText(
         remainingLineCount: (maxGraphemeCount - graphemeCount) / maxLineGraphemeCount,
         remainingLength: 0,
     };
+}
+
+/**
+ * Take a `node` and consume line count from `remainingBefore` that's occupied by the
+ * `node`. If this is a `text` node then we estimate the number of lines the text is
+ * rendered on and subtract that from the remaining line count. If `node` is not a text
+ * node then we check if it creates a line break and if it does, we consume a whole line
+ * for each line break.
+ *
+ * If we've consumed all lines then we'll return `from` which is the start position of
+ * our snippet.
+ */
+// NOTE(calebmer): This isn't a well thought out abstraction. When introducing tables I
+// needed to factor out this code so we could run it for each table cell independently. I
+// feel like `getContentSnippet()` could use a rewrite at some point to improve code
+// quality, fix bugs, and have more predictable outputs.
+function consumeNodeBefore(
+    pos: number,
+    node: Node,
+    remainingBefore: {lineCount: number; isAtLineBreak: boolean},
+    {
+        maxLineGraphemeCount,
+        ignoreLineBreaks,
+    }: {
+        maxLineGraphemeCount: number;
+        ignoreLineBreaks: boolean;
+    },
+): [remainingBefore: {lineCount: number; isAtLineBreak: boolean}, from: number | null] {
+    if (node.isText) {
+        remainingBefore = {
+            lineCount: consumeLinesOfText(
+                node.text!,
+                remainingBefore.lineCount,
+                maxLineGraphemeCount,
+            ).remainingLineCount,
+            isAtLineBreak: false,
+        };
+
+        // We don't cut leading text both because `consumeLinesOfText()` counts
+        // forwards (so using `remainingLength` to slice could incorrectly split a
+        // grapheme) and because it would break the text's layout.
+        if (remainingBefore.lineCount <= 0) {
+            const from = pos;
+            return [remainingBefore, from];
+        }
+    } else if (!ignoreLineBreaks) {
+        // If the node is line breaking then round remaining lines down since no other
+        // text can go on the line.
+        const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
+        const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
+        for (let i = 0; i < lineBreakCount; i++) {
+            remainingBefore = {
+                lineCount: remainingBefore.isAtLineBreak
+                    ? remainingBefore.lineCount - 1
+                    : Math.floor(remainingBefore.lineCount),
+                isAtLineBreak: true,
+            };
+        }
+
+        if (remainingBefore.lineCount <= 0) {
+            const from = pos;
+            return [remainingBefore, from];
+        }
+    }
+
+    return [remainingBefore, null];
+}
+
+/**
+ * Take a `node` and consume line count from `remainingAfter` that's occupied by the
+ * `node`. If this is a `text` node then we estimate the number of lines the text is
+ * rendered on and subtract that from the remaining line count. If `node` is not a text
+ * node then we check if it creates a line break and if it does, we consume a whole line
+ * for each line break.
+ *
+ * If we've consumed all lines then we'll return `to` which is the end position of
+ * our snippet.
+ */
+// NOTE(calebmer): This isn't a well thought out abstraction. When introducing tables I
+// needed to factor out this code so we could run it for each table cell independently. I
+// feel like `getContentSnippet()` could use a rewrite at some point to improve code
+// quality, fix bugs, and have more predictable outputs.
+function consumeNodeAfter(
+    pos: number,
+    node: Node,
+    remainingAfter: {lineCount: number; isAtLineBreak: boolean},
+    {
+        maxLineGraphemeCount,
+        ignoreLineBreaks,
+    }: {
+        maxLineGraphemeCount: number;
+        ignoreLineBreaks: boolean;
+    },
+): [remainingAfter: {lineCount: number; isAtLineBreak: boolean}, to: number | null] {
+    if (node.isText) {
+        const result = consumeLinesOfText(
+            node.text!,
+            remainingAfter.lineCount,
+            maxLineGraphemeCount,
+        );
+
+        remainingAfter = {
+            lineCount: result.remainingLineCount,
+            isAtLineBreak: false,
+        };
+
+        if (remainingAfter.lineCount <= 0) {
+            const to = pos + node.nodeSize - 1 - result.remainingLength;
+            return [remainingAfter, to];
+        }
+    } else if (!ignoreLineBreaks) {
+        // If the node is line breaking then round remaining lines down since no other
+        // text can go on the line.
+        const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
+        const lineBreakCount = assertExists(lineBreakCountByNodeType[nodeType]);
+        for (let i = 0; i < lineBreakCount; i++) {
+            remainingAfter = {
+                lineCount: remainingAfter.isAtLineBreak
+                    ? remainingAfter.lineCount - 1
+                    : Math.floor(remainingAfter.lineCount),
+                isAtLineBreak: true,
+            };
+        }
+
+        if (remainingAfter.lineCount <= 0) {
+            const to = pos + node.nodeSize;
+            return [remainingAfter, to];
+        }
+    }
+
+    return [remainingAfter, null];
 }
 
 /**
