@@ -27,7 +27,7 @@ import {
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
 import {useRouteLayout} from "~/client/remix/route_layout_context.js";
-import {inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
+import {inboxBannerHeight, inboxEntryViewMinHeight} from "~/client/styles/inbox_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/styles/styles.js";
 import {
     VirtualizedScrollView,
@@ -376,7 +376,9 @@ function InboxViewEntries({
                 tabIndex={0}
                 aria-label="Inbox"
                 width="full"
-                height="full"
+                style={{
+                    height: `calc(100% - ${spacing[inboxBannerHeight]})`,
+                }}
                 overflow="hidden"
             >
                 <VirtualizedScrollView
