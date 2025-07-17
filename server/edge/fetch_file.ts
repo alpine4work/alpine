@@ -1,4 +1,5 @@
 import {EdgeServiceEnv} from "~/server/edge/edge_service_env.js";
+import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
 import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
@@ -180,26 +181,92 @@ export async function fetchFile(
             // eslint-disable-next-line no-global-fetch
             response = await fetch(subrequest);
         } else {
-            const object =
-                request.method === "HEAD"
-                    ? await env.FilesBucket.head(
-                          `${route.spaceId}/${route.fileId}${
-                              variant !== null ? `-${variant}` : ""
-                          }`,
-                      )
-                    : await env.FilesBucket.get(
-                          `${route.spaceId}/${route.fileId}${
-                              variant !== null ? `-${variant}` : ""
-                          }`,
-                          {range: request.headers},
-                      );
+            const objectKey = `${route.spaceId}/${route.fileId}${
+                variant !== null ? `-${variant}` : ""
+            }`;
 
-            if (!object) {
+            let nullableObject: R2Object | null;
+
+            if (request.method === "HEAD") {
+                // Create a span with the same format as the `HeadObject` span created by
+                // `CloudflareR2Client`.
+                nullableObject = await span.withSpan(
+                    `Cloudflare R2 HeadObject ${filesBucketName}`,
+                    async span => {
+                        span.addData({
+                            cloudflare: {
+                                r2: {
+                                    action: "HeadObject",
+                                    bucket: filesBucketName,
+                                    object: {key: objectKey},
+                                },
+                            },
+                        });
+
+                        const object = await env.FilesBucket.head(objectKey);
+
+                        if (object) {
+                            span.addData({
+                                cloudflare: {
+                                    r2: {
+                                        object: {
+                                            contentType: object.httpMetadata?.contentType,
+                                            contentLength: object.size,
+                                        },
+                                    },
+                                },
+                            });
+                        }
+
+                        return object;
+                    },
+                );
+            } else {
+                // Create a span with the same format as the `GetObject` span created by
+                // `CloudflareR2Client`.
+                nullableObject = await span.withSpan(
+                    `Cloudflare R2 GetObject ${filesBucketName}`,
+                    async span => {
+                        span.addData({
+                            cloudflare: {
+                                r2: {
+                                    action: "GetObject",
+                                    bucket: filesBucketName,
+                                    object: {key: objectKey},
+                                },
+                            },
+                        });
+
+                        const object = await env.FilesBucket.get(objectKey, {
+                            range: request.headers,
+                        });
+
+                        if (object) {
+                            span.addData({
+                                cloudflare: {
+                                    r2: {
+                                        object: {
+                                            contentType: object.httpMetadata?.contentType,
+                                            contentLength: object.size,
+                                        },
+                                    },
+                                },
+                            });
+                        }
+
+                        return object;
+                    },
+                );
+            }
+
+            if (!nullableObject) {
                 response = new Response(request.method !== "HEAD" ? "404 Not Found" : null, {
                     status: 404,
                     headers: {"content-type": "text/plain"},
                 });
             } else {
+                const object = nullableObject;
+
                 // This is a ranged request if our object has a range and the range isn't the
                 // entire file.
                 const isRangedRequest =
