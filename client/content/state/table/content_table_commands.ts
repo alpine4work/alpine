@@ -124,7 +124,7 @@ function addContentTableColumn(
 
     // Add cells to each row
     for (let row = 0; row < tableMap.height; row++) {
-        const pos = tableMap.positionAt(row, columnIndex, table);
+        const pos = tableMap.positionAt(row, columnIndex);
         const type = table.type.schema.nodes.tableCell!;
         transaction.insert(transaction.mapping.map(tablePos + pos), type.createAndFill()!);
     }
@@ -226,7 +226,7 @@ function removeContentTableColumn(
 
     // Remove cells from each row in reverse so we don't need to map positions.
     for (let row = tableMap.height - 1; row >= 0; row--) {
-        const pos = tableMap.positionAt(row, columnIndex, table);
+        const pos = tableMap.positionAt(row, columnIndex);
         const cell = table.nodeAt(pos)!;
         transaction.delete(tablePos + pos, tablePos + pos + cell.nodeSize);
     }
@@ -249,12 +249,28 @@ export function deleteContentTableColumn(
 
     for (let i = rect.right - 1; ; i--) {
         removeContentTableColumn(rect, i, transaction);
-        if (i === rect.left) break;
-        const table = rect.tablePos ? transaction.doc.nodeAt(rect.tablePos - 1) : transaction.doc;
-        if (!table) throw new RangeError("No table found");
+        const table = rect.tablePos ? transaction.doc.nodeAt(rect.tablePos - 1) : null;
+        assert(table);
         rect.table = table;
         rect.tableMap = ContentTableMap.get(table);
+        if (i === rect.left) break;
     }
+
+    const $pos1 = transaction.doc.resolve(
+        rect.tablePos + rect.tableMap.positionAt(0, Math.max(0, rect.left - 1)),
+    );
+
+    const $pos2 = transaction.doc.resolve(
+        rect.tablePos +
+            rect.tableMap.positionAt(rect.tableMap.height - 1, Math.max(0, rect.left - 1)),
+    );
+
+    transaction.setSelection(
+        state.selection instanceof ContentTableCellSelection &&
+            state.selection.$anchorCell.pos > state.selection.$headCell.pos
+            ? new ContentTableCellSelection($pos2, $pos1)
+            : new ContentTableCellSelection($pos1, $pos2),
+    );
 
     dispatch?.(transaction);
     return true;
@@ -388,12 +404,28 @@ export function deleteContentTableRow(
 
     for (let i = rect.bottom - 1; ; i--) {
         removeContentTableRow(transaction, rect, i);
-        if (i === rect.top) break;
-        const table = rect.tablePos ? transaction.doc.nodeAt(rect.tablePos - 1) : transaction.doc;
-        if (!table) throw new RangeError("No table found");
+        const table = rect.tablePos ? transaction.doc.nodeAt(rect.tablePos - 1) : null;
+        assert(table);
         rect.table = table;
         rect.tableMap = ContentTableMap.get(rect.table);
+        if (i === rect.top) break;
     }
+
+    const $pos1 = transaction.doc.resolve(
+        rect.tablePos + rect.tableMap.positionAt(Math.max(0, rect.top - 1), 0),
+    );
+
+    const $pos2 = transaction.doc.resolve(
+        rect.tablePos +
+            rect.tableMap.positionAt(Math.max(0, rect.top - 1), rect.tableMap.width - 1),
+    );
+
+    transaction.setSelection(
+        state.selection instanceof ContentTableCellSelection &&
+            state.selection.$anchorCell.pos > state.selection.$headCell.pos
+            ? new ContentTableCellSelection($pos2, $pos1)
+            : new ContentTableCellSelection($pos1, $pos2),
+    );
 
     dispatch?.(transaction);
     return true;
@@ -481,21 +513,42 @@ export function deleteContentTableCellSelection(
     state: EditorState,
     dispatch?: (tr: Transaction) => void,
 ): boolean {
-    const sel = state.selection;
-    if (!(sel instanceof ContentTableCellSelection)) return false;
-    if (dispatch) {
-        const tr = state.tr;
-        const baseContent = state.schema.nodes.tableCell!.createAndFill()!.content;
-        sel.forEachCell((cell, pos) => {
-            if (!cell.content.eq(baseContent))
-                tr.replace(
-                    tr.mapping.map(pos + 1),
-                    tr.mapping.map(pos + cell.nodeSize - 1),
-                    new Slice(baseContent, 0, 0),
-                );
-        });
-        if (tr.docChanged) dispatch(tr);
+    const selection = state.selection;
+    if (!(selection instanceof ContentTableCellSelection)) return false;
+
+    const transaction = state.tr;
+    const emptyCellNode = state.schema.nodes.tableCell!.createAndFill()!.content;
+    selection.forEachCell((cell, pos) => {
+        if (!cell.content.eq(emptyCellNode)) {
+            transaction.replace(
+                transaction.mapping.map(pos + 1),
+                transaction.mapping.map(pos + cell.nodeSize - 1),
+                new Slice(emptyCellNode, 0, 0),
+            );
+        }
+    });
+
+    if (transaction.docChanged) {
+        dispatch?.(transaction);
     }
+    // If all cells are already empty then we delete the selected rows/columns even
+    // the table if the full table is selected.
+    else {
+        const rect = selectedContentTableRect(state);
+
+        if (rect.top === 0 && rect.bottom === rect.tableMap.height) {
+            if (rect.left === 0 && rect.right === rect.tableMap.width) {
+                deleteContentTable(state, dispatch);
+            } else {
+                deleteContentTableColumn(state, dispatch);
+            }
+        } else {
+            if (rect.left === 0 && rect.right === rect.tableMap.width) {
+                deleteContentTableRow(state, dispatch);
+            }
+        }
+    }
+
     return true;
 }
 

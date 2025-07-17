@@ -91,6 +91,11 @@ export interface ContentTableMapRect {
 export class ContentTableMap {
     constructor(
         /**
+         * The table associated with this map.
+         */
+        public readonly table: Node,
+
+        /**
          * The number of columns
          */
         public readonly width: number,
@@ -237,9 +242,9 @@ export class ContentTableMap {
      * Returns the position of the cell at the given row and column.
      * @param row - The row index of the cell  (<= height - 1)
      */
-    positionAt(row: number, col: number, table: Node): number {
+    positionAt(row: number, col: number): number {
         for (let i = 0, rowStart = 0; ; i++) {
-            const rowEnd = rowStart + table.child(i).nodeSize;
+            const rowEnd = rowStart + this.table.child(i).nodeSize;
             if (i == row) {
                 let index = col + row * this.width;
                 const rowEndIndex = (row + 1) * this.width;
@@ -323,6 +328,7 @@ function computeMap(table: Node): ContentTableMap {
     for (const columnWidth of columnWidths) totalColumnWidth += columnWidth;
 
     const tableMap = new ContentTableMap(
+        table,
         width,
         height,
         map,

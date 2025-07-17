@@ -1505,10 +1505,6 @@ function handleColumnResizeHandleMouseDown(
     window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("keyup", handleKeyUp, true);
 
-    // Unfocus the content editor while resizing a column. So the browser cursor
-    // and pointer toolbar don't render.
-    view.dom.blur();
-
     event.preventDefault();
     return true;
 }
@@ -1906,10 +1902,6 @@ function handleGripMouseDown(view: EditorView, initialEvent: MouseEvent): boolea
     window.addEventListener("mouseup", finish);
     window.addEventListener("mousemove", move);
 
-    // Unfocus the content editor while resizing a column. So the browser cursor
-    // and pointer toolbar don't render.
-    view.dom.blur();
-
     initialEvent.preventDefault();
     return true;
 }
@@ -2301,7 +2293,6 @@ function drawContentEditorTablePluginHoveringStateDecorations(
                     ) {
                         element = element.parentElement;
                     }
-
                     assert(element instanceof HTMLElement);
                     const tableWrapperElement = element;
 

@@ -271,8 +271,8 @@ export function insertContentTableCells(
     for (let row = top; row < bottom; row++) {
         if (row - top >= cells.rows.length) break;
 
-        const from = map.positionAt(row, left, table);
-        const to = map.positionAt(row, Math.min(right, map.width), table);
+        const from = map.positionAt(row, left);
+        const to = map.positionAt(row, Math.min(right, map.width));
 
         // Ensure from and to positions are valid
         assert(from !== null, "Invalid `from` position");
@@ -287,10 +287,10 @@ export function insertContentTableCells(
     // Recompute after cell replacement
     recomp();
 
-    const $anchorCell = transaction.doc.resolve(tableStart + map.positionAt(top, left, table));
+    const $anchorCell = transaction.doc.resolve(tableStart + map.positionAt(top, left));
     const lastRow = Math.min(bottom - 1, map.height - 1);
     const lastCol = Math.min(right - 1, map.width - 1);
-    const $headCell = transaction.doc.resolve(tableStart + map.positionAt(lastRow, lastCol, table));
+    const $headCell = transaction.doc.resolve(tableStart + map.positionAt(lastRow, lastCol));
 
     transaction.setSelection(new ContentTableCellSelection($anchorCell, $headCell));
 

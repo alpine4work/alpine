@@ -591,7 +591,7 @@ function addContentEditorTableFileDropTargets({
 
     for (let rowIndex = 0; rowIndex < tableMap.height; rowIndex++) {
         for (let columnIndex = 0; columnIndex < tableMap.width; columnIndex++) {
-            const relativeCellPos = tableMap.positionAt(rowIndex, columnIndex, tableNode);
+            const relativeCellPos = tableMap.positionAt(rowIndex, columnIndex);
             if (relativeCellPos === null || relativeCellPos === undefined) continue;
 
             // relativeCellPos is the position of the cell in the table node.
