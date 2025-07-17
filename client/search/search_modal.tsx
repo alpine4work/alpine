@@ -251,6 +251,28 @@ export function SearchModal({
         });
     };
 
+    const handleOpenEntityInPeekStack = useCallback(
+        async (entityId: SearchEntityId, options?: {focus?: boolean}) => {
+            const path = getSearchEntityPath({
+                spaceId: space.id,
+                entityId,
+                randomSeed: output.key,
+                currentTime: output.queryTime,
+                routeLayout: "narrow",
+            });
+            await pushPeekStack(path, options).finally(onClose);
+            markResultSelectAffinityInteraction(entityId);
+        },
+        [
+            markResultSelectAffinityInteraction,
+            onClose,
+            pushPeekStack,
+            space.id,
+            output.key,
+            output.queryTime,
+        ],
+    );
+
     return (
         <Modal
             aria-label="Search"
@@ -476,11 +498,15 @@ export function SearchModal({
                                             markResultSelectAffinityInteraction={
                                                 markResultSelectAffinityInteraction
                                             }
+                                            handleOpenEntityInPeekStack={
+                                                handleOpenEntityInPeekStack
+                                            }
                                         />
                                     )}
                                 </Box>
                             ),
                             [
+                                handleOpenEntityInPeekStack,
                                 holdPeekTransition,
                                 markResultSelectAffinityInteraction,
                                 output,
@@ -652,6 +678,7 @@ function SearchModalResultList({
     switchPeek,
     holdPeekTransition,
     markResultSelectAffinityInteraction,
+    handleOpenEntityInPeekStack,
 }: {
     output: SearchStateExecutionOutput & {readonly results: object};
     selectedPeek: PeekSwitcherStatePeekBase<{entityId: SearchEntityId}> | null;
@@ -665,6 +692,10 @@ function SearchModalResultList({
     >;
     holdPeekTransition: Memo<(promise: Promise<void>) => void>;
     markResultSelectAffinityInteraction: (entityId: SearchEntityId) => void;
+    handleOpenEntityInPeekStack: (
+        entityId: SearchEntityId,
+        options?: {focus?: boolean},
+    ) => Promise<void>;
 }) {
     const spacingScale = useSpacingScale();
     const navigate = useNavigate();
@@ -843,6 +874,7 @@ function SearchModalResultList({
                                         routeLayout: "wide",
                                     });
                                 }}
+                                onOpenInPeekStack={() => handleOpenEntityInPeekStack(result.id)}
                                 onRemoveFromFavorites={async () => {
                                     await unfavoriteSearchEntity(context, {
                                         spaceId: space.id,
@@ -951,6 +983,7 @@ function SearchModalResultList({
                                 routeLayout: "wide",
                             });
                         }}
+                        onOpenInPeekStack={() => handleOpenEntityInPeekStack(result.id)}
                         onRemoveFromSuggested={
                             output.type === "EmptyQuery"
                                 ? async () => {
@@ -986,6 +1019,7 @@ function SearchModalResultList({
             context,
             favoriteResults,
             handleDoubleClick,
+            handleOpenEntityInPeekStack,
             hasFavorites,
             hasMoreFavoriteResults,
             output.key,

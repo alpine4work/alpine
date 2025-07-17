@@ -1,6 +1,6 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import escapeHtml from "escape-html";
-import {Link as LinkIcon} from "phosphor-react";
+import {ArrowSquareOut, Link as LinkIcon} from "phosphor-react";
 import {Fragment, useMemo} from "react";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
@@ -55,6 +55,7 @@ export function SearchEntityView({
     getCopyPath,
     onRemoveFromFavorites,
     onRemoveFromSuggested,
+    onOpenInPeekStack,
     marginX = searchEntityViewDefaultMarginX,
     paddingX = searchEntityViewDefaultPaddingX,
 }: {
@@ -68,6 +69,7 @@ export function SearchEntityView({
     getCopyPath?: () => string;
     onRemoveFromFavorites?: () => MaybePromise<void>;
     onRemoveFromSuggested?: () => MaybePromise<void>;
+    onOpenInPeekStack?: () => MaybePromise<void>;
     marginX?: Spacing;
     paddingX?: Sprinkles["paddingX"];
 }) {
@@ -85,9 +87,13 @@ export function SearchEntityView({
 
     const contextMenuActions: Array<Array<MenuAction>> = [];
 
-    if (getCopyPath) {
-        contextMenuActions.push([
-            {
+    // Top context menu group
+    // Includes copy link and open in peek.
+    {
+        const firstRightClickContextMenuGroup: Array<MenuAction> = [];
+
+        if (getCopyPath) {
+            firstRightClickContextMenuGroup.push({
                 label: "Copy link",
                 icon: <LinkIcon />,
                 iconPlacement: "end",
@@ -97,8 +103,22 @@ export function SearchEntityView({
                     const url = new URL(path, window.location.href);
                     await writeTextToClipboard(url.toString());
                 },
-            },
-        ]);
+            });
+        }
+
+        if (onOpenInPeekStack) {
+            firstRightClickContextMenuGroup.push({
+                label: "Open in peek",
+                icon: <ArrowSquareOut />,
+                iconPlacement: "end",
+                pressErrorTitle: "Couldn’t open peek",
+                onPress: onOpenInPeekStack,
+            });
+        }
+
+        if (firstRightClickContextMenuGroup.length > 0) {
+            contextMenuActions.push(firstRightClickContextMenuGroup);
+        }
     }
 
     if (onRemoveFromFavorites) {

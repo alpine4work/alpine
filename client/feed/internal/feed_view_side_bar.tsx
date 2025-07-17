@@ -1,4 +1,4 @@
-import {Link as LinkIcon} from "phosphor-react";
+import {ArrowSquareOut, Link as LinkIcon} from "phosphor-react";
 import {useId, useMemo, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -10,6 +10,7 @@ import {useReporter} from "~/client/design/reporter.js";
 import {useGlobalContext} from "~/client/helpers/global_context.js";
 import {useInitialAppRenderId} from "~/client/helpers/lifecycle/initial_app_render.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
+import {usePeekStackContext} from "~/client/peek/peek_stack_context.js";
 import {useSpacingScale} from "~/client/remix/spacing_scale_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/rpc/rpc_cache.js";
@@ -247,6 +248,7 @@ function FeedSearchAffinityView({
     const navigate = useNavigate();
     const {space} = useSpaceContext();
     const activeContextMenuActions = useContextMenuActions();
+    const peekStackContext = usePeekStackContext();
 
     const hasMarkedAffinityInteractionRef = useRef(false);
 
@@ -325,6 +327,23 @@ function FeedSearchAffinityView({
 
                 const url = new URL(path, window.location.href);
                 await writeTextToClipboard(url.toString());
+            },
+        },
+        {
+            label: "Open in peek",
+            icon: <ArrowSquareOut />,
+            iconPlacement: "end",
+            pressErrorTitle: "Couldn’t open peek",
+            onPress: async () => {
+                const path = getSearchEntityPath({
+                    spaceId: space.id,
+                    entityId: result.id,
+                    randomSeed,
+                    currentTime: new Date(),
+                    routeLayout: "wide",
+                });
+
+                await peekStackContext.push(path);
             },
         },
     ]);
