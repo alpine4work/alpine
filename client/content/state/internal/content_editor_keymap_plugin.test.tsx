@@ -12,6 +12,7 @@ import {ContentEditorState} from "~/client/content/state/content_editor_state.js
 import {markMemoIfNotRendering} from "~/client/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {TestSpaceContextProvider} from "~/client/spaces/space_context_provider.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {
     DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema,
@@ -1206,6 +1207,18 @@ test("pressing down in a code block will create a new paragraph", async () => {
     expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine))");
     fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent());
     expect(getDoc().toString()).toEqual("doc(codeBlock(codeBlockLine, codeBlockLine), paragraph)");
+});
+
+test("pressing backspace in a code block will delete the code block and leave an empty paragraph", async () => {
+    render(<TestContentEditor />);
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph, paragraph)");
+    await simulateTyping("```");
+    expect(getDoc().toString()).toEqual("doc(paragraph, codeBlock(codeBlockLine))");
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+    expect(getDoc().toString()).toEqual("doc(paragraph, paragraph)");
 });
 
 test("pressing alt-enter in an empty code block will create a new line in the block", async () => {
@@ -7105,4 +7118,1271 @@ test("pressing delete on a node selection will move selection after the node", a
 
     expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph("bar"))');
     expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+});
+
+test("pressing enter when selecting a table's first row creates a paragraph below the table", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(2), state.doc.resolve(8)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph)',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 31, head: 31});
+});
+
+test("pressing enter when selecting a table's last row creates a paragraph below the table", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(16), state.doc.resolve(22)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph)',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 31, head: 31});
+});
+
+test("pressing alt+enter when selecting a table's first row creates a paragraph below the table", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(2), state.doc.resolve(8)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph, table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing alt+enter when selecting a table's last row creates a paragraph below the table", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(16), state.doc.resolve(22)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), enterKeyboardEvent({altKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph, table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing backspace when selecting a table's first row clears the content then deletes the row", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(2), state.doc.resolve(8)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 6});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 8});
+});
+
+test("pressing backspace when selecting a table's first row clears the content then deletes the row (other direction)", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(8), state.doc.resolve(2)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 6, head: 2});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 8, head: 2});
+});
+
+test("pressing backspace when selecting a table's last row clears the content then deletes the row", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(16), state.doc.resolve(22)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 16, head: 20});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 8});
+});
+
+test("pressing backspace when selecting a table's middle column clears the content then deletes the column", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a3")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b3")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2")), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(8), state.doc.resolve(28)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 8, head: 26});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 16});
+});
+
+test("pressing backspace when selecting a table's middle column clears the content then deletes the column (opposite direction)", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a3")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b3")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2")), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(28), state.doc.resolve(8)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 26, head: 8});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 16, head: 2});
+});
+
+test("pressing delete when selecting a table's first row clears the content then deletes the row", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(2), state.doc.resolve(8)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 6});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 8});
+});
+
+test("pressing delete when selecting a table's last row clears the content then deletes the row", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(16), state.doc.resolve(22)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 16, head: 20});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 8});
+});
+
+test("pressing delete when selecting a table's middle column clears the content then deletes the column", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a3")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b3")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2")), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state =>
+        state.tr.setSelection(
+            new ContentTableCellSelection(state.doc.resolve(8), state.doc.resolve(28)),
+        ),
+    );
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 8, head: 26});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a3"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 16});
+});
+
+test("pressing backspace at the start of a cell moves to the previous cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2.1")]),
+                            schema.node("paragraph", {}, [schema.text("b2.2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b3")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1"), paragraph("b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent({metaKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1"), paragraph("b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 38, head: 38});
+
+    // Default browser backspace isn't implemented so this won't delete a character
+    // in tests but will in the browser. We're testing backspace doesn't navigate
+    // in this position.
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1"), paragraph("b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 38, head: 38});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(36))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1"), paragraph("b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 36, head: 36});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1"), paragraph("b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 32, head: 32});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(28))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1"), paragraph("b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 28, head: 28});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(22))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 22, head: 22});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 18, head: 18});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 12, head: 12});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 8, head: 8});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph("b2.1b2.2")), tableCell(paragraph("b3")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", head: 2, anchor: 32});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))",
+    );
+    expect(getSelection()).toEqual({type: "cell", head: 2, anchor: 24});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing delete at the end of a cell moves to the next cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2.1")]),
+                            schema.node("paragraph", {}, [schema.text("a2.2")]),
+                        ]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                        schema.node("tableCell", {}, [schema.node("paragraph")]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1"), paragraph("a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    // Default browser delete isn't implemented so this won't delete a character
+    // in tests but will in the browser. We're testing delete doesn't navigate
+    // in this position.
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1"), paragraph("a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(6))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1"), paragraph("a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1"), paragraph("a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 10, head: 10});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(14))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1"), paragraph("a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 14, head: 14});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 14, head: 14});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(18))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 18, head: 18});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 22, head: 22});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 28, head: 28});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 32, head: 32});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 36, head: 36});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2.1a2.2")), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", head: 34, anchor: 2});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        "doc(table(tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph), tableCell(paragraph))))",
+    );
+    expect(getSelection()).toEqual({type: "cell", head: 24, anchor: 2});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual("doc(paragraph)");
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing backspace before a table selects the table", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])}
+        />,
+    );
+
+    fireEvent.keyDown(getTextbox(), arrowDownKeyboardEvent({metaKey: true}));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 34, head: 34});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(31))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 31, head: 31});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 22});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 2, head: 16});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph, paragraph("foo"))');
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+});
+
+test("pressing delete before a table selects the table", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+            ])}
+        />,
+    );
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 1, head: 1});
+
+    dispatch(state => state.tr.setSelection(new TextSelection(state.doc.resolve(4))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 4, head: 4});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 27, head: 7});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(paragraph("foo"), table(tableRow(tableCell(paragraph), tableCell(paragraph)), tableRow(tableCell(paragraph), tableCell(paragraph))))',
+    );
+    expect(getSelection()).toEqual({type: "cell", anchor: 21, head: 7});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual('doc(paragraph("foo"), paragraph)');
+    expect(getSelection()).toEqual({type: "text", anchor: 6, head: 6});
+});
+
+test("pressing backspace in a lone file in a table cell keeps the selection in the cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("fileRowTable", {}, [
+                                schema.node("file", {
+                                    fileId: generateChronologicalId<FileId>(),
+                                }),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(24))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(fileRowTable(file)))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 24});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
+});
+
+test("pressing delete in a lone file in a table cell keeps the selection in the cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("fileRowTable", {}, [
+                                schema.node("file", {
+                                    fileId: generateChronologicalId<FileId>(),
+                                }),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(24))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(fileRowTable(file)))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 24});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
+});
+
+test("pressing backspace in the last file in a table cell keeps the selection in the cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                            schema.node("fileRowTable", {}, [
+                                schema.node("file", {
+                                    fileId: generateChronologicalId<FileId>(),
+                                }),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(28))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2"), fileRowTable(file)))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 28});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+});
+
+test("pressing delete in the last file in a table cell keeps the selection in the cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                            schema.node("fileRowTable", {}, [
+                                schema.node("file", {
+                                    fileId: generateChronologicalId<FileId>(),
+                                }),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(28))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2"), fileRowTable(file)))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 28});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 26, head: 26});
+});
+
+test("pressing backspace in the first file in a table cell keeps the selection in the cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("fileRowTable", {}, [
+                                schema.node("file", {
+                                    fileId: generateChronologicalId<FileId>(),
+                                }),
+                            ]),
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(24))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(fileRowTable(file), paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 24});
+
+    fireEvent.keyDown(getTextbox(), backspaceKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
+});
+
+test("pressing delete in the first file in a table cell keeps the selection in the cell", async () => {
+    render(
+        <TestContentEditor
+            initialContent={schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("fileRowTable", {}, [
+                                schema.node("file", {
+                                    fileId: generateChronologicalId<FileId>(),
+                                }),
+                            ]),
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+            ])}
+        />,
+    );
+
+    dispatch(state => state.tr.setSelection(new NodeSelection(state.doc.resolve(24))));
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(fileRowTable(file), paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "node", anchor: 24});
+
+    fireEvent.keyDown(getTextbox(), deleteKeyboardEvent());
+
+    expect(getDoc().toString()).toEqual(
+        'doc(table(tableRow(tableCell(paragraph("a1")), tableCell(paragraph("a2"))), tableRow(tableCell(paragraph("b1")), tableCell(paragraph("b2")))), paragraph("foo"))',
+    );
+    expect(getSelection()).toEqual({type: "text", anchor: 24, head: 24});
 });

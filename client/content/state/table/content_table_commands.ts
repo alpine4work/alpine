@@ -27,8 +27,8 @@
  * THE SOFTWARE.
  */
 
-import {Node, ResolvedPos, Slice} from "prosemirror-model";
-import {Command, EditorState, TextSelection, Transaction} from "prosemirror-state";
+import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
+import {Command, EditorState, Selection, TextSelection, Transaction} from "prosemirror-state";
 import {
     ContentTableMapRectWithTable,
     isInContentTable,
@@ -499,7 +499,19 @@ export function deleteContentTable(
     for (let d = $pos.depth; d > 0; d--) {
         const node = $pos.node(d);
         if (node.type.name === "table") {
-            if (dispatch) dispatch(state.tr.delete($pos.before(d), $pos.after(d)).scrollIntoView());
+            if (dispatch) {
+                const transaction = state.tr.replace(
+                    $pos.before(d),
+                    $pos.after(d),
+                    new Slice(Fragment.from(state.doc.type.schema.nodes.paragraph!.create()), 0, 0),
+                );
+
+                transaction.setSelection(
+                    Selection.near(transaction.doc.resolve($pos.before(d)), 1),
+                );
+
+                dispatch?.(transaction.scrollIntoView());
+            }
             return true;
         }
     }
