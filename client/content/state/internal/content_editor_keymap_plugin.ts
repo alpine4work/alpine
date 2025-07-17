@@ -12,7 +12,7 @@ import {
 import {redo, undo} from "prosemirror-history";
 import {undoInputRule} from "prosemirror-inputrules";
 import {keydownHandler} from "prosemirror-keymap";
-import {Node, ResolvedPos, Slice} from "prosemirror-model";
+import {Fragment, Node, ResolvedPos, Slice} from "prosemirror-model";
 import {
     EditorState,
     NodeSelection,
@@ -38,7 +38,11 @@ import {createHandleContentEditorVerticalArrowKeyDown} from "~/client/content/st
 import {getContentCodeBlockLineAdjacentIndentationSpaceCount} from "~/client/content/state/internal/get_content_code_block_line_adjacent_indentation_space_count.js";
 import {splitBlockWithCodeBlockLineLeadingIndentation} from "~/client/content/state/internal/split_block_with_code_block_line_leading_indentation.js";
 import {addSharedContentEditorKeymapCommands} from "~/client/content/state/shared/add_shared_content_editor_keymap_commands.js";
-import {isSelectionInContentTable} from "~/client/content/state/table/content_table_client_util.js";
+import {
+    isInContentTable,
+    isSelectionInContentTable,
+    selectedContentTableRect,
+} from "~/client/content/state/table/content_table_client_util.js";
 import {handleContentTableKeyDown} from "~/client/content/state/table/content_table_input.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {getClientInfo} from "~/client/remix/client_info_context.js";
@@ -51,6 +55,7 @@ import {ContentTableCellSelection} from "~/shared/content/table/content_table_ce
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
 
 type Command = (
     state: EditorState,
@@ -494,7 +499,7 @@ export function buildContentEditorKeymapPlugin(
             return deleteSelection(state, dispatch, view);
         };
 
-    const backspaceCommand: Command = chainCommands(
+    const backspaceCommandWithoutContainSelectionInTableCell: Command = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
         actuallyDeleteSelection(true),
@@ -741,13 +746,14 @@ export function buildContentEditorKeymapPlugin(
             }
 
             if (dispatch) {
-                const transaction = state.tr.delete(
+                const transaction = state.tr.replace(
                     $from.before($from.depth - 1),
                     $to.after($from.depth - 1),
+                    new Slice(Fragment.from(schema.nodes.paragraph.create()), 0, 0),
                 );
 
                 transaction.setSelection(
-                    Selection.near(transaction.doc.resolve($from.before($from.depth - 1)), -1),
+                    Selection.near(transaction.doc.resolve($from.before($from.depth - 1)), 1),
                 );
 
                 dispatch(transaction);
@@ -888,6 +894,97 @@ export function buildContentEditorKeymapPlugin(
         // the ProseMirror base keymap so I assume it is important.
         selectNodeBackward,
     );
+
+    // If the selection was originally within one table cell then this function
+    // will modify the `transaction` to make sure the selection stays within the
+    // original table cell instead of moving somewhere else in the doc.
+    //
+    // Examples:
+    //
+    // - Single file alone in a table cell, when you select the file and hit
+    //   backspace or delete selection should stay in the cell.
+    //
+    // - File at the start/end of a table cell, when you select the file and hit
+    //   backspace or delete selection should stay in the cell.
+    //
+    // - Empty code block with nothing else in the cell. Hitting delete should
+    //   keep the selection in the cell.
+    const containSelectionInTableCell = (oldState: EditorState, transaction: Transaction) => {
+        // Selection was not in a table...
+        if (!isInContentTable(oldState)) return;
+
+        const oldTableRect = selectedContentTableRect(oldState);
+
+        // Selection spanned across multiple table cells...
+        if (
+            oldTableRect.left !== oldTableRect.right - 1 ||
+            oldTableRect.top !== oldTableRect.bottom - 1
+        ) {
+            return;
+        }
+
+        const newTablePos = transaction.mapping.map(oldTableRect.tablePos);
+        const newTable = transaction.doc.nodeAt(newTablePos - 1);
+
+        // Couldn't find new table, maybe it was deleted?
+        if (newTable?.type.name !== "table") return;
+
+        const newTableMap = ContentTableMap.get(newTable);
+        const $newCell = transaction.doc.resolve(
+            newTablePos + newTableMap.positionAt(oldTableRect.top, oldTableRect.left),
+        );
+
+        const containFrom = $newCell.pos + 1;
+        const containTo = $newCell.pos + $newCell.nodeAfter!.nodeSize - 1;
+
+        // Selection stayed within the table cell. We don't need to modify the
+        // selection.
+        if (
+            isRangeContained(
+                containFrom,
+                containTo,
+                transaction.selection.from,
+                transaction.selection.to,
+            )
+        ) {
+            return;
+        }
+
+        if (transaction.selection.to < containFrom) {
+            transaction.setSelection(TextSelection.near(transaction.doc.resolve(containFrom), 1));
+        } else if (transaction.selection.from > containTo) {
+            transaction.setSelection(TextSelection.near(transaction.doc.resolve(containTo), -1));
+        } else {
+            const $from = transaction.doc.resolve(
+                Math.max(containFrom, transaction.selection.from),
+            );
+            const $to = transaction.doc.resolve(Math.min(containTo, transaction.selection.to));
+
+            transaction.setSelection(
+                transaction.selection.from === transaction.selection.anchor
+                    ? TextSelection.between($from, $to)
+                    : TextSelection.between($to, $from),
+            );
+        }
+    };
+
+    const backspaceCommand: Command = (state, dispatch, view) => {
+        if (dispatch) {
+            const originalDispatch = dispatch;
+
+            dispatch = transaction => {
+                // Don't contain selection if the doc didn't change. If the doc didn't change
+                // then we're using backspace at the beginning of a cell to navigate to the
+                // previous cell. Only contain if some other document change happened.
+                if (transaction.docChanged) {
+                    containSelectionInTableCell(state, transaction);
+                }
+                originalDispatch(transaction);
+            };
+        }
+
+        return backspaceCommandWithoutContainSelectionInTableCell(state, dispatch, view);
+    };
 
     const wordBackspaceCommand: Command = chainCommands(
         // If we delete before a mention and the mention is not a short mention, update
@@ -1046,7 +1143,7 @@ export function buildContentEditorKeymapPlugin(
     keys.set("Shift-Backspace", wordBackspaceCommand);
     keys.set("Mod-Backspace", backspaceCommand);
 
-    const deleteCommand = chainCommands(
+    const deleteCommandWithoutContainSelectionInTableCell: Command = chainCommands(
         // This one is simple. If there is a selection, delete it. If the
         // selection ranges a couple nodes the delete will do the right thing.
         actuallyDeleteSelection(false),
@@ -1263,6 +1360,24 @@ export function buildContentEditorKeymapPlugin(
         // the ProseMirror base keymap so I assume it is important.
         selectNodeForward,
     );
+
+    const deleteCommand: Command = (state, dispatch, view) => {
+        if (dispatch) {
+            const originalDispatch = dispatch;
+
+            dispatch = transaction => {
+                // Don't contain selection if the doc didn't change. If the doc didn't change
+                // then we're using delete at the end of a cell to navigate to the
+                // next cell. Only contain if some other document change happened.
+                if (transaction.docChanged) {
+                    containSelectionInTableCell(state, transaction);
+                }
+                originalDispatch(transaction);
+            };
+        }
+
+        return deleteCommandWithoutContainSelectionInTableCell(state, dispatch, view);
+    };
 
     keys.set("Delete", deleteCommand);
     keys.set("Mod-Delete", deleteCommand);
