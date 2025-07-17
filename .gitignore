@@ -45,3 +45,6 @@ _tmp*
 
 # Git
 *.orig
+
+# Claude code instructions
+CLAUDE.local.md
