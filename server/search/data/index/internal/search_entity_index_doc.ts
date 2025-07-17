@@ -225,6 +225,10 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
         titleVersion: SearchEntityTitleVersionType.nullable().default(null).store(),
 
         /**
+         * Body text for the search entity. Body text is Markdown formatted and can
+         * be parsed with `parseSearchContent()`. We strip some formatting from the
+         * Markdown that we don't want to be indexed (for example `<table>` HTML).
+         *
          * For body text analysis we manually recreate the [OpenSearch
          * `search_as_you_type` field][1] but without the `_index_prefix` field since
          * we don't care about prefix matching for body text and don't want to pay the

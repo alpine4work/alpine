@@ -512,12 +512,7 @@ To realize a sustainable future, a collective effort is necessary. Governments, 
                         isGroup: false,
                         tokenCount: 3,
                         context: {sectionHeading: null},
-                        sentenceChunks: [
-                            {
-                                text: "---",
-                                tokenCount: 3,
-                            },
-                        ],
+                        sentenceChunks: [{text: "---", tokenCount: 3}],
                         lineMarginTop: 2,
                         lineMarginBottom: 2,
                     },
@@ -4560,9 +4555,7 @@ where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in
                     {
                         isGroup: false,
                         tokenCount: 49,
-                        context: {
-                            sectionHeading: null,
-                        },
+                        context: {sectionHeading: null},
                         sentenceChunks: [
                             {
                                 text: "where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in the product is calculated as (2 × 1000) + (3 × 100) + (4 × 10) = 2340:",
@@ -4575,15 +4568,8 @@ where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in
                     {
                         isGroup: false,
                         tokenCount: 4,
-                        context: {
-                            sectionHeading: null,
-                        },
-                        sentenceChunks: [
-                            {
-                                text: "\\<math>",
-                                tokenCount: 4,
-                            },
-                        ],
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "\\<math>", tokenCount: 4}],
                         lineMarginTop: 2,
                         lineMarginBottom: 2,
                     },
@@ -5378,5 +5364,1434 @@ test13 test14\\</em> test15
         ],
         lineMarginTop: 2,
         lineMarginBottom: 2,
+    });
+});
+
+test("can chunk a simple table", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
+
+    expect(
+        testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("c1")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("c2")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a3")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b3")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("c3")]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+            ]),
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+        ),
+    ).toEqual({
+        text: `\
+foo
+
+<table><tbody><tr><td>
+
+a1
+
+</td><td>
+
+b1
+
+</td><td>
+
+c1
+
+</td></tr><tr><td>
+
+a2
+
+</td><td>
+
+b2
+
+</td><td>
+
+c2
+
+</td></tr><tr><td>
+
+a3
+
+</td><td>
+
+b3
+
+</td><td>
+
+c3
+
+</td></tr></tbody></table>
+
+bar`,
+        isGroup: true,
+        tokenCount: 117,
+        context: {sectionHeading: null},
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 1,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "foo", tokenCount: 1}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: true,
+                tokenCount: 115,
+                context: {sectionHeading: null},
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 8,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "<table><tbody>", tokenCount: 8}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 31,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nc1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 32,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na2", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb2", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nc2", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 34,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nc3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 10,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "</tbody></table>", tokenCount: 10}],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 2,
+                    },
+                ],
+            },
+            {
+                isGroup: false,
+                tokenCount: 1,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "bar", tokenCount: 1}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+test("can chunk a simple table with an empty cell", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
+
+    expect(
+        testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("c1")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                        schema.node("tableCell", {}, [schema.node("paragraph", {}, [])]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a3")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b3")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("c3")]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+            ]),
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+        ),
+    ).toEqual({
+        text: `\
+foo
+
+<table><tbody><tr><td>
+
+a1
+
+</td><td>
+
+b1
+
+</td><td>
+
+c1
+
+</td></tr><tr><td>
+
+a2
+
+</td><td>
+
+b2
+
+</td><td>
+
+
+
+</td></tr><tr><td>
+
+a3
+
+</td><td>
+
+b3
+
+</td><td>
+
+c3
+
+</td></tr></tbody></table>
+
+bar`,
+        isGroup: true,
+        tokenCount: 116,
+        context: {sectionHeading: null},
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 1,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "foo", tokenCount: 1}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: true,
+                tokenCount: 114,
+                context: {sectionHeading: null},
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 8,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "<table><tbody>", tokenCount: 8}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 31,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nc1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 31,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na2", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb2", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 7,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\n", tokenCount: 0},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 34,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nc3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 10,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "</tbody></table>", tokenCount: 10}],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 2,
+                    },
+                ],
+            },
+            {
+                isGroup: false,
+                tokenCount: 1,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "bar", tokenCount: 1}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+test("can chunk a complex table", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
+
+    expect(
+        testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac. Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst. In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo. Integer in tortor cursus, venenatis justo sed, euismod risus. Proin hendrerit facilisis mauris ut sollicitudin. Vivamus dapibus commodo urna, vitae cursus metus sodales sed. Nullam mollis imperdiet tincidunt. Nam at enim dui.",
+                                ),
+                            ]),
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "Ut suscipit sit amet libero sit amet volutpat. Integer dignissim nec nisl sed faucibus. Duis faucibus porttitor justo a elementum. Etiam pellentesque ligula ac hendrerit elementum. Fusce vitae bibendum erat, vel tristique ante. Donec et lectus vitae lectus vestibulum vestibulum. Etiam arcu metus, placerat quis gravida commodo, ultricies eget enim. Praesent convallis neque id convallis dictum. Donec sodales varius malesuada. Sed at pellentesque tellus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla ut turpis commodo, luctus mi malesuada, venenatis purus. Aliquam erat volutpat. Proin quis bibendum augue. Praesent in lacinia dui.",
+                                ),
+                            ]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("quoteBlock", {}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text(
+                                        "Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis, eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.",
+                                    ),
+                                ]),
+                            ]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("orderedListItem", {indent: 0}, [
+                                schema.node("paragraph", {}, [schema.text("Soil Health:")]),
+                            ]),
+                            schema.node("orderedListItem", {indent: 1}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text(
+                                        "Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.",
+                                    ),
+                                ]),
+                            ]),
+                            schema.node("orderedListItem", {indent: 1}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text(
+                                        "Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.",
+                                    ),
+                                ]),
+                            ]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("orderedListItem", {indent: 0}, [
+                                schema.node("paragraph", {}, [schema.text("Cost Reduction:")]),
+                            ]),
+                            schema.node("orderedListItem", {indent: 1}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text(
+                                        "Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.",
+                                    ),
+                                ]),
+                            ]),
+                            schema.node("orderedListItem", {indent: 1}, [
+                                schema.node("paragraph", {}, [
+                                    schema.text(
+                                        "Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.",
+                                    ),
+                                ]),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+        ),
+    ).toEqual({
+        text: `\
+<table><tbody><tr><td>
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac. Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst. In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo. Integer in tortor cursus, venenatis justo sed, euismod risus. Proin hendrerit facilisis mauris ut sollicitudin. Vivamus dapibus commodo urna, vitae cursus metus sodales sed. Nullam mollis imperdiet tincidunt. Nam at enim dui.
+
+Ut suscipit sit amet libero sit amet volutpat. Integer dignissim nec nisl sed faucibus. Duis faucibus porttitor justo a elementum. Etiam pellentesque ligula ac hendrerit elementum. Fusce vitae bibendum erat, vel tristique ante. Donec et lectus vitae lectus vestibulum vestibulum. Etiam arcu metus, placerat quis gravida commodo, ultricies eget enim. Praesent convallis neque id convallis dictum. Donec sodales varius malesuada. Sed at pellentesque tellus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla ut turpis commodo, luctus mi malesuada, venenatis purus. Aliquam erat volutpat. Proin quis bibendum augue. Praesent in lacinia dui.
+
+</td><td>
+
+> Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis, eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.
+
+</td></tr><tr><td>
+
+1. Soil Health:
+    1. Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.
+    2. Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.
+
+</td><td>
+
+1. Cost Reduction:
+    1. Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.
+    2. Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.
+
+</td></tr></tbody></table>`,
+        isGroup: true,
+        tokenCount: 774,
+        context: {sectionHeading: null},
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 8,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "<table><tbody>", tokenCount: 8}],
+                lineMarginTop: 2,
+                lineMarginBottom: 0,
+            },
+            {
+                isGroup: true,
+                tokenCount: 625,
+                context: {sectionHeading: null},
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 446,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {text: "<td>", tokenCount: 3},
+                            {
+                                text: "\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                                tokenCount: 21,
+                            },
+                            {
+                                text: "Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac.",
+                                tokenCount: 29,
+                            },
+                            {
+                                text: "Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst.",
+                                tokenCount: 27,
+                            },
+                            {
+                                text: "In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo.",
+                                tokenCount: 30,
+                            },
+                            {
+                                text: "Integer in tortor cursus, venenatis justo sed, euismod risus.",
+                                tokenCount: 23,
+                            },
+                            {
+                                text: "Proin hendrerit facilisis mauris ut sollicitudin.",
+                                tokenCount: 19,
+                            },
+                            {
+                                text: "Vivamus dapibus commodo urna, vitae cursus metus sodales sed.",
+                                tokenCount: 23,
+                            },
+                            {text: "Nullam mollis imperdiet tincidunt.", tokenCount: 13},
+                            {text: "Nam at enim dui.", tokenCount: 7},
+                            {
+                                text: "\n\nUt suscipit sit amet libero sit amet volutpat.",
+                                tokenCount: 19,
+                            },
+                            {text: "Integer dignissim nec nisl sed faucibus.", tokenCount: 15},
+                            {text: "Duis faucibus porttitor justo a elementum.", tokenCount: 15},
+                            {
+                                text: "Etiam pellentesque ligula ac hendrerit elementum.",
+                                tokenCount: 16,
+                            },
+                            {
+                                text: "Fusce vitae bibendum erat, vel tristique ante.",
+                                tokenCount: 20,
+                            },
+                            {
+                                text: "Donec et lectus vitae lectus vestibulum vestibulum.",
+                                tokenCount: 16,
+                            },
+                            {
+                                text: "Etiam arcu metus, placerat quis gravida commodo, ultricies eget enim.",
+                                tokenCount: 26,
+                            },
+                            {text: "Praesent convallis neque id convallis dictum.", tokenCount: 16},
+                            {text: "Donec sodales varius malesuada.", tokenCount: 10},
+                            {text: "Sed at pellentesque tellus.", tokenCount: 10},
+                            {
+                                text: "Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.",
+                                tokenCount: 29,
+                            },
+                            {
+                                text: "Nulla ut turpis commodo, luctus mi malesuada, venenatis purus.",
+                                tokenCount: 24,
+                            },
+                            {text: "Aliquam erat volutpat.", tokenCount: 10},
+                            {text: "Proin quis bibendum augue.", tokenCount: 11},
+                            {text: "Praesent in lacinia dui.", tokenCount: 10},
+                            {text: "\n\n</td>", tokenCount: 4},
+                        ],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 172,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {text: "<td>", tokenCount: 3},
+                            {
+                                text: "\n\n> Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan.",
+                                tokenCount: 29,
+                            },
+                            {
+                                text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
+                                tokenCount: 22,
+                            },
+                            {
+                                text: "Praesent in dignissim turpis, eget scelerisque massa.",
+                                tokenCount: 22,
+                            },
+                            {
+                                text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
+                                tokenCount: 25,
+                            },
+                            {text: "In vel auctor eros.", tokenCount: 8},
+                            {text: "Nulla ac quam mi. Pellentesque a arcu eros.", tokenCount: 17},
+                            {
+                                text: "Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien.",
+                                tokenCount: 29,
+                            },
+                            {text: "Etiam vestibulum id sem eget mollis.", tokenCount: 13},
+                            {text: "\n\n</td>", tokenCount: 4},
+                        ],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 4,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                ],
+            },
+            {
+                isGroup: true,
+                tokenCount: 131,
+                context: {sectionHeading: null},
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 59,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {text: "<td>", tokenCount: 3},
+                            {text: "\n\n1. Soil Health:", tokenCount: 5},
+                            {
+                                text: "\n    1. Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.",
+                                tokenCount: 24,
+                            },
+                            {
+                                text: "\n    2. Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.",
+                                tokenCount: 23,
+                            },
+                            {text: "\n\n</td>", tokenCount: 4},
+                        ],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 65,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [
+                            {text: "<td>", tokenCount: 3},
+                            {text: "\n\n1. Cost Reduction:", tokenCount: 5},
+                            {
+                                text: "\n    1. Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.",
+                                tokenCount: 25,
+                            },
+                            {
+                                text: "\n    2. Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.",
+                                tokenCount: 28,
+                            },
+                            {text: "\n\n</td>", tokenCount: 4},
+                        ],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 4,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    },
+                ],
+            },
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "</tbody></table>", tokenCount: 10}],
+                lineMarginTop: 0,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
+test("can chunk a table with list items", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = () => null;
+    const getSearchEntityIfExists = () => null;
+
+    expect(
+        testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b1")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("c1")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b2")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("foo")]),
+                            schema.node("unorderedListItem", {indent: 0}, [
+                                schema.node("paragraph", {}, [schema.text("1")]),
+                            ]),
+                            schema.node("unorderedListItem", {indent: 0}, [
+                                schema.node("paragraph", {}, [schema.text("2")]),
+                            ]),
+                            schema.node("unorderedListItem", {indent: 1}, [
+                                schema.node("paragraph", {}, [schema.text("2.1")]),
+                            ]),
+                            schema.node("unorderedListItem", {indent: 1}, [
+                                schema.node("paragraph", {}, [schema.text("2.2")]),
+                            ]),
+                            schema.node("unorderedListItem", {indent: 2}, [
+                                schema.node("paragraph", {}, [schema.text("2.2.1")]),
+                            ]),
+                            schema.node("unorderedListItem", {indent: 1}, [
+                                schema.node("paragraph", {}, [schema.text("2.3")]),
+                            ]),
+                            schema.node("unorderedListItem", {indent: 0}, [
+                                schema.node("paragraph", {}, [schema.text("3")]),
+                            ]),
+                            schema.node("unorderedListItem", {indent: 0}, [
+                                schema.node("paragraph", {}, [schema.text("4")]),
+                            ]),
+                            schema.node("paragraph", {}, [schema.text("bar")]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("a3")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("b3")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("c3")]),
+                        ]),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [schema.text("bar")]),
+            ]),
+            {tokenizer, getAccountIfExists, getSearchEntityIfExists},
+        ),
+    ).toEqual({
+        text: `\
+foo
+
+<table><tbody><tr><td>
+
+a1
+
+</td><td>
+
+b1
+
+</td><td>
+
+c1
+
+</td></tr><tr><td>
+
+a2
+
+</td><td>
+
+b2
+
+</td><td>
+
+foo
+
+- 1
+- 2
+    - 2\\.1
+    - 2\\.2
+        - 2\\.2.1
+    - 2\\.3
+- 3
+- 4
+
+bar
+
+</td></tr><tr><td>
+
+a3
+
+</td><td>
+
+b3
+
+</td><td>
+
+c3
+
+</td></tr></tbody></table>
+
+bar`,
+        isGroup: true,
+        tokenCount: 148,
+        context: {sectionHeading: null},
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 1,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "foo", tokenCount: 1}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: true,
+                tokenCount: 146,
+                context: {sectionHeading: null},
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 8,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "<table><tbody>", tokenCount: 8}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 0,
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 31,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nc1", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 63,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 8,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na2", tokenCount: 1},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb2", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: true,
+                                tokenCount: 39,
+                                context: {sectionHeading: null},
+                                childChunks: [
+                                    {
+                                        isGroup: false,
+                                        tokenCount: 4,
+                                        context: {sectionHeading: null},
+                                        sentenceChunks: [
+                                            {text: "<td>", tokenCount: 3},
+                                            {text: "\n\nfoo", tokenCount: 1},
+                                        ],
+                                        lineMarginTop: 0,
+                                        lineMarginBottom: 2,
+                                    },
+                                    {
+                                        isGroup: true,
+                                        tokenCount: 30,
+                                        context: {sectionHeading: null},
+                                        childChunks: [
+                                            {
+                                                isGroup: false,
+                                                tokenCount: 2,
+                                                context: {sectionHeading: null},
+                                                sentenceChunks: [{text: "- 1", tokenCount: 2}],
+                                                lineMarginTop: 1,
+                                                lineMarginBottom: 1,
+                                            },
+                                            {
+                                                isGroup: true,
+                                                tokenCount: 24,
+                                                context: {sectionHeading: null},
+                                                childChunks: [
+                                                    {
+                                                        isGroup: false,
+                                                        tokenCount: 2,
+                                                        context: {sectionHeading: null},
+                                                        sentenceChunks: [
+                                                            {text: "- 2", tokenCount: 2},
+                                                        ],
+                                                        lineMarginTop: 1,
+                                                        lineMarginBottom: 1,
+                                                    },
+                                                    {
+                                                        isGroup: false,
+                                                        tokenCount: 5,
+                                                        context: {sectionHeading: null},
+                                                        sentenceChunks: [
+                                                            {
+                                                                text: "    - 2\\.1",
+                                                                tokenCount: 5,
+                                                            },
+                                                        ],
+                                                        lineMarginTop: 1,
+                                                        lineMarginBottom: 1,
+                                                    },
+                                                    {
+                                                        isGroup: true,
+                                                        tokenCount: 12,
+                                                        context: {sectionHeading: null},
+                                                        childChunks: [
+                                                            {
+                                                                isGroup: false,
+                                                                tokenCount: 5,
+                                                                context: {
+                                                                    sectionHeading: null,
+                                                                },
+                                                                sentenceChunks: [
+                                                                    {
+                                                                        text: "    - 2\\.2",
+                                                                        tokenCount: 5,
+                                                                    },
+                                                                ],
+                                                                lineMarginTop: 1,
+                                                                lineMarginBottom: 1,
+                                                            },
+                                                            {
+                                                                isGroup: false,
+                                                                tokenCount: 7,
+                                                                context: {
+                                                                    sectionHeading: null,
+                                                                },
+                                                                sentenceChunks: [
+                                                                    {
+                                                                        text: "        - 2\\.2.1",
+                                                                        tokenCount: 7,
+                                                                    },
+                                                                ],
+                                                                lineMarginTop: 1,
+                                                                lineMarginBottom: 1,
+                                                            },
+                                                        ],
+                                                    },
+                                                    {
+                                                        isGroup: false,
+                                                        tokenCount: 5,
+                                                        context: {sectionHeading: null},
+                                                        sentenceChunks: [
+                                                            {
+                                                                text: "    - 2\\.3",
+                                                                tokenCount: 5,
+                                                            },
+                                                        ],
+                                                        lineMarginTop: 1,
+                                                        lineMarginBottom: 1,
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                isGroup: false,
+                                                tokenCount: 2,
+                                                context: {sectionHeading: null},
+                                                sentenceChunks: [{text: "- 3", tokenCount: 2}],
+                                                lineMarginTop: 1,
+                                                lineMarginBottom: 1,
+                                            },
+                                            {
+                                                isGroup: false,
+                                                tokenCount: 2,
+                                                context: {sectionHeading: null},
+                                                sentenceChunks: [{text: "- 4", tokenCount: 2}],
+                                                lineMarginTop: 1,
+                                                lineMarginBottom: 1,
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        isGroup: false,
+                                        tokenCount: 5,
+                                        context: {sectionHeading: null},
+                                        sentenceChunks: [
+                                            {text: "bar", tokenCount: 1},
+                                            {text: "\n\n</td>", tokenCount: 4},
+                                        ],
+                                        lineMarginTop: 2,
+                                        lineMarginBottom: 0,
+                                    },
+                                ],
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: true,
+                        tokenCount: 34,
+                        context: {sectionHeading: null},
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "<tr>", tokenCount: 3}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\na3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nb3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 9,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [
+                                    {text: "<td>", tokenCount: 3},
+                                    {text: "\n\nc3", tokenCount: 2},
+                                    {text: "\n\n</td>", tokenCount: 4},
+                                ],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 4,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "</tr>", tokenCount: 4}],
+                                lineMarginTop: 0,
+                                lineMarginBottom: 0,
+                            },
+                        ],
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 10,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "</tbody></table>", tokenCount: 10}],
+                        lineMarginTop: 0,
+                        lineMarginBottom: 2,
+                    },
+                ],
+            },
+            {
+                isGroup: false,
+                tokenCount: 1,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "bar", tokenCount: 1}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
     });
 });

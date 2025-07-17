@@ -184,7 +184,7 @@ test("parses math-like content with highlights", () => {
             `\
 For example, the <em>underlined</em> entry 2340 in the product is calculated as (2 × 1000) + (3 × 100) + (4 × 10) = 2340:
 
-<math>
+\\<math>
 
 \\\\begin{align} \\\\begin{bmatrix} \\\\<em>underline</em>{2} & \\\\<em>underline</em> 3 & \\\\<em>underline</em> 4 \\\\\\\\ 1 & 0 & 0 \\\\\\\\ \\\\end{bmatrix}
 
@@ -446,6 +446,659 @@ test("parses an `<em>` tag spanning multiple lines in a code block", () => {
             {
                 type: "paragraph",
                 content: [{type: "text", text: "code block"}],
+            },
+        ],
+    });
+});
+
+test("can parse a table", () => {
+    expect(
+        parseSearchContent(`\
+<table><tbody><tr><td>
+
+a1
+
+</td><td>
+
+a2
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+
+</td></tr></tbody></table>
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("can parse a table with a missing cell", () => {
+    expect(
+        parseSearchContent(`\
+<table><tbody><tr><td>
+
+a1
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+
+</td></tr></tbody></table>
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [{type: "paragraph"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    expect(
+        parseSearchContent(`\
+<table><tbody><tr><td>
+
+a1
+
+</td><td>
+
+a2
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+
+</td><td>
+
+b3
+
+</td></tr></tbody></table>
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a2"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [{type: "paragraph"}],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b3"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("can parse a table that hasn’t been closed", () => {
+    expect(
+        parseSearchContent(`\
+<table><tbody><tr><td>
+
+a1
+
+</td><td>
+
+a2
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    expect(
+        parseSearchContent(`\
+<table><tbody><tr><td>
+
+a1
+
+</td><td>
+
+a2
+
+</td></tr><tr><td>
+
+b1
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [{type: "paragraph"}],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("can parse a table starting at table cell close/open", () => {
+    expect(
+        parseSearchContent(`\
+a1
+
+</td><td>
+
+a2
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+
+</td></tr></tbody></table>
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {type: "paragraph", content: [{type: "text", text: "a1"}]},
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [{type: "paragraph"}],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    expect(
+        parseSearchContent(`\
+a1
+
+</td><td>
+
+a2
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+
+</td><td>
+
+b3
+
+</td></tr></tbody></table>
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {type: "paragraph", content: [{type: "text", text: "a1"}]},
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [{type: "paragraph"}],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [{type: "paragraph"}],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b3"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+
+    expect(
+        parseSearchContent(`\
+a1
+
+</td><td>
+
+a2
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {type: "paragraph", content: [{type: "text", text: "a1"}]},
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [{type: "paragraph"}],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "a2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("can parse a table starting at table row close/open", () => {
+    expect(
+        parseSearchContent(`\
+a2
+
+</td></tr><tr><td>
+
+b1
+
+</td><td>
+
+b2
+
+</td></tr><tr><td>
+
+c1
+
+</td><td>
+
+c2
+
+</td></tr></tbody></table>
+`).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {type: "paragraph", content: [{type: "text", text: "a2"}]},
+            {
+                type: "table",
+                attrs: {
+                    columnWidths: [],
+                    tableWidth: 1,
+                    hasHeaderRow: false,
+                    hasHeaderColumn: false,
+                },
+                content: [
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "b2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        type: "tableRow",
+                        content: [
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "c1"}]},
+                                ],
+                            },
+                            {
+                                type: "tableCell",
+                                content: [
+                                    {type: "paragraph", content: [{type: "text", text: "c2"}]},
+                                ],
+                            },
+                        ],
+                    },
+                ],
             },
         ],
     });

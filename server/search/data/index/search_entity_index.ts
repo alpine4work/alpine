@@ -651,7 +651,11 @@ export async function processIndexSearchEntityJob(
             dependencyIds: Array.from(dependencyIds),
             title: entity.title,
             titleVersion: entity.titleVersion,
-            body: entity.body,
+            // Remove `<table>` HTML from body. We don't want the search "table" to match
+            // all content with a table. Though that might make sense to a user a search
+            // for "tbody" wouldn't make sense if it matched all content with tables.
+            body:
+                entity.body?.replaceAll(/(?<!\\)<\/?(?:table|thead|tbody|tr|td|th)>/g, "") ?? null,
             media: entity.media,
             creatorId: entity.creatorId,
             majorContributorIds: Array.from(majorContributorIds),

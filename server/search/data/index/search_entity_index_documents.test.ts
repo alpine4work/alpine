@@ -22,7 +22,10 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
-import {DocumentContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
+import {
+    assertDocumentContent,
+    DocumentContentProsemirrorSchema as schema,
+} from "~/shared/documents/document_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -1708,4 +1711,185 @@ test("newly created documents will be visible in search even before indexing", a
     // `AddFeedAccountCandidateEntry` job, and the `AddFeedCandidateEntry` job.
     expect(import.meta.jest.getTimerCount()).toEqual(3);
     import.meta.jest.clearAllTimers();
+});
+
+test("can’t search documents with tables by HTML tags", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        content: assertDocumentContent(
+            schema.node("doc", {}, [
+                schema.node("title"),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("foo")]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [schema.text("bar")]),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ),
+    });
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const getSearchEntityIds = async (session: TestSpaceSession, queryText: string) => {
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText,
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .filter(result => !result.id.startsWith("Account:"))
+            .map(result => ({id: result.id, bodyTextSnippet: result.bodyTextSnippet}));
+    };
+
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: "Untitled",
+        body: `
+
+foo
+
+
+
+bar
+
+`,
+    });
+
+    expect(await getSearchEntityIds(session, "foo")).toEqual([
+        {
+            id: `Document:${document.id}`,
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "foo"},
+                {isHighlighted: false, text: ". bar"},
+            ],
+        },
+    ]);
+
+    expect(await getSearchEntityIds(session, "qux")).toEqual([]);
+    expect(await getSearchEntityIds(session, "<table>")).toEqual([]);
+    expect(await getSearchEntityIds(session, "<tbody>")).toEqual([]);
+    expect(await getSearchEntityIds(session, "<tr>")).toEqual([]);
+    expect(await getSearchEntityIds(session, "<td>")).toEqual([]);
+    expect(await getSearchEntityIds(session, "table")).toEqual([]);
+    expect(await getSearchEntityIds(session, "tbody")).toEqual([]);
+    expect(await getSearchEntityIds(session, "tr")).toEqual([]);
+    expect(await getSearchEntityIds(session, "td")).toEqual([]);
+
+    expect(await getSearchEntityIds(session, "bar")).toEqual([
+        {
+            id: `Document:${document.id}`,
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "foo. "},
+                {isHighlighted: true, text: "bar"},
+            ],
+        },
+    ]);
+});
+
+test("can’t search documents with table HTML tags in text", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        content: assertDocumentContent(
+            schema.node("doc", {}, [
+                schema.node("title"),
+                schema.node("paragraph", {}, [schema.text("foo")]),
+                schema.node("paragraph", {}, [schema.text("<table>bar</table>")]),
+            ]),
+        ),
+    });
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const getSearchEntityIds = async (session: TestSpaceSession, queryText: string) => {
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText,
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .filter(result => !result.id.startsWith("Account:"))
+            .map(result => ({id: result.id, bodyTextSnippet: result.bodyTextSnippet}));
+    };
+
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: "Untitled",
+        body: `foo
+
+\\<table>bar\\</table>`,
+    });
+
+    expect(await getSearchEntityIds(session, "foo")).toEqual([
+        {
+            id: `Document:${document.id}`,
+            bodyTextSnippet: [
+                {isHighlighted: true, text: "foo"},
+                {isHighlighted: false, text: ". <table>bar</table>"},
+            ],
+        },
+    ]);
+
+    expect(await getSearchEntityIds(session, "bar")).toEqual([
+        {
+            id: `Document:${document.id}`,
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "foo. <table>"},
+                {isHighlighted: true, text: "bar"},
+                {isHighlighted: false, text: "</table>"},
+            ],
+        },
+    ]);
+
+    expect(await getSearchEntityIds(session, "qux")).toEqual([]);
+    expect(await getSearchEntityIds(session, "<tbody>")).toEqual([]);
+    expect(await getSearchEntityIds(session, "<tr>")).toEqual([]);
+    expect(await getSearchEntityIds(session, "<td>")).toEqual([]);
+    expect(await getSearchEntityIds(session, "tbody")).toEqual([]);
+    expect(await getSearchEntityIds(session, "tr")).toEqual([]);
+    expect(await getSearchEntityIds(session, "td")).toEqual([]);
+
+    expect(await getSearchEntityIds(session, "<table>")).toEqual([
+        {
+            id: `Document:${document.id}`,
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "foo. <"},
+                {isHighlighted: true, text: "table"},
+                {isHighlighted: false, text: ">bar</"},
+                {isHighlighted: true, text: "table"},
+                {isHighlighted: false, text: ">"},
+            ],
+        },
+    ]);
+
+    expect(await getSearchEntityIds(session, "table")).toEqual([
+        {
+            id: `Document:${document.id}`,
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "foo. <"},
+                {isHighlighted: true, text: "table"},
+                {isHighlighted: false, text: ">bar</"},
+                {isHighlighted: true, text: "table"},
+                {isHighlighted: false, text: ">"},
+            ],
+        },
+    ]);
 });

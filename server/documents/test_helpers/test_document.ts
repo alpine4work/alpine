@@ -20,9 +20,11 @@ import {DocumentContentCover} from "~/shared/documents/document_content_cover.js
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
+    dangerousLegacyDefaultDocumentAccessPolicy,
 } from "~/shared/documents/document_content_schema.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -89,7 +91,35 @@ export class TestDocument {
     ): Promise<TestDocument> {
         let content: Node;
         if (options.content) {
-            content = options.content;
+            if (
+                !isDeepEqual(
+                    options.content.attrs.accessPolicy,
+                    dangerousLegacyDefaultDocumentAccessPolicy,
+                )
+            ) {
+                content = options.content;
+            }
+            // If an access policy wasn't specified so we're using the old, default, public
+            // access policy. Then instead replace the legacy public access policy with a
+            // private access policy.
+            else {
+                content = assertDocumentContent(
+                    schema.node(
+                        "doc",
+                        {
+                            ...options.content.attrs,
+                            accessPolicy: {
+                                accountGrantById: new Map([
+                                    [session.account.id, {level: "Manage", generation: 0}],
+                                ]),
+                                defaultGrant: null,
+                                urlGrant: null,
+                            },
+                        },
+                        options.content.content,
+                    ),
+                );
+            }
         } else {
             let accessPolicy: AccessPolicy;
             if (options.access === "Public") {

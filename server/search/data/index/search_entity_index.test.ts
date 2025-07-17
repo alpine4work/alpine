@@ -5622,3 +5622,331 @@ test("you can still search for removed accounts but you can’t see name updates
         fields: {title: ["Carol"]},
     });
 });
+
+test("will index a large table into multiple chunks", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        content: assertDocumentContent(
+            schema.node("doc", {}, [
+                schema.node("title", {}, [schema.text("Large Table")]),
+                schema.node("table", {}, [
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "a1: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean accumsan sapien tempor dignissim posuere. Cras dapibus arcu at nisi porta condimentum. Nam eleifend tortor purus. Nulla eget vulputate libero. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec faucibus velit elit. Phasellus non cursus felis.",
+                                ),
+                            ]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "a2: Mauris egestas nulla eget turpis pulvinar dictum. Sed eget ornare libero. Sed sit amet turpis non metus congue maximus nec quis orci. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Sed id fermentum eros. Nulla porta augue non quam fringilla, ac pulvinar lectus consequat. Aliquam auctor vulputate bibendum. Nulla in nibh mauris. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nunc porttitor augue vel eros rutrum tristique. Cras ligula diam, pulvinar vel rutrum sed, rhoncus a lorem. Donec gravida tempus elit vitae congue. Fusce rhoncus non arcu vitae sagittis. In tristique ullamcorper lectus ac dignissim. Morbi faucibus, ipsum efficitur auctor aliquet, orci sapien iaculis augue, at vehicula libero eros id risus.",
+                                ),
+                            ]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "b1: Morbi sed eros id ligula placerat euismod. Phasellus congue, ex eget consectetur efficitur, leo lacus ullamcorper odio, sed mollis nulla dolor nec ex. Maecenas gravida imperdiet mattis. Nulla elementum id nulla sed sodales. Curabitur vel urna ullamcorper, faucibus nunc ut, scelerisque purus. Etiam auctor finibus tortor eu ullamcorper. Etiam sit amet sem nisl.",
+                                ),
+                            ]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "b2: Quisque vestibulum felis quam, in congue lacus porta sed. Fusce non mattis nisl. Quisque rhoncus neque quis nunc finibus sollicitudin et id nisl. Quisque non urna sapien. Duis quam tellus, mollis ut leo cursus, venenatis mollis orci. Donec dapibus, libero eu aliquet ultrices, turpis massa suscipit augue, a auctor nulla risus sit amet ipsum. Donec leo elit, tincidunt ac lectus vitae, scelerisque commodo lectus. Integer pulvinar blandit sem, et interdum turpis maximus sit amet.",
+                                ),
+                            ]),
+                        ]),
+                    ]),
+                    schema.node("tableRow", {}, [
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "c1: Ut at risus rhoncus, pretium justo a, gravida mauris. In luctus tellus eu sodales aliquam. Etiam vel velit rhoncus, efficitur sem ut, euismod sapien. Vivamus ut vulputate enim. Nulla fringilla diam purus, vitae imperdiet sapien porta a. Aenean vitae euismod elit. Morbi vel blandit nisl. Donec tempor vehicula nulla, eu facilisis nibh malesuada quis.",
+                                ),
+                            ]),
+                        ]),
+                        schema.node("tableCell", {}, [
+                            schema.node("paragraph", {}, [
+                                schema.text(
+                                    "c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id porttitor dolor, ut finibus nunc. Phasellus velit ligula, aliquet nec erat non, mattis iaculis est. Sed ipsum risus, porta non quam non, mattis faucibus nisl. Donec ornare, metus eu rhoncus congue, eros felis rutrum massa, nec pulvinar risus est nec nisl. Curabitur nec libero eu odio mollis ultrices ut vel dui. Aliquam iaculis finibus mattis. In efficitur felis nec dolor ornare interdum. Vivamus pellentesque sapien vel ligula aliquet commodo. Aenean ac mauris eget eros convallis sagittis nec in lorem. Maecenas et massa in sem ultricies elementum. Suspendisse nibh lacus, dapibus non nisi non, ultrices varius nisi. Nunc ac ipsum aliquet, ullamcorper mi sed, hendrerit libero. Praesent vitae tortor blandit, sodales odio a, rhoncus mauris.",
+                                ),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ),
+    });
+
+    await runAllTimersAndWaitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityEmbeddingChunkIndex);
+
+    expect(
+        await context.opensearch
+            .searchWithoutSource(SearchEntityEmbeddingChunkIndex, space.id, {
+                size: 100,
+                storedFields: ["entity.id", "text"],
+                query: {
+                    term: {spaceId: new OpensearchQueryValue(space.id)},
+                },
+            })
+            .then(({hits}) =>
+                hits.sort((doc1, doc2) =>
+                    defaultCompareStrings(
+                        doc1.fields["entity.id"]?.[0] ?? "",
+                        doc2.fields["entity.id"]?.[0] ?? "",
+                    ),
+                ),
+            ),
+    ).toEqual(
+        [
+            {
+                id: expect.any(String),
+                score: expect.any(Number),
+                fields: {
+                    "entity.id": [`Document:${document.id}`],
+                    text: [
+                        `# Large Table
+
+<table><tbody><tr><td>
+
+a1: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean accumsan sapien tempor dignissim posuere. Cras dapibus arcu at nisi porta condimentum. Nam eleifend tortor purus. Nulla eget vulputate libero. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec faucibus velit elit. Phasellus non cursus felis.
+
+</td><td>
+
+a2: Mauris egestas nulla eget turpis pulvinar dictum. Sed eget ornare libero. Sed sit amet turpis non metus congue maximus nec quis orci. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Sed id fermentum eros. Nulla porta augue non quam fringilla, ac pulvinar lectus consequat. Aliquam auctor vulputate bibendum. Nulla in nibh mauris. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nunc porttitor augue vel eros rutrum tristique. Cras ligula diam, pulvinar vel rutrum sed, rhoncus a lorem. Donec gravida tempus elit vitae congue. Fusce rhoncus non arcu vitae sagittis. In tristique ullamcorper lectus ac dignissim. Morbi faucibus, ipsum efficitur auctor aliquet, orci sapien iaculis augue, at vehicula libero eros id risus.
+
+</td></tr>`,
+                    ],
+                },
+            },
+            {
+                id: expect.any(String),
+                score: expect.any(Number),
+                fields: {
+                    "entity.id": [`Document:${document.id}`],
+                    text: [
+                        `This is from the “Large Table” document:
+
+<tr><td>
+
+b1: Morbi sed eros id ligula placerat euismod. Phasellus congue, ex eget consectetur efficitur, leo lacus ullamcorper odio, sed mollis nulla dolor nec ex. Maecenas gravida imperdiet mattis. Nulla elementum id nulla sed sodales. Curabitur vel urna ullamcorper, faucibus nunc ut, scelerisque purus. Etiam auctor finibus tortor eu ullamcorper. Etiam sit amet sem nisl.
+
+</td><td>
+
+b2: Quisque vestibulum felis quam, in congue lacus porta sed. Fusce non mattis nisl. Quisque rhoncus neque quis nunc finibus sollicitudin et id nisl. Quisque non urna sapien. Duis quam tellus, mollis ut leo cursus, venenatis mollis orci. Donec dapibus, libero eu aliquet ultrices, turpis massa suscipit augue, a auctor nulla risus sit amet ipsum. Donec leo elit, tincidunt ac lectus vitae, scelerisque commodo lectus. Integer pulvinar blandit sem, et interdum turpis maximus sit amet.
+
+</td></tr>`,
+                    ],
+                },
+            },
+            {
+                id: expect.any(String),
+                score: expect.any(Number),
+                fields: {
+                    "entity.id": [`Document:${document.id}`],
+                    text: [
+                        `This is from the “Large Table” document:
+
+<tr><td>
+
+c1: Ut at risus rhoncus, pretium justo a, gravida mauris. In luctus tellus eu sodales aliquam. Etiam vel velit rhoncus, efficitur sem ut, euismod sapien. Vivamus ut vulputate enim. Nulla fringilla diam purus, vitae imperdiet sapien porta a. Aenean vitae euismod elit. Morbi vel blandit nisl. Donec tempor vehicula nulla, eu facilisis nibh malesuada quis.
+
+</td><td>
+
+c2: Donec massa ante, viverra sed tellus a, euismod vulputate lorem. Donec id porttitor dolor, ut finibus nunc. Phasellus velit ligula, aliquet nec erat non, mattis iaculis est. Sed ipsum risus, porta non quam non, mattis faucibus nisl. Donec ornare, metus eu rhoncus congue, eros felis rutrum massa, nec pulvinar risus est nec nisl. Curabitur nec libero eu odio mollis ultrices ut vel dui. Aliquam iaculis finibus mattis. In efficitur felis nec dolor ornare interdum. Vivamus pellentesque sapien vel ligula aliquet commodo. Aenean ac mauris eget eros convallis sagittis nec in lorem. Maecenas et massa in sem ultricies elementum. Suspendisse nibh lacus, dapibus non nisi non, ultrices varius nisi. Nunc ac ipsum aliquet, ullamcorper mi sed, hendrerit libero. Praesent vitae tortor blandit, sodales odio a, rhoncus mauris.
+
+</td></tr></tbody></table>`,
+                    ],
+                },
+            },
+        ].sort(
+            (doc1, doc2) =>
+                defaultCompareStrings(
+                    doc1.fields["entity.id"][0] ?? "",
+                    doc2.fields["entity.id"][0] ?? "",
+                ) ||
+                defaultCompareStrings(doc1.fields["text"][0] ?? "", doc2.fields["text"][0] ?? ""),
+        ),
+    );
+
+    expect(
+        await searchBySemantics(
+            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            {
+                spaceId: space.id,
+                queryText: "lorem ipsum",
+                limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
+            },
+        ),
+    ).toEqual([
+        {
+            id: `Document:${document.id}`,
+            model: new SearchEntityModel({
+                id: `Document:${document.id}`,
+                title: "Large Table",
+                titleVersion: {type: "Integer", version: 0},
+                media: null,
+            }),
+            score: expect.closeTo(0.40715873),
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "a1: "},
+                {isHighlighted: true, text: "Lorem"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "ipsum"},
+                {
+                    isHighlighted: false,
+                    text: " dolor sit amet, consectetur adipiscing elit. Aenean accumsan sapien tempor dignissim posuere. Cras dapibus arcu at nisi porta condimentum. Nam eleifend tortor purus. Nulla eget vulputate libero. Vestibulum ante ",
+                },
+                {isHighlighted: true, text: "ipsum"},
+                {
+                    isHighlighted: false,
+                    text: " primis in faucibus orci luctus et ultrices posuere cubilia curae; Donec faucibus velit elit. Phasellus non cursus felis. a2: Mauris egestas nulla eget turpis pulvinar dictum. Sed eget ornare libero. Sed sit amet turpis non metus congue maximus nec quis orci. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Sed id fermentum eros. Nulla porta augue non quam fringilla, ac pulvinar lectus consequat. Aliquam auctor vulputate bibendum. Nulla in nibh mauris. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nunc porttitor augue vel eros rutrum tristique. Cras ligula diam, pulvinar vel rutrum sed, rhoncus a ",
+                },
+                {isHighlighted: true, text: "lorem"},
+                {
+                    isHighlighted: false,
+                    text: ". Donec gravida tempus elit vitae congue. Fusce rhoncus non arcu vitae sagittis. In tristique ullamcorper lectus ac dignissim. Morbi faucibus, ",
+                },
+                {isHighlighted: true, text: "ipsum"},
+                {
+                    isHighlighted: false,
+                    text: " efficitur auctor aliquet, orci sapien iaculis augue, at vehicula libero eros id risus.",
+                },
+            ],
+        },
+    ]);
+
+    expect(
+        await searchBySemantics(
+            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            {
+                spaceId: space.id,
+                queryText: "morbi sed eros id ligula",
+                limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
+            },
+        ),
+    ).toEqual([
+        {
+            id: `Document:${document.id}`,
+            model: new SearchEntityModel({
+                id: `Document:${document.id}`,
+                title: "Large Table",
+                titleVersion: {type: "Integer", version: 0},
+                media: null,
+            }),
+            score: expect.closeTo(0.40590352),
+            bodyTextSnippet: [
+                {isHighlighted: false, text: "b1: "},
+                {isHighlighted: true, text: "Morbi"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "sed"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "eros"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "id"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "ligula"},
+                {
+                    isHighlighted: false,
+                    text: " placerat euismod. Phasellus congue, ex eget consectetur efficitur, leo lacus ullamcorper odio, ",
+                },
+                {isHighlighted: true, text: "sed"},
+                {
+                    isHighlighted: false,
+                    text: " mollis nulla dolor nec ex. Maecenas gravida imperdiet mattis. Nulla elementum ",
+                },
+                {isHighlighted: true, text: "id"},
+                {isHighlighted: false, text: " nulla "},
+                {isHighlighted: true, text: "sed"},
+                {
+                    isHighlighted: false,
+                    text: " sodales. Curabitur vel urna ullamcorper, faucibus nunc ut, scelerisque purus. Etiam auctor finibus tortor eu ullamcorper. Etiam sit amet sem nisl. b2: Quisque vestibulum felis quam, in congue lacus porta ",
+                },
+                {isHighlighted: true, text: "sed"},
+                {
+                    isHighlighted: false,
+                    text: ". Fusce non mattis nisl. Quisque rhoncus neque quis nunc finibus sollicitudin et ",
+                },
+                {isHighlighted: true, text: "id"},
+                {
+                    isHighlighted: false,
+                    text: " nisl. Quisque non urna sapien. Duis quam tellus, mollis ut leo cursus, venenatis mollis orci. Donec dapibus, libero eu aliquet ultrices, turpis massa suscipit augue, a auctor nulla risus sit amet ipsum. Donec leo elit, tincidunt ac lectus vitae, scelerisque commodo lectus. Integer pulvinar blandit sem, et interdum turpis maximus sit amet.",
+                },
+            ],
+        },
+    ]);
+
+    expect(
+        await searchBySemantics(
+            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            {
+                spaceId: space.id,
+                queryText: "donec massa ante",
+                limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
+            },
+        ),
+    ).toEqual([
+        {
+            id: `Document:${document.id}`,
+            model: new SearchEntityModel({
+                id: `Document:${document.id}`,
+                title: "Large Table",
+                titleVersion: {type: "Integer", version: 0},
+                media: null,
+            }),
+            score: expect.closeTo(0.43615812),
+            bodyTextSnippet: [
+                {
+                    isHighlighted: false,
+                    text: "c1: Ut at risus rhoncus, pretium justo a, gravida mauris. In luctus tellus eu sodales aliquam. Etiam vel velit rhoncus, efficitur sem ut, euismod sapien. Vivamus ut vulputate enim. Nulla fringilla diam purus, vitae imperdiet sapien porta a. Aenean vitae euismod elit. Morbi vel blandit nisl. ",
+                },
+                {isHighlighted: true, text: "Donec"},
+                {
+                    isHighlighted: false,
+                    text: " tempor vehicula nulla, eu facilisis nibh malesuada quis. c2: ",
+                },
+                {isHighlighted: true, text: "Donec"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "massa"},
+                {isHighlighted: false, text: " "},
+                {isHighlighted: true, text: "ante"},
+                {isHighlighted: false, text: ", viverra sed tellus a, euismod vulputate lorem. "},
+                {isHighlighted: true, text: "Donec"},
+                {
+                    isHighlighted: false,
+                    text: " id porttitor dolor, ut finibus nunc. Phasellus velit ligula, aliquet nec erat non, mattis iaculis est. Sed ipsum risus, porta non quam non, mattis faucibus nisl. ",
+                },
+                {isHighlighted: true, text: "Donec"},
+                {
+                    isHighlighted: false,
+                    text: " ornare, metus eu rhoncus congue, eros felis rutrum ",
+                },
+                {isHighlighted: true, text: "massa"},
+                {
+                    isHighlighted: false,
+                    text: ", nec pulvinar risus est nec nisl. Curabitur nec libero eu odio mollis ultrices ut vel dui. Aliquam iaculis finibus mattis. In efficitur felis nec dolor ornare interdum. Vivamus pellentesque sapien vel ligula aliquet commodo. Aenean ac mauris eget eros convallis sagittis nec in lorem. Maecenas et ",
+                },
+                {isHighlighted: true, text: "massa"},
+                {
+                    isHighlighted: false,
+                    text: " in sem ultricies elementum. Suspendisse nibh lacus, dapibus non nisi non, ultrices varius nisi. Nunc ac ipsum aliquet, ullamcorper mi sed, hendrerit libero. Praesent vitae tortor blandit, sodales odio a, rhoncus mauris.",
+                },
+            ],
+        },
+    ]);
+});

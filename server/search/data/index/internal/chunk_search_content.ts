@@ -17,12 +17,14 @@ import {
     renderContentMentionToText,
 } from "~/shared/content/render_content_mention_to_text.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {isIterable} from "~/shared/helpers/iterable/is_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
@@ -173,6 +175,19 @@ export type SearchContentChunk =
           childChunks: Array<SearchContentChunk>;
       };
 
+type SearchContentChunkBase =
+    | {
+          isGroup: false;
+          sentenceChunks: Array<string>;
+          lineMarginTop: number;
+          lineMarginBottom: number;
+          sectionHeading: string | null;
+      }
+    | {
+          isGroup: true;
+          childChunks: Array<SearchContentChunkBase>;
+      };
+
 export type SearchContentChunkContext = {
     sectionHeading: string | null;
 };
@@ -201,35 +216,31 @@ export function getFullSearchContentChunk(
     // Take our content and divide it into structured chunks of any size. We use
     // the structure of the content to chunk. Headings create sections, child list
     // items stay with their parent list item, and sentences are chunked together.
-    const chunkIterable: RecursiveIterable<{
-        sentenceChunks: Array<string>;
-        lineMarginTop: number;
-        lineMarginBottom: number;
-        sectionHeading: string | null;
-    } | null> = mapIterable(chunkSearchContentBySections(content.content), contentChunk => {
-        // The heading fragment should not get `sectionHeading` context. Only the
-        // content below it.
-        return contentChunk.headingFragment
-            ? concatIterables(
-                  next(contentChunk.headingFragment, null),
-                  next(contentChunk.fragment, contentChunk.sectionHeadingNode),
-              )
-            : next(contentChunk.fragment, contentChunk.sectionHeadingNode);
+    const chunkIterable: RecursiveIterable<SearchContentChunkBase> = mapIterable(
+        chunkSearchContentBySections(content.content),
+        contentChunk => {
+            // The heading fragment should not get `sectionHeading` context. Only the
+            // content below it.
+            return contentChunk.headingFragment
+                ? concatIterables(
+                      next(contentChunk.headingFragment, null),
+                      next(contentChunk.fragment, contentChunk.sectionHeadingNode),
+                  )
+                : next(contentChunk.fragment, contentChunk.sectionHeadingNode);
 
-        function next(fragment: Fragment, sectionHeadingNode: Node | null) {
-            const sectionHeading = sectionHeadingNode
-                ? printSearchTextForInlineFragment(sectionHeadingNode.content, {
-                      getAccountIfExists,
-                      getSearchEntityIfExists,
-                      context: "heading",
-                  })
-                : null;
+            function next(fragment: Fragment, sectionHeadingNode: Node | null) {
+                const sectionHeading = sectionHeadingNode
+                    ? printSearchTextForInlineFragment(sectionHeadingNode.content, {
+                          getAccountIfExists,
+                          getSearchEntityIfExists,
+                          context: "heading",
+                      })
+                    : null;
 
-            return mapRecursiveIterable(
-                chunkSearchContentByIntroduction(chunkSearchContentByParagraphs(fragment)),
-                fragment =>
-                    mapRecursiveIterable(chunkSearchContentByListItems(fragment), fragment => {
-                        const chunk = chunkSearchContentBySentenceForBlockFragment(
+                return mapRecursiveIterable(
+                    chunkSearchContentSectionByStructure(fragment),
+                    fragment => {
+                        const chunks = chunkSearchContentBySentenceForBlockFragment(
                             content,
                             fragment,
                             {
@@ -238,89 +249,76 @@ export function getFullSearchContentChunk(
                                 getSearchEntityIfExists,
                             },
                         );
-                        if (!chunk) return null;
-                        return {...chunk, sectionHeading};
-                    }),
-            );
-        }
-    });
+
+                        const transform = (chunk: SearchContentChunkBase) => {
+                            if (!chunk.isGroup) {
+                                chunk.sectionHeading = sectionHeading;
+                            } else {
+                                for (const childChunk of chunk.childChunks) transform(childChunk);
+                            }
+                        };
+
+                        for (const chunk of chunks) transform(chunk);
+
+                        return chunks;
+                    },
+                );
+            }
+        },
+    );
 
     // Consumes the structured chunk iterable recursively and turns it into a tree
     // object. We also product a token count at each level of the tree.
     const processChunkIterable = (
-        chunkIterable: RecursiveIterable<{
-            sentenceChunks: Array<string>;
-            lineMarginTop: number;
-            lineMarginBottom: number;
-            sectionHeading: string | null;
-        } | null>,
+        chunkIterable: RecursiveIterable<SearchContentChunkBase>,
     ): SearchContentChunk | null => {
-        let tokenCount1 = 0;
-
         const chunks = filterMapArray(
             chunkIterable,
             (chunkIterable): SearchContentChunk | undefined => {
-                if (chunkIterable === null) return;
-
                 if (isIterable(chunkIterable)) {
                     const chunk = processChunkIterable(chunkIterable);
                     if (chunk === null) return;
-                    tokenCount1 += chunk.tokenCount;
                     return chunk;
                 }
 
                 const chunk = chunkIterable;
 
-                let tokenCount2 = 0;
+                const transform = (chunk: SearchContentChunkBase): SearchContentChunk | null => {
+                    if (chunk.isGroup) {
+                        const transformedChildChunks = filterMapArray(
+                            chunk.childChunks,
+                            childChunk => transform(childChunk) ?? undefined,
+                        );
+                        return createSearchContentGroupChunk(transformedChildChunks);
+                    } else {
+                        let totalTokenCount = 0;
 
-                const sentenceChunks = chunk.sentenceChunks.map(sentenceChunk => {
-                    const tokenCount = tokenizer.countTokens(sentenceChunk);
-                    tokenCount1 += tokenCount;
-                    tokenCount2 += tokenCount;
-                    return {text: sentenceChunk, tokenCount};
-                });
+                        const sentenceChunks = filterMapArray(
+                            chunk.sentenceChunks,
+                            sentenceChunk => {
+                                if (sentenceChunk.length === 0) return;
+                                const tokenCount = tokenizer.countTokens(sentenceChunk);
+                                totalTokenCount += tokenCount;
+                                return {text: sentenceChunk, tokenCount};
+                            },
+                        );
 
-                return {
-                    isGroup: false,
-                    tokenCount: tokenCount2,
-                    context: {sectionHeading: chunk.sectionHeading},
-                    sentenceChunks,
-                    lineMarginTop: chunk.lineMarginTop,
-                    lineMarginBottom: chunk.lineMarginBottom,
+                        return {
+                            isGroup: false,
+                            tokenCount: totalTokenCount,
+                            context: {sectionHeading: chunk.sectionHeading},
+                            sentenceChunks,
+                            lineMarginTop: chunk.lineMarginTop,
+                            lineMarginBottom: chunk.lineMarginBottom,
+                        };
+                    }
                 };
+
+                return transform(chunk) ?? undefined;
             },
         );
 
-        // If there are no child chunks then return null.
-        if (chunks.length === 0) {
-            return null;
-        }
-
-        // Flatten singleton nesting levels.
-        if (chunks.length === 1) {
-            return chunks[0]!;
-        }
-
-        // A group's context must be the same as every child chunk's context.
-        let context = null;
-        if (chunks.length > 0) {
-            context = chunks[0]!.context;
-            for (let i = 1; i < chunks.length; i++) {
-                const chunk = chunks[i]!;
-
-                if (!isDeepEqual(context, chunk.context)) {
-                    context = null;
-                    break;
-                }
-            }
-        }
-
-        return {
-            isGroup: true,
-            context: context ?? {sectionHeading: null},
-            tokenCount: tokenCount1,
-            childChunks: chunks,
-        };
+        return createSearchContentGroupChunk(chunks);
     };
 
     return (
@@ -333,6 +331,46 @@ export function getFullSearchContentChunk(
             lineMarginBottom: 0,
         }
     );
+}
+
+function createSearchContentGroupChunk(
+    chunks: Array<SearchContentChunk>,
+): SearchContentChunk | null {
+    // If there are no child chunks then return null.
+    if (chunks.length === 0) {
+        return null;
+    }
+
+    // Flatten singleton nesting levels.
+    if (chunks.length === 1) {
+        return chunks[0]!;
+    }
+
+    let tokenCount = 0;
+
+    // A group's context must be the same as every child chunk's context.
+    let context = null;
+    if (chunks.length > 0) {
+        tokenCount += chunks[0]!.tokenCount;
+        context = chunks[0]!.context;
+
+        for (let i = 1; i < chunks.length; i++) {
+            const chunk = chunks[i]!;
+
+            tokenCount += chunk.tokenCount;
+
+            if (context !== null && !isDeepEqual(context, chunk.context)) {
+                context = null;
+            }
+        }
+    }
+
+    return {
+        isGroup: true,
+        tokenCount,
+        context: context ?? {sectionHeading: null},
+        childChunks: chunks,
+    };
 }
 
 /**
@@ -684,6 +722,23 @@ function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
 }
 
 /**
+ * Runs a series of chunk heuristics on a single content section
+ * (from `chunkSearchContentBySections()`).
+ *
+ * Includes (among other rules):
+ *
+ * - Chunking by individual paragraphs
+ * - Chunking by contiguous list items
+ * - Chunking by list item nesting
+ */
+function chunkSearchContentSectionByStructure(fragment: Fragment): RecursiveIterable<Fragment> {
+    return mapRecursiveIterable(
+        chunkSearchContentByIntroduction(chunkSearchContentByParagraphs(fragment)),
+        chunkSearchContentByListItems,
+    );
+}
+
+/**
  * Chunk content by paragraphs. Each top-level block gets its own chunk
  * (paragraphs, code blocks, quote blocks) with the exception of list items.
  * Adjacent list items are included in their own chunk. Lists are read as a
@@ -860,62 +915,57 @@ function chunkSearchContentBySentenceForBlockFragment(
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
     },
-): {
-    sentenceChunks: Array<string>;
-    lineMarginTop: number;
-    lineMarginBottom: number;
-} | null {
-    const chunks = fragment.content.map(node =>
+): Array<SearchContentChunkBase> {
+    const chunks = fragment.content.flatMap(node =>
         chunkSearchContentBySentenceForBlockNode(parentNode, node, options),
     );
 
-    if (chunks.every(chunk => !chunk)) {
-        return null;
-    }
+    return mergeSearchContentChunks(chunks);
+}
 
-    let lastUsedChunk: {
-        sentenceChunks: Array<string>;
-        lineMarginTop: number;
-        lineMarginBottom: number;
-    } | null = null;
-    const sentenceChunks: Array<string> = [];
+function mergeSearchContentChunks(
+    chunks: Array<SearchContentChunkBase>,
+): Array<SearchContentChunkBase> {
+    const mergedChunks: Array<SearchContentChunkBase> = [];
 
     for (const chunk of chunks) {
-        // Completely ignore `null` chunks
-        if (!chunk) continue;
-
-        const lastChunk = lastUsedChunk;
-        lastUsedChunk = chunk;
-
-        if (!lastChunk) {
-            for (const sentenceChunk of chunk.sentenceChunks) {
-                sentenceChunks.push(sentenceChunk);
-            }
+        if (chunk.isGroup) {
+            mergedChunks.push(chunk);
             continue;
         }
 
-        const lineMargin = Math.max(lastChunk.lineMarginBottom, chunk.lineMarginTop);
+        let lastMergedChunk =
+            mergedChunks.length > 0 ? mergedChunks[mergedChunks.length - 1] : null;
+
+        let lineMargin = 0;
+
+        if (lastMergedChunk && !lastMergedChunk.isGroup) {
+            lineMargin = Math.max(lastMergedChunk.lineMarginBottom, chunk.lineMarginTop);
+        } else {
+            lastMergedChunk = {
+                isGroup: false,
+                sentenceChunks: [],
+                lineMarginTop: chunk.lineMarginTop,
+                lineMarginBottom: 0,
+                sectionHeading: null,
+            };
+            mergedChunks.push(lastMergedChunk);
+        }
 
         if (chunk.sentenceChunks.length === 0) {
-            sentenceChunks.push("\n".repeat(lineMargin));
-            continue;
+            lastMergedChunk.sentenceChunks.push("\n".repeat(lineMargin));
+        } else {
+            chunk.sentenceChunks[0] = "\n".repeat(lineMargin) + chunk.sentenceChunks[0]!;
+
+            for (const sentenceChunk of chunk.sentenceChunks) {
+                lastMergedChunk.sentenceChunks.push(sentenceChunk);
+            }
         }
 
-        chunk.sentenceChunks[0] = "\n".repeat(lineMargin) + chunk.sentenceChunks[0]!;
-
-        for (const sentenceChunk of chunk.sentenceChunks) {
-            sentenceChunks.push(sentenceChunk);
-        }
+        lastMergedChunk.lineMarginBottom = chunk.lineMarginBottom;
     }
 
-    const lineMarginTop = chunks[0]?.lineMarginTop ?? 0;
-    const lineMarginBottom = chunks[0]?.lineMarginBottom ?? 0;
-
-    return {
-        sentenceChunks,
-        lineMarginTop,
-        lineMarginBottom,
-    };
+    return mergedChunks;
 }
 
 function chunkSearchContentBySentenceForBlockNode(
@@ -930,11 +980,7 @@ function chunkSearchContentBySentenceForBlockNode(
             entityId: SearchMentionEntityId,
         ) => RenderContentMentionToTextSearchEntity | null;
     },
-): {
-    sentenceChunks: Array<string>;
-    lineMarginTop: number;
-    lineMarginBottom: number;
-} | null {
+): Array<SearchContentChunkBase> {
     const typeName = node.type.name as ContentBlockNodeTypeName | "title";
 
     switch (typeName) {
@@ -942,55 +988,101 @@ function chunkSearchContentBySentenceForBlockNode(
         case "heading":
         case "title": {
             const sentenceChunks = chunkSearchContentBySentenceForTextblockNode(node, options);
-            return {sentenceChunks, lineMarginTop: 2, lineMarginBottom: 2};
+            return [
+                {
+                    isGroup: false,
+                    sentenceChunks,
+                    lineMarginTop: 2,
+                    lineMarginBottom: 2,
+                    sectionHeading: null,
+                },
+            ];
         }
+
         case "quoteBlock": {
-            const result = chunkSearchContentBySentenceForBlockFragment(
+            const chunks = chunkSearchContentBySentenceForBlockFragment(
                 node,
                 node.content,
                 options,
             );
-            const sentenceChunks = result?.sentenceChunks ?? [];
 
-            const prefixedSentenceChunks = sentenceChunks.map((sentenceChunk, i) => {
-                return sentenceChunk
-                    .split(newLineRegExpWithoutRepetition)
-                    .map((sentenceChunkLine, j, sentenceChunkLines) => {
-                        if (i === 0 && j === 0) {
-                            return sentenceChunkLine.length > 0 ? `> ${sentenceChunkLine}` : ">";
-                        }
-                        if (j % 2 === 1) {
-                            const nextSentenceChunkLineLength =
-                                j < sentenceChunkLines.length
-                                    ? sentenceChunkLines[j + 1]!.length
-                                    : 0;
-                            return `${sentenceChunkLine}>${
-                                nextSentenceChunkLineLength > 0 ? " " : ""
-                            }`;
-                        }
-                        return sentenceChunkLine;
-                    })
-                    .join("");
-            });
+            let hasSentenceChunkLine = false;
 
-            return {
-                sentenceChunks:
-                    prefixedSentenceChunks.length === 0 ? [">"] : prefixedSentenceChunks,
-                lineMarginTop: 2,
-                lineMarginBottom: 2,
+            const transform = (
+                isFirstChunk: boolean,
+                isLastChunk: boolean,
+                chunk: SearchContentChunkBase,
+            ) => {
+                if (chunk.isGroup) {
+                    for (let i = 0; i < chunk.childChunks.length; i++) {
+                        transform(
+                            isFirstChunk && i === 0,
+                            isLastChunk && i === chunk.childChunks.length - 1,
+                            chunk.childChunks[i]!,
+                        );
+                    }
+                } else {
+                    if (isFirstChunk) chunk.lineMarginTop = Math.max(2, chunk.lineMarginTop);
+                    if (isLastChunk) chunk.lineMarginBottom = Math.max(2, chunk.lineMarginBottom);
+
+                    for (let i = 0; i < chunk.sentenceChunks.length; i++) {
+                        chunk.sentenceChunks[i] = chunk.sentenceChunks[i]!.split(
+                            newLineRegExpWithoutRepetition,
+                        )
+                            .map((sentenceChunkLine, j, sentenceChunkLines) => {
+                                hasSentenceChunkLine = true;
+
+                                if (i === 0 && j === 0) {
+                                    return sentenceChunkLine.length > 0
+                                        ? `> ${sentenceChunkLine}`
+                                        : ">";
+                                }
+                                if (j % 2 === 1) {
+                                    const nextSentenceChunkLineLength =
+                                        j < sentenceChunkLines.length
+                                            ? sentenceChunkLines[j + 1]!.length
+                                            : 0;
+                                    return `${sentenceChunkLine}>${
+                                        nextSentenceChunkLineLength > 0 ? " " : ""
+                                    }`;
+                                }
+                                return sentenceChunkLine;
+                            })
+                            .join("");
+                    }
+                }
             };
+
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i]!;
+                transform(i === 0, i === chunks.length - 1, chunk);
+            }
+
+            if (hasSentenceChunkLine) {
+                return chunks;
+            } else {
+                return [
+                    {
+                        isGroup: false,
+                        sentenceChunks: [">"],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                        sectionHeading: null,
+                    },
+                ];
+            }
         }
+
         case "unorderedListItem":
         case "orderedListItem":
         case "checkListItem": {
             const indent = clampListItemIndentation(node.attrs.indent);
 
-            const result = chunkSearchContentBySentenceForBlockFragment(
+            const chunks = chunkSearchContentBySentenceForBlockFragment(
                 node,
                 node.content,
                 options,
             );
-            const sentenceChunks = result?.sentenceChunks ?? [];
 
             let bullet;
             switch (typeName) {
@@ -1032,57 +1124,104 @@ function chunkSearchContentBySentenceForBlockNode(
             const firstLinePrefix = "    ".repeat(indent) + bullet;
             const remainingLinePrefix = "    ".repeat(indent) + " ".repeat(bullet.length + 1);
 
-            const prefixedSentenceChunks = sentenceChunks.map((sentenceChunk, i) => {
-                return sentenceChunk
-                    .split(newLineRegExp)
-                    .map((sentenceChunkLine, j) => {
-                        if (i === 0 && j === 0) {
-                            return sentenceChunkLine.length > 0
-                                ? `${firstLinePrefix} ${sentenceChunkLine}`
-                                : firstLinePrefix;
-                        }
-                        if (j % 2 === 1) {
-                            return sentenceChunkLine.length > 0
-                                ? `${sentenceChunkLine}${remainingLinePrefix}`
-                                : "";
-                        }
-                        return sentenceChunkLine;
-                    })
-                    .join("");
-            });
+            let hasSentenceChunkLine = false;
 
-            return {
-                sentenceChunks:
-                    prefixedSentenceChunks.length === 0
-                        ? [firstLinePrefix]
-                        : prefixedSentenceChunks,
-                lineMarginTop: 1,
-                lineMarginBottom: 1,
+            const transform = (
+                isFirstChunk: boolean,
+                isLastChunk: boolean,
+                chunk: SearchContentChunkBase,
+            ) => {
+                if (chunk.isGroup) {
+                    for (let i = 0; i < chunk.childChunks.length; i++) {
+                        transform(
+                            isFirstChunk && i === 0,
+                            isLastChunk && i === chunk.childChunks.length - 1,
+                            chunk.childChunks[i]!,
+                        );
+                    }
+                } else {
+                    if (isFirstChunk) chunk.lineMarginTop = 1;
+                    if (isLastChunk) chunk.lineMarginBottom = 1;
+
+                    for (let i = 0; i < chunk.sentenceChunks.length; i++) {
+                        chunk.sentenceChunks[i] = chunk.sentenceChunks[i]!.split(newLineRegExp)
+                            .map((sentenceChunkLine, j) => {
+                                hasSentenceChunkLine = true;
+
+                                if (i === 0 && j === 0) {
+                                    return sentenceChunkLine.length > 0
+                                        ? `${firstLinePrefix} ${sentenceChunkLine}`
+                                        : firstLinePrefix;
+                                }
+                                if (j % 2 === 1) {
+                                    return sentenceChunkLine.length > 0
+                                        ? `${sentenceChunkLine}${remainingLinePrefix}`
+                                        : "";
+                                }
+                                return sentenceChunkLine;
+                            })
+                            .join("");
+                    }
+                }
             };
+
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i]!;
+                transform(i === 0, i === chunks.length - 1, chunk);
+            }
+
+            if (hasSentenceChunkLine) {
+                return chunks;
+            } else {
+                return [
+                    {
+                        isGroup: false,
+                        sentenceChunks: [firstLinePrefix],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                        sectionHeading: null,
+                    },
+                ];
+            }
         }
+
         case "codeBlock": {
             const codeBlockLines = createArrayWithLength(node.childCount, i => {
                 const childNode = node.child(i);
                 return chunkSearchContentBySentenceForTextblockNode(childNode, options);
             });
 
-            return {
-                sentenceChunks: Array.from(
-                    concatIterables(
-                        !node.attrs.language || node.attrs.language === "text"
-                            ? ["```\n"]
-                            : [`\`\`\`${node.attrs.language}\n`],
-                        flatIterable(codeBlockLines),
-                        ["```"],
+            return [
+                {
+                    isGroup: false,
+                    sentenceChunks: Array.from(
+                        concatIterables(
+                            !node.attrs.language || node.attrs.language === "text"
+                                ? ["```\n"]
+                                : [`\`\`\`${node.attrs.language}\n`],
+                            flatIterable(codeBlockLines),
+                            ["```"],
+                        ),
                     ),
-                ),
-                lineMarginTop: 2,
-                lineMarginBottom: 2,
-            };
+                    lineMarginTop: 2,
+                    lineMarginBottom: 2,
+                    sectionHeading: null,
+                },
+            ];
         }
+
         case "divider": {
-            return {sentenceChunks: ["---"], lineMarginTop: 2, lineMarginBottom: 2};
+            return [
+                {
+                    isGroup: false,
+                    sentenceChunks: ["---"],
+                    lineMarginTop: 2,
+                    lineMarginBottom: 2,
+                    sectionHeading: null,
+                },
+            ];
         }
+
         // We don't currently include anything related to files in the chunked content.
         // When searching via our search index we don't want the text "https" or a
         // `FileId` to match any document containing a file. That wouldn't make sense
@@ -1103,13 +1242,131 @@ function chunkSearchContentBySentenceForBlockNode(
         case "fileRow":
         case "fileRowTable":
         case "fileFloat": {
-            return null;
+            return [];
         }
+
+        // We chunk tables into groups of rows and cells. A table is a group of rows
+        // and a row is a group of cells. We then chunk the content within a table cell
+        // same as normal (e.g. list item children are in the same group as their
+        // parent).
+        //
+        // To represent the table in Markdown we use HTML instead of [GitHub-flavored
+        // Markdown (GFM) tables][1]. That's because it's not possible to nest markdown
+        // blocks (e.g. quote block or code block) within a GFM table. The HTML we
+        // generate can be parsed back by `parseSearchContent()`.
+        //
+        // Search content Markdown isn't shown to a user and we don't need to be able
+        // to perfectly parse content back from search content. The `<table>`
+        // formatting is there purely for AI models which will read the content. If [I
+        // give Claude a simple table in this format it's able to understand the
+        // table][2]. (My second question Claude answered incorrectly so Claude does
+        // seem to struggle a little with this.)
+        //
+        // [1]: https://github.com/micromark/micromark-extension-gfm-table
+        // [2]: https://claude.ai/share/20e98f2d-9208-4670-874f-4fcb3c3df61e
         case "table": {
-            // TODO(rohitt-gupta, #table-search): Implement table chunking for
-            // semantic search.
-            // https://github.com/cyberworlds/cyberworlds/pull/45#discussion_r1858742869
-            return null;
+            const tableChunks = node.content.content.map((tableRow): SearchContentChunkBase => {
+                const tableRowChunks = tableRow.content.content.map(
+                    (tableCell): SearchContentChunkBase => {
+                        const iterable = mapRecursiveIterable(
+                            chunkSearchContentSectionByStructure(tableCell.content),
+                            fragment =>
+                                chunkSearchContentBySentenceForBlockFragment(
+                                    tableCell,
+                                    fragment,
+                                    options,
+                                ),
+                        );
+
+                        const process = (
+                            iterable:
+                                | SearchContentChunkBase
+                                | RecursiveIterable<SearchContentChunkBase>,
+                        ): ReadonlyArray<SearchContentChunkBase> => {
+                            if (!isIterable(iterable)) {
+                                return [iterable];
+                            } else {
+                                const childChunks = Array.from(flatMapIterable(iterable, process));
+                                if (childChunks.length === 0) return emptyArray;
+                                if (childChunks.length === 1) return childChunks;
+                                return [{isGroup: true, childChunks}];
+                            }
+                        };
+
+                        let chunks: Array<SearchContentChunkBase> = [];
+                        for (const chunk of process(iterable)) chunks.push(chunk);
+
+                        if (chunks.length === 1 && chunks[0]!.isGroup) {
+                            chunks = chunks[0]!.childChunks;
+                        }
+
+                        return {
+                            isGroup: true,
+                            childChunks: mergeSearchContentChunks([
+                                {
+                                    isGroup: false,
+                                    sentenceChunks: ["<td>"],
+                                    lineMarginTop: 0,
+                                    lineMarginBottom: 2,
+                                    sectionHeading: null,
+                                },
+                                ...chunks,
+                                {
+                                    isGroup: false,
+                                    sentenceChunks: ["</td>"],
+                                    lineMarginTop: 2,
+                                    lineMarginBottom: 0,
+                                    sectionHeading: null,
+                                },
+                            ]),
+                        };
+                    },
+                );
+
+                return {
+                    isGroup: true,
+                    childChunks: [
+                        {
+                            isGroup: false,
+                            sentenceChunks: ["<tr>"],
+                            lineMarginTop: 0,
+                            lineMarginBottom: 0,
+                            sectionHeading: null,
+                        },
+                        ...tableRowChunks,
+                        {
+                            isGroup: false,
+                            sentenceChunks: ["</tr>"],
+                            lineMarginTop: 0,
+                            lineMarginBottom: 0,
+                            sectionHeading: null,
+                        },
+                    ],
+                };
+            });
+
+            return [
+                {
+                    isGroup: true,
+                    childChunks: [
+                        {
+                            isGroup: false,
+                            sentenceChunks: ["<table><tbody>"],
+                            lineMarginTop: 2,
+                            lineMarginBottom: 0,
+                            sectionHeading: null,
+                        },
+                        ...tableChunks,
+                        {
+                            isGroup: false,
+                            sentenceChunks: ["</tbody></table>"],
+                            lineMarginTop: 0,
+                            lineMarginBottom: 2,
+                            sectionHeading: null,
+                        },
+                    ],
+                },
+            ];
         }
         default:
             throw exhaustive(typeName);
@@ -1411,6 +1668,30 @@ function printSearchTextForInlineNode(
     }
 }
 
+const escapeMarkdownRegExp = new RegExp(
+    [
+        // Start of line block formatting. Quote blocks (`>`), list items (`+`, `-`),
+        // and headers (`#`).
+        /^\s*[>+\-#]/,
+        // Start of line table formatting (`| - |`, `| :- |`).
+        /^\s*\|\s*:?-/,
+        // Start of line list formatting (`1.`). Uses a lookbehind so we escape the `.`
+        // not the number.
+        /(?<=^\s*\d+)\./,
+        // Code (```), bold (`*`), italics (`_`), and strikethrough (`~`).
+        /[\\`*_~]/,
+        // Links (`[Alpine](https://alpine.inc)`)
+        /]\(/,
+        // HTML tags (`<em>`)
+        /<[/!?a-zA-Z]/,
+        // HTML entities (`&amp;`, `&#x0026;`)
+        /&#?[a-zA-Z0-9]+;/,
+    ]
+        .map(regExp => regExp.source)
+        .join("|"),
+    "gm",
+);
+
 /**
  * Escape markdown characters in some text content. We don't want the model to
  * confuse our markdown formatting for manually typed characters.
@@ -1426,14 +1707,11 @@ function printSearchTextForInlineNode(
  * [1]: https://www.markdownguide.org/basic-syntax/#escaping-characters
  */
 function escapeMarkdown(textContent: string): string {
-    return textContent.replaceAll(
-        /^\s*[>+\-#]|(?<=^\s*\d+)\.|[\\`*_~]|]\(|<[/!?a-zA-Z]|&#?[a-zA-Z0-9]+;/gm,
-        substring => {
-            const match = substring.match(/^(\s*?)(\S.*)$/);
-            assert(match);
-            return `${match[1]!}\\${match[2]!}`;
-        },
-    );
+    return textContent.replaceAll(escapeMarkdownRegExp, substring => {
+        const match = substring.match(/^(\s*?)(\S.*)$/);
+        assert(match);
+        return `${match[1]!}\\${match[2]!}`;
+    });
 }
 
 /**
