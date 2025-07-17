@@ -65,7 +65,9 @@ export async function fetchFile(
         try {
             await tokenAgent.publicSide.verifyUrl(signedUrl);
         } catch (error) {
-            if (error instanceof PermissionDeniedError) {
+            if (!(error instanceof PermissionDeniedError)) {
+                throw error;
+            } else {
                 return new Response("401 Unauthorized", {
                     status: 401,
                     headers: {"content-type": "text/plain"},

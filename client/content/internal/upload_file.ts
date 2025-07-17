@@ -340,10 +340,10 @@ async function actuallyUploadFile(
         let callOnAttachTimeout: Timeout | null = null;
         const promiseResolver = createPromiseResolver();
 
-        const fileRegistry = getFileRegistry(spaceId).getFileStore(fileReference);
+        const fileStore = getFileRegistry(spaceId).getFileStore(fileReference);
 
         const update = () => {
-            const file = fileRegistry.getSnapshot();
+            const file = fileStore.getSnapshot();
             const attachReadiness = getFileModelDataAttachReadiness(file);
 
             switch (attachReadiness) {
@@ -360,7 +360,7 @@ async function actuallyUploadFile(
                             hasCalledOnAttach = true;
                             callOnAttachTimeout = null;
                             try {
-                                const file = fileRegistry.getSnapshot();
+                                const file = fileStore.getSnapshot();
 
                                 onAttach({
                                     signedUrlSearch: file.signedUrlSearch,
@@ -384,7 +384,7 @@ async function actuallyUploadFile(
                         callOnAttachTimeout?.clear();
                         callOnAttachTimeout = null;
                         try {
-                            const file = fileRegistry.getSnapshot();
+                            const file = fileStore.getSnapshot();
 
                             onAttach({
                                 signedUrlSearch: file.signedUrlSearch,
@@ -401,7 +401,7 @@ async function actuallyUploadFile(
             }
         };
 
-        const unsubscribe = fileRegistry.subscribe(update);
+        const unsubscribe = fileStore.subscribe(update);
         update();
 
         const stopMaintainingFile = getFileRegistry(spaceId).startMaintainingFile(
