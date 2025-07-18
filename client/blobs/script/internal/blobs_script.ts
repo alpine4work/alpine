@@ -1,7 +1,7 @@
 import {
     BlobsSettings,
-    blobsCanvasWidthPx,
     blobsContentWidthPx,
+    getBlobsCanvasSize,
 } from "~/client/blobs/helpers/blobs_settings.js";
 import {HTMLCanvasElementWithBlobSettings} from "~/client/blobs/helpers/blobs_types.js";
 import {
@@ -18,7 +18,7 @@ declare global {
     }
 }
 
-function drawBlobs(blobCanvasId: string, settings: BlobsSettings) {
+function drawBlobs(blobCanvasId: string, settings: BlobsSettings, scale?: number) {
     // eslint-disable-next-line string-quotes
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
 
@@ -29,10 +29,11 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings) {
             settings.themeColor,
         );
         const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
+        const blobsCanvasSize = getBlobsCanvasSize();
 
         const blobs = generateBlobsForContent({
             contentWidthPx: blobsContentWidthPx,
-            screenWidthPx: blobsCanvasWidthPx,
+            screenWidthPx: blobsCanvasSize.width,
             randomSeed: settings.seed,
             minBlobCount: settings.minBlobCount,
             maxBlobCount: settings.maxBlobCount,
@@ -59,6 +60,7 @@ function drawBlobs(blobCanvasId: string, settings: BlobsSettings) {
                 canvas as HTMLCanvasElement,
                 {
                     ...settings,
+                    scale: scale || 1,
                     hueBias,
                     colorLevelInside:
                         colorScheme === "dark"

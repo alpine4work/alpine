@@ -14,12 +14,11 @@ export const containerClassName = style({
 });
 
 export const canvasClassName = style({
-    position: "absolute",
-    width: "full",
-    height: "full",
+    transformOrigin: "top left",
 });
 
 globalStyle(`.${blobsArtGradientClassName}`, {
     position: "absolute",
     inset: 0,
+    width: "100%",
 });

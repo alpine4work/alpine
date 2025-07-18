@@ -2,10 +2,9 @@ import {Memo, memo, useEffect, useMemo} from "react";
 import {createPortal} from "react-dom";
 import {
     BlobsSettings,
-    blobsCanvasHeightPx,
-    blobsCanvasWidthPx,
     blobsDefaultSettings,
     getBlobsCanvasId,
+    getBlobsCanvasSize,
 } from "~/client/blobs/helpers/blobs_settings.js";
 import {Box} from "~/client/design/box.js";
 import {useOverlayPortalElement} from "~/client/design/overlay_helpers.js";
@@ -17,6 +16,7 @@ import {
     safe,
     safeFlatObjectString,
     safeIdentifierString,
+    safeNumber,
 } from "~/shared/helpers/string/safe_string.js";
 
 type BlobsArtProps = {
@@ -37,7 +37,7 @@ export {BlobsArtMemo as BlobsArt};
 
 declare global {
     interface Window {
-        __drawBlobs: (blobCanvasId: string, settings: BlobsSettings) => void;
+        __drawBlobs: (blobCanvasId: string, settings: BlobsSettings, scale?: number) => void;
     }
 }
 
@@ -52,14 +52,14 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
 
     // We need a predictable ID for the canvas so that the server-side script can draw to it.
     // This must then translate to the same ID on the client.
-    const canvasId = getBlobsCanvasId(settings);
+    const canvasId = getBlobsCanvasId(settings, scale);
     const safeCanvasId = safeIdentifierString(canvasId);
 
     // If our settings change, redraw the blobs.
     useEffect(() => {
         if (typeof window === "undefined") return;
-        window.__drawBlobs(canvasId, settings);
-    }, [canvasId, settings]);
+        window.__drawBlobs(canvasId, settings, scale);
+    }, [canvasId, settings, scale]);
 
     // The canvas is rendered on the server, but we can't draw to it via this component.
     // Instead, we copy the commands ran in generateBlobsForContent and drawBlobFactoryToCanvas
@@ -67,28 +67,26 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
     // eslint-disable-next-line string-quotes
     const generateBlobs = safe`window.__drawBlobs('${safeCanvasId}', ${safeFlatObjectString(
         settings,
-    )})`;
+    )}, ${safeNumber(scale || 1)})`;
 
     return (
         <>
             <div
                 className={blobsArtStyles.containerClassName}
                 aria-hidden="true"
-                style={{
-                    height: blobsCanvasHeightPx,
-                    width: blobsCanvasWidthPx,
-                    left: `calc(50% - (${blobsCanvasWidthPx / 2}px))`,
-                    transform: scale ? `scale(${scale})` : undefined,
-                }}
+                // Our blob `<script>` writes a `style` attribute on this element. Tell React
+                // not to log a hydration warning, this is expected.
+                suppressHydrationWarning
             >
                 <canvas
                     className={blobsArtStyles.canvasClassName}
                     data-blob-id={canvasId}
-                    width={blobsCanvasWidthPx}
-                    height={blobsCanvasHeightPx}
                     data-testid={
                         process.env.NODE_ENV !== "production" ? `BlobsArtCanvas` : undefined
                     }
+                    // Our blob `<script>` writes a `style` attribute on this element. Tell React
+                    // not to log a hydration warning, this is expected.
+                    suppressHydrationWarning
                 />
                 <div
                     className={blobsArtGradientClassName}
@@ -123,6 +121,8 @@ function BlobsArt({settings: passedSettings, scale, withBezelTop, withBezelX}: B
 function BlobsArtBezel({withTop, withX}: {withTop?: boolean; withX?: boolean}) {
     const overlayPortalElement = useOverlayPortalElement();
 
+    const canvasSize = getBlobsCanvasSize();
+
     return (
         <>
             {withX && (
@@ -137,7 +137,7 @@ function BlobsArtBezel({withTop, withX}: {withTop?: boolean; withX?: boolean}) {
                     borderTop="none"
                     borderBottom="none"
                     borderWidth="thick"
-                    style={{height: blobsCanvasHeightPx}}
+                    style={{height: canvasSize.height}}
                 />
             )}
             {withTop &&

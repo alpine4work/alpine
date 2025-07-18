@@ -1,7 +1,5 @@
 import {
     BlobsSettings,
-    blobsCanvasHeightPx,
-    blobsCanvasWidthPx,
     blobsDefaultSettings,
     getBlobsCanvasId,
 } from "~/client/blobs/helpers/blobs_settings.js";
@@ -12,6 +10,7 @@ import {
     safe,
     safeFlatObjectString,
     safeIdentifierString,
+    safeNumber,
 } from "~/shared/helpers/string/safe_string.js";
 
 /**
@@ -29,25 +28,17 @@ export function getBlobsHtmlGenerator(
         ...props,
     };
 
+    // Render previews at a smaller scale
+    const scale = 0.4;
+
     const blobContainerHtml = new HtmlElementGenerator("div");
     blobContainerHtml.setAttribute("class", blobsArtStyles.containerClassName);
-    blobContainerHtml.setAttribute(
-        "style",
-        [
-            `height: ${blobsCanvasHeightPx}px`,
-            `width: ${blobsCanvasWidthPx}px`,
-            `left: calc(50% - (${blobsCanvasWidthPx / 2}px))`,
-            "transform: scale(40%)",
-        ].join("; "),
-    );
 
     // Set up canvas
-    const canvasId = getBlobsCanvasId(settings);
+    const canvasId = getBlobsCanvasId(settings, scale);
     const canvasHtml = blobContainerHtml.appendChild(new HtmlElementGenerator("canvas"));
     canvasHtml.setAttribute("data-blob-id", canvasId);
     canvasHtml.setAttribute("class", blobsArtStyles.canvasClassName);
-    canvasHtml.setAttribute("width", blobsCanvasWidthPx);
-    canvasHtml.setAttribute("height", blobsCanvasHeightPx);
 
     if (process.env.NODE_ENV !== "production") {
         canvasHtml.setAttribute("data-testid", `BlobsArtCanvas`);
@@ -61,7 +52,7 @@ export function getBlobsHtmlGenerator(
     // eslint-disable-next-line string-quotes
     const generateBlobs = safe`window.__drawBlobs('${safeCanvasId}', ${safeFlatObjectString(
         settings,
-    )})`;
+    )}, ${safeNumber(scale)})`;
     blobContainerHtml.appendChild(new HtmlScriptGenerator(generateBlobs));
 
     return blobContainerHtml;

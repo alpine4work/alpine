@@ -63,6 +63,11 @@ export type BlobFactorySettings = {
      * Background color of the blobs
      */
     readonly backgroundColor: Color;
+    /**
+     * The scale of the blobs canvas. This is used to scale the blobs
+     * to the highest resolution needed.
+     */
+    readonly scale: number;
 };
 
 export type BlobFactoryBlobs = ReadonlyArray<BlobFactoryBlob>;
@@ -76,7 +81,6 @@ export type BlobFactory =
           isGlSupported: true;
           draw: (
               sizeValue: Vector2,
-              scale: number,
               settings: BlobFactorySettings,
               blobs: BlobFactoryBlobs,
           ) => HTMLCanvasElement;

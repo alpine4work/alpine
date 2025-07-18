@@ -2171,8 +2171,299 @@ var require_scheduler = __commonJS({
     },
 });
 
+// shared/error/error_code.js
+var ErrorCode;
+(function (ErrorCode2) {
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The operation was cancelled, typically by the caller.
+             */
+            "Cancelled"
+        ] = 1)
+    ] = "Cancelled";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * Unknown error. For example, this error may be returned when a status code
+             * received from another address space belongs to an error space that is not
+             * known in this address space. Also errors raised by APIs that do not return
+             * enough error information may be converted to this error.
+             */
+            "Unknown"
+        ] = 2)
+    ] = "Unknown";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The client specified an invalid argument. Note that this differs from
+             * `FailedPrecondition`. `InvalidArgument` indicates arguments that are
+             * problematic regardless of the state of the system (e.g., a malformed file
+             * name).
+             */
+            "InvalidArgument"
+        ] = 3)
+    ] = "InvalidArgument";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The deadline expired before the operation could complete. For operations
+             * that change the state of the system, this error may be returned even if the
+             * operation has completed successfully.
+             */
+            "DeadlineExceeded"
+        ] = 4)
+    ] = "DeadlineExceeded";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * Some requested entity (e.g., file or directory) was not found. Note to
+             * server developers: if a request is denied for an entire class of users, such
+             * as gradual feature rollout or undocumented allowlist, `NotFound` may be
+             * used. If a request is denied for some users within a class of users, such as
+             * user-based access control, `PermissionDenied` must be used.
+             */
+            "NotFound"
+        ] = 5)
+    ] = "NotFound";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The entity that a client attempted to create (e.g., file or directory)
+             * already exists.
+             */
+            "AlreadyExists"
+        ] = 6)
+    ] = "AlreadyExists";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The caller does not have permission to execute the specified operation.
+             * `PermissionDenied` must not be used for rejections caused by exhausting some
+             * resource (use `ResourceExhausted` instead for those errors).
+             * `PermissionDenied` must not be used if the caller can not be identified (use
+             * `Unauthenticated` instead for those errors). This error code does not imply
+             * the request is valid or the requested entity exists or satisfies other
+             * pre-conditions.
+             */
+            "PermissionDenied"
+        ] = 7)
+    ] = "PermissionDenied";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * Some resource has been exhausted, perhaps a per-user quota, or perhaps the
+             * entire file system is out of space.
+             */
+            "ResourceExhausted"
+        ] = 8)
+    ] = "ResourceExhausted";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The operation was rejected because the system is not in a state required for
+             * the operation's execution. For example, the directory to be deleted is
+             * non-empty, an rmdir operation is applied to a non-directory, etc. Service
+             * implementors can use the following guidelines to decide between
+             * `FailedPrecondition`, `Aborted`, and `Unavailable`: (a) Use `Unavailable` if
+             * the client can retry just the failing call. (b) Use `Aborted` if the client
+             * should retry at a higher level (e.g., when a client-specified test-and-set
+             * fails, indicating the client should restart a read-modify-write sequence).
+             * (c) Use `FailedPrecondition` if the client should not retry until the system
+             * state has been explicitly fixed. E.g., if an "rmdir" fails because the
+             * directory is non-empty, `FailedPrecondition` should be returned since the
+             * client should not retry unless the files are deleted from the directory.
+             */
+            "FailedPrecondition"
+        ] = 9)
+    ] = "FailedPrecondition";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The operation was aborted, typically due to a concurrency issue such as a
+             * sequencer check failure or transaction abort. See the guidelines above for
+             * deciding between `FailedPrecondition`, `Aborted`, and `Unavailable`.
+             */
+            "Aborted"
+        ] = 10)
+    ] = "Aborted";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The operation was attempted past the valid range. E.g., seeking or reading
+             * past end-of-file. Unlike `InvalidArgument`, this error indicates a problem
+             * that may be fixed if the system state changes. For example, a 32-bit file
+             * system will generate `InvalidArgument` if asked to read at an offset that is
+             * not in the range [0,2^32-1], but it will generate `OutOfRange` if asked to
+             * read from an offset past the current file size. There is a fair bit of
+             * overlap between `FailedPrecondition` and `OutOfRange`. We recommend using
+             * `OutOfRange` (the more specific error) when it applies so that callers who
+             * are iterating through a space can easily look for an `OutOfRange` error to
+             * detect when they are done.
+             */
+            "OutOfRange"
+        ] = 11)
+    ] = "OutOfRange";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The operation is not implemented or is not supported/enabled in this
+             * service.
+             */
+            "Unimplemented"
+        ] = 12)
+    ] = "Unimplemented";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * Internal errors. This means that some invariants expected by the underlying
+             * system have been broken. This error code is reserved for serious errors.
+             */
+            "Internal"
+        ] = 13)
+    ] = "Internal";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The service is currently unavailable. This is most likely a transient
+             * condition, which can be corrected by retrying with a backoff. Note that it
+             * is not always safe to retry non-idempotent operations.
+             */
+            "Unavailable"
+        ] = 14)
+    ] = "Unavailable";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * Unrecoverable data loss or corruption.
+             */
+            "DataLoss"
+        ] = 15)
+    ] = "DataLoss";
+    ErrorCode2[
+        (ErrorCode2[
+            /**
+             * The request does not have valid authentication credentials for the
+             * operation.
+             */
+            "Unauthenticated"
+        ] = 16)
+    ] = "Unauthenticated";
+})(ErrorCode || (ErrorCode = {}));
+function getErrorCodeName(code) {
+    switch (code) {
+        case ErrorCode.Cancelled:
+            return "Cancelled";
+        case ErrorCode.Unknown:
+            return "Unknown";
+        case ErrorCode.InvalidArgument:
+            return "InvalidArgument";
+        case ErrorCode.DeadlineExceeded:
+            return "DeadlineExceeded";
+        case ErrorCode.NotFound:
+            return "NotFound";
+        case ErrorCode.AlreadyExists:
+            return "AlreadyExists";
+        case ErrorCode.PermissionDenied:
+            return "PermissionDenied";
+        case ErrorCode.ResourceExhausted:
+            return "ResourceExhausted";
+        case ErrorCode.FailedPrecondition:
+            return "FailedPrecondition";
+        case ErrorCode.Aborted:
+            return "Aborted";
+        case ErrorCode.OutOfRange:
+            return "OutOfRange";
+        case ErrorCode.Unimplemented:
+            return "Unimplemented";
+        case ErrorCode.Internal:
+            return "Internal";
+        case ErrorCode.Unavailable:
+            return "Unavailable";
+        case ErrorCode.DataLoss:
+            return "DataLoss";
+        case ErrorCode.Unauthenticated:
+            return "Unauthenticated";
+        default: {
+            const never = code;
+            throw new InternalError("Unexpected value in exhaustive check");
+        }
+    }
+}
+
+// shared/error/error.js
+var ErrorBase = class _ErrorBase extends Error {
+    constructor(message, {cause, displayMessage, aggregateDedupeKey} = {}) {
+        super(message, {
+            cause,
+        });
+        this.code = this._getCode();
+        this.name = getErrorCodeName(this.code) + "Error";
+        this.cause = cause;
+        if (displayMessage !== void 0) this.displayMessage = displayMessage;
+        if (aggregateDedupeKey !== void 0) this.aggregateDedupeKey = aggregateDedupeKey;
+    }
+    /**
+     * Convert an unknown exception object into a coded error with the original
+     * error as the cause object.
+     *
+     * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead
+     * prefer using a specific error like `FailedPreconditionError.from()`.
+     */
+    static from(error, newMessage, {displayMessage} = {}) {
+        const ErrorConstructor = this !== _ErrorBase ? this : UnknownError;
+        return new ErrorConstructor(
+            (newMessage ? `${newMessage}: ` : "") +
+                (error instanceof Error ? error.message : String(error)),
+            {
+                cause: error,
+                displayMessage,
+            },
+        );
+    }
+};
+var UnknownError = class extends ErrorBase {
+    _getCode() {
+        return ErrorCode.Unknown;
+    }
+};
+var InternalError = class extends ErrorBase {
+    _getCode() {
+        return ErrorCode.Internal;
+    }
+};
+
+// shared/helpers/control/assert.js
+function assert(condition, message) {
+    if (!condition) {
+        const error = new InternalError(
+            message ? `Assertion failure: ${message}` : "Assertion failure",
+        );
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(error, assert);
+        }
+        throw error;
+    }
+}
+
 // client/blobs/helpers/blobs_settings.js
-var blobsCanvasWidthPx = 1e4;
+var maxPossibleCanvasSize = 1e4;
+function getBlobsCanvasSize() {
+    assert(typeof window !== "undefined");
+    const blobsCanvasWidthPx = Math.max(window.screen.width, 3e3);
+    const blobsCanvasHeightPx = 800;
+    return {
+        width: blobsCanvasWidthPx,
+        height: blobsCanvasHeightPx,
+    };
+}
+function getBlobsCanvasScale() {
+    assert(typeof window !== "undefined");
+    return Math.min(
+        Math.floor(maxPossibleCanvasSize / window.devicePixelRatio),
+        window.devicePixelRatio,
+    );
+}
 var blobsContentWidthPx = 1200;
 
 // client/blobs/helpers/draw_blobs_factory.js
@@ -3543,268 +3834,6 @@ var GlVertexArray = class {
     }
 };
 
-// shared/error/error_code.js
-var ErrorCode;
-(function (ErrorCode2) {
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was cancelled, typically by the caller.
-             */
-            "Cancelled"
-        ] = 1)
-    ] = "Cancelled";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Unknown error. For example, this error may be returned when a status code
-             * received from another address space belongs to an error space that is not
-             * known in this address space. Also errors raised by APIs that do not return
-             * enough error information may be converted to this error.
-             */
-            "Unknown"
-        ] = 2)
-    ] = "Unknown";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The client specified an invalid argument. Note that this differs from
-             * `FailedPrecondition`. `InvalidArgument` indicates arguments that are
-             * problematic regardless of the state of the system (e.g., a malformed file
-             * name).
-             */
-            "InvalidArgument"
-        ] = 3)
-    ] = "InvalidArgument";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The deadline expired before the operation could complete. For operations
-             * that change the state of the system, this error may be returned even if the
-             * operation has completed successfully.
-             */
-            "DeadlineExceeded"
-        ] = 4)
-    ] = "DeadlineExceeded";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Some requested entity (e.g., file or directory) was not found. Note to
-             * server developers: if a request is denied for an entire class of users, such
-             * as gradual feature rollout or undocumented allowlist, `NotFound` may be
-             * used. If a request is denied for some users within a class of users, such as
-             * user-based access control, `PermissionDenied` must be used.
-             */
-            "NotFound"
-        ] = 5)
-    ] = "NotFound";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The entity that a client attempted to create (e.g., file or directory)
-             * already exists.
-             */
-            "AlreadyExists"
-        ] = 6)
-    ] = "AlreadyExists";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The caller does not have permission to execute the specified operation.
-             * `PermissionDenied` must not be used for rejections caused by exhausting some
-             * resource (use `ResourceExhausted` instead for those errors).
-             * `PermissionDenied` must not be used if the caller can not be identified (use
-             * `Unauthenticated` instead for those errors). This error code does not imply
-             * the request is valid or the requested entity exists or satisfies other
-             * pre-conditions.
-             */
-            "PermissionDenied"
-        ] = 7)
-    ] = "PermissionDenied";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Some resource has been exhausted, perhaps a per-user quota, or perhaps the
-             * entire file system is out of space.
-             */
-            "ResourceExhausted"
-        ] = 8)
-    ] = "ResourceExhausted";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was rejected because the system is not in a state required for
-             * the operation's execution. For example, the directory to be deleted is
-             * non-empty, an rmdir operation is applied to a non-directory, etc. Service
-             * implementors can use the following guidelines to decide between
-             * `FailedPrecondition`, `Aborted`, and `Unavailable`: (a) Use `Unavailable` if
-             * the client can retry just the failing call. (b) Use `Aborted` if the client
-             * should retry at a higher level (e.g., when a client-specified test-and-set
-             * fails, indicating the client should restart a read-modify-write sequence).
-             * (c) Use `FailedPrecondition` if the client should not retry until the system
-             * state has been explicitly fixed. E.g., if an "rmdir" fails because the
-             * directory is non-empty, `FailedPrecondition` should be returned since the
-             * client should not retry unless the files are deleted from the directory.
-             */
-            "FailedPrecondition"
-        ] = 9)
-    ] = "FailedPrecondition";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was aborted, typically due to a concurrency issue such as a
-             * sequencer check failure or transaction abort. See the guidelines above for
-             * deciding between `FailedPrecondition`, `Aborted`, and `Unavailable`.
-             */
-            "Aborted"
-        ] = 10)
-    ] = "Aborted";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation was attempted past the valid range. E.g., seeking or reading
-             * past end-of-file. Unlike `InvalidArgument`, this error indicates a problem
-             * that may be fixed if the system state changes. For example, a 32-bit file
-             * system will generate `InvalidArgument` if asked to read at an offset that is
-             * not in the range [0,2^32-1], but it will generate `OutOfRange` if asked to
-             * read from an offset past the current file size. There is a fair bit of
-             * overlap between `FailedPrecondition` and `OutOfRange`. We recommend using
-             * `OutOfRange` (the more specific error) when it applies so that callers who
-             * are iterating through a space can easily look for an `OutOfRange` error to
-             * detect when they are done.
-             */
-            "OutOfRange"
-        ] = 11)
-    ] = "OutOfRange";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The operation is not implemented or is not supported/enabled in this
-             * service.
-             */
-            "Unimplemented"
-        ] = 12)
-    ] = "Unimplemented";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Internal errors. This means that some invariants expected by the underlying
-             * system have been broken. This error code is reserved for serious errors.
-             */
-            "Internal"
-        ] = 13)
-    ] = "Internal";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The service is currently unavailable. This is most likely a transient
-             * condition, which can be corrected by retrying with a backoff. Note that it
-             * is not always safe to retry non-idempotent operations.
-             */
-            "Unavailable"
-        ] = 14)
-    ] = "Unavailable";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * Unrecoverable data loss or corruption.
-             */
-            "DataLoss"
-        ] = 15)
-    ] = "DataLoss";
-    ErrorCode2[
-        (ErrorCode2[
-            /**
-             * The request does not have valid authentication credentials for the
-             * operation.
-             */
-            "Unauthenticated"
-        ] = 16)
-    ] = "Unauthenticated";
-})(ErrorCode || (ErrorCode = {}));
-function getErrorCodeName(code) {
-    switch (code) {
-        case ErrorCode.Cancelled:
-            return "Cancelled";
-        case ErrorCode.Unknown:
-            return "Unknown";
-        case ErrorCode.InvalidArgument:
-            return "InvalidArgument";
-        case ErrorCode.DeadlineExceeded:
-            return "DeadlineExceeded";
-        case ErrorCode.NotFound:
-            return "NotFound";
-        case ErrorCode.AlreadyExists:
-            return "AlreadyExists";
-        case ErrorCode.PermissionDenied:
-            return "PermissionDenied";
-        case ErrorCode.ResourceExhausted:
-            return "ResourceExhausted";
-        case ErrorCode.FailedPrecondition:
-            return "FailedPrecondition";
-        case ErrorCode.Aborted:
-            return "Aborted";
-        case ErrorCode.OutOfRange:
-            return "OutOfRange";
-        case ErrorCode.Unimplemented:
-            return "Unimplemented";
-        case ErrorCode.Internal:
-            return "Internal";
-        case ErrorCode.Unavailable:
-            return "Unavailable";
-        case ErrorCode.DataLoss:
-            return "DataLoss";
-        case ErrorCode.Unauthenticated:
-            return "Unauthenticated";
-        default: {
-            const never = code;
-            throw new InternalError("Unexpected value in exhaustive check");
-        }
-    }
-}
-
-// shared/error/error.js
-var ErrorBase = class _ErrorBase extends Error {
-    constructor(message, {cause, displayMessage, aggregateDedupeKey} = {}) {
-        super(message, {
-            cause,
-        });
-        this.code = this._getCode();
-        this.name = getErrorCodeName(this.code) + "Error";
-        this.cause = cause;
-        if (displayMessage !== void 0) this.displayMessage = displayMessage;
-        if (aggregateDedupeKey !== void 0) this.aggregateDedupeKey = aggregateDedupeKey;
-    }
-    /**
-     * Convert an unknown exception object into a coded error with the original
-     * error as the cause object.
-     *
-     * If you call `ErrorBase.from()` you will get an `UnknownError`. Instead
-     * prefer using a specific error like `FailedPreconditionError.from()`.
-     */
-    static from(error, newMessage, {displayMessage} = {}) {
-        const ErrorConstructor = this !== _ErrorBase ? this : UnknownError;
-        return new ErrorConstructor(
-            (newMessage ? `${newMessage}: ` : "") +
-                (error instanceof Error ? error.message : String(error)),
-            {
-                cause: error,
-                displayMessage,
-            },
-        );
-    }
-};
-var UnknownError = class extends ErrorBase {
-    _getCode() {
-        return ErrorCode.Unknown;
-    }
-};
-var InternalError = class extends ErrorBase {
-    _getCode() {
-        return ErrorCode.Internal;
-    }
-};
-
 // shared/helpers/control/assert_exists.js
 function assertExists(value, message) {
     if (value === null || value === void 0) {
@@ -3910,19 +3939,6 @@ var GlShader = class {
         this.shader = shader;
     }
 };
-
-// shared/helpers/control/assert.js
-function assert(condition, message) {
-    if (!condition) {
-        const error = new InternalError(
-            message ? `Assertion failure: ${message}` : "Assertion failure",
-        );
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(error, assert);
-        }
-        throw error;
-    }
-}
 
 // client/helpers/gl/gl_texture_2d.js
 var GlTexture2d = class {
@@ -4583,9 +4599,9 @@ if (typeof window !== "undefined" && !window.__blobs) {
         program.uniformTexture2d("u_blobs", texture);
         return {
             isGlSupported: true,
-            draw: (sizeValue, scale, settings, blobs) => {
-                canvas.width = sizeValue.x * scale;
-                canvas.height = sizeValue.y * scale;
+            draw: (sizeValue, settings, blobs) => {
+                canvas.width = sizeValue.x;
+                canvas.height = sizeValue.y;
                 size.value = sizeValue;
                 displayGl.setDefaultViewport();
                 const positions = [
@@ -4666,12 +4682,40 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
     }
     const {factory} = willDraw;
     assert(factory.isGlSupported, "Factory should be GL supported");
-    const scale = 1;
+    const blobsCanvasScale = getBlobsCanvasScale();
+    const blobsCanvasSize = getBlobsCanvasSize();
+    const effectiveScale = blobsCanvasScale * settings.scale;
+    const scaledBlobs = blobs.map(
+        blob =>
+            new BlobFactoryBlob(
+                blob.center.scale(effectiveScale),
+                blob.radius * effectiveScale,
+                blob.themeColor,
+                blob.hueOffset,
+            ),
+    );
+    const scaledSettings = {
+        ...settings,
+        smoothness: settings.smoothness * effectiveScale,
+    };
+    const container = assertExists(canvas.parentElement);
+    container.setAttribute(
+        "style",
+        [
+            `height: ${blobsCanvasSize.height}px;`,
+            `width: ${blobsCanvasSize.width}px;`,
+            `left: calc(50% - (${blobsCanvasSize.width / 2}px));`,
+            `transform: scale(${settings.scale});`,
+        ].join(" "),
+    );
+    const size = new Vector2(blobsCanvasSize.width, blobsCanvasSize.height).scale(effectiveScale);
+    canvas.setAttribute("width", size.x.toString());
+    canvas.setAttribute("height", size.y.toString());
+    canvas.setAttribute("style", [`transform: scale(${1 / effectiveScale});`].join(" "));
     const actuallyDraw = () => {
         var _a, _b;
         if (!globalThis.__isIntegrationTest) {
-            const size = new Vector2(canvas.width, canvas.height).div(scale);
-            const result = factory.draw(size, scale, settings, blobs);
+            const result = factory.draw(size, scaledSettings, scaledBlobs);
             const ctx = canvas.getContext("2d");
             ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
         }
@@ -4692,10 +4736,7 @@ function drawBlobFactoryToCanvas(canvas, settings, blobs) {
                 10,
             ),
         );
-        gradient.setAttribute(
-            "style",
-            `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
-        );
+        gradient.setAttribute("style", `background-image: ${gradientBackground};`);
     };
     if (willDraw.defer) {
         (0, import_scheduler.unstable_runWithPriority)(
@@ -4892,7 +4933,7 @@ function generateBlobsForContent({
 }
 
 // client/blobs/script/internal/blobs_script.js
-function drawBlobs(blobCanvasId, settings) {
+function drawBlobs(blobCanvasId, settings, scale) {
     const canvas = document.querySelectorAll(`canvas[data-blob-id="${blobCanvasId}"]`);
     const actuallyDrawBlobs = colorScheme => {
         const backgroundColor = colorScheme === "light" ? "grey-0" : "grey-100";
@@ -4901,9 +4942,10 @@ function drawBlobs(blobCanvasId, settings) {
             settings.themeColor,
         );
         const hueBias = 360 - assertExists(baseThemeColor.lch().object().h);
+        const blobsCanvasSize = getBlobsCanvasSize();
         const blobs = generateBlobsForContent({
             contentWidthPx: blobsContentWidthPx,
-            screenWidthPx: blobsCanvasWidthPx,
+            screenWidthPx: blobsCanvasSize.width,
             randomSeed: settings.seed,
             minBlobCount: settings.minBlobCount,
             maxBlobCount: settings.maxBlobCount,
@@ -4923,6 +4965,7 @@ function drawBlobs(blobCanvasId, settings) {
                 canvas2,
                 {
                     ...settings,
+                    scale: scale || 1,
                     hueBias,
                     colorLevelInside:
                         colorScheme === "dark"

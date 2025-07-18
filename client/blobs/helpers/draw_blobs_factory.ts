@@ -5,6 +5,7 @@ import {
     formatCssLinearGradient,
     generateEasedGradient,
 } from "~/client/blobs/helpers/blobs_css_gradient.js";
+import {getBlobsCanvasScale, getBlobsCanvasSize} from "~/client/blobs/helpers/blobs_settings.js";
 import {blobFactoryShaderFragSource} from "~/client/blobs/helpers/blobs_shader_frag.js";
 import {blobFactoryShaderVertSource} from "~/client/blobs/helpers/blobs_shader_vert.js";
 import {
@@ -82,12 +83,11 @@ if (typeof window !== "undefined" && !window.__blobs) {
             isGlSupported: true,
             draw: (
                 sizeValue: Vector2,
-                scale: number,
                 settings: BlobFactorySettings,
                 blobs: BlobFactoryBlobs,
             ): HTMLCanvasElement => {
-                canvas.width = sizeValue.x * scale;
-                canvas.height = sizeValue.y * scale;
+                canvas.width = sizeValue.x;
+                canvas.height = sizeValue.y;
 
                 size.value = sizeValue;
                 displayGl.setDefaultViewport();
@@ -195,17 +195,56 @@ export function drawBlobFactoryToCanvas(
     const {factory} = willDraw;
     assert(factory.isGlSupported, "Factory should be GL supported");
 
-    // NOTE(imjoshin): We're not using the devicePixelRatio here yet, there's a rendering bug
-    // when using the devicePixelRatio. We'll address that separately.
-    const scale = 1; // window.devicePixelRatio;
+    const blobsCanvasScale = getBlobsCanvasScale();
+    const blobsCanvasSize = getBlobsCanvasSize();
+
+    // If the canvas itself is scaled down or up, we need to adjust the size of the blobs
+    // to match the scale. For example, if the canvas is scaled down by 50%, we don't need
+    // to scale the blobs up as high in relation to devicePixelRatio.
+    const effectiveScale = blobsCanvasScale * settings.scale;
+    const scaledBlobs = blobs.map(
+        blob =>
+            new BlobFactoryBlob(
+                blob.center.scale(effectiveScale),
+                blob.radius * effectiveScale,
+                blob.themeColor,
+                blob.hueOffset,
+            ),
+    );
+
+    // We need to scale the smoothness based on the canvas scale.
+    // This is because it determines how eager blobs are to merge together.
+    // If the canvas is scaled at all, we want blobs to join at the same rate.
+    const scaledSettings = {
+        ...settings,
+        smoothness: settings.smoothness * effectiveScale,
+    };
+
+    const container = assertExists(canvas.parentElement);
+    container.setAttribute(
+        "style",
+        [
+            `height: ${blobsCanvasSize.height}px;`,
+            `width: ${blobsCanvasSize.width}px;`,
+            `left: calc(50% - (${blobsCanvasSize.width / 2}px));`,
+            `transform: scale(${settings.scale});`,
+        ].join(" "),
+    );
+
+    // We scale the drawn image up, but then scale the canvas down to fit the container.
+    // This is to ensure that the blobs are drawn at a high resolution, but the canvas
+    // fits within the container at the original desired size.
+    const size = new Vector2(blobsCanvasSize.width, blobsCanvasSize.height).scale(effectiveScale);
+    canvas.setAttribute("width", size.x.toString());
+    canvas.setAttribute("height", size.y.toString());
+    canvas.setAttribute("style", [`transform: scale(${1 / effectiveScale});`].join(" "));
 
     const actuallyDraw = () => {
         // Integration tests are flaky when drawing to the canvas, so we skip this in tests.
         // This would cause a huge delay when the GPU can't handle drawing multiple blobs at once.
         // Often causing the test to timeout.
         if (!(globalThis as any).__isIntegrationTest) {
-            const size = new Vector2(canvas.width, canvas.height).div(scale);
-            const result = factory.draw(size, scale, settings, blobs);
+            const result = factory.draw(size, scaledSettings, scaledBlobs);
             const ctx = canvas.getContext("2d")!;
             ctx.drawImage(result, 0, 0, canvas.width, canvas.height);
         }
@@ -227,10 +266,7 @@ export function drawBlobFactoryToCanvas(
             ),
         );
 
-        gradient.setAttribute(
-            "style",
-            `background-image: ${gradientBackground}; width: ${canvas.width}px;`,
-        );
+        gradient.setAttribute("style", `background-image: ${gradientBackground};`);
     };
 
     if (willDraw.defer) {

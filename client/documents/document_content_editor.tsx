@@ -1535,6 +1535,9 @@ export function DocumentContentEditor({
 
     const cover = editorState.getDoc().attrs.cover as DocumentContentCover | null;
 
+    const withinPeekStackOverlay = peekContext?.withinStack === true;
+
+    const blobsScale = useRouteLayout() === "narrow" ? 0.75 : 1;
     const blobsSettings = useMemo(
         () =>
             cover?.type === "Blobs"
@@ -1546,8 +1549,6 @@ export function DocumentContentEditor({
                 : null,
         [cover],
     );
-
-    const withinPeekStackOverlay = peekContext?.withinStack === true;
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         ref: navigationBarRef,
@@ -1677,7 +1678,11 @@ export function DocumentContentEditor({
         desktopTitleFontWeight: "bold",
         contentCover:
             blobsSettings !== null ? (
-                <BlobsArt settings={blobsSettings} withBezelX={withinPeekStackOverlay} />
+                <BlobsArt
+                    settings={blobsSettings}
+                    withBezelX={withinPeekStackOverlay}
+                    scale={blobsScale}
+                />
             ) : null,
     });
 
@@ -1722,6 +1727,7 @@ export function DocumentContentEditor({
                         settings={blobsSettings}
                         withBezelTop={withinPeekStackOverlay}
                         withBezelX={withinPeekStackOverlay}
+                        scale={blobsScale}
                     />
                 )}
                 <OverlayScopeContextProvider>

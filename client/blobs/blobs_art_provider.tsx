@@ -8,7 +8,7 @@ import {dangerouslyCreateSafeString} from "~/shared/helpers/string/safe_string.j
 
 declare global {
     interface Window {
-        __drawBlobs: (blobCanvasId: string, settings: BlobsSettings) => void;
+        __drawBlobs: (blobCanvasId: string, settings: BlobsSettings, scale?: number) => void;
     }
 }
 
@@ -26,16 +26,18 @@ export function BlobsArtProvider() {
         if (typeof window === "undefined") return;
         const canvases = document.querySelectorAll("canvas[data-blob-id]");
 
-        canvases.forEach(canvas => {
+        canvases.forEach(c => {
+            const canvas = c as HTMLCanvasElementWithBlobSettings;
             const canvasId = canvas.getAttribute("data-blob-id");
-            const blobsSettings = (canvas as HTMLCanvasElementWithBlobSettings)._blobsSettings;
+            const blobsSettings = canvas._blobsSettings;
+            const scale = canvas._blobsDrawn?.scale;
 
             // If the canvas ID or dataDrawn attributes are not set, skip drawing.
             // If the blobSettings attribute is not set, it means the blobs have not been drawn yet.
             if (!canvasId || !blobsSettings) return;
 
             // Call the global draw function
-            window.__drawBlobs(canvasId, blobsSettings);
+            window.__drawBlobs(canvasId, blobsSettings, scale);
         });
     }, [colorScheme]);
 
