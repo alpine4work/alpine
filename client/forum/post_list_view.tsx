@@ -1345,6 +1345,10 @@ function PostListView(
                                             })}
                                             style={{
                                                 flex: postViewFlex,
+                                                // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                                // have `min-width: auto` which extends with content.
+                                                // https://stackoverflow.com/a/66689926/1568890
+                                                minWidth: 0,
                                             }}
                                         >
                                             {item.postCommentIndex === 0 && <Spacer space="6" />}
