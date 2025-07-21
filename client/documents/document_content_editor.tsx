@@ -157,7 +157,6 @@ import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
-import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 const documentContentEditorMobileSidebarInsetTop = "48";
 
@@ -244,7 +243,7 @@ export function DocumentContentEditor({
     const platform = usePlatform();
     const spacingScale = useSpacingScale();
     const routeLayout = useRouteLayout();
-    const {currentAccount, space} = useSpaceContext();
+    const {currentAccount} = useSpaceContext();
     const peekContext = usePeekContext();
     const isMounted = useIsMounted();
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
@@ -1598,9 +1597,7 @@ export function DocumentContentEditor({
                       ]
                     : emptyArray),
                 [
-                    ...(hasAccessLevel(accessLevel, "Edit") &&
-                    (process.env.NODE_ENV === "development" ||
-                        space.id === alpineCompanyKnownSpaceId)
+                    ...(hasAccessLevel(accessLevel, "Edit")
                         ? [
                               cast<MenuAction>({
                                   label: "Cover",
@@ -1638,7 +1635,6 @@ export function DocumentContentEditor({
                 isUndoDisabled,
                 onCopyLink,
                 platform,
-                space,
             ],
         ),
         // Don't render the share button if the account doesn't have space access. They
