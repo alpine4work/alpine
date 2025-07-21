@@ -430,7 +430,7 @@ globalStyle(`${quoteBlockClassName}::before`, {
     bottom: "0",
     left: "0",
     width: quoteBlockBorderWidth,
-    backgroundColor: colorSchemeVars["grey-10"],
+    backgroundColor: colorSchemeVars["grey-10-translucent"],
     pointerEvents: "none",
 });
 
@@ -937,7 +937,7 @@ globalStyle(dividerClassName, {
     ...blockStyles,
     marginTop: spacing[heading1TopMargin.wide],
     marginBottom: spacing[heading1TopMargin.wide],
-    borderColor: colorSchemeVars["grey-10"],
+    borderColor: colorSchemeVars["grey-10-translucent"],
     userSelect: "none",
 });
 
@@ -2340,7 +2340,7 @@ const tableColumnResizeHandleWidthSpacing = "5";
 export {tableColumnResizeHandleWidthSpacing as tableColumnResizeHandleWidth};
 const tableColumnResizeHandleWidth = spacing[tableColumnResizeHandleWidthSpacing];
 
-const tableColumnResizeHandleIndicatorWidthPx = 3;
+export const tableColumnResizeHandleIndicatorWidthPx = 3;
 
 const tableColumnResizeHandleHalfWidth: RemLength = `${
     parseRemLength(tableColumnResizeHandleWidth) / 2
@@ -2450,21 +2450,30 @@ globalStyle(`${tableWrapperClassName} tr`, {
     display: "contents",
 });
 
-globalStyle(`${tableWrapperClassName} td`, {
+globalStyle(`${tableWrapperClassName} tr td`, {
     display: "block",
     position: "relative",
     minWidth: `${tableColumnMinWidthRem}rem`,
     maxWidth: `${tableColumnMaxWidthRem}rem`,
     padding: `${tableCellPaddingY} ${tableCellPaddingX}`,
-    boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
 });
 
-globalStyle(`${tableWrapperClassName} td:last-of-type`, {
-    // Minor detail: We want the right border on the last column to be inset within
-    // the cell instead of outside the cell. That way border-to-border the table
-    // width will be exactly equal to the block width at small table sizes down to
-    // the pixel.
-    boxShadow: `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`,
+globalStyle(`${tableWrapperClassName} tr td::after`, {
+    content: '""',
+    pointerEvents: "none",
+    position: "absolute",
+    inset: 0,
+    border: `1px solid ${colorSchemeVars["grey-10-translucent"]}`,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+});
+
+globalStyle(`${tableWrapperClassName} tr td:last-of-type::after`, {
+    borderRightWidth: 1,
+});
+
+globalStyle(`${tableWrapperClassName} tr:last-of-type td::after`, {
+    borderBottomWidth: 1,
 });
 
 export const tableWithHeaderRowClassName = style({});
@@ -2510,11 +2519,19 @@ export const tableRightEdgeCellSelectionClassName = style({
     },
 });
 
+export const tableBottomEdgeCellSelectionClassName = style({
+    selectors: {
+        [`${tableCellSelectionClassName}&`]: {
+            height: "100%",
+        },
+    },
+});
+
 export const tableColumnResizeHandleClassName = style({
     zIndex: "40",
     position: "absolute",
     top: 0,
-    bottom: -1,
+    bottom: 0,
     transform: "translateX(calc(-50% + 0.5px))",
     width: tableColumnResizeHandleWidth,
     pointerEvents: "auto",
@@ -2555,6 +2572,14 @@ export const tableRowGripBaseClassName = style({
 
 export const tableRowGripClassName = style({});
 export const tableRowSelectionGripClassName = style({});
+
+export const tableBottomEdgeRowGripClassName = style({
+    selectors: {
+        [`${tableRowGripBaseClassName}&`]: {
+            height: "100%",
+        },
+    },
+});
 
 globalStyle(`${tableRowGripBaseClassName} > svg`, {
     pointerEvents: "none",
@@ -2610,7 +2635,6 @@ export const tableDraggingGripRowDropTargetClassName = style({
     position: "absolute",
     left: 0,
     right: 0,
-    transform: "translateY(calc(-50% + 0.5px))",
     height: tableColumnResizeHandleIndicatorWidthPx,
     backgroundColor: colorSchemeVars["grey-30"],
 });
@@ -2620,8 +2644,7 @@ export const tableDraggingGripColumnDropTargetClassName = style({
     zIndex: "40",
     position: "absolute",
     top: 0,
-    bottom: -1,
-    transform: "translateX(calc(-50% + 0.5px))",
+    bottom: 0,
     width: tableColumnResizeHandleIndicatorWidthPx,
     backgroundColor: colorSchemeVars["grey-30"],
 });
@@ -2635,7 +2658,7 @@ export const tableAddRowBumperClassName = style({
     right: "0",
     height: tableColumnResizeHandleWidth,
     cursor: "pointer",
-    bottom: "0",
+    bottom: 1,
     transform: "translateY(50%)",
     selectors: {
         "&::before": {

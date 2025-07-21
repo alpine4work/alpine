@@ -1844,21 +1844,13 @@ function handleGripMouseDown(
             backgroundColor: "grey-0-opacity-90",
         });
 
-        const dragPhantomCellBoxShadow = `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, 1px 0 0 0 ${colorSchemeVars["grey-10"]}`;
-        const lastDragPhantomCellInRowBoxShadow = `inset 1px 1px 0 0 ${colorSchemeVars["grey-10"]}, 0 1px 0 0 ${colorSchemeVars["grey-10"]}, inset -1px 0 0 0 ${colorSchemeVars["grey-10"]}`;
-
         for (let rowIndex = tableRect.top; rowIndex < tableRect.bottom; rowIndex++) {
             for (let columnIndex = tableRect.left; columnIndex < tableRect.right; columnIndex++) {
                 const dragPhantomCellElement = document.createElement("div");
                 dragPhantomElement.appendChild(dragPhantomCellElement);
 
                 dragPhantomCellElement.className = dragPhantomCellClassName;
-
-                if (columnIndex === measureResult.columnWidthPxs.length - 1) {
-                    dragPhantomCellElement.style.boxShadow = lastDragPhantomCellInRowBoxShadow;
-                } else {
-                    dragPhantomCellElement.style.boxShadow = dragPhantomCellBoxShadow;
-                }
+                dragPhantomCellElement.style.borderLeft = `1px solid ${colorSchemeVars["grey-10"]}`;
             }
         }
     }
@@ -2173,6 +2165,16 @@ function drawContentEditorTableCellSelection(
                 );
             }
 
+            if (tableRect.bottom === tableMap.height) {
+                cellSelectionElement.classList.add(
+                    contentStyles.tableBottomEdgeCellSelectionClassName,
+                );
+            } else {
+                cellSelectionElement.classList.remove(
+                    contentStyles.tableBottomEdgeCellSelectionClassName,
+                );
+            }
+
             return cellSelectionElement;
         }),
     );
@@ -2185,6 +2187,16 @@ function drawContentEditorTableCellSelection(
                 rowSelectionGripElement.style.gridRow = `${tableRect.top + 1} / ${
                     tableRect.bottom + 1
                 }`;
+
+                if (tableRect.bottom === tableMap.height) {
+                    rowSelectionGripElement.classList.add(
+                        contentStyles.tableBottomEdgeRowGripClassName,
+                    );
+                } else {
+                    rowSelectionGripElement.classList.remove(
+                        contentStyles.tableBottomEdgeRowGripClassName,
+                    );
+                }
 
                 return rowSelectionGripElement;
             }),
@@ -2260,6 +2272,15 @@ function drawContentEditorTablePluginHoveringStateDecorations(
                 Decoration.widget(tablePos, () => {
                     const rowGripElement = elementCache.rowGripElement.get();
                     rowGripElement.style.gridRow = `${rowIndex + 1} / ${rowIndex + 2}`;
+
+                    if (rowIndex === tableMap.height - 1) {
+                        rowGripElement.classList.add(contentStyles.tableBottomEdgeRowGripClassName);
+                    } else {
+                        rowGripElement.classList.remove(
+                            contentStyles.tableBottomEdgeRowGripClassName,
+                        );
+                    }
+
                     return rowGripElement;
                 }),
             );
@@ -2341,6 +2362,10 @@ function drawContentEditorPluginDraggingGripDropTargetDecorations(
     dropTarget: ContentEditorTablePluginDraggingGripDropTargetState,
     decorations: Array<Decoration>,
 ) {
+    const table = state.doc.nodeAt(tablePos - 1);
+    assert(table?.type.name === "table");
+    const tableMap = ContentTableMap.get(table);
+
     switch (dropTarget.type) {
         case "Row": {
             decorations.push(
@@ -2348,6 +2373,17 @@ function drawContentEditorPluginDraggingGripDropTargetDecorations(
                     const draggingGripRowDropTargetElement =
                         elementCache.draggingGripRowDropTargetElement.get();
                     draggingGripRowDropTargetElement.style.gridRow = `${dropTarget.rowIndex + 1}`;
+
+                    if (dropTarget.rowIndex === tableMap.height) {
+                        draggingGripRowDropTargetElement.style.transform = `translateY(-${
+                            contentStyles.tableColumnResizeHandleIndicatorWidthPx / 2 + 1
+                        }px)`;
+                    } else {
+                        draggingGripRowDropTargetElement.style.transform = `translateY(-${
+                            contentStyles.tableColumnResizeHandleIndicatorWidthPx / 2
+                        }px)`;
+                    }
+
                     return draggingGripRowDropTargetElement;
                 }),
             );
@@ -2361,6 +2397,17 @@ function drawContentEditorPluginDraggingGripDropTargetDecorations(
                     draggingGripColumnDropTargetElement.style.gridColumn = `${
                         dropTarget.columnIndex + 1
                     }`;
+
+                    if (dropTarget.columnIndex === tableMap.width) {
+                        draggingGripColumnDropTargetElement.style.transform = `translateX(-${
+                            contentStyles.tableColumnResizeHandleIndicatorWidthPx / 2 + 1
+                        }px)`;
+                    } else {
+                        draggingGripColumnDropTargetElement.style.transform = `translateX(-${
+                            contentStyles.tableColumnResizeHandleIndicatorWidthPx / 2
+                        }px)`;
+                    }
+
                     return draggingGripColumnDropTargetElement;
                 }),
             );
