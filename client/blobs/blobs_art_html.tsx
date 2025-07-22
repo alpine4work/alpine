@@ -16,12 +16,13 @@ import {
 /**
  * Creates a div that houses the necessary canvas and scripts needed to render a blob.
  */
-export function getBlobsHtmlGenerator(
+export function renderBlobsArtToHtml(
     props: Partial<BlobsSettings> & {
         seed: BlobsSettings["seed"];
         themeColor: BlobsSettings["themeColor"];
         hueSpread: BlobsSettings["hueSpread"];
     },
+    {suppressHydrationWarning}: {suppressHydrationWarning: () => void},
 ) {
     const settings: BlobsSettings = {
         ...blobsDefaultSettings,
@@ -54,6 +55,11 @@ export function getBlobsHtmlGenerator(
         settings,
     )}, ${safeNumber(scale)})`;
     blobContainerHtml.appendChild(new HtmlScriptGenerator(generateBlobs));
+
+    // Our blob `<script>` writes a `style` attribute on `blobContainerHtml`,
+    // `canvasHtml`, and `gradientHtml`. Tell React not to log a hydration warning,
+    // this is expected.
+    suppressHydrationWarning();
 
     return blobContainerHtml;
 }

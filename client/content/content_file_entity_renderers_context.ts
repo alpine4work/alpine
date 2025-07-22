@@ -48,6 +48,7 @@ export type ContentFileEntityRenderers = {
                 isInitialAppRender: boolean;
                 currentDate: CalendarDate;
                 fileEntityRenderers: ContentFileEntityRenderers | null;
+                suppressHydrationWarning: () => void;
             },
         ) => void
     >;

@@ -97,7 +97,11 @@ export function MessageViewFiles({
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const {fileRows, html: htmlGenerator} = useStore(
+    const {
+        fileRows,
+        html: htmlGenerator,
+        suppressHydrationWarning,
+    } = useStore(
         useMemo(() => {
             const blockWidth =
                 getContentBlockWidth({
@@ -109,6 +113,8 @@ export function MessageViewFiles({
                 }) - convertRemLengthToPx(messageViewMarginLeft, spacingScale);
 
             return computeStore(get => {
+                let suppressHydrationWarning = false;
+
                 const maxFileCount = 3;
 
                 const html = new HtmlFragmentGenerator();
@@ -131,7 +137,7 @@ export function MessageViewFiles({
                 pushNextFileRow(nextFileRow);
                 nextFileRow = [];
 
-                return {fileRows, html};
+                return {fileRows, html, suppressHydrationWarning};
 
                 function pushNextFileRow(files: Array<MessageContentPayloadModelFile>) {
                     const fileDatas = files.map(file => {
@@ -209,6 +215,9 @@ export function MessageViewFiles({
                                 routeLayout,
                                 isInitialAppRender,
                                 currentDate,
+                                suppressHydrationWarning: () => {
+                                    suppressHydrationWarning = true;
+                                },
                             });
                         } else {
                             fileHtml = renderContentFilePreview({
@@ -484,6 +493,14 @@ export function MessageViewFiles({
             dangerouslySetInnerHTML={
                 isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
             }
+            // If our content HTML renderer called `suppressHydrationWarning` then pass the
+            // prop into React to suppress hydration warnings (e.g. blobs need to suppress
+            // hydration warnings because there's a `<script>` which adds a `style` prop to
+            // blobs).
+            //
+            // Don't suppress hydration warnings all the time, they're useful for detecting
+            // errors!
+            suppressHydrationWarning={suppressHydrationWarning}
         />
     );
 }

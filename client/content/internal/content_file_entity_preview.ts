@@ -83,6 +83,7 @@ export function renderContentFileEntityPreview(
         routeLayout,
         isInitialAppRender,
         currentDate,
+        suppressHydrationWarning,
     }: {
         node: Node;
         fileEntityId: FileEntityId;
@@ -103,6 +104,7 @@ export function renderContentFileEntityPreview(
         routeLayout: RouteLayout;
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
+        suppressHydrationWarning: () => void;
     },
 ): HtmlElementGenerator {
     assert(node.type.name === "file");
@@ -190,6 +192,7 @@ export function renderContentFileEntityPreview(
                 isInitialAppRender,
                 currentDate,
                 fileEntityRenderers,
+                suppressHydrationWarning,
             });
         } finally {
             depth--;

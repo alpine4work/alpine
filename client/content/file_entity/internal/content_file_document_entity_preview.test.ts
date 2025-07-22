@@ -16,6 +16,7 @@ import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_en
 import {UnimplementedError} from "~/shared/error/error.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.js";
 import {assertId} from "~/shared/id/id.js";
@@ -202,6 +203,7 @@ describe("renderContentFileDocumentEntityPreview - HTML Snapshots", () => {
                                     },
                                     platform,
                                     spacingScale,
+                                    suppressHydrationWarning: noop,
                                 },
                             );
 

@@ -6,7 +6,7 @@ import {AccountRegistry} from "~/client/accounts/account_registry.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/content/file_entity/internal/content_file_entity_preview_container.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
-import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
+import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {addUnfocusableButtonBehaviorToElement} from "~/client/content/state/add_unfocusable_button_behavior_to_element.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
@@ -68,6 +68,7 @@ export function renderContentFileChannelEntityPreview(
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
+        suppressHydrationWarning,
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
@@ -85,6 +86,7 @@ export function renderContentFileChannelEntityPreview(
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
+        suppressHydrationWarning: () => void;
     },
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileChannelEntityModelSchema);
@@ -366,7 +368,7 @@ export function renderContentFileChannelEntityPreview(
 
             descriptionHtml.setAttribute("style", "user-select: none; -webkit-user-select: none");
 
-            const descriptionFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(
+            const descriptionFragmentHtml = renderContentFragmentToHtmlGeneratorStore(
                 get,
                 fileEntity.description,
                 {
@@ -400,6 +402,7 @@ export function renderContentFileChannelEntityPreview(
                     isInitialAppRender,
                     currentDate,
                     fileEntityRenderers,
+                    suppressHydrationWarning,
                 },
             );
 

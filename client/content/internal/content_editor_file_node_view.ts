@@ -52,6 +52,7 @@ import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {isId} from "~/shared/id/id.js";
@@ -234,6 +235,9 @@ export function createContentEditorFileNodeViewConstructor({
                             routeLayout: getRouteLayout(),
                             isInitialAppRender: false,
                             currentDate: today(clientInfo.timeZone),
+                            // This render call doesn't run during SSR. Ignore hydration warning
+                            // suppressions!
+                            suppressHydrationWarning: noop,
                         });
                     } else {
                         html = renderContentFilePreview({

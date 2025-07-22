@@ -10,6 +10,7 @@ import {emptyDocumentContentReferences} from "~/shared/documents/document_conten
 import {UnimplementedError} from "~/shared/error/error.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {assertId} from "~/shared/id/id.js";
 import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -180,6 +181,7 @@ describe("renderContentFileChannelEntityPreview - HTML Snapshots", () => {
                                     },
                                     platform,
                                     spacingScale,
+                                    suppressHydrationWarning: noop,
                                 },
                             );
 

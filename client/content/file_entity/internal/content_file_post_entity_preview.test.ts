@@ -14,6 +14,7 @@ import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {assertId} from "~/shared/id/id.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -169,6 +170,7 @@ describe("renderContentFilePostEntityPreview - HTML Snapshots", () => {
                                 },
                                 platform,
                                 spacingScale,
+                                suppressHydrationWarning: noop,
                             });
 
                             expect(

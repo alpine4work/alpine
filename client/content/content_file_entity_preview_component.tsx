@@ -68,7 +68,9 @@ export function ContentFileEntityPreview({
 
     const htmlGeneratorStore = useMemo(() => {
         return computeStore(get => {
-            const html = renderContentFileEntityPreview(get, {
+            let suppressHydrationWarning = false;
+
+            const htmlGenerator = renderContentFileEntityPreview(get, {
                 node,
                 fileEntityId,
                 fileEntityResult,
@@ -88,14 +90,20 @@ export function ContentFileEntityPreview({
                 routeLayout,
                 isInitialAppRender,
                 currentDate,
+                suppressHydrationWarning: () => {
+                    suppressHydrationWarning = true;
+                },
             });
 
-            html.setAttribute(
+            htmlGenerator.setAttribute(
                 "class",
-                classNames(html.getAttribute("class"), contentStyles.withoutFileSelectionClassName),
+                classNames(
+                    htmlGenerator.getAttribute("class"),
+                    contentStyles.withoutFileSelectionClassName,
+                ),
             );
 
-            return html;
+            return {htmlGenerator, suppressHydrationWarning};
         });
     }, [
         accountRegistry,
@@ -119,7 +127,7 @@ export function ContentFileEntityPreview({
         width,
     ]);
 
-    const htmlGenerator = useStore(htmlGeneratorStore);
+    const {htmlGenerator, suppressHydrationWarning} = useStore(htmlGeneratorStore);
 
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
 
@@ -199,6 +207,14 @@ export function ContentFileEntityPreview({
             dangerouslySetInnerHTML={
                 isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
             }
+            // If our content HTML renderer called `suppressHydrationWarning` then pass the
+            // prop into React to suppress hydration warnings (e.g. blobs need to suppress
+            // hydration warnings because there's a `<script>` which adds a `style` prop to
+            // blobs).
+            //
+            // Don't suppress hydration warnings all the time, they're useful for detecting
+            // errors!
+            suppressHydrationWarning={suppressHydrationWarning}
         />
     );
 }

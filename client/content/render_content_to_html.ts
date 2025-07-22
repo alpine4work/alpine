@@ -40,6 +40,7 @@ import {InternalError} from "~/shared/error/error.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {
     HtmlElementGenerator,
     HtmlFragmentGenerator,
@@ -101,30 +102,32 @@ export function renderContentToHtmlStore(
         placeholder?: string;
     },
 ): Store<string> {
-    return renderContentFragmentToHtmlGeneratorStore(content, {
-        getContext,
-        clientInfo,
-        spaceId,
-        accountRegistry,
-        searchEntityRegistry,
-        fileRegistry,
-        currentAccount,
-        blockWidth: getContentBlockWidth({
-            spacingScale,
-            platform,
-            routeLayout,
+    return computeStore(get => {
+        const fragmentHtmlGenerator = renderContentFragmentToHtmlGeneratorStore(get, content, {
+            getContext,
             clientInfo,
-        }),
-        transformScale: 1,
-        platform,
-        spacingScale,
-        routeLayout,
-        isInitialAppRender,
-        currentDate,
-        fileEntityRenderers,
-        withPosAttribute,
-        placeholder,
-    }).map(fragmentHtmlGenerator => {
+            spaceId,
+            accountRegistry,
+            searchEntityRegistry,
+            fileRegistry,
+            currentAccount,
+            blockWidth: getContentBlockWidth({
+                spacingScale,
+                platform,
+                routeLayout,
+                clientInfo,
+            }),
+            transformScale: 1,
+            platform,
+            spacingScale,
+            routeLayout,
+            isInitialAppRender,
+            currentDate,
+            fileEntityRenderers,
+            withPosAttribute,
+            placeholder,
+        });
+
         /* eslint-disable string-quotes */
 
         return `<div class="${classNames(
@@ -149,15 +152,6 @@ export function renderContentToHtmlStore(
  * links, are made non clickable or focusable. But visually the stay the same.
  */
 export function renderContentFragmentToHtmlGeneratorStore(
-    content: ContentWithReferences,
-    options: Parameters<typeof actuallyRenderContentFragmentToHtmlGeneratorStore>[2],
-): Store<HtmlFragmentGenerator> {
-    return computeStore(get => {
-        return actuallyRenderContentFragmentToHtmlGeneratorStore(get, content, options);
-    });
-}
-
-export function actuallyRenderContentFragmentToHtmlGeneratorStore(
     get: <Value>(store: Store<Value>) => Value,
     content: ContentWithReferences,
     {
@@ -181,6 +175,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         placeholder,
         decorations,
         shouldHighlightComment,
+        suppressHydrationWarning = noop,
     }: {
         getContext: () => AppContext;
         clientInfo: ClientInfo;
@@ -202,6 +197,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
         placeholder?: string;
         decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
         shouldHighlightComment?: (commentThreadId: DocumentCommentThreadId) => boolean;
+        suppressHydrationWarning?: () => void;
     },
 ): HtmlFragmentGenerator {
     assert(content.doc.type.schema.topNodeType === content.doc.type);
@@ -537,6 +533,7 @@ export function actuallyRenderContentFragmentToHtmlGeneratorStore(
                         routeLayout,
                         isInitialAppRender,
                         currentDate,
+                        suppressHydrationWarning,
                     });
 
                     return {html};

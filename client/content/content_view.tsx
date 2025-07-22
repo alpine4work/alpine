@@ -85,7 +85,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {
     HtmlElementGenerator,
-    HtmlFragmentGenerator,
     HtmlGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
@@ -94,8 +93,8 @@ import {Id, generateId, isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {undefinedStore} from "~/shared/store/const_store.js";
-import {Store} from "~/shared/store/store.js";
+import {computeStore} from "~/shared/store/compute_store.js";
+import {ConstStore, undefinedStore} from "~/shared/store/const_store.js";
 
 const ContentViewCodeBlockDecorationsSchema = Schema.array(
     Schema.object({
@@ -474,47 +473,16 @@ export function ContentView<Content extends ContentWithReferences>({
             }
         });
 
-        let htmlGeneratorStore: Store<{
-            htmlGenerator: HtmlFragmentGenerator;
-            codeBlockDecorations: ReadonlyArray<ContentCodeBlockHtmlSerializationDecoration>;
-        }>;
-
         // If we have some initial code block decorations from server-side rendering
         // then use those instead of trying to compute new decorations. Since we
         // may not be able to compute new decorations given no language parsers will be
         // loaded on initial render.
-        if (initialCodeBlockDecorations === null) {
-            const codeBlockDecorationsStore =
-                createContentCodeBlockHtmlSerializationDecorationsStore(content.doc);
+        const codeBlockDecorationsStore =
+            initialCodeBlockDecorations === null
+                ? createContentCodeBlockHtmlSerializationDecorationsStore(content.doc)
+                : new ConstStore(initialCodeBlockDecorations);
 
-            htmlGeneratorStore = codeBlockDecorationsStore.flatMap(codeBlockDecorations =>
-                renderContentFragmentToHtmlGeneratorStore(content, {
-                    getContext: () => assertExists(context),
-                    clientInfo,
-                    spaceId,
-                    accountRegistry,
-                    searchEntityRegistry,
-                    fileRegistry,
-                    currentAccount: spaceContext?.currentAccount ?? null,
-                    blockWidth,
-                    transformScale,
-                    platform,
-                    spacingScale,
-                    routeLayout,
-                    isInitialAppRender,
-                    currentDate,
-                    fileEntityRenderers,
-                    isInert,
-                    withPosAttribute: true,
-                    placeholder,
-                    decorations: [decorations, codeBlockDecorations],
-                    shouldHighlightComment,
-                }).map(htmlGenerator => ({
-                    htmlGenerator,
-                    codeBlockDecorations,
-                })),
-            );
-        } else {
+        if (initialCodeBlockDecorations !== null) {
             content.doc.forEach(node => {
                 // Currently, code blocks may only be a direct child of `doc`.
                 if (node.type.name !== "codeBlock") return;
@@ -526,8 +494,14 @@ export function ContentView<Content extends ContentWithReferences>({
                 // decorations so we're ready for a re-render.
                 language.getParser();
             });
+        }
 
-            htmlGeneratorStore = renderContentFragmentToHtmlGeneratorStore(content, {
+        const htmlGeneratorStore = computeStore(get => {
+            let suppressHydrationWarning = false;
+
+            const codeBlockDecorations = get(codeBlockDecorationsStore);
+
+            const htmlGenerator = renderContentFragmentToHtmlGeneratorStore(get, content, {
                 getContext: () => assertExists(context),
                 clientInfo,
                 spaceId,
@@ -546,13 +520,19 @@ export function ContentView<Content extends ContentWithReferences>({
                 isInert,
                 withPosAttribute: true,
                 placeholder,
-                decorations: [decorations, initialCodeBlockDecorations],
+                decorations: [decorations, codeBlockDecorations],
                 shouldHighlightComment,
-            }).map(htmlGenerator => ({
+                suppressHydrationWarning: () => {
+                    suppressHydrationWarning = true;
+                },
+            });
+
+            return {
                 htmlGenerator,
-                codeBlockDecorations: initialCodeBlockDecorations!,
-            }));
-        }
+                codeBlockDecorations: codeBlockDecorations,
+                suppressHydrationWarning,
+            };
+        });
 
         return {
             isTitleEmpty: isContentTitleEmpty(content.doc),
@@ -587,7 +567,8 @@ export function ContentView<Content extends ContentWithReferences>({
         context,
     ]);
 
-    const {htmlGenerator, codeBlockDecorations} = useStore(htmlGeneratorStore);
+    const {htmlGenerator, codeBlockDecorations, suppressHydrationWarning} =
+        useStore(htmlGeneratorStore);
 
     const previousContentDocRef = useRef<Node>(content.doc);
     const previousHtmlGeneratorRef = useRef<HtmlGenerator | null>(null);
@@ -1451,6 +1432,14 @@ export function ContentView<Content extends ContentWithReferences>({
                 dangerouslySetInnerHTML={
                     isInitialAppRender ? {__html: htmlGenerator.generateHtml()} : undefined
                 }
+                // If our content HTML renderer called `suppressHydrationWarning` then pass the
+                // prop into React to suppress hydration warnings (e.g. blobs need to suppress
+                // hydration warnings because there's a `<script>` which adds a `style` prop to
+                // blobs).
+                //
+                // Don't suppress hydration warnings all the time, they're useful for detecting
+                // errors!
+                suppressHydrationWarning={suppressHydrationWarning}
             />
             {focusedLinkElement && <FocusRing targetElement={focusedLinkElement} />}
             {canPrimaryInputHover && contentUpdatedTime && contentUpdatedNoteElement && (

@@ -1,11 +1,11 @@
 import {CalendarDate} from "@internationalized/date";
 import classNames from "classnames";
 import {AccountRegistry} from "~/client/accounts/account_registry.js";
-import {getBlobsHtmlGenerator} from "~/client/blobs/get_blobs_html_generator.js";
+import {renderBlobsArtToHtml} from "~/client/blobs/blobs_art_html.js";
 import {ContentFileEntityRenderers} from "~/client/content/content_file_entity_renderers_context.js";
 import {setupContentFileEntityPreviewContainer} from "~/client/content/file_entity/internal/content_file_entity_preview_container.js";
 import {FileRegistry} from "~/client/content/file_registry.js";
-import {actuallyRenderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
+import {renderContentFragmentToHtmlGeneratorStore} from "~/client/content/render_content_to_html.js";
 import {ContentFileLayout} from "~/client/content/state/content_file_layout_computations.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {getPlatformRouteLayout} from "~/client/remix/route_layout_context.js";
@@ -53,6 +53,7 @@ export function renderContentFileDocumentEntityPreview(
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
+        suppressHydrationWarning,
     }: {
         fileEntity: FileEntityModel;
         layout: ContentFileLayout;
@@ -70,6 +71,7 @@ export function renderContentFileDocumentEntityPreview(
         isInitialAppRender: boolean;
         currentDate: CalendarDate;
         fileEntityRenderers: ContentFileEntityRenderers | null;
+        suppressHydrationWarning: () => void;
     },
 ) {
     const fileEntity = unknownFileEntity.deserialize(FileDocumentEntityModelSchema);
@@ -110,7 +112,7 @@ export function renderContentFileDocumentEntityPreview(
 
     const cover: DocumentContentCover = content.doc.attrs.cover;
     if (cover?.type === "Blobs") {
-        const canvasHtml = getBlobsHtmlGenerator(cover);
+        const canvasHtml = renderBlobsArtToHtml(cover, {suppressHydrationWarning});
         scaledDocHtml.appendChild(canvasHtml);
     }
 
@@ -126,7 +128,7 @@ export function renderContentFileDocumentEntityPreview(
         ),
     );
 
-    const docFragmentHtml = actuallyRenderContentFragmentToHtmlGeneratorStore(get, content, {
+    const docFragmentHtml = renderContentFragmentToHtmlGeneratorStore(get, content, {
         placeholder: "Share your ideas…",
         isInert: true,
         getContext,
@@ -148,6 +150,7 @@ export function renderContentFileDocumentEntityPreview(
         isInitialAppRender,
         currentDate,
         fileEntityRenderers,
+        suppressHydrationWarning,
     });
 
     docHtml.appendChild(docFragmentHtml);
