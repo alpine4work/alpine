@@ -6,6 +6,7 @@ ts_project(
         "//:node_modules/@testing-library/react",
         "//shared/tracer/dev",
         "//client/content/file_entity/internal/test_helpers",
+        "//shared/spaces/test_helpers",
         "//shared/tasks/test_helpers",
     ],
     visibility = [

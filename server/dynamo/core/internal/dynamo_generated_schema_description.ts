@@ -1152,7 +1152,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     "values": [
                                                                                         "Document",
                                                                                         "TaskCollection",
-                                                                                        "Channel"
+                                                                                        "Channel",
+                                                                                        "Post"
                                                                                     ]
                                                                                 },
                                                                                 "optional": false

@@ -3,6 +3,7 @@ import {
     darkColorSchemeSelector,
     lightColorSchemeSelector,
     selectorBySpacingScale,
+    sprinkles,
 } from "~/client/styles/core/styles_core.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
 import {spacing} from "~/shared/design/core/spacing.js";
@@ -43,6 +44,23 @@ export const dashedBorderClassName = style({
             ),
         ),
     },
+});
+
+export const postHeaderAuthorAndChannelClassName = sprinkles({
+    fontSize: "75",
+    fontStyle: "truncate",
+    color: "grey-70",
+});
+
+export const postHeaderAuthorClassName = sprinkles({
+    fontStyle: "semi-bold",
+    color: "grey-100",
+});
+
+export const postHeaderCreatedTimeClassName = sprinkles({
+    fontSize: "50",
+    fontStyle: "truncate",
+    color: "grey-50",
 });
 
 function createDashedSvg(w: number, color: string) {

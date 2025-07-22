@@ -1535,7 +1535,7 @@ export function createChannelNotFoundError(channelId: ChannelId) {
     });
 }
 
-function createPostNotFoundError(postId: PostId) {
+export function createPostNotFoundError(postId: PostId) {
     return new NotFoundError("Post not found", {
         aggregateDedupeKey: postId,
         displayMessage: errorDisplayMessage`This post doesn’t exist. Try searching “my posts” to see posts you’ve created.`,

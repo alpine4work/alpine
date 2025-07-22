@@ -9,9 +9,12 @@ import {usePlatform} from "~/client/remix/platform_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     postContentViewHeaderAvatarSize,
+    postContentViewHeaderDesktopPostMetadataPaddingLeft,
     postContentViewHeaderHeight,
+    postContentViewHeaderMobileAvatarSize,
+    postContentViewHeaderMobilePostMetadataPaddingLeft,
 } from "~/client/styles/forum_shared_styles.js";
-import {fontSizes, sprinkles} from "~/client/styles/styles.js";
+import {fontSizes, forumStyles, sprinkles} from "~/client/styles/styles.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -65,13 +68,19 @@ export function PostContentViewHeaderBase({
                 account={author}
                 size={
                     withNavigationBarLayout && platform === "mobile"
-                        ? "7"
+                        ? postContentViewHeaderMobileAvatarSize
                         : postContentViewHeaderAvatarSize
                 }
             />
-            <Box paddingLeft={{mobile: "2", desktop: "3"}} overflow="hidden">
-                <Box fontSize="75" fontStyle="truncate" color="grey-70">
-                    <span className={sprinkles({color: "grey-100", fontStyle: "semi-bold"})}>
+            <Box
+                paddingLeft={{
+                    mobile: postContentViewHeaderMobilePostMetadataPaddingLeft,
+                    desktop: postContentViewHeaderDesktopPostMetadataPaddingLeft,
+                }}
+                overflow="hidden"
+            >
+                <Box className={forumStyles.postHeaderAuthorAndChannelClassName}>
+                    <span className={forumStyles.postHeaderAuthorClassName}>
                         {useAccountModel(author).name}
                     </span>
                     {channel && (
@@ -81,7 +90,7 @@ export function PostContentViewHeaderBase({
                         />
                     )}
                 </Box>
-                <Box fontSize="50" fontStyle="truncate" color="grey-50">
+                <Box className={forumStyles.postHeaderCreatedTimeClassName}>
                     <PrettyAbsoluteDate
                         tooltipPlacement="bottom"
                         date={createdTime}

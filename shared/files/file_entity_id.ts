@@ -10,6 +10,7 @@ import {
     ChannelId,
     DocumentId,
     FileId,
+    PostId,
     SpaceId,
     TaskCollectionId,
 } from "~/shared/id/types/id_types.js";
@@ -22,7 +23,8 @@ import {Schema} from "~/shared/schema/schema.js";
 export type FileEntityId =
     | `Document:${DocumentId}`
     | `TaskCollection:${TaskCollectionId}`
-    | `Channel:${ChannelId}`;
+    | `Channel:${ChannelId}`
+    | `Post:${PostId}`;
 
 export const FileEntityIdSchema = Schema.string as Schema<FileEntityId>;
 
@@ -43,7 +45,8 @@ export type FileEntityType = keyof typeof fileEntityIdTestMap;
 export type FileEntityIdObject =
     | {readonly type: "Document"; readonly documentId: DocumentId}
     | {readonly type: "TaskCollection"; readonly collectionId: TaskCollectionId}
-    | {readonly type: "Channel"; readonly channelId: ChannelId};
+    | {readonly type: "Channel"; readonly channelId: ChannelId}
+    | {readonly type: "Post"; readonly postId: PostId};
 
 /**
  * Parse a `FileEntityId` into a more convenient to use object format.
@@ -59,6 +62,8 @@ export function parseFileEntityId(id: FileEntityId): FileEntityIdObject {
             return {type: "TaskCollection", collectionId: idPayloadParts[0] as TaskCollectionId};
         case "Channel":
             return {type: "Channel", channelId: idPayloadParts[0] as ChannelId};
+        case "Post":
+            return {type: "Post", postId: idPayloadParts[0] as PostId};
         default:
             throw new InternalError(quote`Unrecognized \`FileEntityId\` type ${idType ?? ""}`);
     }
@@ -76,6 +81,7 @@ const fileEntityIdTestMap: GetFileEntityIdTestMapType<FileEntityId> = {
     Document: isId,
     TaskCollection: isId,
     Channel: isId,
+    Post: isId,
 };
 
 assertEqualTypes<keyof typeof fileEntityIdTestMap, FileEntityIdObject["type"]>();
@@ -124,6 +130,8 @@ export function printFileEntityIdIntoPath(spaceId: SpaceId, id: FileEntityId): s
             return `/s/${spaceId}/tasks/collections/${idObject.collectionId}`;
         case "Channel":
             return `/s/${spaceId}/channels/${idObject.channelId}`;
+        case "Post":
+            return `/s/${spaceId}/posts/${idObject.postId}`;
         default:
             throw exhaustive(idObject);
     }

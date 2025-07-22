@@ -37,11 +37,15 @@ export const postContentViewOuterMarginY = "6";
 // values in addition to Y axis spacing values.
 export const postContentViewInnerMarginY = "4";
 
+export const postContentViewHeaderMobileAvatarSize = "7";
 export const postContentViewHeaderAvatarSize = "8";
 export const postContentViewHeaderHeight = "8";
 
 export const postContentViewFooterHeight = "8";
 export const postContentViewFooterButtonHeight = "7";
+
+export const postContentViewHeaderMobilePostMetadataPaddingLeft = "2";
+export const postContentViewHeaderDesktopPostMetadataPaddingLeft = "3";
 
 export const screenPaddingXWithoutPostContentViewInnerMarginY = mapObjectValues(
     screenPaddingX,
