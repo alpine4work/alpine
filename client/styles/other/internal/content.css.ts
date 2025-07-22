@@ -2366,44 +2366,10 @@ globalStyle(tableWrapperClassName, {
     // element.
     paddingTop: 1,
     paddingBottom: 1,
-});
-
-globalStyle(`${tableWrapperClassName}::before`, {
-    content: '""',
-    pointerEvents: "none",
-    position: "absolute",
-    zIndex: "10",
-    top: `-${tableWrapper2MarginTop}`,
-    bottom: `-${tableWrapper2MarginBottom}`,
-    left: `-${tableOverflowGradientWidth}`,
-    width: tableOverflowGradientWidth,
-    background: `linear-gradient(to right, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
-});
-
-// On mobile, we only have `spacing["3"]` margin. So render the gradient in
-// that space even though it covers row grips. Row grips won't be visible since
-// you can't hover on mobile.
-globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}::before`, {
-    background: `linear-gradient(to right, ${backgroundColorVar}, ${backgroundColorVar} ${spacing["3"]}, transparent)`,
-});
-
-globalStyle(`${tableWrapperClassName}::after`, {
-    content: '""',
-    pointerEvents: "none",
-    position: "absolute",
-    zIndex: "10",
-    top: `-${tableWrapper2MarginTop}`,
-    bottom: `-${tableWrapper2MarginBottom}`,
-    right: `-${tableOverflowGradientWidth}`,
-    width: tableOverflowGradientWidth,
-    background: `linear-gradient(to left, ${backgroundColorVar}, transparent ${spacing["3"]}, transparent)`,
-});
-
-// On mobile, we only have `spacing["3"]` margin. So render the gradient in
-// that space even though it covers row grips. Row grips won't be visible since
-// you can't hover on mobile.
-globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}::after`, {
-    background: `linear-gradient(to left, ${backgroundColorVar}, ${backgroundColorVar} ${spacing["3"]}, transparent)`,
+    paddingLeft: tableOverflowGradientWidth,
+    paddingRight: tableOverflowGradientWidth,
+    marginLeft: `-${tableOverflowGradientWidth}`,
+    marginRight: `-${tableOverflowGradientWidth}`,
 });
 
 globalStyle(tableWrapper2ClassName, {
@@ -2417,6 +2383,19 @@ globalStyle(tableWrapper2ClassName, {
     marginRight: `-${tableOverflowGradientWidth}`,
     marginTop: `-${tableWrapper2MarginTop}`,
     marginBottom: `-${tableWrapper2MarginBottom}`,
+    maskImage: `linear-gradient(to right, transparent 0%, black ${spacing["3"]}, black calc(100% - ${spacing["3"]}), transparent 100%)`,
+});
+
+// Remove the maskImage gradient on mobile, as well as the necessary padding.
+globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}`, {
+    paddingLeft: 0,
+    paddingRight: 0,
+    marginLeft: 0,
+    marginRight: 0,
+});
+
+globalStyle(`${mobilePlatformSelector} ${tableWrapper2ClassName}`, {
+    maskImage: "none",
 });
 
 globalStyle(tableWrapper3ClassName, {
