@@ -2379,8 +2379,6 @@ globalStyle(tableWrapper2ClassName, {
     overflowY: "hidden",
     overscrollBehaviorX: "contain",
     width: `calc(100% + (${tableOverflowGradientWidth} * 2))`,
-    marginLeft: `-${tableOverflowGradientWidth}`,
-    marginRight: `-${tableOverflowGradientWidth}`,
     marginTop: `-${tableWrapper2MarginTop}`,
     marginBottom: `-${tableWrapper2MarginBottom}`,
     maskImage: `linear-gradient(to right, transparent 0%, black ${spacing["3"]}, black calc(100% - ${spacing["3"]}), transparent 100%)`,
@@ -2396,6 +2394,8 @@ globalStyle(`${mobilePlatformSelector} ${tableWrapperClassName}`, {
 
 globalStyle(`${mobilePlatformSelector} ${tableWrapper2ClassName}`, {
     maskImage: "none",
+    marginLeft: `-${tableOverflowGradientWidth}`,
+    marginRight: `-${tableOverflowGradientWidth}`,
 });
 
 globalStyle(tableWrapper3ClassName, {
