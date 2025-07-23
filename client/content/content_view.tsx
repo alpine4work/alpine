@@ -689,13 +689,28 @@ export function ContentView<Content extends ContentWithReferences>({
                     element.classList.contains(contentStyles.mentionContainerClassName)) &&
                 element instanceof HTMLAnchorElement
             ) {
+                const isLink = element.classList.contains(linkClassName);
+                const isMention = element.classList.contains(
+                    contentStyles.mentionContainerClassName,
+                );
+
                 let isPointerDownAndOver = false;
 
                 const maybeUpdateStyle = () => {
-                    if (isPointerDownAndOver) {
-                        element.classList.add(contentStyles.linkPressedClassName);
-                    } else {
-                        element.classList.remove(contentStyles.linkPressedClassName);
+                    if (isLink) {
+                        if (isPointerDownAndOver) {
+                            element.classList.add(contentStyles.linkPressedClassName);
+                        } else {
+                            element.classList.remove(contentStyles.linkPressedClassName);
+                        }
+                    }
+
+                    if (isMention) {
+                        if (isPointerDownAndOver) {
+                            element.classList.add(contentStyles.mentionPressedClassName);
+                        } else {
+                            element.classList.remove(contentStyles.mentionPressedClassName);
+                        }
                     }
                 };
 
