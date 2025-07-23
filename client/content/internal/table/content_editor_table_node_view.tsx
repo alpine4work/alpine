@@ -27,7 +27,6 @@
  * THE SOFTWARE.
  */
 
-import {Trash} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {NodeViewConstructor} from "prosemirror-view";
 import {dispatchContentEditorFileRowTableParentUpdatedEvent} from "~/client/content/internal/content_editor_file_row_like_node_view.js";
@@ -333,49 +332,27 @@ export function createContentEditorTableNodeView({
             addContextMenuActions(event, [
                 [
                     {
-                        label: "Add row after",
-                        iconPlacement: "end",
+                        label: "Add row",
                         icon: <RowsPlusBottomIcon />,
+                        iconPlacement: "end",
                         onPress: () => {
                             addContentTableRowAfterSelection(view.state, view.dispatch);
                         },
                     },
                     {
-                        label: "Add row before",
-                        iconPlacement: "end",
-                        icon: <RowsPlusTopIcon />,
-                        onPress: () => {
-                            addContentTableRowBeforeSelection(view.state, view.dispatch);
-                        },
-                    },
-                ],
-                [
-                    {
-                        label: "Add column after",
-                        iconPlacement: "end",
+                        label: "Add column",
                         icon: <ColumnsPlusRightIcon style={{transform: "translateX(0.0625rem)"}} />,
+                        iconPlacement: "end",
                         onPress: () => {
                             addContentTableColumnAfterSelection(view.state, view.dispatch);
                         },
                     },
-                    {
-                        label: "Add column before",
-                        iconPlacement: "end",
-                        icon: <ColumnsPlusLeftIcon style={{transform: "translateX(-0.125rem)"}} />,
-                        onPress: () => {
-                            addContentTableColumnBeforeSelection(view.state, view.dispatch);
-                        },
-                    },
-                ],
-                [
                     {
                         label:
                             selectedTableRect !== null &&
                             selectedTableRect.bottom - selectedTableRect.top > 1
                                 ? `Delete ${selectedTableRect.bottom - selectedTableRect.top} rows`
                                 : "Delete row",
-                        iconPlacement: "end",
-                        icon: <Trash />,
                         onPress: () => {
                             deleteContentTableRow(view.state, view.dispatch);
                         },
@@ -388,41 +365,102 @@ export function createContentEditorTableNodeView({
                                       selectedTableRect.right - selectedTableRect.left
                                   } columns`
                                 : "Delete column",
-                        iconPlacement: "end",
-                        icon: <Trash />,
                         onPress: () => {
                             deleteContentTableColumn(view.state, view.dispatch);
                         },
                     },
                     {
-                        label: "Delete table",
-                        iconPlacement: "end",
-                        icon: <Trash />,
-                        onPress: () => {
-                            deleteContentTable(view.state, view.dispatch);
-                        },
-                    },
-                ],
-                [
-                    {
-                        label: node.attrs.hasHeaderRow ? "Remove header row" : "Add header row",
-                        iconPlacement: "end",
-                        // TODO: Replace with better icons when table header design is implemented
-                        icon: <RowsPlusTopIcon />,
-                        onPress: () => {
-                            toggleContentTableHeaderRow(getPos()!)(view.state, view.dispatch);
-                        },
-                    },
-                    {
-                        label: node.attrs.hasHeaderColumn
-                            ? "Remove header column"
-                            : "Add header column",
-                        iconPlacement: "end",
-                        // TODO: Replace with better icons when table header design is implemented
-                        icon: <RowsPlusTopIcon />,
-                        onPress: () => {
-                            toggleContentTableHeaderColumn(getPos()!)(view.state, view.dispatch);
-                        },
+                        hasChildren: true,
+                        key: "table-more",
+                        label: "More",
+                        actions: [
+                            [
+                                {
+                                    label: node.attrs.hasHeaderRow
+                                        ? "Remove header row"
+                                        : "Add header row",
+                                    iconPlacement: "end",
+                                    onPress: () => {
+                                        toggleContentTableHeaderRow(getPos()!)(
+                                            view.state,
+                                            view.dispatch,
+                                        );
+                                    },
+                                },
+                                {
+                                    label: node.attrs.hasHeaderColumn
+                                        ? "Remove header column"
+                                        : "Add header column",
+                                    onPress: () => {
+                                        toggleContentTableHeaderColumn(getPos()!)(
+                                            view.state,
+                                            view.dispatch,
+                                        );
+                                    },
+                                },
+                            ],
+                            [
+                                {
+                                    label: "Add row above",
+                                    icon: <RowsPlusTopIcon />,
+                                    iconPlacement: "end",
+                                    onPress: () => {
+                                        addContentTableRowBeforeSelection(
+                                            view.state,
+                                            view.dispatch,
+                                        );
+                                    },
+                                },
+                                {
+                                    label: "Add row below",
+                                    icon: <RowsPlusBottomIcon />,
+                                    iconPlacement: "end",
+                                    onPress: () => {
+                                        addContentTableRowAfterSelection(view.state, view.dispatch);
+                                    },
+                                },
+                            ],
+                            [
+                                {
+                                    label: "Add column to left",
+                                    icon: (
+                                        <ColumnsPlusLeftIcon
+                                            style={{transform: "translateX(-0.125rem)"}}
+                                        />
+                                    ),
+                                    iconPlacement: "end",
+                                    onPress: () => {
+                                        addContentTableColumnBeforeSelection(
+                                            view.state,
+                                            view.dispatch,
+                                        );
+                                    },
+                                },
+                                {
+                                    label: "Add column to right",
+                                    icon: (
+                                        <ColumnsPlusRightIcon
+                                            style={{transform: "translateX(0.0625rem)"}}
+                                        />
+                                    ),
+                                    iconPlacement: "end",
+                                    onPress: () => {
+                                        addContentTableColumnAfterSelection(
+                                            view.state,
+                                            view.dispatch,
+                                        );
+                                    },
+                                },
+                            ],
+                            [
+                                {
+                                    label: "Delete table",
+                                    onPress: () => {
+                                        deleteContentTable(view.state, view.dispatch);
+                                    },
+                                },
+                            ],
+                        ],
                     },
                 ],
             ]);
