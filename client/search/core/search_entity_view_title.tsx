@@ -58,7 +58,11 @@ export function SearchEntityViewTitle({
                 fontFeatureSettings: '"calt" on',
             }}
         >
-            <SearchEntityViewTitlePrefix icon={typeDisplay.icon} entityData={entityData} />
+            <SearchEntityViewTitlePrefix
+                icon={typeDisplay.icon}
+                media={entityData.media}
+                isDeleted={entityData.title === null}
+            />
             {entityData.title !== null
                 ? renderTextWithEmojiFontFamily(entityData.title)
                 : isSearchDynamicEntityType(typeDisplay.type)
@@ -72,10 +76,12 @@ export function SearchEntityViewTitle({
 
 export function SearchEntityViewTitlePrefix({
     icon,
-    entityData,
+    media,
+    isDeleted,
 }: {
     icon: ReactNode;
-    entityData: {title: string | null; media: SearchEntityMediaModel | null};
+    media: SearchEntityMediaModel | null;
+    isDeleted: boolean;
 }) {
     const spacingScale = useSpacingScale();
 
@@ -101,7 +107,7 @@ export function SearchEntityViewTitlePrefix({
                     {icon}
                 </IconContext.Provider>
             </Box>
-            {entityData.title === null ? (
+            {isDeleted ? (
                 <Box
                     position="relative"
                     display="inline-flex"
@@ -115,8 +121,8 @@ export function SearchEntityViewTitlePrefix({
                 >
                     <Trash size={spacing["4"]} />
                 </Box>
-            ) : entityData.media !== null ? (
-                <SearchEntityViewMedia media={entityData.media} />
+            ) : media !== null ? (
+                <SearchEntityViewMedia media={media} />
             ) : null}
         </>
     );

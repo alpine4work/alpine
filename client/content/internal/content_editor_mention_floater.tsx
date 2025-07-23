@@ -1033,7 +1033,11 @@ function ContentEditorMentionFloaterSearchEntityResultItem({
             onPress={onPress}
         >
             <Box display="flex" alignItems="flex-start">
-                <SearchEntityViewTitlePrefix icon={typeDisplay.icon} entityData={entityData} />
+                <SearchEntityViewTitlePrefix
+                    icon={typeDisplay.icon}
+                    media={entityData.media}
+                    isDeleted={entityData.title === null}
+                />
                 <Box
                     fontSize={fontSize}
                     overflow="hidden"

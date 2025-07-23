@@ -253,7 +253,11 @@ export function SearchEntityView({
                             {!showTitle && (
                                 <SearchEntityViewTitlePrefix
                                     icon={typeDisplay.icon}
-                                    entityData={entityData}
+                                    media={entityData.media}
+                                    // An entity is only considered to be deleted if there's no title and there's
+                                    // no body. In this context we're rendering things like chat messages which
+                                    // have a null `title` but do have a body.
+                                    isDeleted={false}
                                 />
                             )}
                             {typeDisplay.isAccountMediaAuthor &&
