@@ -30,6 +30,7 @@ export const colors = {
     // Pure white background color is useful when embedding files since many files
     // have white backgrounds and look odd on an off-white background.
     "grey-0": "#ffffff",
+    "grey-1": "#f8f8fc",
     "grey-5": "#ededf2",
     "grey-10": "#d9d9de",
     "grey-20": "#bcbcc4",
@@ -40,6 +41,7 @@ export const colors = {
     "grey-70": "#4e4e55",
     "grey-80": "#3d3d42",
     "grey-90": "#27272b",
+    "grey-99": "#1a1a1e",
     "grey-100": "#0b0b0d",
 
     // We have a set of slightly lighter greys for elevated surfaces in dark mode.
@@ -55,11 +57,13 @@ export const colors = {
     "grey-70-elevated-1": "#515158",
     "grey-80-elevated-1": "#404045",
     "grey-90-elevated-1": "#2a2a2d",
+    "grey-99-elevated-1": "#1d1d20",
     "grey-100-elevated-1": "#0e0e11",
     "grey-60-elevated-2": "#5f5f67",
     "grey-70-elevated-2": "#56565c",
     "grey-80-elevated-2": "#424247",
     "grey-90-elevated-2": "#2c2c30",
+    "grey-99-elevated-2": "#202022",
     "grey-100-elevated-2": "#101013",
 
     "red-10": "#fee3cf",

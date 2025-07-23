@@ -1850,7 +1850,9 @@ function handleGripMouseDown(
                 dragPhantomElement.appendChild(dragPhantomCellElement);
 
                 dragPhantomCellElement.className = dragPhantomCellClassName;
-                dragPhantomCellElement.style.borderLeft = `1px solid ${colorSchemeVars["grey-10"]}`;
+                dragPhantomCellElement.style.border = `1px solid ${colorSchemeVars["grey-10"]}`;
+                dragPhantomCellElement.style.borderRightWidth = "0px";
+                dragPhantomCellElement.style.borderBottomWidth = "0px";
             }
         }
     }

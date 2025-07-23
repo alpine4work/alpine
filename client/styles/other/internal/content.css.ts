@@ -291,7 +291,7 @@ const titleLetterSpacingFactor = 0.6;
 
 globalStyle(titleClassName, {
     ...blockStyles,
-    ...fontStyles["bold"],
+    ...fontStyles.bold,
     ...fontSizes[titleFontSize.wide],
     // Use a bolder font weight for titles than `bold` but `extra-bold` is too
     // much. Find something visually pleasing between that which helps titles
@@ -338,7 +338,7 @@ globalStyle(
 
 globalStyle(headingLevel1ClassName, {
     ...blockStyles,
-    ...fontStyles["bold"],
+    ...fontStyles.bold,
     ...fontSizes[headingLevel1FontSize.wide],
     marginTop: headingMarginVars.heading1TopMargin,
     marginBottom: paragraphMargin,
@@ -355,7 +355,7 @@ globalStyle(`${titleClassName} + ${headingLevel1ClassName}`, {
 
 globalStyle(headingLevel2ClassName, {
     ...blockStyles,
-    ...fontStyles["bold"],
+    ...fontStyles.bold,
     ...fontSizes[headingLevel2FontSize.wide],
     marginTop: headingMarginVars.heading2TopMargin,
     marginBottom: paragraphMargin,
@@ -375,7 +375,7 @@ globalStyle(`${headingLevel1ClassName} + ${headingLevel2ClassName}`, {
 
 globalStyle(headingLevel3ClassName, {
     ...blockStyles,
-    ...fontStyles["bold"],
+    ...fontStyles.bold,
     ...fontSizes[headingLevel3FontSize.wide],
     marginTop: headingMarginVars.heading3TopMargin,
     marginBottom: paragraphMargin,
@@ -395,6 +395,12 @@ globalStyle(`${headingLevel1ClassName} + ${headingLevel3ClassName}`, {
 globalStyle(`${headingLevel2ClassName} + ${headingLevel3ClassName}`, {
     marginTop: headingMarginVars.heading4TopMargin,
 });
+
+export const tableWithHeaderRowClassName = style({});
+export const tableWithHeaderColumnClassName = style({});
+
+const tableHeaderRowSelector = `table${tableWithHeaderRowClassName} tr:first-of-type td`;
+const tableHeaderColumnSelector = `table${tableWithHeaderColumnClassName} tr td:first-of-type`;
 
 const quoteBlockIndentationSpacing = "3";
 const quoteBlockIndentation = spacing[quoteBlockIndentationSpacing];
@@ -1547,6 +1553,27 @@ globalStyle(codeClassName, {
     boxDecorationBreak: "clone",
 });
 
+globalStyle(
+    [
+        `${headingLevel1ClassName} ${codeClassName}`,
+        `${headingLevel2ClassName} ${codeClassName}`,
+        `${headingLevel3ClassName} ${codeClassName}`,
+    ].join(", "),
+    {
+        ...fontStyles["code-extra-bold"],
+    },
+);
+
+globalStyle(
+    [
+        `${tableHeaderRowSelector} ${codeClassName}`,
+        `${tableHeaderColumnSelector} ${codeClassName}`,
+    ].join(", "),
+    {
+        ...fontStyles["code-semi-bold"],
+    },
+);
+
 globalStyle(boldClassName, {
     ...fontStyles["extra-bold"],
     // Inherit font feature settings from parent instead of turning them off. In a
@@ -1563,17 +1590,29 @@ globalStyle(`${codeBlockClassName} ${boldClassName}`, {
     ...fontStyles["code-extra-bold"],
 });
 
-globalStyle(`${headingLevel1ClassName} ${boldClassName}`, {
-    ...fontStyles["ultra-bold"],
-});
+globalStyle(
+    [
+        `${headingLevel1ClassName} ${boldClassName}`,
+        `${headingLevel2ClassName} ${boldClassName}`,
+        `${headingLevel3ClassName} ${boldClassName}`,
+    ].join(", "),
+    {
+        ...fontStyles["ultra-bold"],
+    },
+);
 
-globalStyle(`${headingLevel2ClassName} ${boldClassName}`, {
-    ...fontStyles["ultra-bold"],
-});
-
-globalStyle(`${headingLevel3ClassName} ${boldClassName}`, {
-    ...fontStyles["ultra-bold"],
-});
+globalStyle(
+    [
+        `${headingLevel1ClassName} ${codeClassName} ${boldClassName}`,
+        `${headingLevel2ClassName} ${codeClassName} ${boldClassName}`,
+        `${headingLevel3ClassName} ${codeClassName} ${boldClassName}`,
+    ].join(", "),
+    {
+        // Unfortunately, our monospace font (Commit Mono) doesn't have an ultra bold
+        // font weight.
+        ...fontStyles["code-extra-bold"],
+    },
+);
 
 globalStyle(italicClassName, {
     fontStyle: "italic",
@@ -2196,10 +2235,12 @@ export const mentionTextClassName = style({
     selectors: {
         [`${mentionPressedClassName} &`]: {opacity: 0.6},
         // Inherit font weight if we are in a container that is bolder than us.
-        [`${boldClassName} &`]: {fontWeight: "inherit"},
-        [`${headingLevel1ClassName} &`]: {fontWeight: "inherit"},
-        [`${headingLevel2ClassName} &`]: {fontWeight: "inherit"},
-        [`${headingLevel3ClassName} &`]: {fontWeight: "inherit"},
+        [[
+            `${boldClassName} &`,
+            `${headingLevel1ClassName} &`,
+            `${headingLevel2ClassName} &`,
+            `${headingLevel3ClassName} &`,
+        ].join(", ")]: {fontWeight: "inherit"},
     },
 });
 
@@ -2455,31 +2496,63 @@ globalStyle(`${tableWrapperClassName} tr:last-of-type td::after`, {
     borderBottomWidth: 1,
 });
 
-export const tableWithHeaderRowClassName = style({});
+globalStyle(
+    [
+        `${tableHeaderRowSelector} ${paragraphClassName}`,
+        `${tableHeaderColumnSelector} ${paragraphClassName}`,
+    ].join(", "),
+    {
+        ...fontStyles["semi-bold"],
+    },
+);
 
-// this targets the cells in the header row
-globalStyle(`${tableWithHeaderRowClassName} tr:first-of-type td`, {
-    color: colorSchemeVars["blue-70"],
-    fontWeight: fontStyles["bold"].fontWeight,
-    backgroundColor: colorSchemeVars["grey-5"],
-});
+globalStyle(
+    `${tableWrapperClassName} table${tableWithHeaderRowClassName} tr:first-of-type td::before`,
+    {
+        content: '""',
+        pointerEvents: "none",
+        position: "absolute",
+        top: 1,
+        left: 1,
+        right: 0,
+        bottom: 0,
+        backgroundColor: colorSchemeVars["grey-1-translucent"],
+    },
+);
 
-globalStyle(`${tableWithHeaderRowClassName} tr:first-of-type td ${paragraphClassName}`, {
-    fontWeight: fontStyles["bold"].fontWeight,
-});
+globalStyle(
+    `${tableWrapperClassName} table${tableWithHeaderRowClassName} tr:first-of-type td:last-of-type::before`,
+    {right: 1},
+);
 
-export const tableWithHeaderColumnClassName = style({});
+globalStyle(
+    `${tableWrapperClassName} table${tableWithHeaderRowClassName} tr:first-of-type:last-of-type td::before`,
+    {bottom: 1},
+);
 
-// this targets the cells in the header column (first column in each row)
-globalStyle(`${tableWithHeaderColumnClassName} tr td:first-of-type`, {
-    color: colorSchemeVars["blue-70"],
-    fontWeight: fontStyles["bold"].fontWeight,
-    backgroundColor: colorSchemeVars["grey-5"],
-});
+globalStyle(
+    `${tableWrapperClassName} table${tableWithHeaderColumnClassName} tr td:first-of-type::before`,
+    {
+        content: '""',
+        pointerEvents: "none",
+        position: "absolute",
+        top: 1,
+        left: 1,
+        right: 0,
+        bottom: 0,
+        backgroundColor: colorSchemeVars["grey-1-translucent"],
+    },
+);
 
-globalStyle(`${tableWithHeaderColumnClassName} tr td:first-of-type ${paragraphClassName}`, {
-    fontWeight: fontStyles["bold"].fontWeight,
-});
+globalStyle(
+    `${tableWrapperClassName} table${tableWithHeaderColumnClassName} tr td:first-of-type:last-of-type::before`,
+    {right: 1},
+);
+
+globalStyle(
+    `${tableWrapperClassName} table${tableWithHeaderColumnClassName} tr:last-of-type td:first-of-type::before`,
+    {bottom: 1},
+);
 
 export const tableCellSelectionClassName = style({
     pointerEvents: "none",

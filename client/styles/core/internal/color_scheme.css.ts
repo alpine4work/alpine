@@ -195,6 +195,7 @@ function createTheme(color: ThemeColor) {
 const themeColorSchemeVars: {[K in keyof ReturnType<typeof createTheme>]: CssVarFunction} =
     createGlobalTheme(":root", createTheme(defaultThemeColor));
 
+const grey1TranslucentColor = getColorForShiftingGreyColor(0.1, "1", "0");
 const grey5TranslucentColor = getColorForShiftingGreyColor(0.1, "5", "0");
 const grey10TranslucentColor = getColorForShiftingGreyColor(0.1, "10", "0");
 const grey30TranslucentColor = getColorForShiftingGreyColor(0.1, "30", "0");
@@ -245,29 +246,36 @@ const specialGreyColorVars: {
     "grey-70-opacity-80": CssVarFunction;
 
     /**
+     * When rendered over `grey-0` produces the color `grey-1`. Useful when you
+     * want the color `grey-1` on a white background but over some colorful
+     * content you want the color to show through.
+     */
+    "grey-1-translucent": CssVarFunction;
+
+    /**
      * When rendered over `grey-0` produces the color `grey-5`. Useful when you
-     * want the color `grey-5` but on a white background but over some colorful
+     * want the color `grey-5` on a white background but over some colorful
      * content you want the color to show through.
      */
     "grey-5-translucent": CssVarFunction;
 
     /**
      * When rendered over `grey-0` produces the color `grey-10`. Useful when you
-     * want the color `grey-10` but on a white background but over some colorful
+     * want the color `grey-10` on a white background but over some colorful
      * content you want the color to show through.
      */
     "grey-10-translucent": CssVarFunction;
 
     /**
      * When rendered over `grey-0` produces the color `grey-30`. Useful when you
-     * want the color `grey-30` but on a white background but over some colorful
+     * want the color `grey-30` on a white background but over some colorful
      * content you want the color to show through.
      */
     "grey-30-translucent": CssVarFunction;
 
     /**
      * When rendered over `grey-0` produces the color `grey-40`. Useful when you
-     * want the color `grey-40` but on a white background but over some colorful
+     * want the color `grey-40` on a white background but over some colorful
      * content you want the color to show through.
      */
     "grey-40-translucent": CssVarFunction;
@@ -280,6 +288,7 @@ const specialGreyColorVars: {
     "grey-0-opacity-90": `${colors["grey-0"]}${opacityHex(0.9)}`,
     "grey-10-opacity-80": `${colors["grey-10"]}${opacityHex(0.8)}`,
     "grey-70-opacity-80": `${colors["grey-70"]}${opacityHex(0.8)}`,
+    "grey-1-translucent": grey1TranslucentColor.light,
     "grey-5-translucent": grey5TranslucentColor.light,
     "grey-10-translucent": grey10TranslucentColor.light,
     "grey-30-translucent": grey30TranslucentColor.light,
@@ -296,6 +305,7 @@ globalStyle(darkColorSchemeSelector, {
         "grey-0-opacity-90": `${invertedColorsWithShade["grey-0"]}${opacityHex(0.9)}`,
         "grey-10-opacity-80": `${invertedColorsWithShade["grey-10"]}${opacityHex(0.8)}`,
         "grey-70-opacity-80": `${invertedColorsWithShade["grey-70"]}${opacityHex(0.8)}`,
+        "grey-1-translucent": grey1TranslucentColor.dark,
         "grey-5-translucent": grey5TranslucentColor.dark,
         "grey-10-translucent": grey10TranslucentColor.dark,
         "grey-30-translucent": grey30TranslucentColor.dark,
@@ -370,6 +380,7 @@ export const greyElevated1ClassName = style({});
 globalStyle(`${darkColorSchemeSelector} ${greyElevated1ClassName}`, {
     vars: {
         [colorSchemeVars["grey-0"]]: colors["grey-100-elevated-1"],
+        [colorSchemeVars["grey-1"]]: colors["grey-99-elevated-1"],
         [colorSchemeVars["grey-5"]]: colors["grey-90-elevated-1"],
         [colorSchemeVars["grey-10"]]: colors["grey-80-elevated-1"],
         [colorSchemeVars["grey-20"]]: colors["grey-70-elevated-1"],
@@ -390,6 +401,7 @@ export const greyElevated2ClassName = style({
 globalStyle(`${darkColorSchemeSelector} ${greyElevated2ClassName}`, {
     vars: {
         [colorSchemeVars["grey-0"]]: colors["grey-100-elevated-2"],
+        [colorSchemeVars["grey-1"]]: colors["grey-99-elevated-2"],
         [colorSchemeVars["grey-5"]]: colors["grey-90-elevated-2"],
         [colorSchemeVars["grey-10"]]: colors["grey-80-elevated-2"],
         [colorSchemeVars["grey-20"]]: colors["grey-70-elevated-2"],

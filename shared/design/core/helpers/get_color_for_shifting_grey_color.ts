@@ -13,6 +13,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 
 export type GreyShade =
     | "0"
+    | "1"
     | "5"
     | "10"
     | "20"
@@ -23,6 +24,7 @@ export type GreyShade =
     | "70"
     | "80"
     | "90"
+    | "99"
     | "100";
 
 /**
