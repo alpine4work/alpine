@@ -222,16 +222,14 @@ export function getContentEditorInsertMenuActions({
     const insertOtherMenuActions: Array<ContentEditorInsertMenuAction> = [];
     insertMenuActions.push(insertOtherMenuActions);
 
-    if (process.env.NODE_ENV !== "production") {
-        insertOtherMenuActions.push({
-            label: "Table",
-            icon: <Table />,
-            isSuggestedInMentionFloater: true,
-            onPress: () => {
-                insertContentTable(assertExists(viewRef.current), getSelection?.());
-            },
-        });
-    }
+    insertOtherMenuActions.push({
+        label: "Table",
+        icon: <Table />,
+        isSuggestedInMentionFloater: true,
+        onPress: () => {
+            insertContentTable(assertExists(viewRef.current), getSelection?.());
+        },
+    });
 
     if (schema.nodes.divider) {
         insertOtherMenuActions.push({
