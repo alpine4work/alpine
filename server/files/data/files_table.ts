@@ -66,6 +66,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 const FilesTable = DynamoTableSchema.new({
     name: "Files",
@@ -490,14 +491,18 @@ export async function startUploadingFile(
             contentLength: 0,
         };
 
-        // We allow one file to be uploaded beyond the space's max content length. This
-        // allows us to say "you've reached your limit" in our error message.
-        //
         // If we're in the default development space then we'll allow infinite file
         // uploads so developers can test file uploads without limits.
-        if (
+        const isFileLimitEnforced =
             (process.env.NODE_ENV !== "development" ||
                 spaceId !== getDynamoSeedConstants().defaultSpaceId) &&
+            // We also disable the file limit for our own space.
+            spaceId !== alpineCompanyKnownSpaceId;
+
+        // We allow one file to be uploaded beyond the space's max content length. This
+        // allows us to say "you've reached your limit" in our error message.
+        if (
+            isFileLimitEnforced &&
             fileTotalsItem.contentLength > maxFileTotalContentLengthForSpace
         ) {
             throw new InvalidArgumentError(
