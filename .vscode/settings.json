@@ -23,7 +23,11 @@
     // in process manager with this set to `true`.
     "search.followSymlinks": false,
 
-    "explorer.fileNesting.enabled": true,
+    // To enable file nesting, add this to your personal settings:
+    //
+    // ```
+    // "explorer.fileNesting.enabled": true,
+    // ```
     "explorer.fileNesting.expand": true,
     "explorer.fileNesting.patterns": {
         "*.py": "${capture}.py, test_${capture}.py, ${capture}_test.py",
