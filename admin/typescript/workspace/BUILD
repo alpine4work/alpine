@@ -44,12 +44,14 @@ js_binary(
 # bazel build //admin/typescript/workspace:workspace_typescript_projects && diff -u bazel-bin/admin/typescript/workspace/workspace_typescript_projects <(bazel query 'kind(ts_project, //...)')
 # ```
 WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
+    "//.vscode/extensions/bazel_test_codelens:bazel_test_codelens",
     "//admin/adhoc",
     "//admin/aws:cdk",
     "//admin/dev",
     "//admin/dynamo",
     "//admin/eslint",
     "//app/integration_tests:integration_tests_lib",
+    "//client/content/file_entity/internal/test_helpers",
     # Can't use `//native/mobile/ios:app` since then we need to traverse
     # `swift_library()` and `ios_application()` which we can't do on our Linux CI
     # server since Swift isn't installed.
@@ -60,6 +62,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//server/forum/realtime:post_realtime_connection_test",
     "//server/notifications/data:notifications_table_forum_test",
     "//server/tasks/realtime:task_realtime_connection_test",
+    "//shared/spaces/test_helpers",
 ]
 
 genquery(

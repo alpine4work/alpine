@@ -5,6 +5,7 @@ Every `ts_project()` rule in our codebase.
 """
 
 WORKSPACE_TYPESCRIPT_PROJECTS = [
+    "//.vscode/extensions/bazel_test_codelens:bazel_test_codelens",
     "//admin/adhoc:adhoc_lib",
     "//admin/aws:aws",
     "//admin/crawl:crawl",
@@ -28,6 +29,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//client/chat:chat",
     "//client/content:content",
     "//client/content/file_entity:file_entity",
+    "//client/content/file_entity/internal/test_helpers:test_helpers",
     "//client/content/state:state",
     "//client/context:context",
     "//client/design:design",
@@ -159,6 +161,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/schema:schema",
     "//shared/search:search",
     "//shared/spaces:spaces",
+    "//shared/spaces/test_helpers:test_helpers",
     "//shared/store:store",
     "//shared/tasks:tasks",
     "//shared/tasks/test_helpers:test_helpers",
