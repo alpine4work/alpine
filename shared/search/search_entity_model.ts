@@ -83,29 +83,41 @@ export class SearchEntityModel {
         return this.id;
     }
 
+    /**
+     * Merge two `SearchEntityModel`s together.
+     *
+     * You should generally pass in the older data into `oldData` and newer data
+     * to `newData`. So we avoid unnecessary re-renders when the data is equal
+     * (and `oldData` is preferred) and in case we don't have clear version
+     * information we prefer the newer data (`newData`).
+     */
     public static mergeData(
-        data1: SearchEntityModelData,
-        data2: SearchEntityModelData,
+        oldData: SearchEntityModelData,
+        newData: SearchEntityModelData,
     ): SearchEntityModelData {
-        assert(data1.id === data2.id);
+        assert(oldData.id === newData.id);
 
         const titleVersionCompare = compareSearchEntityTitleVersion(
-            data1.titleVersion,
-            data2.titleVersion,
+            oldData.titleVersion,
+            newData.titleVersion,
         );
-        const mergedMedia = mergeSearchEntityMediaModel(data1.media, data2.media);
+        const mergedMedia = mergeSearchEntityMediaModel(oldData.media, newData.media);
 
-        if (titleVersionCompare > 0 && data1.media === mergedMedia) {
-            return data1;
+        if (
+            (titleVersionCompare > 0 ||
+                (titleVersionCompare === 0 && oldData.title === newData.title)) &&
+            oldData.media === mergedMedia
+        ) {
+            return oldData;
         }
-        if (titleVersionCompare <= 0 && data2.media === mergedMedia) {
-            return data2;
+        if (titleVersionCompare <= 0 && newData.media === mergedMedia) {
+            return newData;
         }
 
         return {
-            id: data1.id,
-            title: titleVersionCompare > 0 ? data1.title : data2.title,
-            titleVersion: titleVersionCompare > 0 ? data1.titleVersion : data2.titleVersion,
+            id: oldData.id,
+            title: titleVersionCompare > 0 ? oldData.title : newData.title,
+            titleVersion: titleVersionCompare >= 0 ? oldData.titleVersion : newData.titleVersion,
             media: mergedMedia,
         };
     }

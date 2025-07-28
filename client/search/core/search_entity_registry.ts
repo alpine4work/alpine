@@ -1,4 +1,5 @@
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
+import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
@@ -54,6 +55,7 @@ export interface SearchEntityRegistryFriend {
  */
 export class SearchEntityRegistry {
     private _scheduledEntityUpdates: Set<SearchEntityModel> | null = null;
+    private _entityUpdatesScheduledDuringRun = 0;
 
     private readonly _friendsStore = new ValueStore<ReadonlySet<SearchEntityRegistryFriend>>(
         emptySet,
@@ -151,7 +153,8 @@ export class SearchEntityRegistry {
         );
 
         const store = Store.map(friendDataStore, dataStore, (friendData, data) => {
-            return friendData !== null ? SearchEntityModel.mergeData(friendData, data) : data;
+            if (friendData === null) return data;
+            return SearchEntityModel.mergeData(friendData, data);
         });
 
         return Object.assign(store, {set: dataStore.set.bind(dataStore)});
@@ -235,20 +238,42 @@ export class SearchEntityRegistry {
         return entityStore;
     }
 
+    private _withSetTimeoutSchedulerForTest?: boolean;
+
+    public withSetTimeoutSchedulerForTest() {
+        assert(import.meta.jest);
+        this._withSetTimeoutSchedulerForTest = true;
+    }
+
     private _scheduleEntityUpdate(entity: SearchEntityModel) {
         assert(typeof window !== "undefined");
+
+        if (this._entityUpdatesScheduledDuringRun >= 20) {
+            this._entityUpdatesScheduledDuringRun = 0;
+            throw new InternalError(
+                "`SearchEntityRegistry._runScheduledEntityUpdates()` scheduled new updates 20 times in a loop, there’s likely an update cycle",
+            );
+        }
 
         if (this._scheduledEntityUpdates !== null) {
             this._scheduledEntityUpdates.add(entity);
         } else {
             this._scheduledEntityUpdates = new Set([entity]);
 
-            // Use the React scheduler to schedule a low priority update. If React is
-            // processing user actions then we want that to finish before rendering
-            // new accounts.
-            unstable_scheduleCallback(unstable_LowPriority, () => {
-                this._runScheduledEntityUpdates();
-            });
+            if (import.meta.jest && this._withSetTimeoutSchedulerForTest) {
+                // Allow unit tests to use `setTimeout()` as the scheduler so we can use Jest
+                // fake timers.
+                setTimeout(() => {
+                    this._runScheduledEntityUpdates();
+                });
+            } else {
+                // Use the React scheduler to schedule a low priority update. If React is
+                // processing user actions then we want that to finish before rendering
+                // new accounts.
+                unstable_scheduleCallback(unstable_LowPriority, () => {
+                    this._runScheduledEntityUpdates();
+                });
+            }
         }
     }
 
@@ -266,5 +291,23 @@ export class SearchEntityRegistry {
                     );
             }
         });
+
+        // NOTE(calebmer): Helps detect infinite update cycles. If a listener to one of
+        // the stores we updated with the above `set()`s then calls `getEntityStore()`
+        // and schedules a new update we might be stuck in an infinite loop!
+        //
+        // We saw this happen once with task search entities (due to an interaction
+        // with the friend store). Our `SearchEntityModel.mergeData()` function had a
+        // bug which caused `getEntityStore()` to think it had new data (when it
+        // actually had data that equaled what was already in the store) and so it
+        // would schedule an update on every React re-render.
+        //
+        // If we schedule new updates during `_runScheduledEntityUpdates()` more than
+        // 20 times we'll throw an error instead of silently looping forever.
+        if (this._scheduledEntityUpdates !== null) {
+            this._entityUpdatesScheduledDuringRun += 1;
+        } else {
+            this._entityUpdatesScheduledDuringRun = 0;
+        }
     }
 }
